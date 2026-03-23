@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" fill="none">
+  <rect width="800" height="800" rx="80" fill="#F1FCFF"/>
+  <rect x="150" y="180" width="500" height="440" rx="60" fill="#7BD8F7"/>
+  <rect x="190" y="220" width="420" height="360" rx="40" fill="#F9FEFF"/>
+  <text x="400" y="340" text-anchor="middle" font-family="Arial, sans-serif" font-size="72" font-weight="700" fill="#1693BA">IQ</text>
+  <text x="400" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="46" font-weight="700" fill="#2C2241">Barritas</text>
+  <text x="400" y="484" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#1693BA">MANI</text>
+</svg>

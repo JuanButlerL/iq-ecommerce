@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" fill="none">
+  <rect width="800" height="800" rx="80" fill="#DDF7FF"/>
+  <circle cx="232" cy="210" r="84" fill="#BDEEFF"/>
+  <circle cx="604" cy="565" r="94" fill="#BDEEFF"/>
+  <rect x="210" y="150" width="380" height="500" rx="50" fill="#7BD8F7"/>
+  <rect x="245" y="188" width="310" height="424" rx="34" fill="#F9FEFF"/>
+  <text x="400" y="360" text-anchor="middle" font-family="Arial, sans-serif" font-size="70" font-weight="700" fill="#1693BA">IQ Kids</text>
+  <text x="400" y="438" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#2C2241">Caja Barritas</text>
+  <text x="400" y="492" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="700" fill="#1693BA">MANI</text>
+</svg>

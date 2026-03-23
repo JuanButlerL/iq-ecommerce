@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" fill="none">
+  <rect width="800" height="600" rx="48" fill="#FFFFFF" fill-opacity=".08"/>
+  <circle cx="180" cy="210" r="96" fill="#FFD35C"/>
+  <circle cx="402" cy="302" r="120" fill="#7BD8F7"/>
+  <circle cx="626" cy="218" r="100" fill="#F1518F"/>
+  <circle cx="150" cy="180" r="12" fill="#2C2241"/>
+  <circle cx="210" cy="180" r="12" fill="#2C2241"/>
+  <path d="M145 240c18 22 52 22 70 0" stroke="#2C2241" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="370" cy="276" r="14" fill="#2C2241"/>
+  <circle cx="436" cy="276" r="14" fill="#2C2241"/>
+  <path d="M366 338c22 26 82 26 104 0" stroke="#2C2241" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="596" cy="190" r="12" fill="#2C2241"/>
+  <circle cx="654" cy="190" r="12" fill="#2C2241"/>
+  <path d="M592 248c20 22 52 22 72 0" stroke="#2C2241" stroke-width="10" stroke-linecap="round"/>
+  <text x="400" y="520" text-anchor="middle" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#FFFFFF">NADA MAS!</text>
+</svg>

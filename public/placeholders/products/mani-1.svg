@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" fill="none">
+  <rect width="800" height="800" rx="80" fill="#E9FAFF"/>
+  <rect x="180" y="120" width="440" height="560" rx="54" fill="#7BD8F7"/>
+  <rect x="218" y="162" width="364" height="476" rx="38" fill="#F9FEFF"/>
+  <circle cx="400" cy="310" r="88" fill="#7BD8F7"/>
+  <path d="M400 242c32 0 58 26 58 58s-26 58-58 58-58-26-58-58 26-58 58-58Z" fill="#F9FEFF"/>
+  <text x="400" y="455" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#1693BA">MANI</text>
+  <text x="400" y="515" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#2C2241">x 12 unidades</text>
+</svg>

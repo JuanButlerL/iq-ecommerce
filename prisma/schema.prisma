@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATIONS
+}
+
+enum ProductColorTheme {
+  CACAO
+  BANANA
+  PEANUT
+}
+
+enum ShippingMode {
+  FLAT
+  PROVINCE
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROOF_UPLOADED
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PROOF_UPLOADED
+  PAID
+  PREPARING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  EXPIRED
+}
+
+enum SyncStatus {
+  PENDING
+  SUCCESS
+  ERROR
+}
+
+enum SyncProvider {
+  MOCK
+  GOOGLE_SHEETS
+  APPS_SCRIPT
+}
+
+enum SyncJobStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  ERROR
+}
+
+enum SyncLogStatus {
+  SUCCESS
+  ERROR
+}
+
+enum OrderSource {
+  WEB
+}
+
+model AdminUser {
+  id             String    @id @default(uuid()) @db.Uuid
+  supabaseUserId String?   @unique @map("supabase_user_id") @db.Uuid
+  email          String    @unique
+  fullName       String    @map("full_name")
+  role           AdminRole @default(OPERATIONS)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("admin_users")
+}
+
+model Product {
+  id               String            @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String            @unique
+  shortDescription String            @map("short_description")
+  longDescription  String            @map("long_description")
+  priceArs         Int               @map("price_ars")
+  colorTheme       ProductColorTheme @map("color_theme")
+  active           Boolean           @default(true)
+  visible          Boolean           @default(true)
+  manualSoldOut    Boolean           @default(false) @map("manual_sold_out")
+  featured         Boolean           @default(false)
+  sortOrder        Int               @default(0) @map("sort_order")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  images           ProductImage[]
+  orderItems       OrderItem[]
+
+  @@index([active, visible, featured], map: "products_visibility_idx")
+  @@index([sortOrder], map: "products_sort_idx")
+  @@map("products")
+}
+
+model ProductImage {
+  id         String   @id @default(uuid()) @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  filePath   String   @map("file_path")
+  publicUrl  String   @map("public_url")
+  altText    String   @map("alt_text")
+  sortOrder  Int      @default(0) @map("sort_order")
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at")
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder], map: "product_images_sort_idx")
+  @@map("product_images")
+}
+
+model ShippingRule {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  name                  String
+  description           String?
+  mode                  ShippingMode
+  flatPrice             Int?                   @map("flat_price")
+  active                Boolean                @default(true)
+  isDefault             Boolean                @default(false) @map("is_default")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  provinces             ShippingRuleProvince[]
+  storeSettings         StoreSettings[]
+
+  @@map("shipping_rules")
+}
+
+model ShippingRuleProvince {
+  id             String       @id @default(uuid()) @db.Uuid
+  shippingRuleId String       @map("shipping_rule_id") @db.Uuid
+  provinceCode   String       @map("province_code")
+  provinceName   String       @map("province_name")
+  shippingPrice  Int          @map("shipping_price")
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  shippingRule   ShippingRule @relation(fields: [shippingRuleId], references: [id], onDelete: Cascade)
+
+  @@unique([shippingRuleId, provinceCode], map: "shipping_rule_province_code_key")
+  @@index([provinceCode], map: "shipping_rule_province_idx")
+  @@map("shipping_rule_provinces")
+}
+
+model StoreSettings {
+  id                     String       @id @default("default")
+  storeName              String       @map("store_name")
+  storeCurrency          String       @default("ARS") @map("store_currency")
+  whatsappNumber         String       @map("whatsapp_number")
+  instagramUrl           String?      @map("instagram_url")
+  contactEmail           String       @map("contact_email")
+  bankAlias              String       @map("bank_alias")
+  bankCbu                String       @map("bank_cbu")
+  bankName               String       @map("bank_name")
+  bankHolder             String       @map("bank_holder")
+  bankTaxId              String       @map("bank_tax_id")
+  minimumOrderAmount     Int          @map("minimum_order_amount")
+  freeShippingThreshold  Int          @map("free_shipping_threshold")
+  flatShippingPrice      Int          @default(0) @map("flat_shipping_price")
+  shippingMode           ShippingMode @default(FLAT) @map("shipping_mode")
+  activeShippingRuleId   String?      @map("active_shipping_rule_id") @db.Uuid
+  checkoutMessage        String?      @map("checkout_message")
+  transferInstructions   String?      @map("transfer_instructions")
+  orderReservationHours  Int?         @map("order_reservation_hours")
+  institutionalBanner    String?      @map("institutional_banner")
+  purchaseSuccessMessage String?      @map("purchase_success_message")
+  requireTaxId           Boolean      @default(false) @map("require_tax_id")
+  showFloatingWhatsapp   Boolean      @default(true) @map("show_floating_whatsapp")
+  isStoreOpen            Boolean      @default(true) @map("is_store_open")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+  activeShippingRule     ShippingRule? @relation(fields: [activeShippingRuleId], references: [id], onDelete: SetNull)
+
+  @@map("store_settings")
+}
+
+model Order {
+  id                    String               @id @default(uuid()) @db.Uuid
+  publicOrderNumber     String               @unique @map("public_order_number")
+  customerFirstName     String               @map("customer_first_name")
+  customerLastName      String               @map("customer_last_name")
+  customerEmail         String               @map("customer_email")
+  customerPhone         String               @map("customer_phone")
+  customerTaxId         String?              @map("customer_tax_id")
+  province              String
+  locality              String
+  postalCode            String               @map("postal_code")
+  addressLine           String               @map("address_line")
+  addressExtra          String?              @map("address_extra")
+  notes                 String?
+  subtotalArs           Int                  @map("subtotal_ars")
+  shippingArs           Int                  @map("shipping_ars")
+  totalArs              Int                  @map("total_ars")
+  currency              String               @default("ARS")
+  paymentMethod         PaymentMethod        @default(BANK_TRANSFER) @map("payment_method")
+  paymentStatus         PaymentStatus        @default(PENDING) @map("payment_status")
+  orderStatus           OrderStatus          @default(PENDING_PAYMENT) @map("order_status")
+  syncStatus            SyncStatus           @default(PENDING) @map("sync_status")
+  syncLastError         String?              @map("sync_last_error")
+  syncedAt              DateTime?            @map("synced_at")
+  source                OrderSource          @default(WEB)
+  reservationExpiresAt  DateTime?            @map("reservation_expires_at")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+  items                 OrderItem[]
+  statusHistory         OrderStatusHistory[]
+  paymentProofs         PaymentProof[]
+  syncJobs              SyncJob[]
+
+  @@index([createdAt], map: "orders_created_at_idx")
+  @@index([orderStatus, paymentStatus], map: "orders_status_idx")
+  @@index([syncStatus], map: "orders_sync_status_idx")
+  @@map("orders")
+}
+
+model OrderItem {
+  id                  String   @id @default(uuid()) @db.Uuid
+  orderId             String   @map("order_id") @db.Uuid
+  productId           String?  @map("product_id") @db.Uuid
+  productNameSnapshot String   @map("product_name_snapshot")
+  unitPriceArs        Int      @map("unit_price_ars")
+  quantity            Int
+  lineTotalArs        Int      @map("line_total_ars")
+  createdAt           DateTime @default(now()) @map("created_at")
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId], map: "order_items_order_idx")
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(uuid()) @db.Uuid
+  orderId   String      @map("order_id") @db.Uuid
+  status    OrderStatus
+  note      String?
+  changedBy String?     @map("changed_by")
+  createdAt DateTime    @default(now()) @map("created_at")
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt], map: "order_status_history_order_idx")
+  @@map("order_status_history")
+}
+
+model PaymentProof {
+  id         String   @id @default(uuid()) @db.Uuid
+  orderId    String   @map("order_id") @db.Uuid
+  storagePath String  @map("storage_path")
+  publicUrl  String?  @map("public_url")
+  fileName   String   @map("file_name")
+  fileSize   Int      @map("file_size")
+  mimeType   String   @map("mime_type")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, uploadedAt], map: "payment_proofs_order_idx")
+  @@map("payment_proofs")
+}
+
+model SyncJob {
+  id              String        @id @default(uuid()) @db.Uuid
+  orderId         String        @map("order_id") @db.Uuid
+  provider        SyncProvider
+  status          SyncJobStatus @default(PENDING)
+  attempts        Int           @default(0)
+  nextRetryAt     DateTime?     @map("next_retry_at")
+  lastError       String?       @map("last_error")
+  payloadSnapshot Json?         @map("payload_snapshot")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  logs            SyncLog[]
+
+  @@index([status, nextRetryAt], map: "sync_jobs_status_idx")
+  @@map("sync_jobs")
+}
+
+model SyncLog {
+  id              String        @id @default(uuid()) @db.Uuid
+  syncJobId       String        @map("sync_job_id") @db.Uuid
+  attemptNumber   Int           @map("attempt_number")
+  requestPayload  Json?         @map("request_payload")
+  responsePayload Json?         @map("response_payload")
+  status          SyncLogStatus
+  errorMessage    String?       @map("error_message")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  syncJob         SyncJob       @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+
+  @@index([syncJobId, attemptNumber], map: "sync_logs_job_idx")
+  @@map("sync_logs")
+}

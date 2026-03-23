@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" fill="none">
+  <rect width="800" height="800" rx="80" fill="#FFF8D9"/>
+  <rect x="180" y="120" width="440" height="560" rx="54" fill="#FFD35C"/>
+  <rect x="218" y="162" width="364" height="476" rx="38" fill="#FFFDF3"/>
+  <circle cx="400" cy="310" r="88" fill="#FFD35C"/>
+  <path d="M400 242c32 0 58 26 58 58s-26 58-58 58-58-26-58-58 26-58 58-58Z" fill="#FFFDF3"/>
+  <text x="400" y="455" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" font-weight="700" fill="#D09A00">BANANA</text>
+  <text x="400" y="515" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#2C2241">x 12 unidades</text>
+</svg>

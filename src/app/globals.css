@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --font-baloo: "Arial Rounded MT Bold", "Trebuchet MS", "Avenir Next Rounded", "Segoe UI", sans-serif;
+  --font-nunito: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+  @apply bg-background font-body text-foreground antialiased;
+}
+
+a {
+  @apply transition-colors;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 137, 145, 0.35) transparent;
+}
