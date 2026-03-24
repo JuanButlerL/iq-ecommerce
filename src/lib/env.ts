@@ -52,6 +52,14 @@ const parsedEnv = envSchema.parse({
   DEV_ADMIN_BYPASS: process.env.DEV_ADMIN_BYPASS,
 });
 
+function isRealSupabaseUrl(value?: string) {
+  return Boolean(value) && !String(value).includes("your-project.supabase.co") && !String(value).includes("placeholder.supabase.co");
+}
+
+function isRealSupabaseKey(value?: string) {
+  return Boolean(value) && !String(value).includes("your-anon-key") && !String(value).includes("your-service-role-key") && !String(value).includes("placeholder-");
+}
+
 export const env = {
   ...parsedEnv,
   isProduction: process.env.NODE_ENV === "production",
@@ -65,16 +73,9 @@ export const env = {
   localAdminUsesDefaultEmail: parsedEnv.ADMIN_LOCAL_EMAIL === "admin@iqkids.local",
   localAdminUsesDefaultPassword: parsedEnv.ADMIN_LOCAL_PASSWORD === "Cambiame123!",
   localAdminUsesDefaultSecret: parsedEnv.ADMIN_SESSION_SECRET === "iqkids-local-admin-secret",
-  hasSupabaseAuth:
-    Boolean(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) &&
-    Boolean(parsedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) &&
-    !String(parsedEnv.NEXT_PUBLIC_SUPABASE_URL).includes("your-project.supabase.co") &&
-    !String(parsedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY).includes("your-anon-key"),
+  hasSupabaseAuth: isRealSupabaseUrl(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) && isRealSupabaseKey(parsedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY),
   hasSupabaseAdmin:
-    Boolean(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) &&
-    Boolean(parsedEnv.SUPABASE_SERVICE_ROLE_KEY) &&
-    !String(parsedEnv.NEXT_PUBLIC_SUPABASE_URL).includes("your-project.supabase.co") &&
-    !String(parsedEnv.SUPABASE_SERVICE_ROLE_KEY).includes("your-service-role-key"),
+    isRealSupabaseUrl(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) && isRealSupabaseKey(parsedEnv.SUPABASE_SERVICE_ROLE_KEY),
   canUseLocalAdminAuth:
     Boolean(parsedEnv.ADMIN_LOCAL_EMAIL) &&
     Boolean(parsedEnv.ADMIN_LOCAL_PASSWORD) &&
