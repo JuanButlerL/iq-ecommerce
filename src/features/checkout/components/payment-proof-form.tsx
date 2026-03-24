@@ -21,6 +21,7 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const form = useForm<PaymentProofFormInput>({
     resolver: zodResolver(paymentProofFormSchema),
@@ -55,11 +56,22 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
       </div>
 
       <div className="grid gap-4">
-        <Input
-          inputMode="numeric"
-          placeholder="DNI del titular que transfirio"
-          {...form.register("transferSenderName")}
-        />
+        <div className="space-y-2">
+          <label className="block text-sm font-bold text-brand-ink">
+            DNI del titular que transfirio <span className="text-red-600">*</span>
+          </label>
+          <Input
+            inputMode="numeric"
+            placeholder="Ej: 30123456"
+            aria-invalid={form.formState.errors.transferSenderName ? "true" : "false"}
+            className={form.formState.errors.transferSenderName ? "border-red-500 focus:border-red-500 focus:ring-red-100" : ""}
+            {...form.register("transferSenderName")}
+          />
+          <p className="text-xs text-brand-ink/55">Campo obligatorio. Ingresa un DNI valido de 7 u 8 numeros.</p>
+          {form.formState.errors.transferSenderName ? (
+            <p className="text-sm font-bold text-red-600">{form.formState.errors.transferSenderName.message}</p>
+          ) : null}
+        </div>
       </div>
 
       <div className="rounded-[1.75rem] border border-dashed border-brand-pink/30 bg-[linear-gradient(180deg,rgba(255,247,248,0.95)_0%,rgba(255,255,255,1)_100%)] p-4">
@@ -68,7 +80,10 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
             type="file"
             accept=".jpg,.jpeg,.png,.pdf"
             className="sr-only"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              setFile(event.target.files?.[0] ?? null);
+              setFileError(null);
+            }}
           />
           <div className="rounded-[1.5rem] border border-white bg-white p-5 shadow-[0_10px_30px_rgba(44,34,65,0.06)] transition hover:shadow-[0_16px_40px_rgba(44,34,65,0.10)]">
             <div className="flex items-start gap-4">
@@ -82,6 +97,7 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
                     <WandSparkles className="h-3.5 w-3.5" />
                     Facil
                   </span>
+                  <span className="text-sm font-bold text-red-600">*</span>
                 </div>
                 <p className="mt-1 text-sm text-brand-ink/65">
                   Toca aca para elegir una foto o PDF desde tu celular.
@@ -95,6 +111,8 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
           </div>
         </label>
       </div>
+
+      {fileError ? <p className="text-sm font-bold text-red-600">{fileError}</p> : null}
 
       {file ? (
         <div className="space-y-3 rounded-[1.5rem] bg-background p-4">
@@ -127,10 +145,12 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
         disabled={!file || isPending}
         onClick={form.handleSubmit((values) => {
           if (!file) {
+            setFileError("Debes adjuntar el comprobante en JPG, PNG o PDF antes de enviarlo.");
             return;
           }
 
           setError(null);
+          setFileError(null);
           startTransition(async () => {
             const formData = new FormData();
             formData.append("file", file);
@@ -155,6 +175,10 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
       >
         {isPending ? "Subiendo comprobante..." : "Ya transferi, enviar comprobante"}
       </Button>
+
+      <p className="text-center text-xs text-brand-ink/55">
+        Los campos marcados con <span className="font-bold text-red-600">*</span> son obligatorios.
+      </p>
 
       <p className="text-center text-xs text-brand-ink/55">
         Cuando lo recibamos, tu pago queda en revision y operaciones puede ver el archivo enseguida.
