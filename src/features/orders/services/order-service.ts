@@ -194,7 +194,19 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     });
   });
 
-  const syncResult = await syncOrder(order.id);
+  const syncResult = await syncOrder(order.id).catch(async (syncError) => {
+    const message = syncError instanceof Error ? syncError.message : "Sync error";
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        syncStatus: SyncStatus.ERROR,
+        syncLastError: message,
+      },
+    });
+
+    return null;
+  });
 
   return {
     orderNumber: order.publicOrderNumber,
