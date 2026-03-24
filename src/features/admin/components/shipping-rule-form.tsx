@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ARGENTINA_PROVINCES, normalizeProvinceName } from "@/lib/constants/provinces";
 
 type ShippingRuleFormProps = {
   rule: ShippingRule & { provinces: ShippingRuleProvince[] };
@@ -27,7 +28,43 @@ export function ShippingRuleForm({ rule }: ShippingRuleFormProps) {
     active: rule.active,
     isDefault: rule.isDefault,
   });
-  const [provinces, setProvinces] = useState(rule.provinces);
+  const [provinces, setProvinces] = useState(() => {
+    const provinceMap = new Map(
+      rule.provinces.map((province) => [province.provinceCode, province]),
+    );
+
+    return ARGENTINA_PROVINCES.map((province) => {
+      const existingProvince = provinceMap.get(province.code);
+
+      if (existingProvince) {
+        return {
+          ...existingProvince,
+          provinceName: province.name,
+        };
+      }
+
+      const matchedByName = rule.provinces.find(
+        (entry) => normalizeProvinceName(entry.provinceName) === normalizeProvinceName(province.name),
+      );
+
+      if (matchedByName) {
+        return {
+          ...matchedByName,
+          provinceCode: province.code,
+          provinceName: province.name,
+        };
+      }
+
+      return {
+        id: `draft-${province.code}`,
+        shippingRuleId: rule.id,
+        provinceCode: province.code,
+        provinceName: province.name,
+        shippingPrice: province.shippingPrice,
+        active: true,
+      };
+    });
+  });
 
   return (
     <Card className="space-y-5 p-4 md:p-6">

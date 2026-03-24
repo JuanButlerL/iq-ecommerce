@@ -23,7 +23,7 @@ export function SiteHeader() {
 
   useEffect(() => {
     const compactAt = 96;
-    const expandAt = 48;
+    const expandAt = 8;
 
     const handleScroll = () => {
       const currentScroll = window.scrollY;

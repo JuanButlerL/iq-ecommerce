@@ -1,6 +1,7 @@
 import { ShippingMode } from "@prisma/client";
 
 import type { getStoreSettings } from "@/features/settings/queries";
+import { normalizeProvinceName } from "@/lib/constants/provinces";
 
 type Settings = Awaited<ReturnType<typeof getStoreSettings>>;
 
@@ -40,8 +41,9 @@ export function calculateShippingQuote(
   let shippingArs = settings.flatShippingPrice;
 
   if (settings.shippingMode === ShippingMode.PROVINCE && settings.activeShippingRule) {
+    const selectedProvince = provinceName ? normalizeProvinceName(provinceName) : undefined;
     const provinceRule = settings.activeShippingRule.provinces.find(
-      (province) => province.active && province.provinceName === provinceName,
+      (province) => province.active && normalizeProvinceName(province.provinceName) === selectedProvince,
     );
 
     if (provinceRule) {

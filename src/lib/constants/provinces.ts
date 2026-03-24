@@ -6,7 +6,8 @@ export type ArgentinaProvince = {
 
 export const ARGENTINA_PROVINCES: ArgentinaProvince[] = [
   { code: "B", name: "Buenos Aires", shippingPrice: 5200 },
-  { code: "C", name: "Ciudad Autonoma de Buenos Aires", shippingPrice: 4800 },
+  { code: "GBA", name: "GBA", shippingPrice: 5200 },
+  { code: "C", name: "CABA", shippingPrice: 4800 },
   { code: "K", name: "Catamarca", shippingPrice: 6900 },
   { code: "H", name: "Chaco", shippingPrice: 7200 },
   { code: "U", name: "Chubut", shippingPrice: 7900 },
@@ -30,3 +31,20 @@ export const ARGENTINA_PROVINCES: ArgentinaProvince[] = [
   { code: "V", name: "Tierra del Fuego", shippingPrice: 9200 },
   { code: "T", name: "Tucuman", shippingPrice: 6900 },
 ];
+
+const PROVINCE_NAME_ALIASES: Record<string, string> = {
+  "ciudad autonoma de buenos aires": "CABA",
+  caba: "CABA",
+  "gran buenos aires": "GBA",
+  gba: "GBA",
+};
+
+export function normalizeProvinceName(name: string) {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return PROVINCE_NAME_ALIASES[normalized] ?? name.trim();
+}
