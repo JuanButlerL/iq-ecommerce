@@ -12,7 +12,7 @@ export default async function ProductsPage() {
       <section>
         <SectionHeading
           title="Productos"
-          description="Una grilla limpia y directa, alineada al universo visual de IQ Kids."
+          description="Elegi el sabor que mejor acompane cada momento y encontra una opcion simple, rica y pensada para chicos."
         />
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
           {products.map((product) => (
