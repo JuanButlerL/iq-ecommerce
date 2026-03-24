@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { MessageCircleMore } from "lucide-react";
+import { notFound } from "next/navigation";
+import { ArrowRight, Copy } from "lucide-react";
 
+import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { Container } from "@/components/layout/container";
 import { Card } from "@/components/ui/card";
-import { PaymentProofForm } from "@/features/checkout/components/payment-proof-form";
 import { CopyValue } from "@/features/checkout/components/copy-value";
+import { PaymentProofForm } from "@/features/checkout/components/payment-proof-form";
+import { TransferReturnLink } from "@/features/checkout/components/transfer-return-link";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { formatArs } from "@/lib/utils/currency";
@@ -19,7 +22,7 @@ export default async function TransferPage({
   const [order, settings] = await Promise.all([getOrderByNumber(orderNumber), getStoreSettings()]);
 
   if (!order || !settings) {
-    return null;
+    notFound();
   }
 
   const whatsappUrl = buildWhatsappUrl(
@@ -31,33 +34,69 @@ export default async function TransferPage({
     <Container className="grid gap-8 py-12 md:py-16 lg:grid-cols-[1fr_0.8fr]">
       <Card className="space-y-6 p-6">
         <div>
-          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Transferencia bancaria</p>
-          <h1 className="mt-3 font-display text-3xl leading-none text-brand-ink md:text-5xl">Pedido {order.publicOrderNumber}</h1>
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 2 de 2</p>
+          <h1 className="mt-3 font-display text-3xl leading-none text-brand-ink md:text-5xl">
+            Pedido {order.publicOrderNumber}
+          </h1>
           <p className="mt-3 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Transferi el monto exacto y subi el comprobante para cerrar el flujo de compra.
+            Tu pedido ya fue generado, pero todavia falta pagar para confirmarlo.
           </p>
         </div>
-        <div className="rounded-[2rem] bg-brand-peach p-6">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/60">Monto total</p>
-          <p className="mt-2 font-display text-3xl text-brand-pink md:text-5xl">{formatArs(order.totalArs)}</p>
+
+        <div className="rounded-[2rem] border-2 border-brand-pink bg-brand-peach p-6 shadow-[0_18px_50px_rgba(244,137,145,0.18)]">
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Todavia falta pagar</p>
+          <p className="mt-3 text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/60">Monto a transferir</p>
+          <p className="mt-2 font-display text-4xl text-brand-pink md:text-6xl">{formatArs(order.totalArs)}</p>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <CopyValue label="Alias" value={settings.bankAlias} copyable />
+            <CopyValue label="CBU" value={settings.bankCbu} copyable />
+          </div>
+
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-sm font-bold text-brand-ink">
+            <Copy className="h-4 w-4 text-brand-pink" />
+            Pedido {order.publicOrderNumber}
+          </div>
+
+          <p className="mt-4 text-sm text-brand-ink/70">
+            1. Paga con alias o CBU. 2. Volve a este pedido y subi el comprobante.
+          </p>
+
+          {order.reservationExpiresAt ? (
+            <p className="mt-3 text-sm font-bold text-brand-ink">
+              Reserva vigente hasta {order.reservationExpiresAt.toLocaleString("es-AR")}.
+            </p>
+          ) : null}
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <CopyValue label="Alias" value={settings.bankAlias} copyable />
-          <CopyValue label="CBU" value={settings.bankCbu} copyable />
-          <CopyValue label="Banco" value={settings.bankName} />
-          <CopyValue label="Titular" value={settings.bankHolder} />
-          <CopyValue label="CUIT" value={settings.bankTaxId} />
-          <CopyValue label="Email" value={settings.contactEmail} />
-        </div>
-        <div className="flex flex-wrap gap-4">
-          <Link href={whatsappUrl} target="_blank" className="inline-flex items-center gap-2 rounded-full bg-[#25d366] px-5 py-3 text-sm font-bold text-white">
-            <MessageCircleMore className="h-4 w-4" />
-            WhatsApp
+
+        <TransferReturnLink orderNumber={order.publicOrderNumber} />
+
+        <details className="rounded-[1.5rem] border border-brand-ink/10 bg-white">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-bold text-brand-ink">
+            Ver datos completos de la cuenta
+            <ArrowRight className="h-4 w-4" />
+          </summary>
+          <div className="grid gap-4 border-t border-brand-ink/10 px-5 py-5 md:grid-cols-2">
+            <CopyValue label="Numero de pedido" value={order.publicOrderNumber} copyable />
+            <CopyValue label="Email" value={settings.contactEmail} />
+            <CopyValue label="Banco" value={settings.bankName} />
+            <CopyValue label="Titular" value={settings.bankHolder} />
+            <CopyValue label="CUIT" value={settings.bankTaxId} />
+          </div>
+        </details>
+
+        <div className="pt-2">
+          <Link
+            href={whatsappUrl}
+            target="_blank"
+            className="inline-flex items-center gap-2 rounded-full bg-[#25d366] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(37,211,102,0.22)]"
+          >
+            <WhatsappIcon className="h-4 w-4" />
+            Necesito ayuda
           </Link>
         </div>
-        <div className="rounded-[2rem] border border-brand-ink/10 p-5 text-sm text-brand-ink/70">
-          {settings.transferInstructions}
-        </div>
+
+        <p className="text-sm text-brand-ink/60">{settings.transferInstructions}</p>
       </Card>
 
       <PaymentProofForm orderNumber={order.publicOrderNumber} />

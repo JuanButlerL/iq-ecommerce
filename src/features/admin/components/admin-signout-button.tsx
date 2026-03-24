@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/auth/supabase/browser";
+import { env } from "@/lib/env";
 
 type AdminSignOutButtonProps = {
   className?: string;
@@ -19,9 +20,14 @@ export function AdminSignOutButton({ className, children, ...props }: AdminSignO
       className={className}
       {...props}
       onClick={async () => {
-        const supabase = createSupabaseBrowserClient();
-        await supabase.auth.signOut();
+        if (env.canUseLocalAdminAuth) {
+          await fetch("/api/admin/logout-local", { method: "POST" });
+        } else {
+          const supabase = createSupabaseBrowserClient();
+          await supabase.auth.signOut();
+        }
         router.push("/admin/login");
+        router.refresh();
       }}
     >
       {children ?? "Cerrar sesion"}

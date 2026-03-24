@@ -17,7 +17,6 @@ export const checkoutSchema = z.object({
   addressExtra: z.string().max(120).optional().or(z.literal("")),
   taxId: z.string().max(20).optional().or(z.literal("")),
   notes: z.string().max(500).optional().or(z.literal("")),
-  acceptTerms: z.literal(true),
   items: z.array(checkoutItemSchema).min(1),
 });
 

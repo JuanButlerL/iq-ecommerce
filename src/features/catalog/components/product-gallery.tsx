@@ -1,19 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import type { ProductImage } from "@prisma/client";
+import { ProductColorTheme, type ProductImage } from "@prisma/client";
 
+import { productFallbackImageMap } from "@/features/catalog/product-theme";
 import { cn } from "@/lib/utils/cn";
 
 type ProductGalleryProps = {
   images: ProductImage[];
+  colorTheme: ProductColorTheme;
 };
 
-export function ProductGallery({ images }: ProductGalleryProps) {
+export function ProductGallery({ images, colorTheme }: ProductGalleryProps) {
   const [selected, setSelected] = useState(images[0] ?? null);
+  const fallbackImage = productFallbackImageMap[colorTheme];
 
   if (!selected) {
-    return null;
+    return (
+      <div className="relative aspect-square overflow-hidden rounded-[2rem] bg-white p-4 shadow-card md:p-8">
+        <img src={fallbackImage} alt="Producto" className="absolute inset-0 h-full w-full object-contain p-4 md:p-8" />
+      </div>
+    );
   }
 
   return (
@@ -35,6 +42,10 @@ export function ProductGallery({ images }: ProductGalleryProps) {
                 src={image.publicUrl}
                 alt={image.altText}
                 className="absolute inset-0 h-full w-full object-contain p-2 md:p-4"
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = fallbackImage;
+                }}
               />
             </button>
           ))}
@@ -45,6 +56,10 @@ export function ProductGallery({ images }: ProductGalleryProps) {
             src={selected.publicUrl}
             alt={selected.altText}
             className="absolute inset-0 h-full w-full object-contain p-4 md:p-8"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = fallbackImage;
+            }}
           />
         </div>
       </div>

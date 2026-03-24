@@ -23,3 +23,9 @@ export const productThemeMap: Record<
     text: "text-[#137794]",
   },
 };
+
+export const productFallbackImageMap: Record<ProductColorTheme, string> = {
+  CACAO: "/home/cacao.webp",
+  BANANA: "/home/banana.webp",
+  PEANUT: "/home/mani.webp",
+};

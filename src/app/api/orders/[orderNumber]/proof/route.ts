@@ -10,6 +10,7 @@ export async function POST(
     const { orderNumber } = await params;
     const formData = await request.formData();
     const file = formData.get("file");
+    const transferSenderName = String(formData.get("transferSenderName") ?? "");
 
     if (!(file instanceof File)) {
       throw new Error("Archivo invalido.");
@@ -20,9 +21,12 @@ export async function POST(
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
+      transferSenderName,
     });
 
-    const result = await attachPaymentProof(orderNumber, file);
+    const result = await attachPaymentProof(orderNumber, file, {
+      transferSenderName,
+    });
 
     return routeOk(result);
   } catch (error) {

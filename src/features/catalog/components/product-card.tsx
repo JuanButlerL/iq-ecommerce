@@ -1,9 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import type { Product, ProductImage } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { productThemeMap } from "@/features/catalog/product-theme";
+import { productFallbackImageMap, productThemeMap } from "@/features/catalog/product-theme";
 import { formatArs } from "@/lib/utils/currency";
 
 type ProductCardProps = {
@@ -13,6 +15,7 @@ type ProductCardProps = {
 export function ProductCard({ product }: ProductCardProps) {
   const image = product.images[0];
   const theme = productThemeMap[product.colorTheme];
+  const fallbackImage = productFallbackImageMap[product.colorTheme];
 
   return (
     <Card className="overflow-hidden">
@@ -22,8 +25,14 @@ export function ProductCard({ product }: ProductCardProps) {
             src={image.publicUrl}
             alt={image.altText}
             className="absolute inset-0 h-full w-full object-contain p-0 scale-[1.16]"
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = fallbackImage;
+            }}
           />
-        ) : null}
+        ) : (
+          <img src={fallbackImage} alt={product.name} className="absolute inset-0 h-full w-full object-contain p-0 scale-[1.16]" />
+        )}
       </div>
 
       <div className="space-y-4 p-6">

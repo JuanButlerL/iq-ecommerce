@@ -1,13 +1,13 @@
 import { OrderStatus, PaymentStatus, SyncStatus } from "@prisma/client";
 
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { syncOrder } from "@/features/orders/services/sync-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
 import { generatePublicOrderNumber } from "@/lib/utils/order-number";
-import { syncOrder } from "@/features/orders/services/sync-service";
 
 export async function createOrderFromCheckout(input: CheckoutInput) {
   const settings = await getStoreSettings();
@@ -140,7 +140,14 @@ export async function getOrderByNumber(orderNumber: string) {
   });
 }
 
-export async function attachPaymentProof(orderNumber: string, file: File) {
+type PaymentProofDetails = {
+  transferSenderName: string;
+  transferDate?: string;
+  transferReference?: string;
+  customerNote?: string;
+};
+
+export async function attachPaymentProof(orderNumber: string, file: File, details: PaymentProofDetails) {
   const order = await prisma.order.findUnique({
     where: { publicOrderNumber: orderNumber },
   });
@@ -160,6 +167,10 @@ export async function attachPaymentProof(orderNumber: string, file: File) {
         fileName: file.name,
         fileSize: file.size,
         mimeType: file.type,
+        transferSenderName: details.transferSenderName,
+        transferDate: details.transferDate ? new Date(details.transferDate) : null,
+        transferReference: details.transferReference || null,
+        customerNote: details.customerNote || null,
       },
     });
 
@@ -177,7 +188,7 @@ export async function attachPaymentProof(orderNumber: string, file: File) {
       data: {
         orderId: order.id,
         status: OrderStatus.PROOF_UPLOADED,
-        note: "Comprobante subido por el cliente.",
+        note: `Comprobante subido por el cliente${details.transferSenderName ? ` · DNI: ${details.transferSenderName}` : ""}${details.transferReference ? ` · Ref: ${details.transferReference}` : ""}.`,
         changedBy: "customer",
       },
     });
@@ -197,6 +208,18 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, no
       where: { id: orderId },
       data: {
         orderStatus: status,
+        paymentStatus:
+          status === OrderStatus.PAID
+            ? PaymentStatus.PAID
+            : status === OrderStatus.PROOF_UPLOADED
+              ? PaymentStatus.PROOF_UPLOADED
+              : status === OrderStatus.CANCELLED
+                ? PaymentStatus.CANCELLED
+                : status === OrderStatus.EXPIRED
+                  ? PaymentStatus.EXPIRED
+                  : status === OrderStatus.PENDING_PAYMENT
+                    ? PaymentStatus.PENDING
+                    : undefined,
       },
     });
 

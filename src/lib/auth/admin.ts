@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
+import { getLocalAdminSession } from "@/lib/auth/local-admin";
 import { createSupabaseServerClient } from "@/lib/auth/supabase/server";
 
 export async function getAdminSession() {
@@ -24,6 +25,38 @@ export async function getAdminSession() {
       },
       isBootstrap: true,
     };
+  }
+
+  if (env.canUseLocalAdminAuth) {
+    const localSession = await getLocalAdminSession();
+
+    if (localSession?.email) {
+      const adminUser = await prisma.adminUser.findUnique({
+        where: { email: localSession.email },
+      });
+
+      if (adminUser && !adminUser.active) {
+        return null;
+      }
+
+      return {
+        user: {
+          id: adminUser?.supabaseUserId ?? "local-admin",
+          email: localSession.email,
+        },
+        adminUser: adminUser ?? {
+          id: "local-admin",
+          supabaseUserId: null,
+          email: localSession.email,
+          fullName: "Local Admin",
+          role: AdminRole.SUPER_ADMIN,
+          active: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        isBootstrap: localSession.email === env.ADMIN_BOOTSTRAP_EMAIL,
+      };
+    }
   }
 
   const supabase = await createSupabaseServerClient();

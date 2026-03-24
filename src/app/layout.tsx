@@ -1,31 +1,33 @@
 import type { ReactNode } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import "@/app/globals.css";
 
-import { SiteHeader } from "@/components/layout/site-header";
-import { SiteFooter } from "@/components/layout/site-footer";
-import { FloatingWhatsapp } from "@/components/layout/floating-whatsapp";
+import { AppChrome } from "@/components/layout/app-chrome";
 import { getStoreSettings } from "@/features/settings/queries";
+import { env } from "@/lib/env";
 import { siteConfig } from "@/lib/utils/site";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("http://localhost:3000"),
+  metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL),
   title: {
     default: "IQ Kids",
     template: "%s | IQ Kids",
   },
   description: siteConfig.description,
   keywords: siteConfig.keywords,
-  themeColor: "#F48991",
   openGraph: {
     title: "IQ Kids",
     description: siteConfig.description,
     siteName: "IQ Kids",
     type: "website",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#F48991",
 };
 
 export default async function RootLayout({
@@ -38,19 +40,14 @@ export default async function RootLayout({
   return (
     <html lang="es">
       <body>
-        <SiteHeader />
-        <main>{children}</main>
-        <SiteFooter
+        <AppChrome
           instagramUrl={settings?.instagramUrl}
           contactEmail={settings?.contactEmail}
           whatsappNumber={settings?.whatsappNumber}
-        />
-        {settings?.showFloatingWhatsapp ? (
-          <FloatingWhatsapp
-            phone={settings.whatsappNumber}
-            message="Hola! Quiero consultar por las barritas de IQ Kids."
-          />
-        ) : null}
+          showFloatingWhatsapp={settings?.showFloatingWhatsapp}
+        >
+          {children}
+        </AppChrome>
       </body>
     </html>
   );

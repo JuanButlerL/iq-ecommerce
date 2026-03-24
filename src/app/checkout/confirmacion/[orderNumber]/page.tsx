@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ export default async function ConfirmationPage({
   const [order, settings] = await Promise.all([getOrderByNumber(orderNumber), getStoreSettings()]);
 
   if (!order) {
-    return null;
+    notFound();
   }
 
   return (
@@ -32,6 +33,21 @@ export default async function ConfirmationPage({
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
           <p className="mt-2 text-2xl font-extrabold text-brand-ink">{order.publicOrderNumber}</p>
           <p className="mt-4 font-display text-4xl text-brand-pink">{formatArs(order.totalArs)}</p>
+          <p className="mt-4 text-sm text-brand-ink/70">Tu comprobante ya fue enviado. Si el equipo necesita algo mas, te contacta con estos datos.</p>
+        </div>
+        <div className="grid gap-3 text-left md:grid-cols-3">
+          <div className="rounded-[1.5rem] bg-background p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estado actual</p>
+            <p className="mt-2 font-bold text-brand-ink">Pago en revision</p>
+          </div>
+          <div className="rounded-[1.5rem] bg-background p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
+            <p className="mt-2 font-bold text-brand-ink">{order.publicOrderNumber}</p>
+          </div>
+          <div className="rounded-[1.5rem] bg-background p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Contacto</p>
+            <p className="mt-2 font-bold text-brand-ink">{order.customerEmail}</p>
+          </div>
         </div>
         <div className="flex flex-wrap justify-center gap-4">
           <Link href="/productos">

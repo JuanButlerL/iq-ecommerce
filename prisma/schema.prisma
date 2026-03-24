@@ -259,15 +259,19 @@ model OrderStatusHistory {
 }
 
 model PaymentProof {
-  id         String   @id @default(uuid()) @db.Uuid
-  orderId    String   @map("order_id") @db.Uuid
-  storagePath String  @map("storage_path")
-  publicUrl  String?  @map("public_url")
-  fileName   String   @map("file_name")
-  fileSize   Int      @map("file_size")
-  mimeType   String   @map("mime_type")
-  uploadedAt DateTime @default(now()) @map("uploaded_at")
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(uuid()) @db.Uuid
+  orderId            String    @map("order_id") @db.Uuid
+  storagePath        String    @map("storage_path")
+  publicUrl          String?   @map("public_url")
+  fileName           String    @map("file_name")
+  fileSize           Int       @map("file_size")
+  mimeType           String    @map("mime_type")
+  transferSenderName String?   @map("transfer_sender_name")
+  transferDate       DateTime? @map("transfer_date")
+  transferReference  String?   @map("transfer_reference")
+  customerNote       String?   @map("customer_note")
+  uploadedAt         DateTime  @default(now()) @map("uploaded_at")
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, uploadedAt], map: "payment_proofs_order_idx")
   @@map("payment_proofs")

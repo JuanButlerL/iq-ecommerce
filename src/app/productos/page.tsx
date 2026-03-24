@@ -11,7 +11,6 @@ export default async function ProductsPage() {
     <Container className="space-y-12 py-12 md:space-y-16 md:py-16">
       <section>
         <SectionHeading
-          eyebrow="Catalogo"
           title="Productos"
           description="Una grilla limpia y directa, alineada al universo visual de IQ Kids."
         />

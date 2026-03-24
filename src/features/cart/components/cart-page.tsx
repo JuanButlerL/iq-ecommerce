@@ -113,8 +113,7 @@ export function CartPage({ products, settings }: CartPageProps) {
         </div>
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
           <p>{shippingQuote.message}</p>
-          <p className="mt-2">Minimo de compra: {formatArs(settings.minimumOrderAmount)} sin incluir envio.</p>
-          <p>Envio gratis desde: {formatArs(settings.freeShippingThreshold)}.</p>
+          <p className="mt-2">Envio gratis desde: {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
         <Link href="/checkout" className="block pt-2">
           <Button className="w-full">Continuar compra</Button>

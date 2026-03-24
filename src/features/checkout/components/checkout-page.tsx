@@ -9,7 +9,6 @@ import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSe
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,9 +57,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
       postalCode: "",
       addressLine: "",
       addressExtra: "",
-      taxId: "",
       notes: "",
-      acceptTerms: true,
     },
   });
 
@@ -111,11 +108,12 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
         });
       })}
     >
-      <Card className="space-y-5 p-5 md:p-6">
+      <Card className="order-2 space-y-5 p-5 md:p-6 lg:order-1">
         <div>
-          <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Checkout</h1>
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 1 de 2</p>
+          <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Completa tu compra</h1>
           <p className="mt-2 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Completa tus datos y generamos tu pedido antes de la transferencia.
+            Carga tus datos y generamos tu pedido. Despues te mostramos como pagar por transferencia.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -134,18 +132,8 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
           <Input placeholder="Codigo postal" {...form.register("postalCode")} />
           <Input placeholder="Direccion" {...form.register("addressLine")} />
           <Input placeholder="Piso / Depto" className="md:col-span-2" {...form.register("addressExtra")} />
-          {settings.requireTaxId ? (
-            <Input placeholder="DNI / CUIT" className="md:col-span-2" {...form.register("taxId")} />
-          ) : null}
           <div className="md:col-span-2">
             <Textarea placeholder="Observaciones" {...form.register("notes")} />
-          </div>
-          <div className="md:col-span-2">
-            <Checkbox
-              label="Acepto los terminos y confirmo que los datos son correctos."
-              checked={form.watch("acceptTerms")}
-              onChange={(event) => form.setValue("acceptTerms", event.target.checked as true)}
-            />
           </div>
         </div>
         {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
@@ -154,7 +142,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
         </Button>
       </Card>
 
-      <Card className="h-fit space-y-4 p-5 md:p-6">
+      <Card className="order-1 h-fit space-y-4 p-5 md:p-6 lg:order-2 lg:sticky lg:top-28">
         <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Resumen</p>
         <div className="space-y-2 text-sm text-brand-ink/70">
           {productItems.map((item) => (
@@ -181,7 +169,10 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
           </div>
         </div>
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
-          <p>{settings.checkoutMessage}</p>
+          <p>{settings.checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
+          {settings.orderReservationHours ? (
+            <p className="mt-2">Reserva de pedido: {settings.orderReservationHours} horas.</p>
+          ) : null}
           <p className="mt-2">Envio gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
       </Card>

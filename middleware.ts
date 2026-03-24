@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 import { env } from "@/lib/env";
+import { ADMIN_SESSION_COOKIE, verifyLocalAdminSessionValue } from "@/lib/auth/local-admin";
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
@@ -19,6 +20,14 @@ export async function middleware(request: NextRequest) {
 
   if (env.devAdminBypass) {
     return response;
+  }
+
+  if (env.hasLocalAdminAuth) {
+    const localSession = verifyLocalAdminSessionValue(request.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+
+    if (localSession) {
+      return response;
+    }
   }
 
   if (!env.hasSupabaseAuth) {

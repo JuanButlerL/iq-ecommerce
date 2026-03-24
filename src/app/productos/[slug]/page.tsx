@@ -24,7 +24,7 @@ export default async function ProductDetailPage({
   return (
     <Container className="space-y-14 py-12 md:py-16">
       <div className="grid gap-10 lg:grid-cols-[1fr_0.85fr]">
-        <ProductGallery images={product.images} />
+        <ProductGallery images={product.images} colorTheme={product.colorTheme} />
         <div className="space-y-6">
           <div className="space-y-3">
             <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Nuestras Barritas</p>

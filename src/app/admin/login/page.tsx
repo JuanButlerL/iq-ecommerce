@@ -12,7 +12,7 @@ export default async function AdminLoginPage() {
   }
 
   return (
-    <Container className="py-16">
+    <Container className="flex min-h-screen items-center justify-center py-10 md:py-16">
       <AdminLoginForm />
     </Container>
   );

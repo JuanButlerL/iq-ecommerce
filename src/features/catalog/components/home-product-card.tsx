@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Product, ProductImage } from "@prisma/client";
 
-import { productThemeMap } from "@/features/catalog/product-theme";
+import { productFallbackImageMap, productThemeMap } from "@/features/catalog/product-theme";
 import { cn } from "@/lib/utils/cn";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -17,6 +17,7 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
   const [isHovering, setIsHovering] = useState(false);
   const images = product.images.length > 0 ? product.images : [];
   const theme = productThemeMap[product.colorTheme];
+  const fallbackImage = productFallbackImageMap[product.colorTheme];
 
   useEffect(() => {
     if (!isHovering || images.length < 2) {
@@ -42,17 +43,25 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
         onBlur={() => setIsHovering(false)}
       >
         <div className="relative mx-auto aspect-[1/1.08] w-full max-w-[300px] overflow-hidden rounded-[2rem] bg-white shadow-[0_16px_40px_rgba(44,34,65,0.08)]">
-          {images.map((image, index) => (
-            <img
-              key={`${image.id}-${index}`}
-              src={image.publicUrl}
-              alt={image.altText}
-              className={cn(
-                "absolute inset-0 h-full w-full object-contain p-0 transition-all duration-500",
-                index === activeIndex ? "scale-[1.18] opacity-100" : "scale-[1.12] opacity-0",
-              )}
-            />
-          ))}
+          {images.length > 0 ? (
+            images.map((image, index) => (
+              <img
+                key={`${image.id}-${index}`}
+                src={image.publicUrl}
+                alt={image.altText}
+                className={cn(
+                  "absolute inset-0 h-full w-full object-contain p-0 transition-all duration-500",
+                  index === activeIndex ? "scale-[1.18] opacity-100" : "scale-[1.12] opacity-0",
+                )}
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = fallbackImage;
+                }}
+              />
+            ))
+          ) : (
+            <img src={fallbackImage} alt={product.name} className="absolute inset-0 h-full w-full object-contain p-0" />
+          )}
 
           {images.length > 1 ? (
             <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-2">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils/cn";
 type NavigationItem = {
   href: string;
   label: string;
+  icon: ReactNode;
 };
 
 type AdminShellProps = {
@@ -23,10 +24,19 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
+  const isLoginRoute = pathname === "/admin/login";
 
   useEffect(() => {
     setIsMenuOpen(false);
   }, [pathname]);
+
+  if (isLoginRoute) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(244,137,145,0.18),_transparent_42%),linear-gradient(180deg,_#fff8f8_0%,_#ffffff_100%)]">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -80,10 +90,13 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "block rounded-2xl px-4 py-3 text-sm font-bold transition",
+                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition",
                       isActive ? "bg-brand-pink text-white shadow-soft" : "bg-brand-pink/6 text-brand-ink hover:bg-brand-pink/12",
                     )}
                   >
+                    <span aria-hidden="true" className="shrink-0">
+                      {item.icon}
+                    </span>
                     {item.label}
                   </Link>
                 );
@@ -130,14 +143,16 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "block rounded-2xl px-4 py-3 text-sm font-bold transition",
+                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition",
                       isActive ? "bg-brand-pink text-white shadow-soft" : "text-brand-ink hover:bg-brand-pink/8",
-                      isDesktopCollapsed && "px-3 text-center",
+                      isDesktopCollapsed && "justify-center px-3",
                     )}
                     title={item.label}
                   >
+                    <span aria-hidden="true" className="shrink-0">
+                      {item.icon}
+                    </span>
                     <span className={cn(isDesktopCollapsed && "sr-only")}>{item.label}</span>
-                    {isDesktopCollapsed ? <span aria-hidden="true">{item.label.charAt(0)}</span> : null}
                   </Link>
                 );
               })}
@@ -146,7 +161,7 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
             <div className="mt-auto pt-6">
               <AdminSignOutButton className={cn("w-full justify-center", isDesktopCollapsed && "px-0")} title="Cerrar sesion">
                 <span className={cn(isDesktopCollapsed && "sr-only")}>Cerrar sesion</span>
-                {isDesktopCollapsed ? <span aria-hidden="true">S</span> : null}
+                {isDesktopCollapsed ? <LogOut aria-hidden="true" className="h-4 w-4" /> : null}
               </AdminSignOutButton>
             </div>
           </div>

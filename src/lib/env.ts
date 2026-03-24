@@ -19,6 +19,9 @@ const envSchema = z.object({
   APPS_SCRIPT_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),
   APPS_SCRIPT_API_KEY: z.string().optional(),
   ADMIN_BOOTSTRAP_EMAIL: z.string().email().default("admin@iqkids.local"),
+  ADMIN_LOCAL_EMAIL: z.string().email().optional(),
+  ADMIN_LOCAL_PASSWORD: z.string().min(8).optional(),
+  ADMIN_SESSION_SECRET: z.string().min(16).optional(),
   ENABLE_PROOF_PUBLIC_URL_SYNC: z.enum(["true", "false"]).default("false"),
   DEV_ADMIN_BYPASS: z.enum(["true", "false"]).default("false"),
 });
@@ -42,15 +45,26 @@ const parsedEnv = envSchema.parse({
   APPS_SCRIPT_WEBHOOK_URL: process.env.APPS_SCRIPT_WEBHOOK_URL,
   APPS_SCRIPT_API_KEY: process.env.APPS_SCRIPT_API_KEY,
   ADMIN_BOOTSTRAP_EMAIL: process.env.ADMIN_BOOTSTRAP_EMAIL,
+  ADMIN_LOCAL_EMAIL: process.env.ADMIN_LOCAL_EMAIL,
+  ADMIN_LOCAL_PASSWORD: process.env.ADMIN_LOCAL_PASSWORD,
+  ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
   ENABLE_PROOF_PUBLIC_URL_SYNC: process.env.ENABLE_PROOF_PUBLIC_URL_SYNC,
   DEV_ADMIN_BYPASS: process.env.DEV_ADMIN_BYPASS,
 });
 
 export const env = {
   ...parsedEnv,
+  isProduction: process.env.NODE_ENV === "production",
   isProductBucketPublic: parsedEnv.SUPABASE_PRODUCT_BUCKET_PUBLIC === "true",
   enableProofPublicUrlSync: parsedEnv.ENABLE_PROOF_PUBLIC_URL_SYNC === "true",
   devAdminBypass: parsedEnv.DEV_ADMIN_BYPASS === "true" && process.env.NODE_ENV !== "production",
+  hasLocalAdminAuth:
+    Boolean(parsedEnv.ADMIN_LOCAL_EMAIL) &&
+    Boolean(parsedEnv.ADMIN_LOCAL_PASSWORD) &&
+    Boolean(parsedEnv.ADMIN_SESSION_SECRET),
+  localAdminUsesDefaultEmail: parsedEnv.ADMIN_LOCAL_EMAIL === "admin@iqkids.local",
+  localAdminUsesDefaultPassword: parsedEnv.ADMIN_LOCAL_PASSWORD === "Cambiame123!",
+  localAdminUsesDefaultSecret: parsedEnv.ADMIN_SESSION_SECRET === "iqkids-local-admin-secret",
   hasSupabaseAuth:
     Boolean(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) &&
     Boolean(parsedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY) &&
@@ -61,6 +75,13 @@ export const env = {
     Boolean(parsedEnv.SUPABASE_SERVICE_ROLE_KEY) &&
     !String(parsedEnv.NEXT_PUBLIC_SUPABASE_URL).includes("your-project.supabase.co") &&
     !String(parsedEnv.SUPABASE_SERVICE_ROLE_KEY).includes("your-service-role-key"),
+  canUseLocalAdminAuth:
+    Boolean(parsedEnv.ADMIN_LOCAL_EMAIL) &&
+    Boolean(parsedEnv.ADMIN_LOCAL_PASSWORD) &&
+    Boolean(parsedEnv.ADMIN_SESSION_SECRET) &&
+    (process.env.NODE_ENV !== "production" ||
+      (parsedEnv.ADMIN_LOCAL_PASSWORD !== "Cambiame123!" &&
+        parsedEnv.ADMIN_SESSION_SECRET !== "iqkids-local-admin-secret")),
 };
 
 export function requireServerEnv(key: keyof typeof parsedEnv) {

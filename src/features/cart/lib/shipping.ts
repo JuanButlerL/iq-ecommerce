@@ -55,8 +55,6 @@ export function calculateShippingQuote(
     shippingArs,
     minimumReached,
     freeShippingReached: false,
-    message: minimumReached
-      ? "El pedido todavia no alcanza el envio gratis."
-      : "La compra queda por debajo del minimo sugerido y se agrega envio.",
+    message: "El pedido todavia no alcanza el envio gratis.",
   };
 }

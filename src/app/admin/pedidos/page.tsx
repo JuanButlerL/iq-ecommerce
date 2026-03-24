@@ -98,6 +98,7 @@ export default async function AdminOrdersPage({
                 <span>{order.orderStatus}</span>
                 <span>{order.paymentStatus}</span>
                 <span>Sync: {order.syncStatus}</span>
+                <span>{order.paymentProofs[0] ? "Con comprobante" : "Sin comprobante"}</span>
               </div>
             </Link>
           ))}
@@ -110,6 +111,7 @@ export default async function AdminOrdersPage({
                 <th className="pb-3">Cliente</th>
                 <th className="pb-3">Estado</th>
                 <th className="pb-3">Pago</th>
+                <th className="pb-3">Comprobante</th>
                 <th className="pb-3">Sync</th>
                 <th className="pb-3">Total</th>
               </tr>
@@ -127,6 +129,7 @@ export default async function AdminOrdersPage({
                   </td>
                   <td className="py-3 text-brand-ink/70">{order.orderStatus}</td>
                   <td className="py-3 text-brand-ink/70">{order.paymentStatus}</td>
+                  <td className="py-3 text-brand-ink/70">{order.paymentProofs[0] ? "Cargado" : "Pendiente"}</td>
                   <td className="py-3 text-brand-ink/70">{order.syncStatus}</td>
                   <td className="py-3 text-brand-ink/70">${order.totalArs.toLocaleString("es-AR")}</td>
                 </tr>
