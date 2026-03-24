@@ -63,10 +63,10 @@ export function AdminLoginForm() {
                   },
                   body: JSON.stringify({ email, password }),
                 });
-                const payload = await response.json();
+                const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
                 if (!response.ok) {
-                  setError(payload.error ?? "No se pudo iniciar sesion.");
+                  setError(payload?.error ?? "No se pudo iniciar sesion.");
                   return;
                 }
               } else {
