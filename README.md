@@ -253,6 +253,40 @@ Si querés usarlo en la siguiente iteracion, lo correcto es completarlo con aute
    - `npm run build`
    - `npm run db:deploy`
 
+## Migrar ajustes a produccion (DO)
+
+Flujo corto para pasar cambios desde local al Droplet:
+
+1. Hacer cambios en local y probar.
+2. Subir a GitHub:
+
+```bash
+git add .
+git commit -m "tu cambio"
+git push
+```
+
+3. Entrar al servidor y actualizar:
+
+```bash
+cd /opt/iqkids/web
+git pull
+docker compose up -d --build
+```
+
+4. Si hubo cambios en Prisma:
+
+```bash
+docker compose exec app npx prisma migrate deploy
+```
+
+5. Verificar:
+
+```bash
+docker compose ps
+curl -I https://iqkids.com.ar
+```
+
 ## Flujo funcional esperado
 
 1. Cliente agrega productos al carrito.
