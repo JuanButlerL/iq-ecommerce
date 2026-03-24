@@ -24,14 +24,18 @@ export function ProductCard({ product }: ProductCardProps) {
           <img
             src={image.publicUrl}
             alt={image.altText}
-            className="absolute inset-0 h-full w-full object-contain p-0 scale-[1.16]"
+            className="absolute inset-0 h-full w-full object-contain p-4 md:p-6"
             onError={(event) => {
               event.currentTarget.onerror = null;
               event.currentTarget.src = fallbackImage;
             }}
           />
         ) : (
-          <img src={fallbackImage} alt={product.name} className="absolute inset-0 h-full w-full object-contain p-0 scale-[1.16]" />
+          <img
+            src={fallbackImage}
+            alt={product.name}
+            className="absolute inset-0 h-full w-full object-contain p-4 md:p-6"
+          />
         )}
       </div>
 

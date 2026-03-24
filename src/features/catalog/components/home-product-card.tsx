@@ -50,8 +50,8 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
                 src={image.publicUrl}
                 alt={image.altText}
                 className={cn(
-                  "absolute inset-0 h-full w-full object-contain p-0 transition-all duration-500",
-                  index === activeIndex ? "scale-[1.18] opacity-100" : "scale-[1.12] opacity-0",
+                  "absolute inset-0 h-full w-full object-contain p-3 transition-all duration-500 md:p-5",
+                  index === activeIndex ? "opacity-100" : "opacity-0",
                 )}
                 onError={(event) => {
                   event.currentTarget.onerror = null;
@@ -60,7 +60,11 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
               />
             ))
           ) : (
-            <img src={fallbackImage} alt={product.name} className="absolute inset-0 h-full w-full object-contain p-0" />
+            <img
+              src={fallbackImage}
+              alt={product.name}
+              className="absolute inset-0 h-full w-full object-contain p-3 md:p-5"
+            />
           )}
 
           {images.length > 1 ? (
