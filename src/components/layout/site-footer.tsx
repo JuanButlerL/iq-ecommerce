@@ -3,6 +3,7 @@ import { Heart, Instagram, Mail } from "lucide-react";
 
 import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { Container } from "@/components/layout/container";
+import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
 
 type SiteFooterProps = {
   instagramUrl?: string | null;
@@ -38,7 +39,7 @@ export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber }: SiteF
           ) : null}
           {whatsappNumber ? (
             <Link
-              href={`https://wa.me/${whatsappNumber}`}
+              href={buildWhatsappUrl(whatsappNumber, "Hola! Quiero consultar por las barritas de IQ Kids.")}
               target="_blank"
               className="inline-flex items-center gap-2 hover:text-brand-pink"
             >

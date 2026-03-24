@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Container } from "@/components/layout/container";
 import { Card } from "@/components/ui/card";
 import { getStoreSettings } from "@/features/settings/queries";
+import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
 
 export default async function ContactPage() {
   const settings = await getStoreSettings();
@@ -23,7 +24,10 @@ export default async function ContactPage() {
           </p>
           <p>
             WhatsApp:{" "}
-            <Link href={`https://wa.me/${settings?.whatsappNumber}`} className="font-bold text-brand-pink">
+            <Link
+              href={buildWhatsappUrl(settings?.whatsappNumber ?? "", "Hola! Quiero consultar por las barritas de IQ Kids.")}
+              className="font-bold text-brand-pink"
+            >
               {settings?.whatsappNumber}
             </Link>
           </p>
