@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import type { Product, ProductImage } from "@prisma/client";
 
@@ -19,12 +18,10 @@ export function ProductCard({ product }: ProductCardProps) {
     <Card className="overflow-hidden">
       <div className="relative h-80 bg-white p-6">
         {image ? (
-          <Image
+          <img
             src={image.publicUrl}
             alt={image.altText}
-            fill
-            className="object-contain p-0 scale-[1.16]"
-            sizes="(max-width: 768px) 100vw, 33vw"
+            className="absolute inset-0 h-full w-full object-contain p-0 scale-[1.16]"
           />
         ) : null}
       </div>

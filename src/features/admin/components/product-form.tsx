@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState, useTransition } from "react";
 import { ProductColorTheme } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -190,7 +189,7 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
           {images.map((image, index) => (
             <div key={`${image.publicUrl}-${index}`} className="flex flex-col gap-3 rounded-[1.5rem] bg-white p-4 shadow-card sm:flex-row sm:flex-wrap sm:items-center">
               <div className="relative h-20 w-20 overflow-hidden rounded-2xl">
-                <Image src={image.publicUrl} alt={image.altText} fill className="object-cover" sizes="80px" />
+                <img src={image.publicUrl} alt={image.altText} className="absolute inset-0 h-full w-full object-cover" />
               </div>
               <Input
                 className="sm:min-w-[220px] sm:flex-1"

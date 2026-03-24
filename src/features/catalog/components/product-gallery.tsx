@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import type { ProductImage } from "@prisma/client";
 
 import { cn } from "@/lib/utils/cn";
@@ -32,18 +31,20 @@ export function ProductGallery({ images }: ProductGalleryProps) {
               )}
               onClick={() => setSelected(image)}
             >
-              <Image src={image.publicUrl} alt={image.altText} fill className="object-contain p-2 md:p-4" sizes="120px" />
+              <img
+                src={image.publicUrl}
+                alt={image.altText}
+                className="absolute inset-0 h-full w-full object-contain p-2 md:p-4"
+              />
             </button>
           ))}
           </div>
         </div>
         <div className="order-1 mb-3 relative aspect-square overflow-hidden rounded-[2rem] bg-white p-4 shadow-card md:order-2 md:mb-0 md:p-8">
-          <Image
+          <img
             src={selected.publicUrl}
             alt={selected.altText}
-            fill
-            className="object-contain p-4 md:p-8"
-            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="absolute inset-0 h-full w-full object-contain p-4 md:p-8"
           />
         </div>
       </div>

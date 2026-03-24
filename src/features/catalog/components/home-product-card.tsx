@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Product, ProductImage } from "@prisma/client";
@@ -44,16 +43,14 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
       >
         <div className="relative mx-auto aspect-[1/1.08] w-full max-w-[300px] overflow-hidden rounded-[2rem] bg-white shadow-[0_16px_40px_rgba(44,34,65,0.08)]">
           {images.map((image, index) => (
-            <Image
+            <img
               key={`${image.id}-${index}`}
               src={image.publicUrl}
               alt={image.altText}
-              fill
               className={cn(
-                "object-contain p-0 transition-all duration-500",
+                "absolute inset-0 h-full w-full object-contain p-0 transition-all duration-500",
                 index === activeIndex ? "scale-[1.18] opacity-100" : "scale-[1.12] opacity-0",
               )}
-              sizes="(max-width: 768px) 280px, 300px"
             />
           ))}
 
