@@ -12,6 +12,7 @@ import { useCartStore } from "@/features/cart/store";
 import { formatArs } from "@/lib/utils/currency";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
+import { productFallbackImageMap } from "@/features/catalog/product-theme";
 
 type ProductWithImages = Product & { images: ProductImage[] };
 type SettingsWithRule = StoreSettings & {
@@ -59,25 +60,47 @@ export function CartPage({ products, settings }: CartPageProps) {
     <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
       <div className="space-y-4">
         {detailedItems.map(({ cart, product }) => (
-          <Card key={product.id} className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-extrabold text-brand-ink">{product.name}</h2>
-              <p className="text-sm text-brand-ink/60">{formatArs(product.priceArs)} por caja</p>
+          <Card key={product.id} className="flex gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
+            <div className="flex min-w-0 flex-1 gap-4">
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[1.25rem] bg-white">
+                <img
+                  src={product.images[0]?.publicUrl ?? productFallbackImageMap[product.colorTheme]}
+                  alt={product.images[0]?.altText ?? product.name}
+                  className="h-full w-full object-contain p-2"
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = productFallbackImageMap[product.colorTheme];
+                  }}
+                />
+              </div>
+
+              <div className="min-w-0">
+                <h2 className="text-base font-extrabold leading-6 text-brand-ink md:text-lg">{product.name}</h2>
+                <p className="mt-1 text-sm text-brand-ink/60">{formatArs(product.priceArs * cart.quantity)}</p>
+              </div>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="inline-flex items-center self-start rounded-full border border-brand-ink/10 bg-background px-2 py-1">
-                <button type="button" className="h-9 w-9 rounded-full bg-white font-bold" onClick={() => updateItem(product.id, Math.max(cart.quantity - 1, 1))}>
+
+            <div className="ml-auto flex shrink-0 flex-col items-end gap-3">
+              <button type="button" className="text-sm text-brand-ink/70 underline underline-offset-2 hover:text-brand-pink" onClick={() => removeItem(product.id)}>
+                Borrar
+              </button>
+              <div className="inline-flex items-center rounded-md border border-brand-ink/10 bg-white px-1 py-1">
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center text-lg text-brand-ink/70"
+                  onClick={() => updateItem(product.id, Math.max(cart.quantity - 1, 1))}
+                >
                   -
                 </button>
                 <span className="min-w-10 text-center font-bold text-brand-ink">{cart.quantity}</span>
-                <button type="button" className="h-9 w-9 rounded-full bg-white font-bold" onClick={() => updateItem(product.id, Math.min(cart.quantity + 1, 99))}>
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center text-lg text-brand-ink/70"
+                  onClick={() => updateItem(product.id, Math.min(cart.quantity + 1, 99))}
+                >
                   +
                 </button>
               </div>
-              <p className="font-extrabold text-brand-ink sm:min-w-24 sm:text-right">{formatArs(product.priceArs * cart.quantity)}</p>
-              <button type="button" className="self-start text-sm font-bold text-brand-pink" onClick={() => removeItem(product.id)}>
-                Quitar
-              </button>
             </div>
           </Card>
         ))}
@@ -117,6 +140,9 @@ export function CartPage({ products, settings }: CartPageProps) {
         </div>
         <Link href="/checkout" className="block pt-2">
           <Button className="w-full">Continuar compra</Button>
+        </Link>
+        <Link href="/productos" className="block text-center text-sm text-brand-ink/70 underline underline-offset-4 hover:text-brand-pink">
+          Ver mas productos
         </Link>
       </Card>
     </div>
