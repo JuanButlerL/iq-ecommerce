@@ -16,7 +16,7 @@ export async function saveShippingRule(payload: ShippingRulePayload, ruleId?: st
   const parsedProvinces = payload.provinces.map((province) => shippingProvinceSchema.safeParse(province));
 
   if (!parsedRule.success || parsedProvinces.some((province) => !province.success)) {
-    throw new AppError("Regla de envio invalida.", 400);
+    throw new AppError("Regla de envío inválida.", 400);
   }
 
   const provinceData = parsedProvinces.map((province) => {

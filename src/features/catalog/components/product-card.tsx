@@ -19,12 +19,12 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="relative h-80 bg-white p-6">
+      <div className="relative h-80 bg-white p-4">
         {image ? (
           <img
             src={image.publicUrl}
             alt={image.altText}
-            className="absolute inset-0 h-full w-full object-contain p-4 md:p-6"
+            className="absolute inset-0 h-full w-full scale-[1.14] object-contain p-2 md:scale-[1.18] md:p-3"
             onError={(event) => {
               event.currentTarget.onerror = null;
               event.currentTarget.src = fallbackImage;
@@ -34,7 +34,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <img
             src={fallbackImage}
             alt={product.name}
-            className="absolute inset-0 h-full w-full object-contain p-4 md:p-6"
+            className="absolute inset-0 h-full w-full scale-[1.14] object-contain p-2 md:scale-[1.18] md:p-3"
           />
         )}
       </div>

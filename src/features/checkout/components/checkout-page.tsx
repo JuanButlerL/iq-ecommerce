@@ -113,14 +113,14 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 1 de 2</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Completa tu compra</h1>
           <p className="mt-2 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Carga tus datos y generamos tu pedido. Despues te mostramos como pagar por transferencia.
+            Cargá tus datos y generamos tu pedido. Después te mostramos cómo pagar por transferencia.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <Input placeholder="Nombre" {...form.register("firstName")} />
           <Input placeholder="Apellido" {...form.register("lastName")} />
           <Input placeholder="Email" {...form.register("email")} />
-          <Input placeholder="Telefono" {...form.register("phone")} />
+          <Input placeholder="Teléfono" {...form.register("phone")} />
           <Select {...form.register("province")}>
             {ARGENTINA_PROVINCES.map((provinceOption) => (
               <option key={provinceOption.code} value={provinceOption.name}>
@@ -129,8 +129,8 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
             ))}
           </Select>
           <Input placeholder="Localidad" {...form.register("locality")} />
-          <Input placeholder="Codigo postal" {...form.register("postalCode")} />
-          <Input placeholder="Direccion" {...form.register("addressLine")} />
+          <Input placeholder="Código postal" {...form.register("postalCode")} />
+          <Input placeholder="Dirección" {...form.register("addressLine")} />
           <Input placeholder="Piso / Depto" className="md:col-span-2" {...form.register("addressExtra")} />
           <div className="md:col-span-2">
             <Textarea placeholder="Observaciones" {...form.register("notes")} />
@@ -160,7 +160,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
             <span className="font-bold text-brand-ink">{formatArs(subtotal)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span>Envio</span>
+            <span>Envío</span>
             <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -170,10 +170,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
         </div>
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
           <p>{settings.checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
-          {settings.orderReservationHours ? (
-            <p className="mt-2">Reserva de pedido: {settings.orderReservationHours} horas.</p>
-          ) : null}
-          <p className="mt-2">Envio gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
+          <p className="mt-2">Envío gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
       </Card>
     </form>

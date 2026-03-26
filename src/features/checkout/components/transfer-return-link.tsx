@@ -26,7 +26,7 @@ export function TransferReturnLink({ orderNumber }: TransferReturnLinkProps) {
         if (navigator.share) {
           await navigator.share({
             title: `Pedido ${orderNumber}`,
-            text: `Guarda este link para volver a subir el comprobante del pedido ${orderNumber}.`,
+            text: `Guardá este link para volver a subir el comprobante del pedido ${orderNumber}.`,
             url,
           });
           setMessage("Acceso compartido.");
@@ -48,7 +48,7 @@ export function TransferReturnLink({ orderNumber }: TransferReturnLinkProps) {
         <div className="min-w-0 flex-1">
           <p className="font-bold">Antes de abrir tu banco</p>
           <p className="mt-1 text-brand-ink/80">
-            Guarda este acceso para volver rapido y subir el comprobante despues de pagar.
+            Guardá este acceso para volver rápido y subir el comprobante después de pagar.
           </p>
           <div className="mt-3">
             <Button type="button" variant="secondary" className="w-full sm:w-auto" disabled={isPending} onClick={handleSaveLink}>

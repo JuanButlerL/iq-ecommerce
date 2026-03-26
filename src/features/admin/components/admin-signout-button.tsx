@@ -30,7 +30,7 @@ export function AdminSignOutButton({ className, children, ...props }: AdminSignO
         router.refresh();
       }}
     >
-      {children ?? "Cerrar sesion"}
+      {children ?? "Cerrar sesión"}
     </Button>
   );
 }

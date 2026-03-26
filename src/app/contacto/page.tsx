@@ -13,7 +13,7 @@ export default async function ContactPage() {
       <Card className="mx-auto max-w-3xl space-y-5 p-5 md:p-8">
         <h1 className="font-display text-3xl leading-none text-brand-ink md:text-5xl">Contacto</h1>
         <p className="text-sm leading-6 text-brand-ink/70 md:text-base">
-          Si necesitas ayuda con un pedido, envios o datos bancarios, podes escribirnos por cualquiera de estos canales.
+          Si necesitás ayuda con un pedido, envíos o datos bancarios, podés escribirnos por cualquiera de estos canales.
         </p>
         <div className="space-y-3 break-all text-sm text-brand-ink md:text-base sm:break-normal">
           <p>

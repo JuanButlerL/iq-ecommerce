@@ -22,7 +22,7 @@ export function calculateShippingQuote(
       shippingArs: 0,
       minimumReached: false,
       freeShippingReached: false,
-      message: "Configuracion de tienda no disponible.",
+      message: "Configuración de tienda no disponible.",
     };
   }
 
@@ -34,7 +34,7 @@ export function calculateShippingQuote(
       shippingArs: 0,
       minimumReached,
       freeShippingReached: true,
-      message: "Tu compra supera el umbral de envio gratis.",
+      message: "Tu compra supera el umbral de envío gratis.",
     };
   }
 
@@ -57,6 +57,6 @@ export function calculateShippingQuote(
     shippingArs,
     minimumReached,
     freeShippingReached: false,
-    message: "El pedido todavia no alcanza el envio gratis.",
+    message: "El pedido todavía no alcanza el envío gratis.",
   };
 }

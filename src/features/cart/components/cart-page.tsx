@@ -45,7 +45,7 @@ export function CartPage({ products, settings }: CartPageProps) {
     return (
       <EmptyState
         title="Tu carrito esta vacio"
-        description="Elegi una de nuestras barritas y avanza con un checkout rapido por transferencia."
+        description="Elegí una de nuestras barritas y avanzá con un checkout rápido por transferencia."
         actionHref="/productos"
         actionLabel="Ver productos"
       />
@@ -60,13 +60,13 @@ export function CartPage({ products, settings }: CartPageProps) {
     <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
       <div className="space-y-4">
         {detailedItems.map(({ cart, product }) => (
-          <Card key={product.id} className="flex gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
-            <div className="flex min-w-0 flex-1 gap-4">
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[1.25rem] bg-white">
+          <Card key={product.id} className="p-4 md:flex md:items-center md:justify-between md:p-5">
+            <div className="grid grid-cols-[56px_minmax(0,1fr)_88px] items-start gap-x-4 gap-y-2 md:flex md:min-w-0 md:flex-1 md:gap-4">
+              <div className="relative mt-1 h-14 w-14 shrink-0 overflow-hidden bg-white md:h-20 md:w-20 md:rounded-[1.25rem]">
                 <img
                   src={product.images[0]?.publicUrl ?? productFallbackImageMap[product.colorTheme]}
                   alt={product.images[0]?.altText ?? product.name}
-                  className="h-full w-full object-contain p-2"
+                  className="h-full w-full object-contain p-0.5 md:p-2"
                   onError={(event) => {
                     event.currentTarget.onerror = null;
                     event.currentTarget.src = productFallbackImageMap[product.colorTheme];
@@ -75,31 +75,42 @@ export function CartPage({ products, settings }: CartPageProps) {
               </div>
 
               <div className="min-w-0">
-                <h2 className="text-base font-extrabold leading-6 text-brand-ink md:text-lg">{product.name}</h2>
-                <p className="mt-1 text-sm text-brand-ink/60">{formatArs(product.priceArs * cart.quantity)}</p>
+                <h2 className="text-[0.95rem] font-medium leading-[1.16] text-brand-ink md:text-lg md:font-extrabold md:leading-6">
+                  {product.name}
+                </h2>
+                <p className="mt-2 text-[0.95rem] leading-none text-brand-ink md:mt-1 md:text-sm md:text-brand-ink/60">
+                  {formatArs(product.priceArs * cart.quantity)}
+                </p>
               </div>
-            </div>
 
-            <div className="ml-auto flex shrink-0 flex-col items-end gap-3">
-              <button type="button" className="text-sm text-brand-ink/70 underline underline-offset-2 hover:text-brand-pink" onClick={() => removeItem(product.id)}>
-                Borrar
-              </button>
-              <div className="inline-flex items-center rounded-md border border-brand-ink/10 bg-white px-1 py-1">
+              <div className="flex flex-col items-end gap-3">
                 <button
                   type="button"
-                  className="flex h-9 w-9 items-center justify-center text-lg text-brand-ink/70"
-                  onClick={() => updateItem(product.id, Math.max(cart.quantity - 1, 1))}
+                  className="text-[0.95rem] font-normal leading-none text-brand-ink/70 underline underline-offset-2 hover:text-brand-pink"
+                  onClick={() => removeItem(product.id)}
                 >
-                  -
+                  Borrar
                 </button>
-                <span className="min-w-10 text-center font-bold text-brand-ink">{cart.quantity}</span>
-                <button
-                  type="button"
-                  className="flex h-9 w-9 items-center justify-center text-lg text-brand-ink/70"
-                  onClick={() => updateItem(product.id, Math.min(cart.quantity + 1, 99))}
-                >
-                  +
-                </button>
+
+                <div className="inline-flex items-center border border-brand-ink/15 bg-white">
+                  <button
+                    type="button"
+                    className="flex h-9 w-9 items-center justify-center text-xl font-light text-brand-ink/70"
+                    onClick={() => updateItem(product.id, Math.max(cart.quantity - 1, 1))}
+                  >
+                    -
+                  </button>
+                  <span className="flex h-9 min-w-10 items-center justify-center text-base font-medium text-brand-ink">
+                    {cart.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex h-9 w-9 items-center justify-center text-xl font-light text-brand-ink/70"
+                    onClick={() => updateItem(product.id, Math.min(cart.quantity + 1, 99))}
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
           </Card>
@@ -115,7 +126,7 @@ export function CartPage({ products, settings }: CartPageProps) {
               <span className="font-bold text-brand-ink">{formatArs(subtotal)}</span>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-bold text-brand-ink">Seleccionar provincia para el envio</label>
+              <label className="mb-2 block text-sm font-bold text-brand-ink">Seleccionar provincia para el envío</label>
               <Select value={province} onChange={(event) => setProvince(event.target.value)}>
                 {ARGENTINA_PROVINCES.map((item) => (
                   <option key={item.code} value={item.name}>
@@ -125,7 +136,7 @@ export function CartPage({ products, settings }: CartPageProps) {
               </Select>
             </div>
             <div className="flex items-center justify-between">
-              <span>Envio estimado</span>
+              <span>Envío estimado</span>
               <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
             </div>
             <div className="flex items-center justify-between border-t border-brand-ink/10 pt-3">
@@ -136,13 +147,13 @@ export function CartPage({ products, settings }: CartPageProps) {
         </div>
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
           <p>{shippingQuote.message}</p>
-          <p className="mt-2">Envio gratis desde: {formatArs(settings.freeShippingThreshold)}.</p>
+          <p className="mt-2">Envío gratis desde: {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
         <Link href="/checkout" className="block pt-2">
           <Button className="w-full">Continuar compra</Button>
         </Link>
         <Link href="/productos" className="block text-center text-sm text-brand-ink/70 underline underline-offset-4 hover:text-brand-pink">
-          Ver mas productos
+          Ver más productos
         </Link>
       </Card>
     </div>

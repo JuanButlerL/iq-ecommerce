@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: "IQ Kids",
   description:
-    "Alimentos con Sentido Comun. E-commerce propio de IQ Kids para compra directa de barritas.",
+    "Alimentos con Sentido Común. E-commerce propio de IQ Kids para compra directa de barritas.",
   keywords: [
     "IQ Kids",
     "barritas",

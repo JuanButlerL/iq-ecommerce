@@ -13,7 +13,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   const settings = await getStoreSettings();
 
   if (!settings) {
-    throw new AppError("La configuracion de tienda no esta disponible.", 500);
+    throw new AppError("La configuración de tienda no está disponible.", 500);
   }
 
   if (!settings.isStoreOpen) {
@@ -31,7 +31,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   });
 
   if (products.length !== productIds.length) {
-    throw new AppError("Uno o mas productos ya no estan disponibles.", 400);
+    throw new AppError("Uno o más productos ya no están disponibles.", 400);
   }
 
   const subtotalArs = input.items.reduce((accumulator, item) => {
@@ -51,7 +51,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     ? new Date(Date.now() + settings.orderReservationHours * 60 * 60 * 1000)
     : null;
 
-  return prisma.$transaction(async (tx) => {
+  const createdOrder = await prisma.$transaction(async (tx) => {
     const order = await tx.order.create({
       data: {
         publicOrderNumber,
@@ -107,6 +107,20 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
       shippingQuote,
     };
   });
+
+  await syncOrder(createdOrder.id).catch(async (syncError) => {
+    const message = syncError instanceof Error ? syncError.message : "Sync error";
+
+    await prisma.order.update({
+      where: { id: createdOrder.id },
+      data: {
+        syncStatus: SyncStatus.ERROR,
+        syncLastError: message,
+      },
+    });
+  });
+
+  return createdOrder;
 }
 
 export async function getOrderByNumber(orderNumber: string) {

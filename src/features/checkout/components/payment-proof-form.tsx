@@ -1,11 +1,13 @@
-"use client";
+﻿"use client";
 
 import { FileText, ImageIcon, ShieldCheck, Upload, WandSparkles } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCartStore } from "@/features/cart/store";
@@ -13,9 +15,10 @@ import { paymentProofFormSchema, type PaymentProofFormInput } from "@/lib/valida
 
 type PaymentProofFormProps = {
   orderNumber: string;
+  whatsappUrl?: string;
 };
 
-export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
+export function PaymentProofForm({ orderNumber, whatsappUrl }: PaymentProofFormProps) {
   const router = useRouter();
   const clearCart = useCartStore((state) => state.clear);
   const [file, setFile] = useState<File | null>(null);
@@ -47,18 +50,18 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
       <div className="space-y-2">
         <div className="inline-flex items-center gap-2 rounded-full bg-brand-mint px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-brand-ink">
           <ShieldCheck className="h-4 w-4" />
-          Ultimo paso
+          Último paso
         </div>
-        <h2 className="font-display text-2xl text-brand-ink md:text-3xl">Subi tu comprobante</h2>
+        <h2 className="font-display text-2xl text-brand-ink md:text-3xl">Subí tu comprobante</h2>
         <p className="text-sm leading-6 text-brand-ink/70">
-          Cuando ya pagaste, subi el comprobante para avisarnos y continuar con tu pedido.
+          Cuando ya pagaste, subí el comprobante para avisarnos y continuar con tu pedido.
         </p>
       </div>
 
       <div className="grid gap-4">
         <div className="space-y-2">
           <label className="block text-sm font-bold text-brand-ink">
-            DNI del titular que transfirio <span className="text-red-600">*</span>
+            DNI del titular que transfirió <span className="text-red-600">*</span>
           </label>
           <Input
             inputMode="numeric"
@@ -67,7 +70,7 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
             className={form.formState.errors.transferSenderName ? "border-red-500 focus:border-red-500 focus:ring-red-100" : ""}
             {...form.register("transferSenderName")}
           />
-          <p className="text-xs text-brand-ink/55">Campo obligatorio. Ingresa un DNI valido de 7 u 8 numeros.</p>
+          <p className="text-xs text-brand-ink/55">Campo obligatorio. Ingresá un DNI válido de 7 u 8 números.</p>
           {form.formState.errors.transferSenderName ? (
             <p className="text-sm font-bold text-red-600">{form.formState.errors.transferSenderName.message}</p>
           ) : null}
@@ -95,12 +98,12 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
                   <p className="text-sm font-extrabold text-brand-ink">Subir comprobante</p>
                   <span className="inline-flex items-center gap-1 rounded-full bg-brand-mint px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-ink">
                     <WandSparkles className="h-3.5 w-3.5" />
-                    Facil
+                    Fácil
                   </span>
                   <span className="text-sm font-bold text-red-600">*</span>
                 </div>
                 <p className="mt-1 text-sm text-brand-ink/65">
-                  Toca aca para elegir una foto o PDF desde tu celular.
+                  Tocá acá para elegir una foto o PDF desde tu celular.
                 </p>
                 <div className="mt-4 inline-flex rounded-full bg-brand-pink px-4 py-2 text-sm font-bold text-white">
                   Elegir foto o PDF
@@ -128,11 +131,13 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
             </div>
           </div>
           {previewUrl ? (
-            <img
-              src={previewUrl}
-              alt="Vista previa del comprobante"
-              className="max-h-72 w-full rounded-2xl bg-white object-contain"
-            />
+            <div className="rounded-2xl border border-brand-ink/10 bg-white p-2">
+              <img
+                src={previewUrl}
+                alt="Vista previa del comprobante"
+                className="max-h-40 w-full rounded-xl object-contain"
+              />
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -173,16 +178,24 @@ export function PaymentProofForm({ orderNumber }: PaymentProofFormProps) {
           });
         })}
       >
-        {isPending ? "Subiendo comprobante..." : "Ya transferi, enviar comprobante"}
+        {isPending ? "Subiendo comprobante..." : "Ya transferí, enviar comprobante"}
       </Button>
 
       <p className="text-center text-xs text-brand-ink/55">
         Los campos marcados con <span className="font-bold text-red-600">*</span> son obligatorios.
       </p>
-
-      <p className="text-center text-xs text-brand-ink/55">
-        Cuando lo recibamos, tu pago queda en revision y operaciones puede ver el archivo enseguida.
-      </p>
+      {whatsappUrl ? (
+        <div className="pt-2">
+          <Link
+            href={whatsappUrl}
+            target="_blank"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#25d366] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(37,211,102,0.22)]"
+          >
+            <WhatsappIcon className="h-4 w-4" />
+            Necesito ayuda
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }

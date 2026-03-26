@@ -41,7 +41,7 @@ export default async function AdminProductsPage() {
                 <span>Estado: {product.active ? "Activo" : "Inactivo"}</span>
                 <span>Visible: {product.visible ? "Si" : "No"}</span>
                 <span>Orden: {product.sortOrder}</span>
-                <span>Destacado: {product.featured ? "Si" : "No"}</span>
+                <span>Destacado: {product.featured ? "Sí" : "No"}</span>
               </div>
             </div>
           ))}

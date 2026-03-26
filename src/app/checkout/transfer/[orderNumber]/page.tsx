@@ -1,13 +1,10 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, Copy } from "lucide-react";
 
-import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { Container } from "@/components/layout/container";
 import { Card } from "@/components/ui/card";
 import { CopyValue } from "@/features/checkout/components/copy-value";
 import { PaymentProofForm } from "@/features/checkout/components/payment-proof-form";
-import { TransferReturnLink } from "@/features/checkout/components/transfer-return-link";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { formatArs } from "@/lib/utils/currency";
@@ -39,12 +36,12 @@ export default async function TransferPage({
             Pedido {order.publicOrderNumber}
           </h1>
           <p className="mt-3 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Tu pedido ya fue generado, pero todavia falta pagar para confirmarlo.
+            Tu pedido ya fue generado, pero todavía falta pagar para confirmarlo.
           </p>
         </div>
 
         <div className="rounded-[2rem] border-2 border-brand-pink bg-brand-peach p-6 shadow-[0_18px_50px_rgba(244,137,145,0.18)]">
-          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Todavia falta pagar</p>
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Todavía falta pagar</p>
           <p className="mt-3 text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/60">Monto a transferir</p>
           <p className="mt-2 font-display text-4xl text-brand-pink md:text-6xl">{formatArs(order.totalArs)}</p>
 
@@ -59,17 +56,9 @@ export default async function TransferPage({
           </div>
 
           <p className="mt-4 text-sm text-brand-ink/70">
-            1. Paga con alias o CBU. 2. Volve a este pedido y subi el comprobante.
+            1. Pagá con alias o CBU. 2. Volvé a este pedido y subí el comprobante.
           </p>
-
-          {order.reservationExpiresAt ? (
-            <p className="mt-3 text-sm font-bold text-brand-ink">
-              Reserva vigente hasta {order.reservationExpiresAt.toLocaleString("es-AR")}.
-            </p>
-          ) : null}
         </div>
-
-        <TransferReturnLink orderNumber={order.publicOrderNumber} />
 
         <details className="rounded-[1.5rem] border border-brand-ink/10 bg-white">
           <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-bold text-brand-ink">
@@ -77,7 +66,7 @@ export default async function TransferPage({
             <ArrowRight className="h-4 w-4" />
           </summary>
           <div className="grid gap-4 border-t border-brand-ink/10 px-5 py-5 md:grid-cols-2">
-            <CopyValue label="Numero de pedido" value={order.publicOrderNumber} copyable />
+            <CopyValue label="Número de pedido" value={order.publicOrderNumber} copyable />
             <CopyValue label="Email" value={settings.contactEmail} />
             <CopyValue label="Banco" value={settings.bankName} />
             <CopyValue label="Titular" value={settings.bankHolder} />
@@ -85,21 +74,10 @@ export default async function TransferPage({
           </div>
         </details>
 
-        <div className="pt-2">
-          <Link
-            href={whatsappUrl}
-            target="_blank"
-            className="inline-flex items-center gap-2 rounded-full bg-[#25d366] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(37,211,102,0.22)]"
-          >
-            <WhatsappIcon className="h-4 w-4" />
-            Necesito ayuda
-          </Link>
-        </div>
-
         <p className="text-sm text-brand-ink/60">{settings.transferInstructions}</p>
       </Card>
 
-      <PaymentProofForm orderNumber={order.publicOrderNumber} />
+      <PaymentProofForm orderNumber={order.publicOrderNumber} whatsappUrl={whatsappUrl} />
     </Container>
   );
 }

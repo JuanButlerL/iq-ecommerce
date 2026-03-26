@@ -159,8 +159,8 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
             </nav>
 
             <div className="mt-auto pt-6">
-              <AdminSignOutButton className={cn("w-full justify-center", isDesktopCollapsed && "px-0")} title="Cerrar sesion">
-                <span className={cn(isDesktopCollapsed && "sr-only")}>Cerrar sesion</span>
+              <AdminSignOutButton className={cn("w-full justify-center", isDesktopCollapsed && "px-0")} title="Cerrar sesión">
+                <span className={cn(isDesktopCollapsed && "sr-only")}>Cerrar sesión</span>
                 {isDesktopCollapsed ? <LogOut aria-hidden="true" className="h-4 w-4" /> : null}
               </AdminSignOutButton>
             </div>

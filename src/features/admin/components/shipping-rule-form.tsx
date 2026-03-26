@@ -69,7 +69,7 @@ export function ShippingRuleForm({ rule }: ShippingRuleFormProps) {
   return (
     <Card className="space-y-5 p-4 md:p-6">
       <div>
-        <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Reglas de envio</h1>
+        <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Reglas de envío</h1>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />

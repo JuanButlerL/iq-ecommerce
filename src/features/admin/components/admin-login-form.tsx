@@ -18,7 +18,7 @@ export function AdminLoginForm() {
     <Card className="mx-auto w-full max-w-[560px] space-y-6 rounded-[2rem] border border-white/70 bg-white/90 p-8 shadow-[0_30px_80px_rgba(44,34,65,0.12)] backdrop-blur md:p-10">
       <div>
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Admin IQ Kids</p>
-        <h1 className="mt-3 font-display text-4xl text-brand-ink md:text-5xl">Iniciar sesion</h1>
+        <h1 className="mt-3 font-display text-4xl text-brand-ink md:text-5xl">Iniciar sesión</h1>
         <p className="mt-3 text-sm leading-6 text-brand-ink/60">
           Acceso restringido al panel de gestion. Ingresa con credenciales de administrador.
         </p>
@@ -53,14 +53,14 @@ export function AdminLoginForm() {
               const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
               if (!response.ok) {
-                setError(payload?.error ?? "No se pudo iniciar sesion.");
+                setError(payload?.error ?? "No se pudo iniciar sesión.");
                 return;
               }
 
               router.push("/admin");
               router.refresh();
             } catch (clientError) {
-              setError(clientError instanceof Error ? clientError.message : "No se pudo iniciar sesion.");
+              setError(clientError instanceof Error ? clientError.message : "No se pudo iniciar sesión.");
             }
           });
         }}

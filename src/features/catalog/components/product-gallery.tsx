@@ -14,6 +14,46 @@ type ProductGalleryProps = {
 export function ProductGallery({ images, colorTheme }: ProductGalleryProps) {
   const [selected, setSelected] = useState(images[0] ?? null);
   const fallbackImage = productFallbackImageMap[colorTheme];
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  const selectedIndex = selected ? images.findIndex((image) => image.id === selected.id) : -1;
+
+  const goToIndex = (nextIndex: number) => {
+    if (images.length === 0) {
+      return;
+    }
+
+    const safeIndex = (nextIndex + images.length) % images.length;
+    setSelected(images[safeIndex] ?? null);
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    setTouchStartX(event.touches[0]?.clientX ?? null);
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (touchStartX === null || images.length < 2) {
+      setTouchStartX(null);
+      return;
+    }
+
+    const touchEndX = event.changedTouches[0]?.clientX ?? null;
+
+    if (touchEndX === null) {
+      setTouchStartX(null);
+      return;
+    }
+
+    const deltaX = touchEndX - touchStartX;
+
+    if (Math.abs(deltaX) < 40) {
+      setTouchStartX(null);
+      return;
+    }
+
+    goToIndex(selectedIndex + (deltaX < 0 ? 1 : -1));
+    setTouchStartX(null);
+  };
 
   if (!selected) {
     return (
@@ -51,7 +91,11 @@ export function ProductGallery({ images, colorTheme }: ProductGalleryProps) {
           ))}
           </div>
         </div>
-        <div className="order-1 mb-3 relative aspect-square overflow-hidden rounded-[2rem] bg-white p-4 shadow-card md:order-2 md:mb-0 md:p-8">
+        <div
+          className="order-1 mb-3 relative aspect-square overflow-hidden rounded-[2rem] bg-white p-4 shadow-card md:order-2 md:mb-0 md:p-8"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <img
             src={selected.publicUrl}
             alt={selected.altText}
@@ -61,6 +105,22 @@ export function ProductGallery({ images, colorTheme }: ProductGalleryProps) {
               event.currentTarget.src = fallbackImage;
             }}
           />
+          {images.length > 1 ? (
+            <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-2 md:hidden">
+              {images.map((image, index) => (
+                <button
+                  key={image.id}
+                  type="button"
+                  aria-label={`Ver imagen ${index + 1}`}
+                  className={cn(
+                    "h-2.5 rounded-full transition-all",
+                    selected.id === image.id ? "w-6 bg-brand-pink" : "w-2.5 bg-brand-ink/20",
+                  )}
+                  onClick={() => setSelected(image)}
+                />
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

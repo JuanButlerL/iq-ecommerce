@@ -9,9 +9,9 @@ export default async function HomePage() {
   return (
     <div className="bg-white">
       <Container className="py-5 text-center md:py-6">
-        <p className="text-[22px] font-medium text-brand-ink/70 md:text-[26px]">Alimentos con Sentido Comun</p>
+        <p className="text-[22px] font-medium text-brand-ink/70 md:text-[26px]">Alimentos con Sentido Común</p>
         <h1 className="mt-3 text-4xl font-extrabold text-brand-ink md:text-5xl">
-          Con Ingredientes Naturales y NADA MAS!
+          Con Ingredientes Naturales y NADA MÁS!
         </h1>
         <h2 className="mt-12 text-3xl font-extrabold text-brand-ink md:mt-14 md:text-4xl">Nuestras Barritas</h2>
       </Container>

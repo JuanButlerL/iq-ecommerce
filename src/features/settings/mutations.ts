@@ -10,7 +10,7 @@ export async function updateStoreSettings(payload: unknown) {
   const parsed = storeSettingsSchema.safeParse(payload);
 
   if (!parsed.success) {
-    throw new AppError("Configuracion invalida.", 400);
+    throw new AppError("Configuración inválida.", 400);
   }
 
   await prisma.storeSettings.update({

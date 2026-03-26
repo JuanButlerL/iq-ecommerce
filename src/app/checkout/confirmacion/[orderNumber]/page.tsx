@@ -27,18 +27,18 @@ export default async function ConfirmationPage({
         <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
         <p className="text-brand-ink/70">
           {settings?.purchaseSuccessMessage ??
-            "Recibimos tu comprobante. Vamos a validar el pago y seguir con la preparacion del pedido."}
+            "Recibimos tu comprobante. Vamos a validar el pago y seguir con la preparación del pedido."}
         </p>
         <div className="rounded-[2rem] bg-brand-peach p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
           <p className="mt-2 text-2xl font-extrabold text-brand-ink">{order.publicOrderNumber}</p>
           <p className="mt-4 font-display text-4xl text-brand-pink">{formatArs(order.totalArs)}</p>
-          <p className="mt-4 text-sm text-brand-ink/70">Tu comprobante ya fue enviado. Si el equipo necesita algo mas, te contacta con estos datos.</p>
+          <p className="mt-4 text-sm text-brand-ink/70">Tu comprobante ya fue enviado. Si el equipo necesita algo más, te contacta con estos datos.</p>
         </div>
         <div className="grid gap-3 text-left md:grid-cols-3">
           <div className="rounded-[1.5rem] bg-background p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estado actual</p>
-            <p className="mt-2 font-bold text-brand-ink">Pago en revision</p>
+            <p className="mt-2 font-bold text-brand-ink">Pago en revisión</p>
           </div>
           <div className="rounded-[1.5rem] bg-background p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>

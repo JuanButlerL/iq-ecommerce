@@ -10,7 +10,7 @@ export default function PoliciesPage() {
           <p>Los pedidos quedan registrados en base de datos antes de cualquier sincronizacion externa.</p>
           <p>La compra se considera completada cuando el comprobante fue subido correctamente.</p>
           <p>El equipo de IQ Kids valida manualmente la transferencia antes de marcar el pedido como pagado.</p>
-          <p>Los costos de envio y mensajes comerciales dependen de la configuracion vigente en admin.</p>
+          <p>Los costos de envío y mensajes comerciales dependen de la configuración vigente en admin.</p>
         </div>
       </Card>
     </Container>

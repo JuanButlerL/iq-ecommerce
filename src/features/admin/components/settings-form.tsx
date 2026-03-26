@@ -33,7 +33,7 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
   return (
     <Card className="space-y-5 p-4 md:p-6">
       <div>
-        <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Configuracion de tienda</h1>
+        <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Configuración de tienda</h1>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Nombre de la tienda">
@@ -66,13 +66,13 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
         <Field label="Monto minimo de compra">
           <Input type="number" value={form.minimumOrderAmount} onChange={(event) => setForm((current) => ({ ...current, minimumOrderAmount: Number(event.target.value) }))} placeholder="20000" />
         </Field>
-        <Field label="Envio gratis desde">
+        <Field label="Envío gratis desde">
           <Input type="number" value={form.freeShippingThreshold} onChange={(event) => setForm((current) => ({ ...current, freeShippingThreshold: Number(event.target.value) }))} placeholder="60000" />
         </Field>
-        <Field label="Costo fijo de envio nacional">
+        <Field label="Costo fijo de envío nacional">
           <Input type="number" value={form.flatShippingPrice} onChange={(event) => setForm((current) => ({ ...current, flatShippingPrice: Number(event.target.value) }))} placeholder="Costo en ARS" />
         </Field>
-        <Field label="Modo de envio">
+        <Field label="Modo de envío">
           <Select value={form.shippingMode} onChange={(event) => setForm((current) => ({ ...current, shippingMode: event.target.value as ShippingMode }))}>
             {Object.values(ShippingMode).map((mode) => (
               <option key={mode} value={mode}>
@@ -81,7 +81,7 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
             ))}
           </Select>
         </Field>
-        <Field label="Regla activa de envio">
+        <Field label="Regla activa de envío">
           <Select value={form.activeShippingRuleId} onChange={(event) => setForm((current) => ({ ...current, activeShippingRuleId: event.target.value }))}>
             <option value="">Sin regla</option>
             {shippingRules.map((rule) => (
@@ -128,7 +128,7 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
             const payload = await response.json();
 
             if (!response.ok) {
-              setError(payload.error ?? "No pudimos guardar la configuracion.");
+              setError(payload.error ?? "No pudimos guardar la configuración.");
               return;
             }
 
@@ -136,7 +136,7 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
           });
         }}
       >
-        {isPending ? "Guardando..." : "Guardar configuracion"}
+        {isPending ? "Guardando..." : "Guardar configuración"}
       </Button>
     </Card>
   );
