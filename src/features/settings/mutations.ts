@@ -21,6 +21,7 @@ export async function updateStoreSettings(payload: unknown) {
       instagramUrl: parsed.data.instagramUrl || null,
       checkoutMessage: parsed.data.checkoutMessage || null,
       transferInstructions: parsed.data.transferInstructions || null,
+      mercadoPagoCheckoutLabel: parsed.data.mercadoPagoCheckoutLabel || null,
       institutionalBanner: parsed.data.institutionalBanner || null,
       purchaseSuccessMessage: parsed.data.purchaseSuccessMessage || null,
     },

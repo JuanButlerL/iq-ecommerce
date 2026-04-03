@@ -18,6 +18,7 @@ export const storeSettingsSchema = z.object({
   activeShippingRuleId: z.string().uuid().optional().or(z.literal("")),
   checkoutMessage: z.string().max(500).optional().or(z.literal("")),
   transferInstructions: z.string().max(1200).optional().or(z.literal("")),
+  mercadoPagoCheckoutLabel: z.string().max(160).optional().or(z.literal("")),
   orderReservationHours: z.coerce.number().int().min(1).max(168).optional(),
   institutionalBanner: z.string().max(160).optional().or(z.literal("")),
   purchaseSuccessMessage: z.string().max(500).optional().or(z.literal("")),

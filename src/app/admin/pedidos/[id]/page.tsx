@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Clock3, FileText, RefreshCcw } from "lucide-react";
+import { PaymentMethod } from "@prisma/client";
+import { CheckCircle2, Clock3, CreditCard, FileText, RefreshCcw } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import { RetrySyncButton } from "@/features/admin/components/retry-sync-button";
 import { OrderStatusForm } from "@/features/admin/components/order-status-form";
+import { RetrySyncButton } from "@/features/admin/components/retry-sync-button";
 import { getOrderDetail } from "@/features/orders/queries";
 import { requireAdmin } from "@/lib/auth/admin";
+import { getPaymentMethodLabel, getPaymentStatusLabel } from "@/lib/payments/labels";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -25,6 +27,7 @@ export default async function AdminOrderDetailPage({
 
   const latestProof = order.paymentProofs[0];
   const proofUrl = latestProof ? await createPaymentProofSignedUrl(latestProof.storagePath) : null;
+  const isTransfer = order.paymentMethod === PaymentMethod.BANK_TRANSFER;
 
   return (
     <div className="space-y-6">
@@ -32,14 +35,18 @@ export default async function AdminOrderDetailPage({
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Pedido</p>
         <h1 className="font-display text-5xl text-brand-ink">{order.publicOrderNumber}</h1>
       </div>
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card className="space-y-2 p-5">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Total</p>
           <p className="text-2xl font-extrabold text-brand-ink">{formatArs(order.totalArs)}</p>
         </Card>
         <Card className="space-y-2 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Metodo</p>
+          <p className="text-sm font-bold text-brand-ink">{getPaymentMethodLabel(order.paymentMethod)}</p>
+        </Card>
+        <Card className="space-y-2 p-5">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pago</p>
-          <p className="text-sm font-bold text-brand-ink">{order.paymentStatus}</p>
+          <p className="text-sm font-bold text-brand-ink">{getPaymentStatusLabel(order.paymentStatus)}</p>
         </Card>
         <Card className="space-y-2 p-5">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
@@ -53,15 +60,23 @@ export default async function AdminOrderDetailPage({
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <Card className="space-y-4 p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Datos del cliente</p>
-          <p className="text-brand-ink">{order.customerFirstName} {order.customerLastName}</p>
+          <p className="text-brand-ink">
+            {order.customerFirstName} {order.customerLastName}
+          </p>
           <p className="text-brand-ink/70">{order.customerEmail}</p>
           <p className="text-brand-ink/70">{order.customerPhone}</p>
-          <p className="text-brand-ink/70">{order.addressLine} {order.addressExtra}</p>
-          <p className="text-brand-ink/70">{order.locality}, {order.province}, {order.postalCode}</p>
+          <p className="text-brand-ink/70">
+            {order.addressLine} {order.addressExtra}
+          </p>
+          <p className="text-brand-ink/70">
+            {order.locality}, {order.province}, {order.postalCode}
+          </p>
           <div className="space-y-2 border-t border-brand-ink/10 pt-4">
             {order.items.map((item) => (
               <div key={item.id} className="flex items-center justify-between text-sm text-brand-ink/70">
-                <span>{item.productNameSnapshot} x {item.quantity}</span>
+                <span>
+                  {item.productNameSnapshot} x {item.quantity}
+                </span>
                 <span>${item.lineTotalArs.toLocaleString("es-AR")}</span>
               </div>
             ))}
@@ -72,9 +87,13 @@ export default async function AdminOrderDetailPage({
           <Card className="space-y-4 p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Comprobante</p>
+                <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">
+                  {isTransfer ? "Comprobante" : "Referencia de pago"}
+                </p>
                 <p className="mt-2 text-sm text-brand-ink/70">
-                  Datos clave para conciliar rapido el pago con el pedido.
+                  {isTransfer
+                    ? "Datos clave para conciliar rapido el pago con el pedido."
+                    : "Datos devueltos por Mercado Pago para auditar el estado del cobro."}
                 </p>
               </div>
               {proofUrl ? (
@@ -88,54 +107,81 @@ export default async function AdminOrderDetailPage({
                 </Link>
               ) : null}
             </div>
-            {latestProof ? (
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-[1.5rem] border border-brand-ink/10 bg-background">
-                  {proofUrl && latestProof.mimeType === "application/pdf" ? (
-                    <iframe
-                      src={proofUrl}
-                      title={`Comprobante ${latestProof.fileName}`}
-                      className="h-[520px] w-full bg-white"
-                    />
-                  ) : proofUrl && latestProof.mimeType.startsWith("image/") ? (
-                    <img
-                      src={proofUrl}
-                      alt={`Comprobante ${latestProof.fileName}`}
-                      className="max-h-[520px] w-full object-contain bg-white"
-                    />
-                  ) : (
-                    <div className="flex min-h-[220px] items-center justify-center p-6 text-center text-sm text-brand-ink/60">
-                      No se puede previsualizar este archivo en pantalla. Abrilo desde &quot;Ver comprobante&quot;.
+            {isTransfer ? (
+              latestProof ? (
+                <div className="space-y-4">
+                  <div className="overflow-hidden rounded-[1.5rem] border border-brand-ink/10 bg-background">
+                    {proofUrl && latestProof.mimeType === "application/pdf" ? (
+                      <iframe
+                        src={proofUrl}
+                        title={`Comprobante ${latestProof.fileName}`}
+                        className="h-[520px] w-full bg-white"
+                      />
+                    ) : proofUrl && latestProof.mimeType.startsWith("image/") ? (
+                      <img
+                        src={proofUrl}
+                        alt={`Comprobante ${latestProof.fileName}`}
+                        className="max-h-[520px] w-full bg-white object-contain"
+                      />
+                    ) : (
+                      <div className="flex min-h-[220px] items-center justify-center p-6 text-center text-sm text-brand-ink/60">
+                        No se puede previsualizar este archivo en pantalla. Abrelo desde &quot;Ver comprobante&quot;.
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-[1.5rem] bg-background p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">DNI informado</p>
+                      <p className="mt-2 font-bold text-brand-ink">{latestProof.transferSenderName ?? "No informado"}</p>
                     </div>
-                  )}
+                    <div className="rounded-[1.5rem] bg-background p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Fecha informada</p>
+                      <p className="mt-2 font-bold text-brand-ink">
+                        {latestProof.transferDate ? latestProof.transferDate.toLocaleString("es-AR") : "No informada"}
+                      </p>
+                    </div>
+                    <div className="rounded-[1.5rem] bg-background p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Referencia</p>
+                      <p className="mt-2 font-bold text-brand-ink">{latestProof.transferReference ?? "No informada"}</p>
+                    </div>
+                    <div className="rounded-[1.5rem] bg-background p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Archivo</p>
+                      <p className="mt-2 font-bold text-brand-ink">{latestProof.fileName}</p>
+                    </div>
+                    <div className="rounded-[1.5rem] bg-background p-4 md:col-span-2">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Nota del cliente</p>
+                      <p className="mt-2 text-brand-ink">{latestProof.customerNote ?? "Sin nota adicional."}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-[1.5rem] bg-background p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">DNI informado</p>
-                    <p className="mt-2 font-bold text-brand-ink">{latestProof.transferSenderName ?? "No informado"}</p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-background p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Fecha informada</p>
-                    <p className="mt-2 font-bold text-brand-ink">
-                      {latestProof.transferDate ? latestProof.transferDate.toLocaleString("es-AR") : "No informada"}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-background p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Referencia</p>
-                    <p className="mt-2 font-bold text-brand-ink">{latestProof.transferReference ?? "No informada"}</p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-background p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Archivo</p>
-                    <p className="mt-2 font-bold text-brand-ink">{latestProof.fileName}</p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-background p-4 md:col-span-2">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Nota del cliente</p>
-                    <p className="mt-2 text-brand-ink">{latestProof.customerNote ?? "Sin nota adicional."}</p>
-                  </div>
+              ) : (
+                <p className="text-sm text-brand-ink/50">Todavia no hay comprobante cargado.</p>
+              )
+            ) : (
+              <div className="grid gap-3">
+                <div className="rounded-[1.5rem] bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Proveedor</p>
+                  <p className="mt-2 font-bold text-brand-ink">{getPaymentMethodLabel(order.paymentMethod)}</p>
+                </div>
+                <div className="rounded-[1.5rem] bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">ID de pago</p>
+                  <p className="mt-2 font-bold text-brand-ink">{order.paymentProviderRef ?? "Aun sin acreditar"}</p>
+                </div>
+                <div className="rounded-[1.5rem] bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Preferencia</p>
+                  <p className="mt-2 font-bold text-brand-ink">{order.paymentPreferenceId ?? "No disponible"}</p>
+                </div>
+                <div className="rounded-[1.5rem] bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Detalle</p>
+                  <p className="mt-2 text-brand-ink">{order.paymentStatusDetail ?? "Sin detalle adicional."}</p>
+                </div>
+                <div className="rounded-[1.5rem] bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Ultima conciliacion</p>
+                  <p className="mt-2 text-brand-ink">
+                    {order.paymentLastCheckedAt ? order.paymentLastCheckedAt.toLocaleString("es-AR") : "Todavia no se consulto"}
+                  </p>
                 </div>
               </div>
-            ) : (
-              <p className="text-sm text-brand-ink/50">Todavia no hay comprobante cargado.</p>
             )}
           </Card>
           <Card className="space-y-4 p-6">
@@ -147,7 +193,11 @@ export default async function AdminOrderDetailPage({
               </div>
               <div className="flex items-center gap-3 rounded-[1.25rem] bg-background p-4 text-sm text-brand-ink">
                 <CheckCircle2 className="h-4 w-4 text-brand-pink" />
-                Estado del pago: {order.paymentStatus}
+                Estado del pago: {getPaymentStatusLabel(order.paymentStatus)}
+              </div>
+              <div className="flex items-center gap-3 rounded-[1.25rem] bg-background p-4 text-sm text-brand-ink">
+                <CreditCard className="h-4 w-4 text-brand-pink" />
+                Metodo: {getPaymentMethodLabel(order.paymentMethod)}
               </div>
               <div className="flex items-center gap-3 rounded-[1.25rem] bg-background p-4 text-sm text-brand-ink">
                 <RefreshCcw className="h-4 w-4 text-brand-pink" />

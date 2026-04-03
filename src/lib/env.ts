@@ -18,6 +18,8 @@ const envSchema = z.object({
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: z.string().optional(),
   APPS_SCRIPT_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),
   APPS_SCRIPT_API_KEY: z.string().optional(),
+  MERCADO_PAGO_ACCESS_TOKEN: z.string().optional(),
+  MERCADO_PAGO_WEBHOOK_SECRET: z.string().optional(),
   ADMIN_BOOTSTRAP_EMAIL: z.string().email().default("admin@iqkids.local"),
   ADMIN_LOCAL_EMAIL: z.string().email().optional(),
   ADMIN_LOCAL_PASSWORD: z.string().min(8).optional(),
@@ -44,6 +46,8 @@ const parsedEnv = envSchema.parse({
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
   APPS_SCRIPT_WEBHOOK_URL: process.env.APPS_SCRIPT_WEBHOOK_URL,
   APPS_SCRIPT_API_KEY: process.env.APPS_SCRIPT_API_KEY,
+  MERCADO_PAGO_ACCESS_TOKEN: process.env.MERCADO_PAGO_ACCESS_TOKEN,
+  MERCADO_PAGO_WEBHOOK_SECRET: process.env.MERCADO_PAGO_WEBHOOK_SECRET,
   ADMIN_BOOTSTRAP_EMAIL: process.env.ADMIN_BOOTSTRAP_EMAIL,
   ADMIN_LOCAL_EMAIL: process.env.ADMIN_LOCAL_EMAIL,
   ADMIN_LOCAL_PASSWORD: process.env.ADMIN_LOCAL_PASSWORD,
@@ -58,6 +62,10 @@ function isRealSupabaseUrl(value?: string) {
 
 function isRealSupabaseKey(value?: string) {
   return Boolean(value) && !String(value).includes("your-anon-key") && !String(value).includes("your-service-role-key") && !String(value).includes("placeholder-");
+}
+
+function isRealMercadoPagoToken(value?: string) {
+  return Boolean(value) && !String(value).includes("TEST-000000") && !String(value).includes("APP_USR-000000");
 }
 
 export const env = {
@@ -76,6 +84,8 @@ export const env = {
   hasSupabaseAuth: isRealSupabaseUrl(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) && isRealSupabaseKey(parsedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY),
   hasSupabaseAdmin:
     isRealSupabaseUrl(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) && isRealSupabaseKey(parsedEnv.SUPABASE_SERVICE_ROLE_KEY),
+  hasMercadoPago:
+    isRealMercadoPagoToken(parsedEnv.MERCADO_PAGO_ACCESS_TOKEN),
   canUseLocalAdminAuth:
     Boolean(parsedEnv.ADMIN_LOCAL_EMAIL) &&
     Boolean(parsedEnv.ADMIN_LOCAL_PASSWORD) &&

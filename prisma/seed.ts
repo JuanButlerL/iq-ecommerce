@@ -114,6 +114,7 @@ async function main() {
         "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.",
       transferInstructions:
         "Transferi el monto exacto dentro del plazo de reserva y subi el comprobante para confirmar tu pedido.",
+      mercadoPagoCheckoutLabel: "Pagá en el momento con tarjeta, saldo o dinero en cuenta.",
       orderReservationHours: 24,
       institutionalBanner: "Alimentos con Sentido Comun",
       purchaseSuccessMessage:
@@ -143,6 +144,7 @@ async function main() {
         "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.",
       transferInstructions:
         "Transferi el monto exacto dentro del plazo de reserva y subi el comprobante para confirmar tu pedido.",
+      mercadoPagoCheckoutLabel: "Pagá en el momento con tarjeta, saldo o dinero en cuenta.",
       orderReservationHours: 24,
       institutionalBanner: "Alimentos con Sentido Comun",
       purchaseSuccessMessage:

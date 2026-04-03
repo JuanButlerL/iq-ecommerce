@@ -1,9 +1,10 @@
 import Link from "next/link";
 
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { getOrders } from "@/features/orders/queries";
 import { requireAdmin } from "@/lib/auth/admin";
+import { getPaymentMethodLabel, getPaymentStatusLabel } from "@/lib/payments/labels";
 
 function parseDateParam(value?: string) {
   if (!value) {
@@ -46,7 +47,9 @@ export default async function AdminOrdersPage({
           <h1 className="font-display text-3xl text-brand-ink md:text-5xl">Listado</h1>
         </div>
         <Link href={exportHref}>
-          <Button variant="secondary" className="w-full sm:w-auto">Exportar Excel</Button>
+          <Button variant="secondary" className="w-full sm:w-auto">
+            Exportar Excel
+          </Button>
         </Link>
       </div>
       <Card className="p-4 md:p-6">
@@ -84,7 +87,11 @@ export default async function AdminOrdersPage({
       <Card className="p-6">
         <div className="space-y-3 md:hidden">
           {orders.map((order) => (
-            <Link key={order.id} href={`/admin/pedidos/${order.id}`} className="block rounded-[1.5rem] border border-brand-ink/10 bg-background p-4">
+            <Link
+              key={order.id}
+              href={`/admin/pedidos/${order.id}`}
+              className="block rounded-[1.5rem] border border-brand-ink/10 bg-background p-4"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-bold text-brand-ink">{order.publicOrderNumber}</p>
@@ -96,21 +103,22 @@ export default async function AdminOrdersPage({
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-brand-ink/50">
                 <span>{order.orderStatus}</span>
-                <span>{order.paymentStatus}</span>
-                <span>Sync: {order.syncStatus}</span>
+                <span>{getPaymentStatusLabel(order.paymentStatus)}</span>
+                <span>{getPaymentMethodLabel(order.paymentMethod)}</span>
                 <span>{order.paymentProofs[0] ? "Con comprobante" : "Sin comprobante"}</span>
               </div>
             </Link>
           ))}
         </div>
         <div className="hidden overflow-x-auto md:block">
-          <table className="min-w-[760px] text-left text-sm">
+          <table className="min-w-[900px] text-left text-sm">
             <thead>
               <tr className="text-brand-ink/50">
                 <th className="pb-3">Pedido</th>
                 <th className="pb-3">Cliente</th>
                 <th className="pb-3">Estado</th>
                 <th className="pb-3">Pago</th>
+                <th className="pb-3">Metodo</th>
                 <th className="pb-3">Comprobante</th>
                 <th className="pb-3">Sync</th>
                 <th className="pb-3">Total</th>
@@ -128,8 +136,15 @@ export default async function AdminOrdersPage({
                     {order.customerFirstName} {order.customerLastName}
                   </td>
                   <td className="py-3 text-brand-ink/70">{order.orderStatus}</td>
-                  <td className="py-3 text-brand-ink/70">{order.paymentStatus}</td>
-                  <td className="py-3 text-brand-ink/70">{order.paymentProofs[0] ? "Cargado" : "Pendiente"}</td>
+                  <td className="py-3 text-brand-ink/70">{getPaymentStatusLabel(order.paymentStatus)}</td>
+                  <td className="py-3 text-brand-ink/70">{getPaymentMethodLabel(order.paymentMethod)}</td>
+                  <td className="py-3 text-brand-ink/70">
+                    {order.paymentMethod === "BANK_TRANSFER"
+                      ? order.paymentProofs[0]
+                        ? "Cargado"
+                        : "Pendiente"
+                      : "No aplica"}
+                  </td>
                   <td className="py-3 text-brand-ink/70">{order.syncStatus}</td>
                   <td className="py-3 text-brand-ink/70">${order.totalArs.toLocaleString("es-AR")}</td>
                 </tr>

@@ -2,6 +2,7 @@ import { Container } from "@/components/layout/container";
 import { CheckoutPage } from "@/features/checkout/components/checkout-page";
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getStoreSettings } from "@/features/settings/queries";
+import { isMercadoPagoEnabled } from "@/lib/integrations/payments/mercado-pago";
 import { notFound } from "next/navigation";
 
 export default async function CheckoutRoutePage() {
@@ -13,7 +14,7 @@ export default async function CheckoutRoutePage() {
 
   return (
     <Container className="py-12 md:py-16">
-      <CheckoutPage products={products} settings={settings} />
+      <CheckoutPage products={products} settings={settings} mercadoPagoEnabled={isMercadoPagoEnabled()} />
     </Container>
   );
 }

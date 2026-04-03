@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { PaymentMethod } from "@prisma/client";
 import { ArrowRight, Copy } from "lucide-react";
 
 import { Container } from "@/components/layout/container";
@@ -19,6 +20,10 @@ export default async function TransferPage({
   const [order, settings] = await Promise.all([getOrderByNumber(orderNumber), getStoreSettings()]);
 
   if (!order || !settings) {
+    notFound();
+  }
+
+  if (order.paymentMethod !== PaymentMethod.BANK_TRANSFER) {
     notFound();
   }
 

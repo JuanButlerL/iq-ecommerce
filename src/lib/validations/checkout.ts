@@ -17,6 +17,7 @@ export const checkoutSchema = z.object({
   addressExtra: z.string().max(120).optional().or(z.literal("")),
   taxId: z.string().max(20).optional().or(z.literal("")),
   notes: z.string().max(500).optional().or(z.literal("")),
+  paymentMethod: z.enum(["BANK_TRANSFER", "MERCADO_PAGO"]).default("BANK_TRANSFER"),
   items: z.array(checkoutItemSchema).min(1),
 });
 

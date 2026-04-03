@@ -10,6 +10,8 @@ export async function POST(request: Request) {
 
     return routeOk({
       orderNumber: order.publicOrderNumber,
+      paymentMethod: order.paymentMethod,
+      paymentCheckoutUrl: order.paymentCheckoutUrl,
     });
   } catch (error) {
     return routeError(error);

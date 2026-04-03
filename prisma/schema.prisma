@@ -26,12 +26,14 @@ enum ShippingMode {
 
 enum PaymentMethod {
   BANK_TRANSFER
+  MERCADO_PAGO
 }
 
 enum PaymentStatus {
   PENDING
   PROOF_UPLOADED
   PAID
+  REJECTED
   CANCELLED
   EXPIRED
 }
@@ -177,6 +179,7 @@ model StoreSettings {
   activeShippingRuleId   String?      @map("active_shipping_rule_id") @db.Uuid
   checkoutMessage        String?      @map("checkout_message")
   transferInstructions   String?      @map("transfer_instructions")
+  mercadoPagoCheckoutLabel String?    @map("mercado_pago_checkout_label")
   orderReservationHours  Int?         @map("order_reservation_hours")
   institutionalBanner    String?      @map("institutional_banner")
   purchaseSuccessMessage String?      @map("purchase_success_message")
@@ -210,6 +213,13 @@ model Order {
   currency              String               @default("ARS")
   paymentMethod         PaymentMethod        @default(BANK_TRANSFER) @map("payment_method")
   paymentStatus         PaymentStatus        @default(PENDING) @map("payment_status")
+  paymentStatusDetail   String?              @map("payment_status_detail")
+  paymentProviderRef    String?              @map("payment_provider_ref")
+  paymentPreferenceId   String?              @map("payment_preference_id")
+  paymentCheckoutUrl    String?              @map("payment_checkout_url")
+  paymentApprovedAt     DateTime?            @map("payment_approved_at")
+  paymentRejectedAt     DateTime?            @map("payment_rejected_at")
+  paymentLastCheckedAt  DateTime?            @map("payment_last_checked_at")
   orderStatus           OrderStatus          @default(PENDING_PAYMENT) @map("order_status")
   syncStatus            SyncStatus           @default(PENDING) @map("sync_status")
   syncLastError         String?              @map("sync_last_error")

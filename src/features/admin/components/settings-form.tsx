@@ -25,6 +25,7 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
     instagramUrl: settings.instagramUrl ?? "",
     checkoutMessage: settings.checkoutMessage ?? "",
     transferInstructions: settings.transferInstructions ?? "",
+    mercadoPagoCheckoutLabel: settings.mercadoPagoCheckoutLabel ?? "",
     institutionalBanner: settings.institutionalBanner ?? "",
     purchaseSuccessMessage: settings.purchaseSuccessMessage ?? "",
     activeShippingRuleId: settings.activeShippingRuleId ?? "",
@@ -104,6 +105,9 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
         </Field>
         <Field label="Instrucciones de transferencia" className="md:col-span-2">
           <Textarea value={form.transferInstructions} onChange={(event) => setForm((current) => ({ ...current, transferInstructions: event.target.value }))} placeholder="Pasos para transferir y subir comprobante" />
+        </Field>
+        <Field label="Texto de Mercado Pago" className="md:col-span-2">
+          <Input value={form.mercadoPagoCheckoutLabel} onChange={(event) => setForm((current) => ({ ...current, mercadoPagoCheckoutLabel: event.target.value }))} placeholder="Texto corto para explicar Mercado Pago en checkout" />
         </Field>
         <Field label="Texto institucional destacado" className="md:col-span-2">
           <Input value={form.institutionalBanner} onChange={(event) => setForm((current) => ({ ...current, institutionalBanner: event.target.value }))} placeholder="Texto corto de marca o banner institucional" />
