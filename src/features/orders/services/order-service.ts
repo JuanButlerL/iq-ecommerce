@@ -1,6 +1,7 @@
 import { OrderStatus, PaymentStatus, SyncStatus } from "@prisma/client";
 
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { prisma } from "@/lib/db/prisma";
@@ -45,7 +46,13 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   }, 0);
 
   const shippingQuote = calculateShippingQuote(subtotalArs, input.province, settings);
-  const totalArs = subtotalArs + shippingQuote.shippingArs;
+  const coupon = input.couponCode?.trim()
+    ? await getCouponPreview({
+        code: input.couponCode,
+        subtotalArs,
+      })
+    : null;
+  const totalArs = subtotalArs - (coupon?.discountArs ?? 0) + shippingQuote.shippingArs;
   const publicOrderNumber = generatePublicOrderNumber();
   const reservationExpiresAt = settings.orderReservationHours
     ? new Date(Date.now() + settings.orderReservationHours * 60 * 60 * 1000)
@@ -66,6 +73,10 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
         addressLine: input.addressLine,
         addressExtra: input.addressExtra || null,
         notes: input.notes || null,
+        couponId: coupon?.couponId,
+        couponCode: coupon?.couponCode,
+        discountPercentage: coupon?.discountPercentage,
+        discountArs: coupon?.discountArs ?? 0,
         subtotalArs,
         shippingArs: shippingQuote.shippingArs,
         totalArs,
@@ -97,13 +108,16 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
       data: {
         orderId: order.id,
         status: OrderStatus.PENDING_PAYMENT,
-        note: "Pedido generado desde checkout web.",
+        note: coupon
+          ? `Pedido generado desde checkout web con cupón ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
+          : "Pedido generado desde checkout web.",
         changedBy: "system",
       },
     });
 
     return {
       ...order,
+      coupon,
       shippingQuote,
     };
   });
@@ -127,6 +141,7 @@ export async function getOrderByNumber(orderNumber: string) {
   return prisma.order.findUnique({
     where: { publicOrderNumber: orderNumber },
     include: {
+      coupon: true,
       items: true,
       paymentProofs: {
         orderBy: {

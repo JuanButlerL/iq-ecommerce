@@ -53,18 +53,48 @@ export default async function AdminOrderDetailPage({
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <Card className="space-y-4 p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Datos del cliente</p>
-          <p className="text-brand-ink">{order.customerFirstName} {order.customerLastName}</p>
+          <p className="text-brand-ink">
+            {order.customerFirstName} {order.customerLastName}
+          </p>
           <p className="text-brand-ink/70">{order.customerEmail}</p>
           <p className="text-brand-ink/70">{order.customerPhone}</p>
-          <p className="text-brand-ink/70">{order.addressLine} {order.addressExtra}</p>
-          <p className="text-brand-ink/70">{order.locality}, {order.province}, {order.postalCode}</p>
+          <p className="text-brand-ink/70">
+            {order.addressLine} {order.addressExtra}
+          </p>
+          <p className="text-brand-ink/70">
+            {order.locality}, {order.province}, {order.postalCode}
+          </p>
           <div className="space-y-2 border-t border-brand-ink/10 pt-4">
             {order.items.map((item) => (
               <div key={item.id} className="flex items-center justify-between text-sm text-brand-ink/70">
-                <span>{item.productNameSnapshot} x {item.quantity}</span>
-                <span>${item.lineTotalArs.toLocaleString("es-AR")}</span>
+                <span>
+                  {item.productNameSnapshot} x {item.quantity}
+                </span>
+                <span>{formatArs(item.lineTotalArs)}</span>
               </div>
             ))}
+          </div>
+          <div className="space-y-2 rounded-[1.5rem] bg-background p-4 text-sm text-brand-ink/70">
+            <div className="flex items-center justify-between">
+              <span>Subtotal</span>
+              <span className="font-bold text-brand-ink">{formatArs(order.subtotalArs)}</span>
+            </div>
+            {order.discountArs > 0 ? (
+              <div className="flex items-center justify-between">
+                <span>
+                  Cupon {order.couponCode} ({Number(order.discountPercentage ?? 0)}%)
+                </span>
+                <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
+              </div>
+            ) : null}
+            <div className="flex items-center justify-between">
+              <span>Envio</span>
+              <span className="font-bold text-brand-ink">{formatArs(order.shippingArs)}</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-brand-ink/10 pt-2">
+              <span>Total</span>
+              <span className="font-bold text-brand-ink">{formatArs(order.totalArs)}</span>
+            </div>
           </div>
         </Card>
 

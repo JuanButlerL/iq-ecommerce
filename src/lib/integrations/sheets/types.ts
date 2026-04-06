@@ -17,6 +17,9 @@ export type OrderSheetRow = {
   direccion: string;
   direccion_extra: string;
   observaciones: string;
+  cupon: string;
+  porcentaje_descuento: number;
+  descuento: number;
   subtotal: number;
   envio: number;
   total: number;
