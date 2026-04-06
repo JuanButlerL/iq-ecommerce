@@ -212,6 +212,21 @@ async function main() {
       })),
     });
   }
+
+  await prisma.coupon.upsert({
+    where: { code: "BIENVENIDA10" },
+    update: {
+      description: "Cupon de ejemplo para testing local.",
+      discountPercentage: 10,
+      active: true,
+    },
+    create: {
+      code: "BIENVENIDA10",
+      description: "Cupon de ejemplo para testing local.",
+      discountPercentage: 10,
+      active: true,
+    },
+  });
 }
 
 main()

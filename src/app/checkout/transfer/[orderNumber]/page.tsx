@@ -36,14 +36,33 @@ export default async function TransferPage({
             Pedido {order.publicOrderNumber}
           </h1>
           <p className="mt-3 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Tu pedido ya fue generado, pero todavía falta pagar para confirmarlo.
+            Tu pedido ya fue generado, pero todavia falta pagar para confirmarlo.
           </p>
         </div>
 
         <div className="rounded-[2rem] border-2 border-brand-pink bg-brand-peach p-6 shadow-[0_18px_50px_rgba(244,137,145,0.18)]">
-          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Todavía falta pagar</p>
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Todavia falta pagar</p>
           <p className="mt-3 text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/60">Monto a transferir</p>
           <p className="mt-2 font-display text-4xl text-brand-pink md:text-6xl">{formatArs(order.totalArs)}</p>
+
+          <div className="mt-5 space-y-2 rounded-[1.5rem] bg-white/80 p-4 text-sm text-brand-ink/75">
+            <div className="flex items-center justify-between">
+              <span>Subtotal</span>
+              <span className="font-bold text-brand-ink">{formatArs(order.subtotalArs)}</span>
+            </div>
+            {order.discountArs > 0 ? (
+              <div className="flex items-center justify-between">
+                <span>
+                  Cupon {order.couponCode} ({Number(order.discountPercentage ?? 0)}%)
+                </span>
+                <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
+              </div>
+            ) : null}
+            <div className="flex items-center justify-between">
+              <span>Envio</span>
+              <span className="font-bold text-brand-ink">{formatArs(order.shippingArs)}</span>
+            </div>
+          </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <CopyValue label="Alias" value={settings.bankAlias} copyable />
@@ -56,7 +75,7 @@ export default async function TransferPage({
           </div>
 
           <p className="mt-4 text-sm text-brand-ink/70">
-            1. Pagá con alias o CBU. 2. Volvé a este pedido y subí el comprobante.
+            1. Paga con alias o CBU. 2. Vuelve a este pedido y sube el comprobante.
           </p>
         </div>
 
@@ -66,7 +85,7 @@ export default async function TransferPage({
             <ArrowRight className="h-4 w-4" />
           </summary>
           <div className="grid gap-4 border-t border-brand-ink/10 px-5 py-5 md:grid-cols-2">
-            <CopyValue label="Número de pedido" value={order.publicOrderNumber} copyable />
+            <CopyValue label="Numero de pedido" value={order.publicOrderNumber} copyable />
             <CopyValue label="Email" value={settings.contactEmail} />
             <CopyValue label="Banco" value={settings.bankName} />
             <CopyValue label="Titular" value={settings.bankHolder} />

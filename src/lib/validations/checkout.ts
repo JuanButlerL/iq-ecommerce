@@ -16,6 +16,7 @@ export const checkoutSchema = z.object({
   addressLine: z.string().min(4).max(160),
   addressExtra: z.string().max(120).optional().or(z.literal("")),
   taxId: z.string().max(20).optional().or(z.literal("")),
+  couponCode: z.string().max(40).optional().or(z.literal("")),
   notes: z.string().max(500).optional().or(z.literal("")),
   items: z.array(checkoutItemSchema).min(1),
 });

@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSettings } from "@prisma/client";
+import { CheckCircle2, TicketPercent } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -28,10 +29,22 @@ type CheckoutPageProps = {
   settings: SettingsWithRule;
 };
 
+type CouponPreview = {
+  couponId: string;
+  couponCode: string;
+  discountPercentage: number;
+  discountArs: number;
+  subtotalWithDiscountArs: number;
+};
+
 export function CheckoutPage({ products, settings }: CheckoutPageProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponPreview | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isApplyingCoupon, startApplyingCoupon] = useTransition();
   const items = useCartStore((state) => state.items);
 
   const productItems = useMemo(
@@ -57,6 +70,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
       postalCode: "",
       addressLine: "",
       addressExtra: "",
+      couponCode: "",
       notes: "",
     },
   });
@@ -64,7 +78,47 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
   const province = form.watch("province");
   const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
-  const total = subtotal + shippingQuote.shippingArs;
+  const discountArs = appliedCoupon?.discountArs ?? 0;
+  const total = subtotal - discountArs + shippingQuote.shippingArs;
+
+  useEffect(() => {
+    if (!appliedCoupon) {
+      return;
+    }
+
+    void refreshCoupon(appliedCoupon.couponCode, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal]);
+
+  async function refreshCoupon(code: string, updateInput = true) {
+    const response = await fetch("/api/coupons/validate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        code,
+        subtotalArs: subtotal,
+      }),
+    });
+
+    const payload = await response.json();
+
+    if (!response.ok) {
+      setAppliedCoupon(null);
+      setCouponError(payload.error ?? "No pudimos validar el cupón.");
+      form.setValue("couponCode", "");
+      return;
+    }
+
+    setAppliedCoupon(payload.data);
+    setCouponError(null);
+    form.setValue("couponCode", payload.data.couponCode);
+
+    if (updateInput) {
+      setCouponInput(payload.data.couponCode);
+    }
+  }
 
   if (productItems.length === 0) {
     return (
@@ -90,6 +144,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
             },
             body: JSON.stringify({
               ...values,
+              couponCode: appliedCoupon?.couponCode ?? "",
               items: productItems.map((item) => ({
                 productId: item.productId,
                 quantity: item.quantity,
@@ -113,14 +168,14 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 1 de 2</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Completa tu compra</h1>
           <p className="mt-2 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Cargá tus datos y generamos tu pedido. Después te mostramos cómo pagar por transferencia.
+            Carga tus datos y generamos tu pedido. Despues te mostramos como pagar por transferencia.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <Input placeholder="Nombre" {...form.register("firstName")} />
           <Input placeholder="Apellido" {...form.register("lastName")} />
           <Input placeholder="Email" {...form.register("email")} />
-          <Input placeholder="Teléfono" {...form.register("phone")} />
+          <Input placeholder="Telefono" {...form.register("phone")} />
           <Select {...form.register("province")}>
             {ARGENTINA_PROVINCES.map((provinceOption) => (
               <option key={provinceOption.code} value={provinceOption.name}>
@@ -129,8 +184,8 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
             ))}
           </Select>
           <Input placeholder="Localidad" {...form.register("locality")} />
-          <Input placeholder="Código postal" {...form.register("postalCode")} />
-          <Input placeholder="Dirección" {...form.register("addressLine")} />
+          <Input placeholder="Codigo postal" {...form.register("postalCode")} />
+          <Input placeholder="Direccion" {...form.register("addressLine")} />
           <Input placeholder="Piso / Depto" className="md:col-span-2" {...form.register("addressExtra")} />
           <div className="md:col-span-2">
             <Textarea placeholder="Observaciones" {...form.register("notes")} />
@@ -142,8 +197,10 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
         </Button>
       </Card>
 
-      <Card className="order-1 h-fit space-y-4 p-5 md:p-6 lg:order-2 lg:sticky lg:top-28">
-        <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Resumen</p>
+      <Card className="order-1 h-fit space-y-5 p-5 md:p-6 lg:order-2 lg:sticky lg:top-28">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Resumen</p>
+        </div>
         <div className="space-y-2 text-sm text-brand-ink/70">
           {productItems.map((item) => (
             <div key={item.productId} className="flex items-start justify-between gap-3">
@@ -154,13 +211,95 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
             </div>
           ))}
         </div>
+
+        <div className="rounded-[1.5rem] border border-brand-ink/10 bg-background p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-full bg-brand-pink/10 p-2 text-brand-pink">
+              <TicketPercent className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-brand-ink">Codigo de descuento</p>
+              <p className="mt-1 text-sm text-brand-ink/60">Aplicalo antes de confirmar tu pedido.</p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <Input
+              value={couponInput}
+              maxLength={40}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="Ej: MICA10"
+              onChange={(event) => {
+                const nextValue = event.target.value.toUpperCase();
+                setCouponInput(nextValue);
+                setCouponError(null);
+
+                if (appliedCoupon && nextValue.trim() !== appliedCoupon.couponCode) {
+                  setAppliedCoupon(null);
+                  form.setValue("couponCode", "");
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              className="sm:min-w-[132px]"
+              disabled={isApplyingCoupon || couponInput.trim().length < 3}
+              onClick={() => {
+                setCouponError(null);
+                startApplyingCoupon(async () => {
+                  await refreshCoupon(couponInput);
+                });
+              }}
+            >
+              {isApplyingCoupon ? "Validando..." : "Aplicar"}
+            </Button>
+          </div>
+
+          {appliedCoupon ? (
+            <div className="mt-4 rounded-[1.25rem] bg-green-50 p-4 text-sm text-green-800">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-bold">Cupon {appliedCoupon.couponCode} aplicado</p>
+                    <p className="mt-1">Descuento: {appliedCoupon.discountPercentage}% ({formatArs(appliedCoupon.discountArs)})</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="text-left font-bold text-green-800 underline underline-offset-2 sm:text-right"
+                  onClick={() => {
+                    setAppliedCoupon(null);
+                    setCouponInput("");
+                    setCouponError(null);
+                    form.setValue("couponCode", "");
+                  }}
+                >
+                  Quitar
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {couponError ? <p className="mt-3 text-sm font-bold text-red-600">{couponError}</p> : null}
+        </div>
+
         <div className="space-y-3 border-t border-brand-ink/10 pt-4 text-sm text-brand-ink/70">
           <div className="flex items-center justify-between">
             <span>Subtotal</span>
             <span className="font-bold text-brand-ink">{formatArs(subtotal)}</span>
           </div>
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between">
+              <span>Descuento ({appliedCoupon.discountPercentage}%)</span>
+              <span className="font-bold text-green-700">- {formatArs(appliedCoupon.discountArs)}</span>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between">
-            <span>Envío</span>
+            <span>Envio</span>
             <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -170,7 +309,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
         </div>
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
           <p>{settings.checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
-          <p className="mt-2">Envío gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
+          <p className="mt-2">Envio gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
       </Card>
     </form>
