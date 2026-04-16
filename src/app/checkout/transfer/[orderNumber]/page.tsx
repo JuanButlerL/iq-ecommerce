@@ -1,14 +1,9 @@
 import { notFound } from "next/navigation";
-import { ArrowRight, Copy } from "lucide-react";
 
-import { Container } from "@/components/layout/container";
-import { Card } from "@/components/ui/card";
-import { CopyValue } from "@/features/checkout/components/copy-value";
 import { PaymentProofForm } from "@/features/checkout/components/payment-proof-form";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { formatArs } from "@/lib/utils/currency";
-import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
 
 export default async function TransferPage({
   params,
@@ -22,81 +17,19 @@ export default async function TransferPage({
     notFound();
   }
 
-  const whatsappUrl = buildWhatsappUrl(
-    settings.whatsappNumber,
-    `Hola! Ya hice el pedido ${order.publicOrderNumber} y necesito ayuda con la transferencia.`,
-  );
-
   return (
-    <Container className="grid gap-8 py-12 md:py-16 lg:grid-cols-[1fr_0.8fr]">
-      <Card className="space-y-6 p-6">
-        <div>
-          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 2 de 2</p>
-          <h1 className="mt-3 font-display text-3xl leading-none text-brand-ink md:text-5xl">
-            Pedido {order.publicOrderNumber}
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Tu pedido ya fue generado, pero todavia falta pagar para confirmarlo.
-          </p>
+    <section className="min-h-screen bg-[linear-gradient(180deg,#fff9f8_0%,#ffffff_18%,#ffffff_100%)] px-4 py-8 sm:px-6 md:py-12">
+      <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 md:gap-8">
+        <div className="rounded-full border border-brand-ink/8 bg-white px-6 py-3 text-center text-lg font-extrabold tracking-[0.01em] text-brand-ink shadow-[0_10px_24px_rgba(44,34,65,0.05)] sm:px-8 sm:text-2xl">
+          Pedido #: {order.publicOrderNumber}
         </div>
 
-        <div className="rounded-[2rem] border-2 border-brand-pink bg-brand-peach p-6 shadow-[0_18px_50px_rgba(244,137,145,0.18)]">
-          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Todavia falta pagar</p>
-          <p className="mt-3 text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/60">Monto a transferir</p>
-          <p className="mt-2 font-display text-4xl text-brand-pink md:text-6xl">{formatArs(order.totalArs)}</p>
-
-          <div className="mt-5 space-y-2 rounded-[1.5rem] bg-white/80 p-4 text-sm text-brand-ink/75">
-            <div className="flex items-center justify-between">
-              <span>Subtotal</span>
-              <span className="font-bold text-brand-ink">{formatArs(order.subtotalArs)}</span>
-            </div>
-            {order.discountArs > 0 ? (
-              <div className="flex items-center justify-between">
-                <span>
-                  Cupon {order.couponCode} ({Number(order.discountPercentage ?? 0)}%)
-                </span>
-                <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between">
-              <span>Envio</span>
-              <span className="font-bold text-brand-ink">{formatArs(order.shippingArs)}</span>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <CopyValue label="Alias" value={settings.bankAlias} copyable />
-            <CopyValue label="CBU" value={settings.bankCbu} copyable />
-          </div>
-
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-sm font-bold text-brand-ink">
-            <Copy className="h-4 w-4 text-brand-pink" />
-            Pedido {order.publicOrderNumber}
-          </div>
-
-          <p className="mt-4 text-sm text-brand-ink/70">
-            1. Paga con alias o CBU. 2. Vuelve a este pedido y sube el comprobante.
-          </p>
-        </div>
-
-        <details className="rounded-[1.5rem] border border-brand-ink/10 bg-white">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-bold text-brand-ink">
-            Ver datos completos de la cuenta
-            <ArrowRight className="h-4 w-4" />
-          </summary>
-          <div className="grid gap-4 border-t border-brand-ink/10 px-5 py-5 md:grid-cols-2">
-            <CopyValue label="Numero de pedido" value={order.publicOrderNumber} copyable />
-            <CopyValue label="Email" value={settings.contactEmail} />
-            <CopyValue label="Banco" value={settings.bankName} />
-            <CopyValue label="Titular" value={settings.bankHolder} />
-            <CopyValue label="CUIT" value={settings.bankTaxId} />
-          </div>
-        </details>
-
-        <p className="text-sm text-brand-ink/60">{settings.transferInstructions}</p>
-      </Card>
-
-      <PaymentProofForm orderNumber={order.publicOrderNumber} whatsappUrl={whatsappUrl} />
-    </Container>
+        <PaymentProofForm
+          orderNumber={order.publicOrderNumber}
+          amount={formatArs(order.totalArs)}
+          alias={settings.bankAlias}
+        />
+      </div>
+    </section>
   );
 }

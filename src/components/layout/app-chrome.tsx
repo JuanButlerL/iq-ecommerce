@@ -24,19 +24,23 @@ export function AppChrome({
 }: AppChromeProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
+  const isTransferRoute = pathname.startsWith("/checkout/transfer/");
+  const hideHeader = isAdminRoute || isTransferRoute;
+  const hideFooter = isAdminRoute || isTransferRoute;
+  const hideFloatingWhatsapp = isAdminRoute || isTransferRoute;
 
   return (
     <>
-      {isAdminRoute ? null : <SiteHeader />}
+      {hideHeader ? null : <SiteHeader />}
       <main>{children}</main>
-      {isAdminRoute ? null : (
+      {hideFooter ? null : (
         <>
           <SiteFooter
             instagramUrl={instagramUrl ?? undefined}
             contactEmail={contactEmail ?? undefined}
             whatsappNumber={whatsappNumber ?? undefined}
           />
-          {showFloatingWhatsapp && whatsappNumber ? (
+          {showFloatingWhatsapp && whatsappNumber && !hideFloatingWhatsapp ? (
             <FloatingWhatsapp
               phone={whatsappNumber}
               message="Hola! Quiero consultar por las barritas de IQ Kids."

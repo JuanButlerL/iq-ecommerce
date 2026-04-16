@@ -1,20 +1,20 @@
-import { OrderStatus, PaymentStatus, SyncStatus } from "@prisma/client";
+import { OrderStatus, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 
-import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { getStoreSettings } from "@/features/settings/queries";
+import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
-import { generatePublicOrderNumber } from "@/lib/utils/order-number";
+import { buildNextOrderNumber, buildOrderNumberPrefix } from "@/lib/utils/order-number";
 
 export async function createOrderFromCheckout(input: CheckoutInput) {
   const settings = await getStoreSettings();
 
   if (!settings) {
-    throw new AppError("La configuración de tienda no está disponible.", 500);
+    throw new AppError("La configuracion de tienda no esta disponible.", 500);
   }
 
   if (!settings.isStoreOpen) {
@@ -32,7 +32,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   });
 
   if (products.length !== productIds.length) {
-    throw new AppError("Uno o más productos ya no están disponibles.", 400);
+    throw new AppError("Uno o mas productos ya no estan disponibles.", 400);
   }
 
   const subtotalArs = input.items.reduce((accumulator, item) => {
@@ -53,74 +53,116 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
       })
     : null;
   const totalArs = subtotalArs - (coupon?.discountArs ?? 0) + shippingQuote.shippingArs;
-  const publicOrderNumber = generatePublicOrderNumber();
   const reservationExpiresAt = settings.orderReservationHours
     ? new Date(Date.now() + settings.orderReservationHours * 60 * 60 * 1000)
     : null;
 
-  const createdOrder = await prisma.$transaction(async (tx) => {
-    const order = await tx.order.create({
-      data: {
-        publicOrderNumber,
-        customerFirstName: input.firstName,
-        customerLastName: input.lastName,
-        customerEmail: input.email,
-        customerPhone: input.phone,
-        customerTaxId: input.taxId || null,
-        province: input.province,
-        locality: input.locality,
-        postalCode: input.postalCode,
-        addressLine: input.addressLine,
-        addressExtra: input.addressExtra || null,
-        notes: input.notes || null,
-        couponId: coupon?.couponId,
-        couponCode: coupon?.couponCode,
-        discountPercentage: coupon?.discountPercentage,
-        discountArs: coupon?.discountArs ?? 0,
-        subtotalArs,
-        shippingArs: shippingQuote.shippingArs,
-        totalArs,
-        syncStatus: SyncStatus.PENDING,
-        reservationExpiresAt,
-      },
-    });
+  let createdOrder:
+    | ({
+        id: string;
+        publicOrderNumber: string;
+      } & {
+        coupon: typeof coupon;
+        shippingQuote: typeof shippingQuote;
+      })
+    | null = null;
 
-    await tx.orderItem.createMany({
-      data: input.items.map((item) => {
-        const product = products.find((entry) => entry.id === item.productId);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      createdOrder = await prisma.$transaction(async (tx) => {
+        const orderNumberPrefix = buildOrderNumberPrefix();
+        const latestMonthlyOrder = await tx.order.findFirst({
+          where: {
+            publicOrderNumber: {
+              startsWith: orderNumberPrefix,
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            publicOrderNumber: true,
+          },
+        });
+        const publicOrderNumber = buildNextOrderNumber(orderNumberPrefix, latestMonthlyOrder?.publicOrderNumber);
 
-        if (!product) {
-          throw new AppError("Producto no encontrado.", 400);
-        }
+        const order = await tx.order.create({
+          data: {
+            publicOrderNumber,
+            customerFirstName: input.firstName,
+            customerLastName: input.lastName,
+            customerEmail: input.email,
+            customerPhone: input.phone,
+            customerTaxId: input.taxId || null,
+            province: input.province,
+            locality: input.locality,
+            postalCode: input.postalCode,
+            addressLine: input.addressLine,
+            addressExtra: input.addressExtra || null,
+            notes: input.notes || null,
+            couponId: coupon?.couponId,
+            couponCode: coupon?.couponCode,
+            discountPercentage: coupon?.discountPercentage,
+            discountArs: coupon?.discountArs ?? 0,
+            subtotalArs,
+            shippingArs: shippingQuote.shippingArs,
+            totalArs,
+            syncStatus: SyncStatus.PENDING,
+            reservationExpiresAt,
+          },
+        });
+
+        await tx.orderItem.createMany({
+          data: input.items.map((item) => {
+            const product = products.find((entry) => entry.id === item.productId);
+
+            if (!product) {
+              throw new AppError("Producto no encontrado.", 400);
+            }
+
+            return {
+              orderId: order.id,
+              productId: product.id,
+              productNameSnapshot: product.name,
+              unitPriceArs: product.priceArs,
+              quantity: item.quantity,
+              lineTotalArs: product.priceArs * item.quantity,
+            };
+          }),
+        });
+
+        await tx.orderStatusHistory.create({
+          data: {
+            orderId: order.id,
+            status: OrderStatus.PENDING_PAYMENT,
+            note: coupon
+              ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
+              : "Pedido generado desde checkout web.",
+            changedBy: "system",
+          },
+        });
 
         return {
-          orderId: order.id,
-          productId: product.id,
-          productNameSnapshot: product.name,
-          unitPriceArs: product.priceArs,
-          quantity: item.quantity,
-          lineTotalArs: product.priceArs * item.quantity,
+          id: order.id,
+          publicOrderNumber: order.publicOrderNumber,
+          coupon,
+          shippingQuote,
         };
-      }),
-    });
+      });
 
-    await tx.orderStatusHistory.create({
-      data: {
-        orderId: order.id,
-        status: OrderStatus.PENDING_PAYMENT,
-        note: coupon
-          ? `Pedido generado desde checkout web con cupón ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
-          : "Pedido generado desde checkout web.",
-        changedBy: "system",
-      },
-    });
+      break;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && attempt < 4) {
+        continue;
+      }
 
-    return {
-      ...order,
-      coupon,
-      shippingQuote,
-    };
-  });
+      throw error;
+    }
+  }
+
+  if (!createdOrder) {
+    throw new AppError("No pudimos generar el numero de pedido.", 500, false);
+  }
 
   await syncOrder(createdOrder.id).catch(async (syncError) => {
     const message = syncError instanceof Error ? syncError.message : "Sync error";
