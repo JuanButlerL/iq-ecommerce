@@ -18,12 +18,22 @@ export const storeSettingsSchema = z.object({
   activeShippingRuleId: z.string().uuid().optional().or(z.literal("")),
   checkoutMessage: z.string().max(500).optional().or(z.literal("")),
   transferInstructions: z.string().max(1200).optional().or(z.literal("")),
+  enableBankTransfer: z.boolean().default(true),
+  enableMercadoPago: z.boolean().default(true),
   orderReservationHours: z.coerce.number().int().min(1).max(168).optional(),
   institutionalBanner: z.string().max(160).optional().or(z.literal("")),
   purchaseSuccessMessage: z.string().max(500).optional().or(z.literal("")),
   requireTaxId: z.boolean().default(false),
   showFloatingWhatsapp: z.boolean().default(true),
   isStoreOpen: z.boolean().default(true),
+}).superRefine((data, ctx) => {
+  if (!data.enableBankTransfer && !data.enableMercadoPago) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Activa al menos un medio de pago.",
+      path: ["enableBankTransfer"],
+    });
+  }
 });
 
 export type StoreSettingsInput = z.infer<typeof storeSettingsSchema>;

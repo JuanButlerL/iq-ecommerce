@@ -26,6 +26,12 @@ enum ShippingMode {
 
 enum PaymentMethod {
   BANK_TRANSFER
+  MERCADO_PAGO
+}
+
+enum PaymentProvider {
+  MANUAL_TRANSFER
+  MERCADO_PAGO
 }
 
 enum PaymentStatus {
@@ -73,6 +79,13 @@ enum SyncLogStatus {
 
 enum OrderSource {
   WEB
+}
+
+enum PaymentWebhookProcessingStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
 }
 
 model AdminUser {
@@ -177,6 +190,8 @@ model StoreSettings {
   activeShippingRuleId   String?       @map("active_shipping_rule_id") @db.Uuid
   checkoutMessage        String?       @map("checkout_message")
   transferInstructions   String?       @map("transfer_instructions")
+  enableBankTransfer     Boolean       @default(true) @map("enable_bank_transfer")
+  enableMercadoPago      Boolean       @default(true) @map("enable_mercado_pago")
   orderReservationHours  Int?          @map("order_reservation_hours")
   institutionalBanner    String?       @map("institutional_banner")
   purchaseSuccessMessage String?       @map("purchase_success_message")
@@ -207,6 +222,7 @@ model Coupon {
 model Order {
   id                    String               @id @default(uuid()) @db.Uuid
   publicOrderNumber     String               @unique @map("public_order_number")
+  checkoutRequestKey    String?              @unique @map("checkout_request_key")
   customerFirstName     String               @map("customer_first_name")
   customerLastName      String               @map("customer_last_name")
   customerEmail         String               @map("customer_email")
@@ -227,7 +243,13 @@ model Order {
   totalArs              Int                  @map("total_ars")
   currency              String               @default("ARS")
   paymentMethod         PaymentMethod        @default(BANK_TRANSFER) @map("payment_method")
+  paymentProvider       PaymentProvider      @default(MANUAL_TRANSFER) @map("payment_provider")
+  paymentProviderReference String?           @map("payment_provider_reference")
+  paymentProviderStatus String?              @map("payment_provider_status")
+  paymentProviderStatusDetail String?        @map("payment_provider_status_detail")
   paymentStatus         PaymentStatus        @default(PENDING) @map("payment_status")
+  paymentInitiatedAt    DateTime?            @map("payment_initiated_at")
+  paidAt                DateTime?            @map("paid_at")
   orderStatus           OrderStatus          @default(PENDING_PAYMENT) @map("order_status")
   syncStatus            SyncStatus           @default(PENDING) @map("sync_status")
   syncLastError         String?              @map("sync_last_error")
@@ -240,11 +262,15 @@ model Order {
   items                 OrderItem[]
   statusHistory         OrderStatusHistory[]
   paymentProofs         PaymentProof[]
+  mercadoPagoPreference MercadoPagoPreference?
+  mercadoPagoPayments   MercadoPagoPayment[]
+  paymentWebhookEvents  PaymentWebhookEvent[]
   syncJobs              SyncJob[]
 
   @@index([couponId], map: "orders_coupon_idx")
   @@index([createdAt], map: "orders_created_at_idx")
   @@index([orderStatus, paymentStatus], map: "orders_status_idx")
+  @@index([paymentMethod, paymentStatus], map: "orders_payment_method_status_idx")
   @@index([syncStatus], map: "orders_sync_status_idx")
   @@map("orders")
 }
@@ -328,4 +354,73 @@ model SyncLog {
 
   @@index([syncJobId, attemptNumber], map: "sync_logs_job_idx")
   @@map("sync_logs")
+}
+
+model MercadoPagoPreference {
+  id               String   @id @default(uuid()) @db.Uuid
+  orderId          String   @unique @map("order_id") @db.Uuid
+  preferenceId     String   @unique @map("preference_id")
+  externalReference String  @unique @map("external_reference")
+  initPoint        String   @map("init_point")
+  sandboxInitPoint String?  @map("sandbox_init_point")
+  expiresAt        DateTime? @map("expires_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId], map: "mercado_pago_preferences_order_idx")
+  @@map("mercado_pago_preferences")
+}
+
+model MercadoPagoPayment {
+  id                  String    @id @default(uuid()) @db.Uuid
+  orderId             String    @map("order_id") @db.Uuid
+  mercadoPagoPaymentId String   @unique @map("mercado_pago_payment_id")
+  merchantOrderId     String?   @map("merchant_order_id")
+  preferenceId        String?   @map("preference_id")
+  externalReference   String?   @map("external_reference")
+  liveMode            Boolean?  @map("live_mode")
+  status              String
+  statusDetail        String?   @map("status_detail")
+  transactionAmount   Int?      @map("transaction_amount")
+  currencyId          String?   @map("currency_id")
+  payerEmail          String?   @map("payer_email")
+  dateCreated         DateTime? @map("date_created")
+  dateApproved        DateTime? @map("date_approved")
+  dateLastUpdated     DateTime? @map("date_last_updated")
+  rawData             Json?     @map("raw_data")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  order               Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt], map: "mercado_pago_payments_order_idx")
+  @@index([preferenceId], map: "mercado_pago_payments_preference_idx")
+  @@map("mercado_pago_payments")
+}
+
+model PaymentWebhookEvent {
+  id                  String                         @id @default(uuid()) @db.Uuid
+  orderId             String?                        @map("order_id") @db.Uuid
+  provider            PaymentProvider
+  webhookEventId      String                         @unique @map("webhook_event_id")
+  topic               String
+  action              String?
+  resourceId          String?                        @map("resource_id")
+  requestId           String?                        @map("request_id")
+  signatureTs         String?                        @map("signature_ts")
+  signatureV1         String?                        @map("signature_v1")
+  processingStatus    PaymentWebhookProcessingStatus @default(RECEIVED) @map("processing_status")
+  processedAt         DateTime?                      @map("processed_at")
+  paymentReference    String?                        @map("payment_reference")
+  errorMessage        String?                        @map("error_message")
+  queryParams         Json?                          @map("query_params")
+  headers             Json?                          @map("headers")
+  payload             Json?                          @map("payload")
+  createdAt           DateTime                       @default(now()) @map("created_at")
+  updatedAt           DateTime                       @updatedAt @map("updated_at")
+  order               Order?                         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt], map: "payment_webhook_events_order_idx")
+  @@index([provider, resourceId], map: "payment_webhook_events_resource_idx")
+  @@map("payment_webhook_events")
 }

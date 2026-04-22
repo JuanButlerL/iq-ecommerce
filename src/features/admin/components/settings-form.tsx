@@ -105,6 +105,21 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
         <Field label="Instrucciones de transferencia" className="md:col-span-2">
           <Textarea value={form.transferInstructions} onChange={(event) => setForm((current) => ({ ...current, transferInstructions: event.target.value }))} placeholder="Pasos para transferir y subir comprobante" />
         </Field>
+        <div className="space-y-3 md:col-span-2">
+          <span className="block text-sm font-bold text-brand-ink/75">Medios de pago habilitados</span>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
+            <Checkbox
+              label="Transferencia bancaria"
+              checked={form.enableBankTransfer}
+              onChange={(event) => setForm((current) => ({ ...current, enableBankTransfer: event.target.checked }))}
+            />
+            <Checkbox
+              label="Mercado Pago"
+              checked={form.enableMercadoPago}
+              onChange={(event) => setForm((current) => ({ ...current, enableMercadoPago: event.target.checked }))}
+            />
+          </div>
+        </div>
         <Field label="Texto institucional destacado" className="md:col-span-2">
           <Input value={form.institutionalBanner} onChange={(event) => setForm((current) => ({ ...current, institutionalBanner: event.target.value }))} placeholder="Texto corto de marca o banner institucional" />
         </Field>

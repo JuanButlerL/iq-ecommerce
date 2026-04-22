@@ -21,7 +21,7 @@ E-commerce propio para IQ Kids construido con Next.js App Router, TypeScript, Ta
 - `src/components`: UI compartida y layout
 - `src/features/catalog`: queries y componentes del catalogo
 - `src/features/cart`: store persistido y logica de carrito
-- `src/features/checkout`: formularios y flujo de transferencia
+- `src/features/checkout`: formularios, selector de pago y flujo post-checkout
 - `src/features/admin`: componentes del panel admin
 - `src/features/orders`: servicios de pedidos, sync y consultas admin
 - `src/features/settings`: settings de tienda y shipping
@@ -41,7 +41,9 @@ E-commerce propio para IQ Kids construido con Next.js App Router, TypeScript, Ta
   - Detalle de producto
   - Carrito persistido localmente
   - Checkout
+  - Selector de medio de pago
   - Pantalla de transferencia
+  - Flujo Checkout Pro de Mercado Pago
   - Confirmacion
   - Contacto
   - Politicas
@@ -60,6 +62,7 @@ E-commerce propio para IQ Kids construido con Next.js App Router, TypeScript, Ta
   - Comprobante obligatorio
   - Storage para imagenes y comprobantes
   - Estados de pedido, pago y sync
+  - Webhook idempotente para Mercado Pago
   - Reintento manual de sync
   - Seed inicial con 3 productos, settings y provincias
 
@@ -85,6 +88,11 @@ GOOGLE_SERVICE_ACCOUNT_EMAIL=
 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=
 APPS_SCRIPT_WEBHOOK_URL=
 APPS_SCRIPT_API_KEY=
+MERCADO_PAGO_ENABLED=
+MERCADO_PAGO_ENVIRONMENT=
+MERCADO_PAGO_ACCESS_TOKEN=
+MERCADO_PAGO_WEBHOOK_SECRET=
+MERCADO_PAGO_STATEMENT_DESCRIPTOR=
 ADMIN_BOOTSTRAP_EMAIL=
 ENABLE_PROOF_PUBLIC_URL_SYNC=
 ```
@@ -241,6 +249,45 @@ La abstraccion y el provider estan creados, pero la implementacion concreta de e
 - `src/lib/integrations/sheets/providers/google-sheets.ts`
 
 Si querés usarlo en la siguiente iteracion, lo correcto es completarlo con autenticacion de service account y append a las hojas `pedidos` y `pedidos_items`.
+
+## Mercado Pago
+
+La integracion usa Checkout Pro con preferencia creada server-side. El pedido se guarda primero en PostgreSQL y el webhook queda como fuente final de verdad para confirmar el pago.
+
+### Variables necesarias
+
+```env
+MERCADO_PAGO_ENABLED=true
+MERCADO_PAGO_ENVIRONMENT=sandbox
+MERCADO_PAGO_ACCESS_TOKEN=TEST-...
+MERCADO_PAGO_WEBHOOK_SECRET=...
+MERCADO_PAGO_STATEMENT_DESCRIPTOR=IQKIDS
+```
+
+### Como conectar la cuenta de la empresa
+
+1. Entrar a Mercado Pago Developers con la cuenta de la empresa.
+2. Copiar el `Access Token` de test o produccion segun el entorno.
+3. Crear o editar el webhook de la app y copiar el `Webhook Secret`.
+4. Configurar como URL de notificacion:
+
+```txt
+https://tu-dominio.com/api/payments/mercadopago/webhook
+```
+
+5. En sandbox usar `MERCADO_PAGO_ENVIRONMENT=sandbox` y token `TEST-...`.
+6. En produccion usar `MERCADO_PAGO_ENVIRONMENT=production` y token real.
+
+La app valida que sandbox use token `TEST-` y que produccion no use token de test.
+
+### Flujo implementado
+
+1. Cliente completa checkout y elige transferencia o Mercado Pago.
+2. El pedido se guarda primero en DB.
+3. Si es transferencia, el flujo sigue igual.
+4. Si es Mercado Pago, se crea la preferencia y se redirige a Checkout Pro.
+5. El retorno del usuario acelera feedback, pero el webhook confirma el estado final.
+6. Si Mercado Pago falla o el usuario abandona, el pedido queda persistido igual.
 
 ## Deploy en Vercel
 

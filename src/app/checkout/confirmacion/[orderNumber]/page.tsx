@@ -20,15 +20,23 @@ export default async function ConfirmationPage({
     notFound();
   }
 
+  const isMercadoPago = order.paymentMethod === "MERCADO_PAGO";
+  const paymentCopy = isMercadoPago
+    ? order.paymentStatus === "PAID"
+      ? "Mercado Pago confirmo el pago y el pedido ya quedo registrado."
+      : "Tu pedido esta guardado. Estamos esperando la confirmacion final de Mercado Pago."
+    : "Tu comprobante ya fue enviado. Si el equipo necesita algo mas, te contacta con estos datos.";
+  const successCopy = isMercadoPago
+    ? "Recibimos tu pedido y seguimos la confirmacion del pago online."
+    : settings?.purchaseSuccessMessage ??
+      "Recibimos tu comprobante. Vamos a validar el pago y seguir con la preparacion del pedido.";
+
   return (
     <Container className="py-16">
       <Card className="mx-auto max-w-3xl space-y-6 p-8 text-center">
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Compra confirmada</p>
         <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
-        <p className="text-brand-ink/70">
-          {settings?.purchaseSuccessMessage ??
-            "Recibimos tu comprobante. Vamos a validar el pago y seguir con la preparacion del pedido."}
-        </p>
+        <p className="text-brand-ink/70">{successCopy}</p>
         <div className="rounded-[2rem] bg-brand-peach p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
           <p className="mt-2 text-2xl font-extrabold text-brand-ink">{order.publicOrderNumber}</p>
@@ -51,22 +59,24 @@ export default async function ConfirmationPage({
               <span className="font-bold text-brand-ink">{formatArs(order.shippingArs)}</span>
             </div>
           </div>
-          <p className="mt-4 text-sm text-brand-ink/70">
-            Tu comprobante ya fue enviado. Si el equipo necesita algo mas, te contacta con estos datos.
-          </p>
+          <p className="mt-4 text-sm text-brand-ink/70">{paymentCopy}</p>
         </div>
         <div className="grid gap-3 text-left md:grid-cols-3">
           <div className="rounded-[1.5rem] bg-background p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estado actual</p>
-            <p className="mt-2 font-bold text-brand-ink">Pago en revision</p>
+            <p className="mt-2 font-bold text-brand-ink">
+              {isMercadoPago ? order.paymentProviderStatus ?? order.paymentStatus : "Pago en revision"}
+            </p>
           </div>
           <div className="rounded-[1.5rem] bg-background p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
             <p className="mt-2 font-bold text-brand-ink">{order.publicOrderNumber}</p>
           </div>
           <div className="rounded-[1.5rem] bg-background p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Contacto</p>
-            <p className="mt-2 font-bold text-brand-ink">{order.customerEmail}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">
+              {isMercadoPago ? "Medio de pago" : "Contacto"}
+            </p>
+            <p className="mt-2 font-bold text-brand-ink">{isMercadoPago ? "Mercado Pago" : order.customerEmail}</p>
           </div>
         </div>
         <div className="flex flex-wrap justify-center gap-4">

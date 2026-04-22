@@ -17,6 +17,10 @@ export default async function TransferPage({
     notFound();
   }
 
+  if (order.paymentMethod !== "BANK_TRANSFER") {
+    notFound();
+  }
+
   return (
     <section className="min-h-screen bg-[linear-gradient(180deg,#fff9f8_0%,#ffffff_18%,#ffffff_100%)] px-4 py-8 sm:px-6 md:py-12">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 md:gap-8">
