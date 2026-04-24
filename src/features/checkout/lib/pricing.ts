@@ -20,12 +20,12 @@ export type CheckoutPricing = {
 };
 
 export function calculateCheckoutPricing(input: CheckoutPricingInput): CheckoutPricing {
-  const beforePaymentMethodDiscountArs = Math.max(input.subtotalArs - input.couponDiscountArs + input.shippingArs, 0);
   const paymentMethodDiscountPercentage = getBankTransferDiscountPercentage(input);
   const paymentMethodDiscountArs =
     paymentMethodDiscountPercentage > 0
-      ? Math.round(beforePaymentMethodDiscountArs * (paymentMethodDiscountPercentage / 100))
+      ? Math.round(input.subtotalArs * (paymentMethodDiscountPercentage / 100))
       : 0;
+  const beforePaymentMethodDiscountArs = Math.max(input.subtotalArs - input.couponDiscountArs + input.shippingArs, 0);
 
   return {
     subtotalArs: input.subtotalArs,
