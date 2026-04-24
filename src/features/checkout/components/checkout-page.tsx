@@ -14,19 +14,23 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCartStore } from "@/features/cart/store";
+import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
 import { checkoutCustomerSchema, type CheckoutCustomerInput } from "@/lib/validations/checkout";
 import { formatArs } from "@/lib/utils/currency";
 
 type ProductWithImages = Product & { images: ProductImage[] };
-type SettingsWithRule = StoreSettings & {
+type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
+  bankTransferDiscountPercentage: number;
   activeShippingRule: (ShippingRule & { provinces: ShippingRuleProvince[] }) | null;
 };
 
 type CheckoutPageProps = {
   products: ProductWithImages[];
   settings: SettingsWithRule;
+  mercadoPagoEnabled: boolean;
 };
 
 type CouponPreview = {
@@ -37,8 +41,9 @@ type CouponPreview = {
   subtotalWithDiscountArs: number;
 };
 
-export function CheckoutPage({ products, settings }: CheckoutPageProps) {
+export function CheckoutPage({ products, settings, mercadoPagoEnabled }: CheckoutPageProps) {
   const router = useRouter();
+  const [checkoutRequestKey] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponInput, setCouponInput] = useState("");
@@ -46,6 +51,8 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
   const [isPending, startTransition] = useTransition();
   const [isApplyingCoupon, startApplyingCoupon] = useTransition();
   const items = useCartStore((state) => state.items);
+  const allowBankTransfer = settings.enableBankTransfer;
+  const allowMercadoPago = settings.enableMercadoPago && mercadoPagoEnabled;
 
   const productItems = useMemo(
     () =>
@@ -71,15 +78,35 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
       addressLine: "",
       addressExtra: "",
       couponCode: "",
+      checkoutRequestKey,
+      paymentMethod: "BANK_TRANSFER",
       notes: "",
     },
   });
 
   const province = form.watch("province");
+  const paymentMethod = form.watch("paymentMethod");
   const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
-  const discountArs = appliedCoupon?.discountArs ?? 0;
-  const total = subtotal - discountArs + shippingQuote.shippingArs;
+  const couponDiscountArs = appliedCoupon?.discountArs ?? 0;
+  const pricing = calculateCheckoutPricing({
+    paymentMethod,
+    subtotalArs: subtotal,
+    couponDiscountArs,
+    shippingArs: shippingQuote.shippingArs,
+    enableBankTransferDiscount: settings.enableBankTransferDiscount,
+    bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
+  });
+
+  useEffect(() => {
+    if (paymentMethod === "MERCADO_PAGO" && !allowMercadoPago && allowBankTransfer) {
+      form.setValue("paymentMethod", "BANK_TRANSFER");
+    }
+
+    if (paymentMethod === "BANK_TRANSFER" && !allowBankTransfer && allowMercadoPago) {
+      form.setValue("paymentMethod", "MERCADO_PAGO");
+    }
+  }, [allowBankTransfer, allowMercadoPago, form, paymentMethod]);
 
   useEffect(() => {
     if (!appliedCoupon) {
@@ -159,6 +186,11 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
             return;
           }
 
+          if (payload.data.paymentMethod === "MERCADO_PAGO" && payload.data.mercadoPago?.initPoint) {
+            window.location.assign(payload.data.mercadoPago.initPoint);
+            return;
+          }
+
           router.push(`/checkout/transfer/${payload.data.orderNumber}`);
         });
       })}
@@ -168,7 +200,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 1 de 2</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Completa tu compra</h1>
           <p className="mt-2 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Carga tus datos y generamos tu pedido. Despues te mostramos como pagar por transferencia.
+            Carga tus datos, elegi el medio de pago y generamos tu pedido.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -191,9 +223,22 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
             <Textarea placeholder="Observaciones" {...form.register("notes")} />
           </div>
         </div>
+        <PaymentMethodSelector
+          value={form.watch("paymentMethod")}
+          mercadoPagoEnabled={allowMercadoPago}
+          bankTransferEnabled={allowBankTransfer}
+          bankTransferDiscountPercentage={pricing.paymentMethodDiscountPercentage}
+          onChange={(paymentMethod) => form.setValue("paymentMethod", paymentMethod, { shouldDirty: true })}
+        />
         {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
         <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? "Generando pedido..." : "Generar pedido"}
+          {isPending
+            ? paymentMethod === "MERCADO_PAGO"
+              ? "Redirigiendo..."
+              : "Generando pedido..."
+            : paymentMethod === "MERCADO_PAGO"
+              ? "Avanzar con el pago"
+              : "Continuar con transferencia"}
         </Button>
       </Card>
 
@@ -205,7 +250,7 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
           {productItems.map((item) => (
             <div key={item.productId} className="flex items-start justify-between gap-3">
               <span className="pr-2">
-                {item.product.name} x {item.quantity}
+              {item.product.name} x {item.quantity}
               </span>
               <span className="shrink-0">{formatArs(item.product.priceArs * item.quantity)}</span>
             </div>
@@ -300,11 +345,17 @@ export function CheckoutPage({ products, settings }: CheckoutPageProps) {
           ) : null}
           <div className="flex items-center justify-between">
             <span>Envio</span>
-            <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
+            <span className="font-bold text-brand-ink">{formatArs(pricing.shippingArs)}</span>
           </div>
-          <div className="flex items-center justify-between">
+          {pricing.paymentMethodDiscountArs > 0 ? (
+            <div className="flex items-center justify-between">
+              <span>Descuento transferencia ({pricing.paymentMethodDiscountPercentage}%)</span>
+              <span className="font-bold text-green-700">- {formatArs(pricing.paymentMethodDiscountArs)}</span>
+            </div>
+          ) : null}
+          <div className="flex items-center justify-between border-t border-brand-ink/10 pt-3">
             <span>Total</span>
-            <span className="font-display text-2xl text-brand-pink md:text-3xl">{formatArs(total)}</span>
+            <span className="font-display text-2xl text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</span>
           </div>
         </div>
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">

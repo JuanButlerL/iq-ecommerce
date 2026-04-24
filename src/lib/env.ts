@@ -18,6 +18,11 @@ const envSchema = z.object({
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: z.string().optional(),
   APPS_SCRIPT_WEBHOOK_URL: z.string().url().optional().or(z.literal("")),
   APPS_SCRIPT_API_KEY: z.string().optional(),
+  MERCADO_PAGO_ENABLED: z.enum(["true", "false"]).default("false"),
+  MERCADO_PAGO_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+  MERCADO_PAGO_ACCESS_TOKEN: z.string().optional(),
+  MERCADO_PAGO_WEBHOOK_SECRET: z.string().optional(),
+  MERCADO_PAGO_STATEMENT_DESCRIPTOR: z.string().max(22).optional(),
   ADMIN_BOOTSTRAP_EMAIL: z.string().email().default("admin@iqkids.local"),
   ADMIN_LOCAL_EMAIL: z.string().email().optional(),
   ADMIN_LOCAL_PASSWORD: z.string().min(8).optional(),
@@ -44,6 +49,11 @@ const parsedEnv = envSchema.parse({
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
   APPS_SCRIPT_WEBHOOK_URL: process.env.APPS_SCRIPT_WEBHOOK_URL,
   APPS_SCRIPT_API_KEY: process.env.APPS_SCRIPT_API_KEY,
+  MERCADO_PAGO_ENABLED: process.env.MERCADO_PAGO_ENABLED,
+  MERCADO_PAGO_ENVIRONMENT: process.env.MERCADO_PAGO_ENVIRONMENT,
+  MERCADO_PAGO_ACCESS_TOKEN: process.env.MERCADO_PAGO_ACCESS_TOKEN,
+  MERCADO_PAGO_WEBHOOK_SECRET: process.env.MERCADO_PAGO_WEBHOOK_SECRET,
+  MERCADO_PAGO_STATEMENT_DESCRIPTOR: process.env.MERCADO_PAGO_STATEMENT_DESCRIPTOR,
   ADMIN_BOOTSTRAP_EMAIL: process.env.ADMIN_BOOTSTRAP_EMAIL,
   ADMIN_LOCAL_EMAIL: process.env.ADMIN_LOCAL_EMAIL,
   ADMIN_LOCAL_PASSWORD: process.env.ADMIN_LOCAL_PASSWORD,
@@ -58,6 +68,14 @@ function isRealSupabaseUrl(value?: string) {
 
 function isRealSupabaseKey(value?: string) {
   return Boolean(value) && !String(value).includes("your-anon-key") && !String(value).includes("your-service-role-key") && !String(value).includes("placeholder-");
+}
+
+function isRealMercadoPagoToken(value?: string) {
+  return Boolean(value) && !String(value).includes("your-mercado-pago-access-token");
+}
+
+function isRealMercadoPagoSecret(value?: string) {
+  return Boolean(value) && !String(value).includes("your-mercado-pago-webhook-secret");
 }
 
 export const env = {
@@ -76,6 +94,12 @@ export const env = {
   hasSupabaseAuth: isRealSupabaseUrl(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) && isRealSupabaseKey(parsedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY),
   hasSupabaseAdmin:
     isRealSupabaseUrl(parsedEnv.NEXT_PUBLIC_SUPABASE_URL) && isRealSupabaseKey(parsedEnv.SUPABASE_SERVICE_ROLE_KEY),
+  mercadoPagoEnabled: parsedEnv.MERCADO_PAGO_ENABLED === "true",
+  hasMercadoPagoAccessToken: isRealMercadoPagoToken(parsedEnv.MERCADO_PAGO_ACCESS_TOKEN),
+  hasMercadoPagoWebhookSecret: isRealMercadoPagoSecret(parsedEnv.MERCADO_PAGO_WEBHOOK_SECRET),
+  hasMercadoPagoCredentials:
+    isRealMercadoPagoToken(parsedEnv.MERCADO_PAGO_ACCESS_TOKEN) && isRealMercadoPagoSecret(parsedEnv.MERCADO_PAGO_WEBHOOK_SECRET),
+  mercadoPagoUsesTestToken: String(parsedEnv.MERCADO_PAGO_ACCESS_TOKEN ?? "").startsWith("TEST-"),
   canUseLocalAdminAuth:
     Boolean(parsedEnv.ADMIN_LOCAL_EMAIL) &&
     Boolean(parsedEnv.ADMIN_LOCAL_PASSWORD) &&

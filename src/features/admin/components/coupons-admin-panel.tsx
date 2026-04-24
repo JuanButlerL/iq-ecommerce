@@ -1,6 +1,5 @@
 "use client";
 
-import type { Coupon } from "@prisma/client";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
@@ -12,7 +11,17 @@ import { Input } from "@/components/ui/input";
 import { formatArs } from "@/lib/utils/currency";
 
 type CouponsAdminPanelProps = {
-  coupons: Coupon[];
+  coupons: CouponListItem[];
+};
+
+type CouponListItem = {
+  id: string;
+  code: string;
+  description: string | null;
+  discountPercentage: number;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type CouponFormState = {
@@ -47,7 +56,7 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
     setError(null);
   }
 
-  function loadCoupon(coupon: Coupon) {
+  function loadCoupon(coupon: CouponListItem) {
     setEditingCouponId(coupon.id);
     setForm({
       code: coupon.code,

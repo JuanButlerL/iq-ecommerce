@@ -1,9 +1,21 @@
 import { ShippingMode } from "@prisma/client";
 
-import type { getStoreSettings } from "@/features/settings/queries";
 import { normalizeProvinceName } from "@/lib/constants/provinces";
 
-type Settings = Awaited<ReturnType<typeof getStoreSettings>>;
+type Settings = {
+  minimumOrderAmount: number;
+  freeShippingThreshold: number;
+  flatShippingPrice: number;
+  shippingMode: ShippingMode;
+  activeShippingRule: {
+    flatPrice: number | null;
+    provinces: Array<{
+      active: boolean;
+      provinceName: string;
+      shippingPrice: number;
+    }>;
+  } | null;
+} | null;
 
 export type ShippingQuote = {
   shippingArs: number;

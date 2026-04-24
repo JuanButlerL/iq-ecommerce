@@ -50,6 +50,24 @@ export default async function AdminOrderDetailPage({
           <p className="text-sm font-bold text-brand-ink">{order.syncStatus}</p>
         </Card>
       </div>
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="space-y-2 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Metodo</p>
+          <p className="text-sm font-bold text-brand-ink">{order.paymentMethod}</p>
+        </Card>
+        <Card className="space-y-2 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Provider</p>
+          <p className="text-sm font-bold text-brand-ink">{order.paymentProvider}</p>
+        </Card>
+        <Card className="space-y-2 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estado provider</p>
+          <p className="text-sm font-bold text-brand-ink">{order.paymentProviderStatus ?? "Sin datos"}</p>
+        </Card>
+        <Card className="space-y-2 p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Referencia</p>
+          <p className="text-sm font-bold text-brand-ink">{order.paymentProviderReference ?? "Pendiente"}</p>
+        </Card>
+      </div>
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <Card className="space-y-4 p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Datos del cliente</p>
@@ -85,6 +103,12 @@ export default async function AdminOrderDetailPage({
                   Cupon {order.couponCode} ({Number(order.discountPercentage ?? 0)}%)
                 </span>
                 <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
+              </div>
+            ) : null}
+            {order.paymentMethodDiscountArs > 0 ? (
+              <div className="flex items-center justify-between">
+                <span>Descuento transferencia ({Number(order.paymentMethodDiscountPercentage ?? 0)}%)</span>
+                <span className="font-bold text-green-700">- {formatArs(order.paymentMethodDiscountArs)}</span>
               </div>
             ) : null}
             <div className="flex items-center justify-between">
@@ -165,9 +189,42 @@ export default async function AdminOrderDetailPage({
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-brand-ink/50">Todavia no hay comprobante cargado.</p>
+              <p className="text-sm text-brand-ink/50">
+                {order.paymentMethod === "MERCADO_PAGO"
+                  ? "Este pedido se paga online. No requiere comprobante manual."
+                  : "Todavia no hay comprobante cargado."}
+              </p>
             )}
           </Card>
+          {order.paymentMethod === "MERCADO_PAGO" ? (
+            <Card className="space-y-4 p-6">
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Mercado Pago</p>
+              <div className="grid gap-3">
+                <div className="rounded-[1.25rem] bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Preferencia</p>
+                  <p className="mt-2 break-all text-sm font-bold text-brand-ink">
+                    {order.mercadoPagoPreference?.preferenceId ?? "Pendiente"}
+                  </p>
+                </div>
+                <div className="rounded-[1.25rem] bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Ultimo pago</p>
+                  <p className="mt-2 text-sm font-bold text-brand-ink">
+                    {order.mercadoPagoPayments[0]
+                      ? `${order.mercadoPagoPayments[0].mercadoPagoPaymentId} · ${order.mercadoPagoPayments[0].status}`
+                      : "Sin pagos registrados"}
+                  </p>
+                </div>
+                <div className="rounded-[1.25rem] bg-background p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Ultimo webhook</p>
+                  <p className="mt-2 text-sm font-bold text-brand-ink">
+                    {order.paymentWebhookEvents[0]
+                      ? `${order.paymentWebhookEvents[0].processingStatus} · ${order.paymentWebhookEvents[0].createdAt.toLocaleString("es-AR")}`
+                      : "Sin eventos"}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ) : null}
           <Card className="space-y-4 p-6">
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estados</p>
             <div className="space-y-3">

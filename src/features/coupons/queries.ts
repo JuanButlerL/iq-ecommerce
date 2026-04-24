@@ -11,6 +11,15 @@ export const getCoupons = cache(async () => {
   });
 });
 
+export async function getCouponsForClient() {
+  const coupons = await getCoupons();
+
+  return coupons.map((coupon) => ({
+    ...coupon,
+    discountPercentage: Number(coupon.discountPercentage),
+  }));
+}
+
 export async function getCouponPreview(payload: unknown) {
   const parsed = couponPreviewSchema.safeParse(payload);
 

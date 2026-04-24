@@ -18,12 +18,40 @@ export const storeSettingsSchema = z.object({
   activeShippingRuleId: z.string().uuid().optional().or(z.literal("")),
   checkoutMessage: z.string().max(500).optional().or(z.literal("")),
   transferInstructions: z.string().max(1200).optional().or(z.literal("")),
+  enableBankTransfer: z.boolean().default(true),
+  enableMercadoPago: z.boolean().default(true),
+  enableBankTransferDiscount: z.boolean().default(false),
+  bankTransferDiscountPercentage: z.coerce.number().min(0).max(100).default(0),
   orderReservationHours: z.coerce.number().int().min(1).max(168).optional(),
   institutionalBanner: z.string().max(160).optional().or(z.literal("")),
   purchaseSuccessMessage: z.string().max(500).optional().or(z.literal("")),
   requireTaxId: z.boolean().default(false),
   showFloatingWhatsapp: z.boolean().default(true),
   isStoreOpen: z.boolean().default(true),
+}).superRefine((data, ctx) => {
+  if (!data.enableBankTransfer && !data.enableMercadoPago) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Activa al menos un medio de pago.",
+      path: ["enableBankTransfer"],
+    });
+  }
+
+  if (data.enableBankTransferDiscount && !data.enableBankTransfer) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Activa transferencia para usar este descuento.",
+      path: ["enableBankTransferDiscount"],
+    });
+  }
+
+  if (data.enableBankTransferDiscount && data.bankTransferDiscountPercentage <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Ingresa un porcentaje mayor a 0.",
+      path: ["bankTransferDiscountPercentage"],
+    });
+  }
 });
 
 export type StoreSettingsInput = z.infer<typeof storeSettingsSchema>;

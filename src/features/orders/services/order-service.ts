@@ -1,16 +1,43 @@
-import { OrderStatus, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
+import { OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 
 import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
 import { buildNextOrderNumber, buildOrderNumberPrefix } from "@/lib/utils/order-number";
+import { ensureMercadoPagoPreference } from "@/features/orders/services/mercado-pago-service";
+
+type CreatedCheckoutOrder = {
+  id: string;
+  publicOrderNumber: string;
+  paymentMethod: PaymentMethod;
+};
 
 export async function createOrderFromCheckout(input: CheckoutInput) {
+  const existingOrder = await prisma.order.findUnique({
+    where: {
+      checkoutRequestKey: input.checkoutRequestKey,
+    },
+    select: {
+      id: true,
+      publicOrderNumber: true,
+      paymentMethod: true,
+    },
+  });
+
+  if (existingOrder) {
+    return buildCheckoutResponse({
+      id: existingOrder.id,
+      publicOrderNumber: existingOrder.publicOrderNumber,
+      paymentMethod: existingOrder.paymentMethod,
+    });
+  }
+
   const settings = await getStoreSettings();
 
   if (!settings) {
@@ -19,6 +46,14 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
 
   if (!settings.isStoreOpen) {
     throw new AppError("La tienda se encuentra momentaneamente cerrada.", 400);
+  }
+
+  if (input.paymentMethod === PaymentMethod.BANK_TRANSFER && !settings.enableBankTransfer) {
+    throw new AppError("La transferencia no esta disponible en este momento.", 400);
+  }
+
+  if (input.paymentMethod === PaymentMethod.MERCADO_PAGO && !settings.enableMercadoPago) {
+    throw new AppError("Mercado Pago no esta disponible en este momento.", 400);
   }
 
   const productIds = input.items.map((item) => item.productId);
@@ -52,20 +87,19 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
         subtotalArs,
       })
     : null;
-  const totalArs = subtotalArs - (coupon?.discountArs ?? 0) + shippingQuote.shippingArs;
+  const pricing = calculateCheckoutPricing({
+    paymentMethod: input.paymentMethod,
+    subtotalArs,
+    couponDiscountArs: coupon?.discountArs ?? 0,
+    shippingArs: shippingQuote.shippingArs,
+    enableBankTransferDiscount: settings.enableBankTransferDiscount,
+    bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
+  });
   const reservationExpiresAt = settings.orderReservationHours
     ? new Date(Date.now() + settings.orderReservationHours * 60 * 60 * 1000)
     : null;
 
-  let createdOrder:
-    | ({
-        id: string;
-        publicOrderNumber: string;
-      } & {
-        coupon: typeof coupon;
-        shippingQuote: typeof shippingQuote;
-      })
-    | null = null;
+  let createdOrder: CreatedCheckoutOrder | null = null;
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
@@ -89,6 +123,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
         const order = await tx.order.create({
           data: {
             publicOrderNumber,
+            checkoutRequestKey: input.checkoutRequestKey,
             customerFirstName: input.firstName,
             customerLastName: input.lastName,
             customerEmail: input.email,
@@ -106,7 +141,18 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             discountArs: coupon?.discountArs ?? 0,
             subtotalArs,
             shippingArs: shippingQuote.shippingArs,
-            totalArs,
+            paymentMethodDiscountPercentage:
+              pricing.paymentMethodDiscountPercentage > 0 ? pricing.paymentMethodDiscountPercentage : null,
+            paymentMethodDiscountArs: pricing.paymentMethodDiscountArs,
+            totalArs: pricing.totalArs,
+            paymentMethod: input.paymentMethod,
+            paymentProvider:
+              input.paymentMethod === PaymentMethod.MERCADO_PAGO
+                ? PaymentProvider.MERCADO_PAGO
+                : PaymentProvider.MANUAL_TRANSFER,
+            paymentProviderStatus: input.paymentMethod === PaymentMethod.MERCADO_PAGO ? "pending" : null,
+            paymentProviderStatusDetail:
+              input.paymentMethod === PaymentMethod.MERCADO_PAGO ? "waiting_checkout" : null,
             syncStatus: SyncStatus.PENDING,
             reservationExpiresAt,
           },
@@ -136,8 +182,12 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             orderId: order.id,
             status: OrderStatus.PENDING_PAYMENT,
             note: coupon
-              ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
-              : "Pedido generado desde checkout web.",
+              ? pricing.paymentMethodDiscountArs > 0
+                ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento) y descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
+                : `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
+              : pricing.paymentMethodDiscountArs > 0
+                ? `Pedido generado desde checkout web con descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
+                : "Pedido generado desde checkout web.",
             changedBy: "system",
           },
         });
@@ -145,15 +195,35 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
         return {
           id: order.id,
           publicOrderNumber: order.publicOrderNumber,
-          coupon,
-          shippingQuote,
+          paymentMethod: order.paymentMethod,
         };
       });
 
       break;
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && attempt < 4) {
-        continue;
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const duplicatedOrder = await prisma.order.findUnique({
+          where: {
+            checkoutRequestKey: input.checkoutRequestKey,
+          },
+          select: {
+            id: true,
+            publicOrderNumber: true,
+            paymentMethod: true,
+          },
+        });
+
+        if (duplicatedOrder) {
+          return buildCheckoutResponse({
+            id: duplicatedOrder.id,
+            publicOrderNumber: duplicatedOrder.publicOrderNumber,
+            paymentMethod: duplicatedOrder.paymentMethod,
+          });
+        }
+
+        if (attempt < 4) {
+          continue;
+        }
       }
 
       throw error;
@@ -176,7 +246,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     });
   });
 
-  return createdOrder;
+  return buildCheckoutResponse(createdOrder);
 }
 
 export async function getOrderByNumber(orderNumber: string) {
@@ -185,6 +255,12 @@ export async function getOrderByNumber(orderNumber: string) {
     include: {
       coupon: true,
       items: true,
+      mercadoPagoPreference: true,
+      mercadoPagoPayments: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
       paymentProofs: {
         orderBy: {
           uploadedAt: "desc",
@@ -225,6 +301,10 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
 
   if (!order) {
     throw new AppError("Pedido no encontrado.", 404);
+  }
+
+  if (order.paymentMethod !== PaymentMethod.BANK_TRANSFER) {
+    throw new AppError("Este pedido no requiere comprobante manual.", 400);
   }
 
   const uploaded = await uploadPaymentProof(file, orderNumber);
@@ -315,4 +395,23 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, no
       },
     });
   });
+}
+
+async function buildCheckoutResponse(order: CreatedCheckoutOrder) {
+  if (order.paymentMethod === PaymentMethod.MERCADO_PAGO) {
+    const mercadoPago = await ensureMercadoPagoPreference(order.id);
+
+    return {
+      id: order.id,
+      publicOrderNumber: order.publicOrderNumber,
+      paymentMethod: order.paymentMethod,
+      mercadoPago,
+    };
+  }
+
+  return {
+    id: order.id,
+    publicOrderNumber: order.publicOrderNumber,
+    paymentMethod: order.paymentMethod,
+  };
 }

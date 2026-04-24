@@ -81,6 +81,12 @@ export async function getOrders(filters: OrderFilters = {}) {
         },
         take: 1,
       },
+      mercadoPagoPayments: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+      },
     },
     orderBy: {
       createdAt: "desc",
@@ -108,6 +114,17 @@ export async function getOrderDetail(orderId: string) {
       paymentProofs: {
         orderBy: {
           uploadedAt: "desc",
+        },
+      },
+      mercadoPagoPreference: true,
+      mercadoPagoPayments: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+      paymentWebhookEvents: {
+        orderBy: {
+          createdAt: "desc",
         },
       },
       statusHistory: {

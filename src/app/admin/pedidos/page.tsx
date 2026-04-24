@@ -97,6 +97,8 @@ export default async function AdminOrdersPage({
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-brand-ink/50">
                 <span>{order.orderStatus}</span>
                 <span>{order.paymentStatus}</span>
+                <span>{order.paymentMethod}</span>
+                <span>{order.paymentProviderStatus ?? "Sin pago"}</span>
                 <span>Sync: {order.syncStatus}</span>
                 <span>{order.paymentProofs[0] ? "Con comprobante" : "Sin comprobante"}</span>
               </div>
@@ -111,6 +113,8 @@ export default async function AdminOrdersPage({
                 <th className="pb-3">Cliente</th>
                 <th className="pb-3">Estado</th>
                 <th className="pb-3">Pago</th>
+                <th className="pb-3">Medio</th>
+                <th className="pb-3">Detalle</th>
                 <th className="pb-3">Comprobante</th>
                 <th className="pb-3">Sync</th>
                 <th className="pb-3">Total</th>
@@ -129,6 +133,8 @@ export default async function AdminOrdersPage({
                   </td>
                   <td className="py-3 text-brand-ink/70">{order.orderStatus}</td>
                   <td className="py-3 text-brand-ink/70">{order.paymentStatus}</td>
+                  <td className="py-3 text-brand-ink/70">{order.paymentMethod}</td>
+                  <td className="py-3 text-brand-ink/70">{order.paymentProviderStatus ?? "-"}</td>
                   <td className="py-3 text-brand-ink/70">{order.paymentProofs[0] ? "Cargado" : "Pendiente"}</td>
                   <td className="py-3 text-brand-ink/70">{order.syncStatus}</td>
                   <td className="py-3 text-brand-ink/70">${order.totalArs.toLocaleString("es-AR")}</td>

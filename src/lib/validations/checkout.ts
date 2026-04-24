@@ -6,6 +6,7 @@ export const checkoutItemSchema = z.object({
 });
 
 export const checkoutSchema = z.object({
+  checkoutRequestKey: z.string().uuid(),
   firstName: z.string().min(2).max(80),
   lastName: z.string().min(2).max(80),
   email: z.string().email(),
@@ -17,6 +18,7 @@ export const checkoutSchema = z.object({
   addressExtra: z.string().max(120).optional().or(z.literal("")),
   taxId: z.string().max(20).optional().or(z.literal("")),
   couponCode: z.string().max(40).optional().or(z.literal("")),
+  paymentMethod: z.enum(["BANK_TRANSFER", "MERCADO_PAGO"]).default("BANK_TRANSFER"),
   notes: z.string().max(500).optional().or(z.literal("")),
   items: z.array(checkoutItemSchema).min(1),
 });

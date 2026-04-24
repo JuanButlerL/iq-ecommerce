@@ -10,6 +10,8 @@ export async function POST(request: Request) {
 
     return routeOk({
       orderNumber: order.publicOrderNumber,
+      paymentMethod: order.paymentMethod,
+      mercadoPago: "mercadoPago" in order ? order.mercadoPago : null,
     });
   } catch (error) {
     return routeError(error);
