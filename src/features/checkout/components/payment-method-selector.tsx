@@ -10,6 +10,7 @@ type PaymentMethodSelectorProps = {
   onChange: (value: PaymentMethod) => void;
   mercadoPagoEnabled: boolean;
   bankTransferEnabled: boolean;
+  bankTransferDiscountPercentage?: number;
 };
 
 const options: Array<{
@@ -37,6 +38,7 @@ export function PaymentMethodSelector({
   onChange,
   mercadoPagoEnabled,
   bankTransferEnabled,
+  bankTransferDiscountPercentage = 0,
 }: PaymentMethodSelectorProps) {
   const visibleOptions = options.filter((option) => {
     if (option.value === "MERCADO_PAGO") {
@@ -54,7 +56,7 @@ export function PaymentMethodSelector({
     <div className="space-y-3">
       <div>
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Pago</p>
-        <h2 className="mt-1 font-display text-2xl text-brand-ink md:text-3xl">Elegi como pagar</h2>
+        <h2 className="mt-1 font-display text-2xl text-brand-ink md:text-3xl">Elegí como pagar</h2>
       </div>
       <div className="grid gap-3">
         {visibleOptions.map((option) => {
@@ -76,17 +78,36 @@ export function PaymentMethodSelector({
               <div className="flex items-start gap-3">
                 <div
                   className={cn(
-                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
-                    selected ? "bg-brand-pink text-white" : "bg-background text-brand-ink",
+                    option.value === "MERCADO_PAGO"
+                      ? "flex h-11 items-center justify-center shrink-0"
+                      : "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
+                    option.value === "MERCADO_PAGO"
+                      ? ""
+                      : selected
+                        ? "bg-brand-pink text-white"
+                        : "bg-background text-brand-ink",
                   )}
                 >
-                  <Icon className="h-5 w-5" />
+                  {option.value === "MERCADO_PAGO" ? (
+                    <img
+                      src="/brand/mercado-pago-logo.png"
+                      alt="Mercado Pago"
+                      className="h-10 w-10 object-contain"
+                    />
+                  ) : (
+                    <Icon className="h-5 w-5" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-bold text-brand-ink">{option.title}</p>
                       <p className="mt-1 text-sm text-brand-ink/62">{option.description}</p>
+                      {option.value === "BANK_TRANSFER" && bankTransferDiscountPercentage > 0 ? (
+                        <p className="mt-2 text-sm font-semibold text-brand-pink">
+                          {bankTransferDiscountPercentage}% de descuento pagando por transferencia
+                        </p>
+                      ) : null}
                     </div>
                     {selected ? <CheckCircle2 className="h-5 w-5 shrink-0 text-brand-pink" /> : null}
                   </div>

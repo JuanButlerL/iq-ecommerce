@@ -54,6 +54,12 @@ export default async function ConfirmationPage({
                 <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
               </div>
             ) : null}
+            {order.paymentMethodDiscountArs > 0 ? (
+              <div className="flex items-center justify-between">
+                <span>Descuento transferencia ({Number(order.paymentMethodDiscountPercentage ?? 0)}%)</span>
+                <span className="font-bold text-green-700">- {formatArs(order.paymentMethodDiscountArs)}</span>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between">
               <span>Envio</span>
               <span className="font-bold text-brand-ink">{formatArs(order.shippingArs)}</span>

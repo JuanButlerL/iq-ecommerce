@@ -15,7 +15,8 @@ import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
 import { productFallbackImageMap } from "@/features/catalog/product-theme";
 
 type ProductWithImages = Product & { images: ProductImage[] };
-type SettingsWithRule = StoreSettings & {
+type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
+  bankTransferDiscountPercentage: number;
   activeShippingRule: (ShippingRule & { provinces: ShippingRuleProvince[] }) | null;
 };
 

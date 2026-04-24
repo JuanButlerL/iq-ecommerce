@@ -17,9 +17,11 @@ export default async function HomePage() {
       </Container>
 
       <Container className="pb-10 pt-4 md:pb-16">
-        <div className="grid gap-y-12 md:grid-cols-3 md:gap-x-10">
+        <div className="mx-auto grid max-w-[1160px] justify-center gap-x-8 gap-y-14 [grid-template-columns:repeat(auto-fit,minmax(240px,260px))] xl:gap-x-10">
           {products.map((product) => (
-            <HomeProductCard key={product.id} product={product} />
+            <div key={product.id} className="w-full">
+              <HomeProductCard product={product} />
+            </div>
           ))}
         </div>
       </Container>

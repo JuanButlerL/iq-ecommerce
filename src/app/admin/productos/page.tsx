@@ -62,7 +62,10 @@ export default async function AdminProductsPage() {
               {products.map((product) => (
                 <tr key={product.id}>
                   <td className="py-3">
-                    <Link href={`/admin/productos/${product.id}`} className="font-bold text-brand-ink underline-offset-2 hover:underline">
+                    <Link
+                      href={`/admin/productos/${product.id}`}
+                      className="font-bold text-brand-ink underline-offset-2 hover:underline"
+                    >
                       {product.name}
                     </Link>
                   </td>

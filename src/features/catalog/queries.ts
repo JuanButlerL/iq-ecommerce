@@ -17,8 +17,7 @@ export const getFeaturedProducts = cache(async () => {
       visible: true,
     },
     include: productInclude,
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    take: 3,
+    orderBy: [{ featured: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
   });
 });
 

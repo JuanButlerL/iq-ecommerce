@@ -8,6 +8,7 @@ node_modules
 coverage
 dist
 *.log
+.dev-server*
 public/uploads
 tsconfig.tsbuildinfo
 pnpm-lock.yaml

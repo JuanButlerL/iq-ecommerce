@@ -19,6 +19,19 @@ export const getStoreSettings = cache(async () => {
   });
 });
 
+export async function getStoreSettingsForClient() {
+  const settings = await getStoreSettings();
+
+  if (!settings) {
+    return null;
+  }
+
+  return {
+    ...settings,
+    bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
+  };
+}
+
 export async function getShippingRules() {
   return prisma.shippingRule.findMany({
     include: {

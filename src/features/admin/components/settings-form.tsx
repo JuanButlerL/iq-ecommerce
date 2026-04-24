@@ -12,7 +12,9 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 type SettingsFormProps = {
-  settings: StoreSettings;
+  settings: Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
+    bankTransferDiscountPercentage: number;
+  };
   shippingRules: ShippingRule[];
 };
 
@@ -27,6 +29,7 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
     transferInstructions: settings.transferInstructions ?? "",
     institutionalBanner: settings.institutionalBanner ?? "",
     purchaseSuccessMessage: settings.purchaseSuccessMessage ?? "",
+    bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
     activeShippingRuleId: settings.activeShippingRuleId ?? "",
   });
 
@@ -105,19 +108,67 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
         <Field label="Instrucciones de transferencia" className="md:col-span-2">
           <Textarea value={form.transferInstructions} onChange={(event) => setForm((current) => ({ ...current, transferInstructions: event.target.value }))} placeholder="Pasos para transferir y subir comprobante" />
         </Field>
-        <div className="space-y-3 md:col-span-2">
-          <span className="block text-sm font-bold text-brand-ink/75">Medios de pago habilitados</span>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
-            <Checkbox
-              label="Transferencia bancaria"
-              checked={form.enableBankTransfer}
-              onChange={(event) => setForm((current) => ({ ...current, enableBankTransfer: event.target.checked }))}
-            />
-            <Checkbox
-              label="Mercado Pago"
-              checked={form.enableMercadoPago}
-              onChange={(event) => setForm((current) => ({ ...current, enableMercadoPago: event.target.checked }))}
-            />
+        <div className="grid gap-4 md:col-span-2 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-[1.75rem] border border-brand-ink/10 bg-background p-4 md:p-5">
+            <span className="block text-sm font-bold text-brand-ink/75">Medios de pago habilitados</span>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-3 rounded-[1.25rem] border border-brand-ink/10 bg-white px-4 py-4">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-brand-ink/20 accent-brand-pink"
+                  checked={form.enableBankTransfer}
+                  onChange={(event) => setForm((current) => ({ ...current, enableBankTransfer: event.target.checked }))}
+                />
+                <span className="font-medium text-brand-ink">Transferencia bancaria</span>
+              </label>
+              <label className="flex items-center gap-3 rounded-[1.25rem] border border-brand-ink/10 bg-white px-4 py-4">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-brand-ink/20 accent-brand-pink"
+                  checked={form.enableMercadoPago}
+                  onChange={(event) => setForm((current) => ({ ...current, enableMercadoPago: event.target.checked }))}
+                />
+                <span className="font-medium text-brand-ink">Mercado Pago</span>
+              </label>
+            </div>
+          </div>
+          <div className="rounded-[1.75rem] border border-brand-ink/10 bg-background p-4 md:p-5">
+            <span className="block text-sm font-bold text-brand-ink/75">Descuento por transferencia</span>
+            <div className="mt-4 flex flex-col gap-4">
+              <label className="flex items-center gap-3 rounded-[1.25rem] border border-brand-ink/10 bg-white px-4 py-4">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-brand-ink/20 accent-brand-pink"
+                  checked={form.enableBankTransferDiscount}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      enableBankTransferDiscount: event.target.checked,
+                    }))
+                  }
+                />
+                <span className="font-medium text-brand-ink">Activar descuento</span>
+              </label>
+              <div className="max-w-[220px]">
+                <Field label="Porcentaje">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    disabled={!form.enableBankTransferDiscount}
+                    value={form.bankTransferDiscountPercentage}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        bankTransferDiscountPercentage: Number(event.target.value),
+                      }))
+                    }
+                    placeholder="10"
+                  />
+                </Field>
+              </div>
+            </div>
           </div>
         </div>
         <Field label="Texto institucional destacado" className="md:col-span-2">

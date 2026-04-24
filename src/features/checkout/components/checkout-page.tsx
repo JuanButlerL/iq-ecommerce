@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCartStore } from "@/features/cart/store";
+import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
@@ -21,7 +22,8 @@ import { checkoutCustomerSchema, type CheckoutCustomerInput } from "@/lib/valida
 import { formatArs } from "@/lib/utils/currency";
 
 type ProductWithImages = Product & { images: ProductImage[] };
-type SettingsWithRule = StoreSettings & {
+type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
+  bankTransferDiscountPercentage: number;
   activeShippingRule: (ShippingRule & { provinces: ShippingRuleProvince[] }) | null;
 };
 
@@ -86,8 +88,15 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
   const paymentMethod = form.watch("paymentMethod");
   const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
-  const discountArs = appliedCoupon?.discountArs ?? 0;
-  const total = subtotal - discountArs + shippingQuote.shippingArs;
+  const couponDiscountArs = appliedCoupon?.discountArs ?? 0;
+  const pricing = calculateCheckoutPricing({
+    paymentMethod,
+    subtotalArs: subtotal,
+    couponDiscountArs,
+    shippingArs: shippingQuote.shippingArs,
+    enableBankTransferDiscount: settings.enableBankTransferDiscount,
+    bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
+  });
 
   useEffect(() => {
     if (paymentMethod === "MERCADO_PAGO" && !allowMercadoPago && allowBankTransfer) {
@@ -218,6 +227,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
           value={form.watch("paymentMethod")}
           mercadoPagoEnabled={allowMercadoPago}
           bankTransferEnabled={allowBankTransfer}
+          bankTransferDiscountPercentage={pricing.paymentMethodDiscountPercentage}
           onChange={(paymentMethod) => form.setValue("paymentMethod", paymentMethod, { shouldDirty: true })}
         />
         {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
@@ -240,7 +250,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
           {productItems.map((item) => (
             <div key={item.productId} className="flex items-start justify-between gap-3">
               <span className="pr-2">
-                {item.product.name} x {item.quantity}
+              {item.product.name} x {item.quantity}
               </span>
               <span className="shrink-0">{formatArs(item.product.priceArs * item.quantity)}</span>
             </div>
@@ -335,11 +345,17 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
           ) : null}
           <div className="flex items-center justify-between">
             <span>Envio</span>
-            <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
+            <span className="font-bold text-brand-ink">{formatArs(pricing.shippingArs)}</span>
           </div>
-          <div className="flex items-center justify-between">
+          {pricing.paymentMethodDiscountArs > 0 ? (
+            <div className="flex items-center justify-between">
+              <span>Descuento transferencia ({pricing.paymentMethodDiscountPercentage}%)</span>
+              <span className="font-bold text-green-700">- {formatArs(pricing.paymentMethodDiscountArs)}</span>
+            </div>
+          ) : null}
+          <div className="flex items-center justify-between border-t border-brand-ink/10 pt-3">
             <span>Total</span>
-            <span className="font-display text-2xl text-brand-pink md:text-3xl">{formatArs(total)}</span>
+            <span className="font-display text-2xl text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</span>
           </div>
         </div>
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">

@@ -4,6 +4,7 @@ import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
@@ -86,7 +87,14 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
         subtotalArs,
       })
     : null;
-  const totalArs = subtotalArs - (coupon?.discountArs ?? 0) + shippingQuote.shippingArs;
+  const pricing = calculateCheckoutPricing({
+    paymentMethod: input.paymentMethod,
+    subtotalArs,
+    couponDiscountArs: coupon?.discountArs ?? 0,
+    shippingArs: shippingQuote.shippingArs,
+    enableBankTransferDiscount: settings.enableBankTransferDiscount,
+    bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
+  });
   const reservationExpiresAt = settings.orderReservationHours
     ? new Date(Date.now() + settings.orderReservationHours * 60 * 60 * 1000)
     : null;
@@ -133,7 +141,10 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             discountArs: coupon?.discountArs ?? 0,
             subtotalArs,
             shippingArs: shippingQuote.shippingArs,
-            totalArs,
+            paymentMethodDiscountPercentage:
+              pricing.paymentMethodDiscountPercentage > 0 ? pricing.paymentMethodDiscountPercentage : null,
+            paymentMethodDiscountArs: pricing.paymentMethodDiscountArs,
+            totalArs: pricing.totalArs,
             paymentMethod: input.paymentMethod,
             paymentProvider:
               input.paymentMethod === PaymentMethod.MERCADO_PAGO
@@ -171,8 +182,12 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             orderId: order.id,
             status: OrderStatus.PENDING_PAYMENT,
             note: coupon
-              ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
-              : "Pedido generado desde checkout web.",
+              ? pricing.paymentMethodDiscountArs > 0
+                ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento) y descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
+                : `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
+              : pricing.paymentMethodDiscountArs > 0
+                ? `Pedido generado desde checkout web con descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
+                : "Pedido generado desde checkout web.",
             changedBy: "system",
           },
         });
