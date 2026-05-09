@@ -8,6 +8,7 @@ import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSe
 import { CheckCircle2, TicketPercent } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
+import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { useCartStore } from "@/features/cart/store";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
+import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
 import { checkoutCustomerSchema, type CheckoutCustomerInput } from "@/lib/validations/checkout";
 import { formatArs } from "@/lib/utils/currency";
@@ -164,6 +166,20 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
       onSubmit={form.handleSubmit((values) => {
         setError(null);
         startTransition(async () => {
+          trackEvent("add_payment_info", {
+            currency: "ARS",
+            value: pricing.totalArs,
+            payment_type: values.paymentMethod,
+            coupon: appliedCoupon?.couponCode,
+            items: productItems.map((item) => ({
+              item_id: item.product.id,
+              item_name: item.product.name,
+              item_category: "Productos",
+              price: item.product.priceArs,
+              quantity: item.quantity,
+            })),
+          });
+
           const response = await fetch("/api/orders", {
             method: "POST",
             headers: {
@@ -195,6 +211,22 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
         });
       })}
     >
+      <TrackEventOnView
+        eventName="begin_checkout"
+        dedupeKey={`begin_checkout:${checkoutRequestKey}`}
+        params={{
+          currency: "ARS",
+          value: pricing.totalArs,
+          coupon: appliedCoupon?.couponCode,
+          items: productItems.map((item) => ({
+            item_id: item.product.id,
+            item_name: item.product.name,
+            item_category: "Productos",
+            price: item.product.priceArs,
+            quantity: item.quantity,
+          })),
+        }}
+      />
       <Card className="order-2 space-y-5 p-5 md:p-6 lg:order-1">
         <div>
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 1 de 2</p>

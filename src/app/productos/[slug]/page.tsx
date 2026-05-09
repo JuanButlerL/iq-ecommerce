@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
 import { HomeInstitutionalStrip } from "@/features/catalog/components/home-institutional-strip";
 import { ProductGallery } from "@/features/catalog/components/product-gallery";
@@ -23,6 +24,22 @@ export default async function ProductDetailPage({
 
   return (
     <Container className="space-y-14 py-12 md:py-16">
+      <TrackEventOnView
+        eventName="view_item"
+        params={{
+          currency: "ARS",
+          value: product.priceArs,
+          items: [
+            {
+              item_id: product.id,
+              item_name: product.name,
+              item_category: "Productos",
+              price: product.priceArs,
+              quantity: 1,
+            },
+          ],
+        }}
+      />
       <div className="grid gap-10 lg:grid-cols-[1fr_0.85fr]">
         <ProductGallery images={product.images} colorTheme={product.colorTheme} />
         <div className="space-y-6">
@@ -32,7 +49,7 @@ export default async function ProductDetailPage({
             <p className="text-base leading-7 text-brand-ink/75 md:text-lg">{product.shortDescription}</p>
             <p className="text-sm leading-7 text-brand-ink/70 md:text-base">{product.longDescription}</p>
           </div>
-          <ProductPurchasePanel productId={product.id} priceArs={product.priceArs} />
+          <ProductPurchasePanel productId={product.id} productName={product.name} priceArs={product.priceArs} />
         </div>
       </div>
 

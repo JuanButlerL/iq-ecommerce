@@ -8,10 +8,11 @@ import { formatArs } from "@/lib/utils/currency";
 
 type ProductPurchasePanelProps = {
   productId: string;
+  productName: string;
   priceArs: number;
 };
 
-export function ProductPurchasePanel({ productId, priceArs }: ProductPurchasePanelProps) {
+export function ProductPurchasePanel({ productId, productName, priceArs }: ProductPurchasePanelProps) {
   const [quantity, setQuantity] = useState(1);
 
   return (
@@ -24,7 +25,7 @@ export function ProductPurchasePanel({ productId, priceArs }: ProductPurchasePan
         <p className="mb-4 text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Cantidad</p>
         <QuantitySelector value={quantity} onChange={setQuantity} />
       </div>
-      <AddToCartButton productId={productId} initialQuantity={quantity} />
+      <AddToCartButton productId={productId} productName={productName} priceArs={priceArs} initialQuantity={quantity} />
     </div>
   );
 }
