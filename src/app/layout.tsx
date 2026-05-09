@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from "next";
 
 import "@/app/globals.css";
 
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { WebVitals } from "@/components/analytics/web-vitals";
 import { AppChrome } from "@/components/layout/app-chrome";
 import { getStoreSettings } from "@/features/settings/queries";
 import { env } from "@/lib/env";
@@ -40,6 +42,8 @@ export default async function RootLayout({
   return (
     <html lang="es">
       <body>
+        {env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_MEASUREMENT_ID} /> : null}
+        <WebVitals />
         <AppChrome
           instagramUrl={settings?.instagramUrl}
           contactEmail={settings?.contactEmail}

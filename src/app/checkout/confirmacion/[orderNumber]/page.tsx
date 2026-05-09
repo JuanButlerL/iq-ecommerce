@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,6 +35,25 @@ export default async function ConfirmationPage({
   return (
     <Container className="py-16">
       <Card className="mx-auto max-w-3xl space-y-6 p-8 text-center">
+        <TrackEventOnView
+          eventName="purchase"
+          dedupeKey={`purchase:${order.publicOrderNumber}`}
+          params={{
+            transaction_id: order.publicOrderNumber,
+            currency: order.currency,
+            value: order.totalArs,
+            shipping: order.shippingArs,
+            coupon: order.couponCode ?? undefined,
+            payment_type: order.paymentMethod,
+            items: order.items.map((item) => ({
+              item_id: item.productId ?? item.id,
+              item_name: item.productNameSnapshot,
+              item_category: "Productos",
+              price: item.unitPriceArs,
+              quantity: item.quantity,
+            })),
+          }}
+        />
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Compra confirmada</p>
         <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
         <p className="text-brand-ink/70">{successCopy}</p>

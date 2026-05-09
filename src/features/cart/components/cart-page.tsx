@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSettings } from "@prisma/client";
 
+import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { useCartStore } from "@/features/cart/store";
+import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { formatArs } from "@/lib/utils/currency";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
@@ -59,6 +61,20 @@ export function CartPage({ products, settings }: CartPageProps) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
+      <TrackEventOnView
+        eventName="view_cart"
+        params={{
+          currency: "ARS",
+          value: subtotal,
+          items: detailedItems.map(({ cart, product }) => ({
+            item_id: product.id,
+            item_name: product.name,
+            item_category: "Productos",
+            price: product.priceArs,
+            quantity: cart.quantity,
+          })),
+        }}
+      />
       <div className="space-y-4">
         {detailedItems.map(({ cart, product }) => (
           <Card key={product.id} className="p-4 md:flex md:items-center md:justify-between md:p-5">
@@ -88,7 +104,22 @@ export function CartPage({ products, settings }: CartPageProps) {
                 <button
                   type="button"
                   className="text-[0.95rem] font-normal leading-none text-brand-ink/70 underline underline-offset-2 hover:text-brand-pink"
-                  onClick={() => removeItem(product.id)}
+                  onClick={() => {
+                    trackEvent("remove_from_cart", {
+                      currency: "ARS",
+                      value: product.priceArs * cart.quantity,
+                      items: [
+                        {
+                          item_id: product.id,
+                          item_name: product.name,
+                          item_category: "Productos",
+                          price: product.priceArs,
+                          quantity: cart.quantity,
+                        },
+                      ],
+                    });
+                    removeItem(product.id);
+                  }}
                 >
                   Borrar
                 </button>
