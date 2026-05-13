@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import "@/app/globals.css";
 
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { MicrosoftClarity } from "@/components/analytics/microsoft-clarity";
 import { WebVitals } from "@/components/analytics/web-vitals";
 import { AppChrome } from "@/components/layout/app-chrome";
 import { getStoreSettings } from "@/features/settings/queries";
@@ -38,11 +39,13 @@ export default async function RootLayout({
   children: ReactNode;
 }>) {
   const settings = await getStoreSettings();
+  const clarityProjectId = env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID || "wqhtpsarz4";
 
   return (
     <html lang="es">
       <body>
         {env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_MEASUREMENT_ID} /> : null}
+        <MicrosoftClarity projectId={clarityProjectId} />
         <WebVitals />
         <AppChrome
           instagramUrl={settings?.instagramUrl}
