@@ -5,6 +5,7 @@ const envSchema = z.object({
   DIRECT_URL: z.string().optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
   NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
+  NEXT_PUBLIC_MICROSOFT_CLARITY_ID: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
@@ -37,6 +38,7 @@ const parsedEnv = envSchema.parse({
   DIRECT_URL: process.env.DIRECT_URL,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+  NEXT_PUBLIC_MICROSOFT_CLARITY_ID: process.env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID,
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -110,6 +112,7 @@ export const env = {
       (parsedEnv.ADMIN_LOCAL_PASSWORD !== "Cambiame123!" &&
         parsedEnv.ADMIN_SESSION_SECRET !== "iqkids-local-admin-secret")),
   hasGoogleAnalytics: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID),
+  hasMicrosoftClarity: Boolean(parsedEnv.NEXT_PUBLIC_MICROSOFT_CLARITY_ID),
 };
 
 export function requireServerEnv(key: keyof typeof parsedEnv) {
