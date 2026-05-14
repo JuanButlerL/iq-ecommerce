@@ -84,7 +84,7 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
 
   return (
     <article className="flex flex-col items-center text-center">
-      <div className="relative w-full max-w-[300px]">
+      <div className="relative w-full max-w-[300px] overflow-hidden rounded-[2rem] bg-white shadow-[0_16px_40px_rgba(44,34,65,0.08)]">
         <Link
           href={`/productos/${product.slug}`}
           className="group block w-full"
@@ -102,35 +102,35 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
           }}
         >
           <div
-            className="relative mx-auto aspect-[1/1.08] w-full overflow-hidden rounded-[2rem] bg-white shadow-[0_16px_40px_rgba(44,34,65,0.08)] [touch-action:pan-y]"
+            className="relative mx-auto aspect-[1/1.08] w-full overflow-hidden [touch-action:pan-y]"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchEnd}
           >
-          {images.length > 0 ? (
-            images.map((image, index) => (
+            {images.length > 0 ? (
+              images.map((image, index) => (
+                <img
+                  key={`${image.id}-${index}`}
+                  src={image.publicUrl}
+                  alt={image.altText}
+                  className={cn(
+                    "absolute inset-0 h-full w-full scale-[1.18] object-contain p-1 transition-all duration-500 md:scale-[1.22] md:p-2",
+                    index === activeIndex ? "opacity-100" : "opacity-0",
+                  )}
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = fallbackImage;
+                  }}
+                />
+              ))
+            ) : (
               <img
-                key={`${image.id}-${index}`}
-                src={image.publicUrl}
-                alt={image.altText}
-                className={cn(
-                  "absolute inset-0 h-full w-full scale-[1.18] object-contain p-1 transition-all duration-500 md:scale-[1.22] md:p-2",
-                  index === activeIndex ? "opacity-100" : "opacity-0",
-                )}
-                onError={(event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = fallbackImage;
-                }}
+                src={fallbackImage}
+                alt={product.name}
+                className="absolute inset-0 h-full w-full scale-[1.18] object-contain p-1 md:scale-[1.22] md:p-2"
               />
-            ))
-          ) : (
-            <img
-              src={fallbackImage}
-              alt={product.name}
-              className="absolute inset-0 h-full w-full scale-[1.18] object-contain p-1 md:scale-[1.22] md:p-2"
-            />
-          )}
+            )}
           </div>
         </Link>
 
@@ -157,8 +157,8 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
               ))}
             </div>
 
-            <div className="mt-4 flex items-center justify-center md:hidden">
-              <div className="inline-flex items-center gap-3 rounded-full bg-white px-4 py-2 shadow-[0_12px_30px_rgba(44,34,65,0.08)]">
+            <div className="border-t border-brand-ink/6 px-4 py-3 md:hidden">
+              <div className="flex items-center justify-center gap-3">
                 <button
                   type="button"
                   aria-label={`Ver imagen anterior de ${product.name}`}
