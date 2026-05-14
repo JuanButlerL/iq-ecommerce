@@ -136,26 +136,7 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
 
         {images.length > 1 ? (
           <>
-            <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between px-3 md:hidden">
-              <button
-                type="button"
-                aria-label={`Ver imagen anterior de ${product.name}`}
-                className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-xl text-brand-ink shadow-[0_10px_24px_rgba(44,34,65,0.16)] transition active:scale-95"
-                onClick={() => goToIndex(activeIndex - 1)}
-              >
-                {"<"}
-              </button>
-              <button
-                type="button"
-                aria-label={`Ver siguiente imagen de ${product.name}`}
-                className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/92 text-xl text-brand-ink shadow-[0_10px_24px_rgba(44,34,65,0.16)] transition active:scale-95"
-                onClick={() => goToIndex(activeIndex + 1)}
-              >
-                {">"}
-              </button>
-            </div>
-
-            <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-2">
+            <div className="absolute inset-x-0 bottom-4 hidden items-center justify-center gap-2 md:flex">
               {images.map((image, index) => (
                 <button
                   key={image.id}
@@ -174,6 +155,42 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
                   onFocus={() => goToIndex(index)}
                 />
               ))}
+            </div>
+
+            <div className="mt-4 flex items-center justify-center md:hidden">
+              <div className="inline-flex items-center gap-3 rounded-full bg-white px-4 py-2 shadow-[0_12px_30px_rgba(44,34,65,0.08)]">
+                <button
+                  type="button"
+                  aria-label={`Ver imagen anterior de ${product.name}`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-ink/[0.06] text-base text-brand-ink transition active:scale-95"
+                  onClick={() => goToIndex(activeIndex - 1)}
+                >
+                  {"<"}
+                </button>
+                <div className="flex items-center justify-center gap-2">
+                  {images.map((image, index) => (
+                    <button
+                      key={image.id}
+                      type="button"
+                      aria-label={`Ver imagen ${index + 1} de ${product.name}`}
+                      className={cn(
+                        "h-2.5 rounded-full transition-all",
+                        index === activeIndex ? "w-6" : "w-2.5 bg-brand-ink/20",
+                      )}
+                      style={index === activeIndex ? { backgroundColor: theme.accent } : undefined}
+                      onClick={() => goToIndex(index)}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Ver siguiente imagen de ${product.name}`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-ink/[0.06] text-base text-brand-ink transition active:scale-95"
+                  onClick={() => goToIndex(activeIndex + 1)}
+                >
+                  {">"}
+                </button>
+              </div>
             </div>
           </>
         ) : null}
