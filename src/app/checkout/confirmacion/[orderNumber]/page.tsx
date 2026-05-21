@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { MetaPixelPurchase } from "@/components/analytics/meta-pixel-purchase";
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,12 @@ export default async function ConfirmationPage({
               quantity: item.quantity,
             })),
           }}
+        />
+        <MetaPixelPurchase
+          orderNumber={order.publicOrderNumber}
+          total={order.totalArs}
+          productIds={order.items.map((item) => item.productId ?? item.id)}
+          itemCount={order.items.reduce((totalItems, item) => totalItems + item.quantity, 0)}
         />
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Compra confirmada</p>
         <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
