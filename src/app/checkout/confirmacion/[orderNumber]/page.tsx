@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { MetaPixelPurchase } from "@/components/analytics/meta-pixel-purchase";
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export default async function ConfirmationPage({
   }
 
   const isMercadoPago = order.paymentMethod === "MERCADO_PAGO";
+  const shouldTrackPurchase = order.paymentStatus === "PAID";
   const paymentCopy = isMercadoPago
     ? order.paymentStatus === "PAID"
       ? "Mercado Pago confirmo el pago y el pedido ya quedo registrado."
@@ -35,25 +37,35 @@ export default async function ConfirmationPage({
   return (
     <Container className="py-16">
       <Card className="mx-auto max-w-3xl space-y-6 p-8 text-center">
-        <TrackEventOnView
-          eventName="purchase"
-          dedupeKey={`purchase:${order.publicOrderNumber}`}
-          params={{
-            transaction_id: order.publicOrderNumber,
-            currency: order.currency,
-            value: order.totalArs,
-            shipping: order.shippingArs,
-            coupon: order.couponCode ?? undefined,
-            payment_type: order.paymentMethod,
-            items: order.items.map((item) => ({
-              item_id: item.productId ?? item.id,
-              item_name: item.productNameSnapshot,
-              item_category: "Productos",
-              price: item.unitPriceArs,
-              quantity: item.quantity,
-            })),
-          }}
-        />
+        {shouldTrackPurchase ? (
+          <>
+            <TrackEventOnView
+              eventName="purchase"
+              dedupeKey={`purchase:${order.publicOrderNumber}`}
+              params={{
+                transaction_id: order.publicOrderNumber,
+                currency: order.currency,
+                value: order.totalArs,
+                shipping: order.shippingArs,
+                coupon: order.couponCode ?? undefined,
+                payment_type: order.paymentMethod,
+                items: order.items.map((item) => ({
+                  item_id: item.productId ?? item.id,
+                  item_name: item.productNameSnapshot,
+                  item_category: "Productos",
+                  price: item.unitPriceArs,
+                  quantity: item.quantity,
+                })),
+              }}
+            />
+            <MetaPixelPurchase
+              orderNumber={order.publicOrderNumber}
+              total={order.totalArs}
+              productIds={order.items.map((item) => item.productId ?? item.id)}
+              itemCount={order.items.reduce((totalItems, item) => totalItems + item.quantity, 0)}
+            />
+          </>
+        ) : null}
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Compra confirmada</p>
         <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
         <p className="text-brand-ink/70">{successCopy}</p>

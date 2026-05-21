@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +20,7 @@ import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
+import { event as trackMetaEvent } from "@/lib/pixel";
 import { checkoutCustomerSchema, type CheckoutCustomerInput } from "@/lib/validations/checkout";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -52,6 +53,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
   const [appliedCoupon, setAppliedCoupon] = useState<CouponPreview | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isApplyingCoupon, startApplyingCoupon] = useTransition();
+  const hasTrackedCheckoutRef = useRef(false);
   const items = useCartStore((state) => state.items);
   const allowBankTransfer = settings.enableBankTransfer;
   const allowMercadoPago = settings.enableMercadoPago && mercadoPagoEnabled;
@@ -118,6 +120,37 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
     void refreshCoupon(appliedCoupon.couponCode, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subtotal]);
+
+  useEffect(() => {
+    if (hasTrackedCheckoutRef.current) {
+      return;
+    }
+
+    const itemCount = items.reduce((totalItems, item) => totalItems + item.quantity, 0);
+
+    if (itemCount === 0) {
+      return;
+    }
+
+    const storageKey = `meta:initiate_checkout:${checkoutRequestKey}`;
+
+    if (typeof window !== "undefined" && window.sessionStorage.getItem(storageKey)) {
+      hasTrackedCheckoutRef.current = true;
+      return;
+    }
+
+    trackMetaEvent("InitiateCheckout", {
+      value: pricing.totalArs,
+      currency: "ARS",
+      num_items: itemCount,
+    });
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(storageKey, "1");
+    }
+
+    hasTrackedCheckoutRef.current = true;
+  }, [checkoutRequestKey, items, pricing.totalArs]);
 
   async function refreshCoupon(code: string, updateInput = true) {
     const response = await fetch("/api/coupons/validate", {
