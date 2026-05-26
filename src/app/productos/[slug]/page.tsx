@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { MetaPixelEvent } from "@/components/analytics/meta-pixel-event";
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
 import { HomeInstitutionalStrip } from "@/features/catalog/components/home-institutional-strip";
@@ -24,6 +25,17 @@ export default async function ProductDetailPage({
 
   return (
     <Container className="space-y-14 py-12 md:py-16">
+      <MetaPixelEvent
+        eventName="ViewContent"
+        dedupeKey={`view-content:${product.id}`}
+        params={{
+          content_ids: [product.id],
+          content_name: product.name,
+          content_type: "product",
+          currency: "ARS",
+          value: product.priceArs,
+        }}
+      />
       <TrackEventOnView
         eventName="view_item"
         params={{
