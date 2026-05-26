@@ -1,3 +1,5 @@
+import { headers } from "next/headers";
+
 import { paymentProofSchema } from "@/lib/validations/proof";
 import { attachPaymentProof } from "@/features/orders/services/order-service";
 import { routeError, routeOk } from "@/lib/http/route";
@@ -8,6 +10,7 @@ export async function POST(
 ) {
   try {
     const { orderNumber } = await params;
+    const requestHeaders = await headers();
     const formData = await request.formData();
     const file = formData.get("file");
     const transferSenderName = String(formData.get("transferSenderName") ?? "");
@@ -26,6 +29,9 @@ export async function POST(
 
     const result = await attachPaymentProof(orderNumber, file, {
       transferSenderName,
+    }, {
+      clientIpAddress: requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
+      clientUserAgent: requestHeaders.get("user-agent"),
     });
 
     return routeOk(result);

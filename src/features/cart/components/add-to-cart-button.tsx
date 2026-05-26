@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/features/cart/store";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
+import { event as trackMetaEvent } from "@/lib/pixel";
 
 type AddToCartButtonProps = {
   productId: string;
@@ -34,6 +35,14 @@ export function AddToCartButton({ productId, productName, priceArs, initialQuant
               quantity: initialQuantity,
             },
           ],
+        });
+        trackMetaEvent("AddToCart", {
+          content_ids: [productId],
+          content_name: productName,
+          content_type: "product",
+          currency: "ARS",
+          value: priceArs * initialQuantity,
+          num_items: initialQuantity,
         });
         setAdded(true);
         window.setTimeout(() => setAdded(false), 1200);

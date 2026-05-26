@@ -2,7 +2,10 @@
 
 export const FB_PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
 
-type PixelEventOptions = Record<string, string | number | boolean | string[] | undefined>;
+export type PixelEventOptions = Record<string, string | number | boolean | string[] | undefined>;
+type PixelTrackingOptions = {
+  eventID?: string;
+};
 
 declare global {
   interface Window {
@@ -23,10 +26,10 @@ export const pageview = () => {
   window.fbq("track", "PageView");
 };
 
-export const event = (name: string, options: PixelEventOptions = {}) => {
+export const event = (name: string, options: PixelEventOptions = {}, trackingOptions: PixelTrackingOptions = {}) => {
   if (!isFacebookPixelEnabled() || typeof window === "undefined" || typeof window.fbq !== "function") {
     return;
   }
 
-  window.fbq("track", name, options);
+  window.fbq("track", name, options, trackingOptions);
 };

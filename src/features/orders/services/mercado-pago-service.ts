@@ -15,6 +15,8 @@ import {
   preferMercadoPagoSandboxUrl,
 } from "@/lib/integrations/mercadopago/client";
 import { getMercadoPagoStatusLabel, mapMercadoPagoStatusToInternal } from "@/lib/integrations/mercadopago/status";
+import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
+import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { syncOrder } from "@/features/orders/services/sync-service";
 
 type MercadoPagoOrderRecord = Prisma.OrderGetPayload<{
@@ -383,6 +385,39 @@ async function upsertMercadoPagoPayment(
           syncLastError: syncError instanceof Error ? syncError.message : "Sync error",
         },
       });
+    });
+  }
+
+  if (nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID") {
+    await sendMetaConversionsApiEvent({
+      eventName: "Purchase",
+      eventId: buildMetaPurchaseEventId(order.publicOrderNumber),
+      eventSourceUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/checkout/confirmacion/${order.publicOrderNumber}`,
+      userData: {
+        email: order.customerEmail,
+        phone: order.customerPhone,
+        firstName: order.customerFirstName,
+        lastName: order.customerLastName,
+        city: order.locality,
+        state: order.province,
+        zip: order.postalCode,
+        country: "ar",
+      },
+      customData: {
+        currency: order.currency,
+        value: order.totalArs,
+        order_id: order.publicOrderNumber,
+        content_type: "product",
+        content_ids: order.items.map((item) => item.productId),
+        contents: order.items.map((item) => ({
+          id: item.productId,
+          quantity: item.quantity,
+          item_price: item.unitPriceArs,
+        })),
+        num_items: order.items.reduce((totalItems, item) => totalItems + item.quantity, 0),
+      },
+    }).catch((error) => {
+      console.error("Meta Conversions API Mercado Pago purchase event failed", error);
     });
   }
 

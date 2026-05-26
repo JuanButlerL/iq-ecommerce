@@ -7,6 +7,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
   NEXT_PUBLIC_MICROSOFT_CLARITY_ID: z.string().optional(),
   NEXT_PUBLIC_FB_PIXEL_ID: z.string().optional(),
+  META_CONVERSIONS_API_ACCESS_TOKEN: z.string().optional(),
+  META_CONVERSIONS_API_TEST_EVENT_CODE: z.string().optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
@@ -41,6 +43,8 @@ const parsedEnv = envSchema.parse({
   NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
   NEXT_PUBLIC_MICROSOFT_CLARITY_ID: process.env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID,
   NEXT_PUBLIC_FB_PIXEL_ID: process.env.NEXT_PUBLIC_FB_PIXEL_ID,
+  META_CONVERSIONS_API_ACCESS_TOKEN: process.env.META_CONVERSIONS_API_ACCESS_TOKEN,
+  META_CONVERSIONS_API_TEST_EVENT_CODE: process.env.META_CONVERSIONS_API_TEST_EVENT_CODE,
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -88,6 +92,10 @@ function isRealFacebookPixelId(value?: string) {
   return Boolean(value) && value !== "TU_PIXEL_ID";
 }
 
+function isRealMetaConversionsApiAccessToken(value?: string) {
+  return Boolean(value) && !String(value).includes("your-meta-conversions-api-access-token");
+}
+
 export const env = {
   ...parsedEnv,
   isProduction: process.env.NODE_ENV === "production",
@@ -120,6 +128,9 @@ export const env = {
   hasGoogleAnalytics: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID),
   hasMicrosoftClarity: Boolean(parsedEnv.NEXT_PUBLIC_MICROSOFT_CLARITY_ID),
   hasFacebookPixel: isRealFacebookPixelId(parsedEnv.NEXT_PUBLIC_FB_PIXEL_ID),
+  hasMetaConversionsApi:
+    isRealFacebookPixelId(parsedEnv.NEXT_PUBLIC_FB_PIXEL_ID) &&
+    isRealMetaConversionsApiAccessToken(parsedEnv.META_CONVERSIONS_API_ACCESS_TOKEN),
 };
 
 export function requireServerEnv(key: keyof typeof parsedEnv) {

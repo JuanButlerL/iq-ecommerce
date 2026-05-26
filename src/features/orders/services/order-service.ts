@@ -7,6 +7,8 @@ import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
+import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
+import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
 import { buildNextOrderNumber, buildOrderNumberPrefix } from "@/lib/utils/order-number";
@@ -294,9 +296,17 @@ type PaymentProofDetails = {
   customerNote?: string;
 };
 
-export async function attachPaymentProof(orderNumber: string, file: File, details: PaymentProofDetails) {
+type RequestContext = {
+  clientIpAddress?: string | null;
+  clientUserAgent?: string | null;
+};
+
+export async function attachPaymentProof(orderNumber: string, file: File, details: PaymentProofDetails, requestContext?: RequestContext) {
   const order = await prisma.order.findUnique({
     where: { publicOrderNumber: orderNumber },
+    include: {
+      items: true,
+    },
   });
 
   if (!order) {
@@ -357,6 +367,39 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     });
 
     return null;
+  });
+
+  await sendMetaConversionsApiEvent({
+    eventName: "Purchase",
+    eventId: buildMetaPurchaseEventId(order.publicOrderNumber),
+    eventSourceUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/checkout/confirmacion/${order.publicOrderNumber}`,
+    clientIpAddress: requestContext?.clientIpAddress,
+    clientUserAgent: requestContext?.clientUserAgent,
+    userData: {
+      email: order.customerEmail,
+      phone: order.customerPhone,
+      firstName: order.customerFirstName,
+      lastName: order.customerLastName,
+      city: order.locality,
+      state: order.province,
+      zip: order.postalCode,
+      country: "ar",
+    },
+    customData: {
+      currency: order.currency,
+      value: order.totalArs,
+      order_id: order.publicOrderNumber,
+      content_type: "product",
+      content_ids: order.items.map((item) => item.productId),
+      contents: order.items.map((item) => ({
+        id: item.productId,
+        quantity: item.quantity,
+        item_price: item.unitPriceArs,
+      })),
+      num_items: order.items.reduce((totalItems, item) => totalItems + item.quantity, 0),
+    },
+  }).catch((error) => {
+    console.error("Meta Conversions API transfer purchase event failed", error);
   });
 
   return {

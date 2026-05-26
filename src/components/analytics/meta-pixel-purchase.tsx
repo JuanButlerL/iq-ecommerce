@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { event } from "@/lib/pixel";
 
 type MetaPixelPurchaseProps = {
@@ -32,6 +33,8 @@ export function MetaPixelPurchase({ orderNumber, total, productIds, itemCount }:
       content_ids: productIds,
       content_type: "product",
       num_items: itemCount,
+    }, {
+      eventID: buildMetaPurchaseEventId(orderNumber),
     });
 
     if (typeof window !== "undefined") {
