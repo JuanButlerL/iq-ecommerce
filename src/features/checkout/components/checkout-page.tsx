@@ -272,12 +272,9 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
           <Input placeholder="Nombre" {...form.register("firstName")} />
           <Input placeholder="Apellido" {...form.register("lastName")} />
           <Input
-            placeholder={settings.requireTaxId ? "Documento o DNI" : "Documento o DNI (opcional)"}
+            placeholder="Documento o DNI"
             aria-invalid={form.formState.errors.taxId ? "true" : "false"}
-            {...form.register("taxId", {
-              validate: (value) =>
-                settings.requireTaxId && !(value ?? "").trim() ? "Ingresa tu documento o DNI para continuar." : true,
-            })}
+            {...form.register("taxId")}
           />
         </div>
         <div className="grid gap-4 md:grid-cols-2">

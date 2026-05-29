@@ -50,7 +50,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     throw new AppError("La tienda se encuentra momentaneamente cerrada.", 400);
   }
 
-  if (settings.requireTaxId && !input.taxId?.trim()) {
+  if (!input.taxId?.trim()) {
     throw new AppError("Ingresa tu documento o DNI para continuar.", 400);
   }
 
