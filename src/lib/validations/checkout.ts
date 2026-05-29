@@ -16,7 +16,7 @@ export const checkoutSchema = z.object({
   postalCode: z.string().min(3).max(12),
   addressLine: z.string().min(4).max(160),
   addressExtra: z.string().max(120).optional().or(z.literal("")),
-  taxId: z.string().max(20).optional().or(z.literal("")),
+  taxId: z.string().trim().min(1, "Ingresa tu documento o DNI para continuar.").max(20),
   couponCode: z.string().max(40).optional().or(z.literal("")),
   paymentMethod: z.enum(["BANK_TRANSFER", "MERCADO_PAGO"]).default("BANK_TRANSFER"),
   notes: z.string().max(500).optional().or(z.literal("")),
