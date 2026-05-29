@@ -76,6 +76,7 @@ export default async function AdminOrderDetailPage({
           </p>
           <p className="text-brand-ink/70">{order.customerEmail}</p>
           <p className="text-brand-ink/70">{order.customerPhone}</p>
+          <p className="text-brand-ink/70">Documento / DNI: {order.customerTaxId ?? "No informado"}</p>
           <p className="text-brand-ink/70">
             {order.addressLine} {order.addressExtra}
           </p>
@@ -166,7 +167,7 @@ export default async function AdminOrderDetailPage({
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="rounded-[1.5rem] bg-background p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">DNI informado</p>
-                    <p className="mt-2 font-bold text-brand-ink">{latestProof.transferSenderName ?? "No informado"}</p>
+                    <p className="mt-2 font-bold text-brand-ink">{order.customerTaxId ?? latestProof.transferSenderName ?? "No informado"}</p>
                   </div>
                   <div className="rounded-[1.5rem] bg-background p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Fecha informada</p>

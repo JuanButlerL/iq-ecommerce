@@ -13,7 +13,6 @@ export async function POST(
     const requestHeaders = await headers();
     const formData = await request.formData();
     const file = formData.get("file");
-    const transferSenderName = String(formData.get("transferSenderName") ?? "");
 
     if (!(file instanceof File)) {
       throw new Error("Archivo invalido.");
@@ -24,12 +23,9 @@ export async function POST(
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
-      transferSenderName,
     });
 
-    const result = await attachPaymentProof(orderNumber, file, {
-      transferSenderName,
-    }, {
+    const result = await attachPaymentProof(orderNumber, file, {}, {
       clientIpAddress: requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
       clientUserAgent: requestHeaders.get("user-agent"),
     });

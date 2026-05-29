@@ -50,6 +50,10 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     throw new AppError("La tienda se encuentra momentaneamente cerrada.", 400);
   }
 
+  if (settings.requireTaxId && !input.taxId?.trim()) {
+    throw new AppError("Ingresa tu documento o DNI para continuar.", 400);
+  }
+
   if (input.paymentMethod === PaymentMethod.BANK_TRANSFER && !settings.enableBankTransfer) {
     throw new AppError("La transferencia no esta disponible en este momento.", 400);
   }
@@ -290,7 +294,7 @@ export async function getOrderByNumber(orderNumber: string) {
 }
 
 type PaymentProofDetails = {
-  transferSenderName: string;
+  transferSenderName?: string;
   transferDate?: string;
   transferReference?: string;
   customerNote?: string;
@@ -317,6 +321,8 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     throw new AppError("Este pedido no requiere comprobante manual.", 400);
   }
 
+  const transferSenderName = details.transferSenderName || order.customerTaxId || null;
+
   const uploaded = await uploadPaymentProof(file, orderNumber);
 
   await prisma.$transaction(async (tx) => {
@@ -328,7 +334,7 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
         fileName: file.name,
         fileSize: file.size,
         mimeType: file.type,
-        transferSenderName: details.transferSenderName,
+        transferSenderName,
         transferDate: details.transferDate ? new Date(details.transferDate) : null,
         transferReference: details.transferReference || null,
         customerNote: details.customerNote || null,
@@ -349,7 +355,7 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
       data: {
         orderId: order.id,
         status: OrderStatus.PROOF_UPLOADED,
-        note: `Comprobante subido por el cliente${details.transferSenderName ? ` · DNI: ${details.transferSenderName}` : ""}${details.transferReference ? ` · Ref: ${details.transferReference}` : ""}.`,
+        note: `Comprobante subido por el cliente${transferSenderName ? ` · DNI: ${transferSenderName}` : ""}${details.transferReference ? ` · Ref: ${details.transferReference}` : ""}.`,
         changedBy: "customer",
       },
     });
