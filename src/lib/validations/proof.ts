@@ -12,17 +12,8 @@ export const paymentProofSchema = z.object({
   fileName: z.string().min(3),
   fileSize: z.number().max(8 * 1024 * 1024),
   mimeType: z.enum(allowedProofMimeTypes),
-  transferSenderName: dniSchema,
+  transferSenderName: dniSchema.optional(),
   transferDate: z.string().max(40).optional().or(z.literal("")),
   transferReference: z.string().trim().max(80).optional().or(z.literal("")),
   customerNote: z.string().trim().max(240).optional().or(z.literal("")),
 });
-
-export const paymentProofFormSchema = z.object({
-  transferSenderName: dniSchema,
-  transferDate: z.string().optional(),
-  transferReference: z.string().trim().max(80).optional(),
-  customerNote: z.string().trim().max(240).optional(),
-});
-
-export type PaymentProofFormInput = z.infer<typeof paymentProofFormSchema>;

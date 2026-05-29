@@ -4,14 +4,9 @@ import type { ReactNode } from "react";
 import { Check, Copy, FileText, ImageIcon, UploadCloud } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useCartStore } from "@/features/cart/store";
-import { cn } from "@/lib/utils/cn";
-import { paymentProofFormSchema, type PaymentProofFormInput } from "@/lib/validations/proof";
 
 type PaymentProofFormProps = {
   orderNumber: string;
@@ -67,12 +62,6 @@ export function PaymentProofForm({ orderNumber, amount, alias }: PaymentProofFor
   const [error, setError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const form = useForm<PaymentProofFormInput>({
-    resolver: zodResolver(paymentProofFormSchema),
-    defaultValues: {
-      transferSenderName: "",
-    },
-  });
 
   useEffect(() => {
     if (!file || file.type === "application/pdf") {
@@ -91,42 +80,34 @@ export function PaymentProofForm({ orderNumber, amount, alias }: PaymentProofFor
     setFileError(null);
   };
 
-  const submitProof = form.handleSubmit(
-    (values) => {
-      if (!file) {
-        setFileError("Subi el comprobante para continuar.");
+  const submitProof = () => {
+    if (!file) {
+      setFileError("Subi el comprobante para continuar.");
+      return;
+    }
+
+    setError(null);
+    setFileError(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`/api/orders/${orderNumber}/proof`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setError(payload.error ?? "No pudimos subir el comprobante.");
         return;
       }
 
-      setError(null);
-      setFileError(null);
-      startTransition(async () => {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("transferSenderName", values.transferSenderName);
-
-        const response = await fetch(`/api/orders/${orderNumber}/proof`, {
-          method: "POST",
-          body: formData,
-        });
-
-        const payload = await response.json();
-
-        if (!response.ok) {
-          setError(payload.error ?? "No pudimos subir el comprobante.");
-          return;
-        }
-
-        clearCart();
-        router.push(`/checkout/confirmacion/${orderNumber}`);
-      });
-    },
-    () => {
-      if (!file) {
-        setFileError("Subi el comprobante para continuar.");
-      }
-    },
-  );
+      clearCart();
+      router.push(`/checkout/confirmacion/${orderNumber}`);
+    });
+  };
 
   return (
     <div className="w-full">
@@ -134,19 +115,6 @@ export function PaymentProofForm({ orderNumber, amount, alias }: PaymentProofFor
         <div className="grid gap-4">
           <RowCard label="Monto" value={amount} copyable />
           <RowCard label="Alias" value={alias} copyable />
-          <RowCard label="DNI" value="">
-            <Input
-              id="transferSenderName"
-              inputMode="numeric"
-              placeholder="Ej: 30123456"
-              aria-invalid={form.formState.errors.transferSenderName ? "true" : "false"}
-              className={cn(
-                "h-auto border-0 bg-transparent px-0 py-0 text-right text-base font-bold text-brand-ink placeholder:text-brand-ink/36 focus:ring-0 md:text-lg",
-                form.formState.errors.transferSenderName ? "text-red-700" : "",
-              )}
-              {...form.register("transferSenderName")}
-            />
-          </RowCard>
 
           <label className="block cursor-pointer rounded-[1.25rem] border border-dashed border-brand-pink/25 bg-[#fffafa] px-4 py-3">
             <div className="flex items-center gap-3">
@@ -191,9 +159,6 @@ export function PaymentProofForm({ orderNumber, amount, alias }: PaymentProofFor
             </div>
           ) : null}
 
-          {form.formState.errors.transferSenderName ? (
-            <p className="text-sm font-bold text-red-600">Ingresa un DNI valido.</p>
-          ) : null}
           {fileError ? <p className="text-sm font-bold text-red-600">{fileError}</p> : null}
           {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
         </div>

@@ -268,9 +268,19 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
             Carga tus datos, elegi el medio de pago y generamos tu pedido.
           </p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <Input placeholder="Nombre" {...form.register("firstName")} />
           <Input placeholder="Apellido" {...form.register("lastName")} />
+          <Input
+            placeholder={settings.requireTaxId ? "Documento o DNI" : "Documento o DNI (opcional)"}
+            aria-invalid={form.formState.errors.taxId ? "true" : "false"}
+            {...form.register("taxId", {
+              validate: (value) =>
+                settings.requireTaxId && !(value ?? "").trim() ? "Ingresa tu documento o DNI para continuar." : true,
+            })}
+          />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
           <Input placeholder="Email" {...form.register("email")} />
           <Input placeholder="Telefono" {...form.register("phone")} />
           <Select {...form.register("province")}>
@@ -288,6 +298,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
             <Textarea placeholder="Observaciones" {...form.register("notes")} />
           </div>
         </div>
+        {form.formState.errors.taxId ? <p className="text-sm font-bold text-red-600">{form.formState.errors.taxId.message}</p> : null}
         <PaymentMethodSelector
           value={form.watch("paymentMethod")}
           mercadoPagoEnabled={allowMercadoPago}
