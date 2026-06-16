@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { CSSProperties } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/features/cart/store";
@@ -12,15 +13,25 @@ type AddToCartButtonProps = {
   productName: string;
   priceArs: number;
   initialQuantity?: number;
+  className?: string;
+  style?: CSSProperties;
 };
 
-export function AddToCartButton({ productId, productName, priceArs, initialQuantity = 1 }: AddToCartButtonProps) {
+export function AddToCartButton({
+  productId,
+  productName,
+  priceArs,
+  initialQuantity = 1,
+  className,
+  style,
+}: AddToCartButtonProps) {
   const addItem = useCartStore((state) => state.addItem);
   const [added, setAdded] = useState(false);
 
   return (
     <Button
-      className="w-full"
+      className={className ?? "w-full"}
+      style={style}
       onClick={() => {
         addItem(productId, initialQuantity);
         trackEvent("add_to_cart", {

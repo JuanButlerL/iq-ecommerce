@@ -14,7 +14,6 @@ import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { formatArs } from "@/lib/utils/currency";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
-import { productFallbackImageMap } from "@/features/catalog/product-theme";
 
 type ProductWithImages = Product & { images: ProductImage[] };
 type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
@@ -25,6 +24,12 @@ type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & 
 type CartPageProps = {
   products: ProductWithImages[];
   settings: SettingsWithRule;
+};
+
+const cartFallbackImageMap: Record<string, string> = {
+  CACAO: "/home/cacao.webp",
+  BANANA: "/home/banana.webp",
+  PEANUT: "/home/mani.webp",
 };
 
 export function CartPage({ products, settings }: CartPageProps) {
@@ -49,7 +54,7 @@ export function CartPage({ products, settings }: CartPageProps) {
       <EmptyState
         title="Tu carrito esta vacio"
         description="Elegí una de nuestras barritas y avanzá con un checkout rápido por transferencia."
-        actionHref="/productos"
+        actionHref="/#productos"
         actionLabel="Ver productos"
       />
     );
@@ -58,6 +63,7 @@ export function CartPage({ products, settings }: CartPageProps) {
   const subtotal = detailedItems.reduce((acc, item) => acc + item.product.priceArs * item.cart.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
   const total = subtotal + shippingQuote.shippingArs;
+  const checkoutHref = `/checkout?province=${encodeURIComponent(province)}`;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
@@ -81,12 +87,12 @@ export function CartPage({ products, settings }: CartPageProps) {
             <div className="grid grid-cols-[56px_minmax(0,1fr)_88px] items-start gap-x-4 gap-y-2 md:flex md:min-w-0 md:flex-1 md:gap-4">
               <div className="relative mt-1 h-14 w-14 shrink-0 overflow-hidden bg-white md:h-20 md:w-20 md:rounded-[1.25rem]">
                 <img
-                  src={product.images[0]?.publicUrl ?? productFallbackImageMap[product.colorTheme]}
+                  src={product.images[0]?.publicUrl ?? cartFallbackImageMap[product.colorTheme]}
                   alt={product.images[0]?.altText ?? product.name}
                   className="h-full w-full object-contain p-0.5 md:p-2"
                   onError={(event) => {
                     event.currentTarget.onerror = null;
-                    event.currentTarget.src = productFallbackImageMap[product.colorTheme];
+                    event.currentTarget.src = cartFallbackImageMap[product.colorTheme];
                   }}
                 />
               </div>
@@ -181,10 +187,10 @@ export function CartPage({ products, settings }: CartPageProps) {
           <p>{shippingQuote.message}</p>
           <p className="mt-2">Envío gratis desde: {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
-        <Link href="/checkout" className="block pt-2">
+        <Link href={checkoutHref} className="block pt-2">
           <Button className="w-full">Continuar compra</Button>
         </Link>
-        <Link href="/productos" className="block text-center text-sm text-brand-ink/70 underline underline-offset-4 hover:text-brand-pink">
+        <Link href="/#productos" className="block text-center text-sm text-brand-ink/70 underline underline-offset-4 hover:text-brand-pink">
           Ver más productos
         </Link>
       </Card>

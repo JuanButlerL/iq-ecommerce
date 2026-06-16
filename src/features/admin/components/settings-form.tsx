@@ -28,7 +28,14 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
     checkoutMessage: settings.checkoutMessage ?? "",
     transferInstructions: settings.transferInstructions ?? "",
     institutionalBanner: settings.institutionalBanner ?? "",
+    announcementBarText: settings.announcementBarText ?? "",
+    subscriptionCtaUrl: settings.subscriptionCtaUrl ?? "",
+    subscriptionItemOne: settings.subscriptionItemOne ?? "",
+    subscriptionItemTwo: settings.subscriptionItemTwo ?? "",
+    subscriptionItemThree: settings.subscriptionItemThree ?? "",
     purchaseSuccessMessage: settings.purchaseSuccessMessage ?? "",
+    announcementBarEnabled: settings.announcementBarEnabled,
+    subscriptionSectionEnabled: settings.subscriptionSectionEnabled,
     bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
     activeShippingRuleId: settings.activeShippingRuleId ?? "",
   });
@@ -174,6 +181,116 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
         <Field label="Texto institucional destacado" className="md:col-span-2">
           <Input value={form.institutionalBanner} onChange={(event) => setForm((current) => ({ ...current, institutionalBanner: event.target.value }))} placeholder="Texto corto de marca o banner institucional" />
         </Field>
+        <div className="rounded-[1.75rem] border border-brand-ink/10 bg-background p-4 md:col-span-2 md:p-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <span className="block text-sm font-bold text-brand-ink/75">Ticker superior del home</span>
+              <p className="mt-1 text-sm text-brand-ink/60">
+                Cartel desplazable sobre la landing para promos o mensajes de envio.
+              </p>
+            </div>
+            <Checkbox
+              label="Activar ticker"
+              checked={form.announcementBarEnabled}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  announcementBarEnabled: event.target.checked,
+                }))
+              }
+            />
+          </div>
+          <div className="mt-4">
+            <Field label="Texto del ticker">
+              <Input
+                value={form.announcementBarText}
+                disabled={!form.announcementBarEnabled}
+                placeholder="🚚 Envio gratis en compras mayores a $60.000 - 48/72hs a todo el pais"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    announcementBarText: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+          </div>
+        </div>
+        <div className="rounded-[1.75rem] border border-brand-ink/10 bg-background p-4 md:col-span-2 md:p-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <span className="block text-sm font-bold text-brand-ink/75">Sección suscripción del home</span>
+              <p className="mt-1 text-sm text-brand-ink/60">
+                Controla si aparece en la landing y también en el menú principal del home.
+              </p>
+            </div>
+            <Checkbox
+              label="Mostrar sección"
+              checked={form.subscriptionSectionEnabled}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  subscriptionSectionEnabled: event.target.checked,
+                }))
+              }
+            />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <Field label="Link del botón 'Anotarme en la lista'">
+              <Input
+                value={form.subscriptionCtaUrl}
+                disabled={!form.subscriptionSectionEnabled}
+                placeholder="https://wa.me/... o landing externa"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    subscriptionCtaUrl: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+            <div className="hidden xl:block" />
+            <Field label="Caja 1">
+              <Input
+                value={form.subscriptionItemOne}
+                disabled={!form.subscriptionSectionEnabled}
+                placeholder="6 cajas a eleccion"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    subscriptionItemOne: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Caja 2">
+              <Input
+                value={form.subscriptionItemTwo}
+                disabled={!form.subscriptionSectionEnabled}
+                placeholder="Menu quincenal"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    subscriptionItemTwo: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Caja 3" className="xl:max-w-[50%]">
+              <Input
+                value={form.subscriptionItemThree}
+                disabled={!form.subscriptionSectionEnabled}
+                placeholder="Sesion nutricional"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    subscriptionItemThree: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+          </div>
+        </div>
         <Field label="Mensaje luego de compra confirmada" className="md:col-span-2">
           <Textarea value={form.purchaseSuccessMessage} onChange={(event) => setForm((current) => ({ ...current, purchaseSuccessMessage: event.target.value }))} placeholder="Mensaje final para la pantalla de confirmacion" />
         </Field>

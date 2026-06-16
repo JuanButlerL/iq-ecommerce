@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>iQ Kids</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --salmon:       #E8927A;
+  --salmon-light: #FAECE7;
+  --teal:         #085041;
+  --teal-light:   #9FE1CB;
+  --cream:        #F5F0EA;
+  --sand:         #EDE8E2;
+  --charcoal:     #2A2420;
+  --text:         #1E1814;
+  --text-mid:     #5A5048;
+  --text-soft:    #9A8A7A;
+  --white:        #FFFFFF;
+  --card:         #FAF7F4;
+  --border:       #E0DAD4;
+  --r:            14px;
+  --r-sm:         8px;
+
+  /* product colors */
+  --mix-bg:   #F5EFE8;
+  --mix-acc:  #E8927A;
+  --mani-bg:  #F5EEE0;
+  --mani-acc: #C4812A;
+  --cacao-bg: #EEE8E3;
+  --cacao-acc:#6B4226;
+  --banana-bg:#F5F2DC;
+  --banana-acc:#BBA020;
+}
+* { box-sizing: border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { font-family:'DM Sans',sans-serif; background:var(--white); color:var(--text); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+h1,h2,h3 { font-family:'DM Serif Display',serif; font-weight:400; }
+
+/* ── PAGES ────────────────────────────────────────────────── */
+.page { display:none; }
+.page.active { display:block; }
+
+/* ── STICKY BAR ───────────────────────────────────────────── */
+.sticky-bar { background:var(--teal); padding:9px 16px; text-align:center; font-size:12px; color:var(--teal-light); }
+
+/* ── NAV ──────────────────────────────────────────────────── */
+nav {
+  background:var(--white); border-bottom:1px solid var(--sand);
+  padding:0 16px; display:flex; align-items:center;
+  justify-content:space-between; height:54px;
+  position:sticky; top:0; z-index:100;
+  box-shadow:0 1px 12px rgba(0,0,0,0.05);
+}
+.nav-logo { font-family:'DM Serif Display',serif; font-size:22px; color:var(--salmon); cursor:pointer; }
+.nav-right { display:flex; align-items:center; gap:10px; }
+.cart-btn { width:38px; height:38px; background:var(--salmon); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px; cursor:pointer; }
+.back-btn { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:500; color:var(--text-mid); cursor:pointer; padding:8px 0; }
+.back-btn span { font-size:18px; }
+
+/* ── HERO LANDING ─────────────────────────────────────────── */
+.hero { position:relative; min-height:500px; background:#C8B8A2; display:flex; flex-direction:column; justify-content:flex-end; padding:0 0 32px; overflow:hidden; }
+.hero-photo { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; color:rgba(255,255,255,0.4); font-size:12px; }
+.hero-photo span { font-size:40px; }
+.hero-overlay { position:absolute; inset:0; background:linear-gradient(to bottom, rgba(20,12,6,0)0%, rgba(20,12,6,0.18)40%, rgba(20,12,6,0.72)100%); }
+.hero-content { position:relative; z-index:1; padding:0 20px; }
+.hero-tag { display:inline-block; background:var(--salmon); color:#fff; font-size:10px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; padding:5px 14px; border-radius:20px; margin-bottom:14px; }
+.hero h1 { font-size:30px; color:#fff; line-height:1.18; margin-bottom:12px; }
+.hero-sub { font-size:14px; color:rgba(255,255,255,.78); margin-bottom:18px; line-height:1.6; }
+.hero-checks { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:22px; }
+.hero-check { background:rgba(255,255,255,.16); color:#fff; font-size:11px; font-weight:500; padding:5px 12px; border-radius:20px; }
+.hero-discount { font-size:11.5px; color:rgba(255,255,255,.55); margin-top:10px; text-align:center; }
+
+/* ── BUTTONS ──────────────────────────────────────────────── */
+.btn { display:block; width:100%; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:600; padding:15px 20px; border:none; border-radius:var(--r); cursor:pointer; text-align:center; text-decoration:none; }
+.btn-primary { background:var(--salmon); color:#fff; }
+.btn-outline { background:transparent; color:var(--salmon); border:2px solid var(--salmon); }
+.btn-teal { background:var(--teal-light); color:var(--teal); }
+.btn-sm { padding:10px 16px; font-size:13px; border-radius:var(--r-sm); }
+.btn-inline { display:inline-block; width:auto; }
+
+/* ── SECTIONS ─────────────────────────────────────────────── */
+section { padding:36px 20px; border-bottom:1px solid var(--sand); }
+.eyebrow { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--salmon); margin-bottom:8px; }
+section h2 { font-size:26px; color:var(--text); margin-bottom:24px; line-height:1.2; }
+
+/* ── PRODUCT CARDS IN LANDING ─────────────────────────────── */
+.scroll-hint { font-size:11px; color:var(--text-soft); margin-bottom:14px; display:flex; align-items:center; gap:5px; }
+.prod-scroll-wrap { margin:0 -20px; padding:0 20px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.prod-scroll-wrap::-webkit-scrollbar { display:none; }
+.prod-scroll { display:flex; gap:12px; width:max-content; padding-right:20px; }
+.prod-card-landing {
+  background:var(--card); border-radius:var(--r); overflow:hidden;
+  border:1px solid var(--border); width:220px; flex-shrink:0;
+  display:flex; flex-direction:column;
+}
+.prod-card-landing.featured { border:2px solid var(--salmon); }
+.prod-badge-landing { background:var(--salmon); color:#fff; text-align:center; font-size:11px; font-weight:600; padding:6px; }
+.prod-img-landing { height:100px; display:flex; align-items:center; justify-content:center; font-size:40px; }
+.prod-body-landing { padding:12px; flex:1; display:flex; flex-direction:column; gap:3px; }
+.prod-sabor { font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--salmon); }
+.prod-name-landing { font-size:13px; font-weight:600; color:var(--text); line-height:1.3; }
+.prod-mini-testi { font-size:11.5px; font-style:italic; color:var(--text-mid); border-left:2px solid var(--salmon); padding-left:8px; margin:6px 0; line-height:1.45; flex:1; }
+.prod-price-landing { font-size:16px; font-weight:600; color:var(--text); }
+.prod-unit-landing { font-size:11px; color:var(--text-soft); margin-bottom:8px; }
+.prod-actions { display:flex; flex-direction:column; gap:6px; }
+
+/* ── STEPS ────────────────────────────────────────────────── */
+.steps { display:flex; flex-direction:column; gap:12px; }
+.step { background:var(--card); border-radius:var(--r); padding:20px; border:1px solid var(--border); display:flex; gap:14px; }
+.step-num { width:34px; height:34px; flex-shrink:0; background:var(--salmon); border-radius:50%; color:#fff; font-size:14px; font-weight:600; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+.step h3 { font-size:15px; font-weight:600; margin-bottom:4px; }
+.step p { font-size:13px; color:var(--text-soft); line-height:1.55; }
+
+/* ── KIDS GRID ────────────────────────────────────────────── */
+.kids-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.kids-card { background:var(--card); border-radius:var(--r); padding:18px 14px; border:1px solid var(--border); }
+.kids-icon { width:40px; height:40px; background:var(--salmon-light); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; margin-bottom:10px; }
+.kids-card h3 { font-size:13px; font-weight:600; margin-bottom:4px; }
+.kids-card p { font-size:12px; color:var(--text-soft); line-height:1.5; }
+
+/* ── DIFF ─────────────────────────────────────────────────── */
+.diff-section { background:var(--cream); }
+.diff-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.diff-card { background:#fff; border-radius:var(--r); padding:20px 14px; text-align:center; border:1px solid var(--border); }
+.diff-icon { width:48px; height:48px; background:var(--salmon-light); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; margin:0 auto 12px; }
+.diff-card h3 { font-size:13px; font-weight:600; margin-bottom:6px; }
+.diff-card p { font-size:12px; color:var(--text-soft); line-height:1.5; }
+
+/* ── QUIENES SOMOS ────────────────────────────────────────── */
+.nosotros-bg { background:var(--cream); }
+.nos-img { width:100%; height:200px; background:#D8CFC4; border-radius:var(--r); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; color:#A89880; font-size:12px; text-align:center; margin-bottom:22px; }
+.nos-img span { font-size:34px; }
+section.nosotros-bg h2 { font-size:22px; margin-bottom:14px; }
+.nos-body { font-size:14px; color:var(--text-mid); line-height:1.75; margin-bottom:20px; }
+.divider { width:36px; height:3px; background:var(--salmon); border-radius:2px; margin-bottom:16px; }
+.beliefs { display:flex; flex-direction:column; gap:10px; }
+.belief { font-size:13px; color:var(--text-mid); display:flex; gap:10px; line-height:1.55; background:#fff; border-radius:var(--r-sm); padding:11px 14px; }
+.belief::before { content:"→"; color:var(--salmon); flex-shrink:0; font-weight:600; }
+
+/* ── TESTI SCROLL ─────────────────────────────────────────── */
+.testi-scroll-wrap { margin:0 -20px; padding:0 20px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.testi-scroll-wrap::-webkit-scrollbar { display:none; }
+.testi-scroll { display:flex; gap:12px; width:max-content; padding-right:20px; }
+.testi-card { background:var(--card); border-radius:var(--r); padding:20px 18px 18px 20px; border-left:3px solid var(--salmon); border:1px solid var(--border); border-left:3px solid var(--salmon); width:270px; flex-shrink:0; }
+.testi-quote { font-size:14px; font-style:italic; color:var(--text-mid); line-height:1.65; margin-bottom:14px; }
+.testi-author { display:flex; align-items:center; gap:10px; }
+.testi-avatar { width:30px; height:30px; border-radius:50%; background:var(--sand); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.testi-name { font-size:12px; color:var(--text-soft); }
+
+/* ── SUBS ─────────────────────────────────────────────────── */
+.subs-section { background:var(--teal); }
+.subs-section .eyebrow { color:var(--teal-light); }
+.subs-section h2 { color:#fff; }
+.subs-desc { font-size:14px; color:rgba(255,255,255,.7); margin-bottom:20px; line-height:1.65; }
+.subs-items { display:flex; flex-direction:column; gap:8px; margin-top:18px; }
+.subs-item { background:rgba(255,255,255,.08); border-radius:var(--r-sm); padding:13px 16px; color:#fff; font-size:13px; display:flex; align-items:center; gap:10px; }
+
+/* ── FOOTER ───────────────────────────────────────────────── */
+footer { background:var(--charcoal); padding:30px 20px; }
+.footer-logo { font-family:'DM Serif Display',serif; font-size:22px; color:var(--salmon); margin-bottom:4px; }
+.footer-tagline { font-size:11px; color:rgba(255,255,255,.35); margin-bottom:18px; }
+.footer-links { display:flex; flex-wrap:wrap; gap:14px; }
+.footer-links a { font-size:12px; color:rgba(255,255,255,.4); text-decoration:none; }
+
+/* ════════════════════════════════════════════════════════════
+   PRODUCT PAGE
+   ════════════════════════════════════════════════════════════ */
+
+/* hero producto */
+.prod-hero {
+  position:relative; min-height:340px;
+  display:flex; flex-direction:column; justify-content:flex-end;
+  padding:0 0 28px; overflow:hidden;
+}
+.prod-hero-bg { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+.prod-hero-emoji { font-size:80px; }
+.prod-hero-photo-note { font-size:11px; color:rgba(255,255,255,.5); }
+.prod-hero-overlay { position:absolute; inset:0; background:linear-gradient(to bottom, rgba(0,0,0,0)30%, rgba(0,0,0,0.55)100%); }
+.prod-hero-content { position:relative; z-index:1; padding:0 20px; }
+.prod-hero-tag { display:inline-block; color:#fff; font-size:10px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; padding:5px 14px; border-radius:20px; margin-bottom:10px; opacity:.9; }
+.prod-hero h1 { font-size:28px; color:#fff; line-height:1.2; margin-bottom:6px; }
+.prod-hero-sub { font-size:13px; color:rgba(255,255,255,.75); line-height:1.5; }
+
+/* sticky add to cart */
+.prod-sticky-cta {
+  position:sticky; bottom:0; z-index:99;
+  background:#fff; border-top:1px solid var(--sand);
+  padding:12px 20px; display:flex; gap:10px; align-items:center;
+  box-shadow:0 -4px 20px rgba(0,0,0,0.08);
+}
+.prod-sticky-price { flex:1; }
+.prod-sticky-price strong { font-size:18px; font-weight:600; display:block; }
+.prod-sticky-price span { font-size:11px; color:var(--text-soft); }
+.prod-sticky-cta .btn { flex:2; }
+
+/* prod sections */
+.prod-section { padding:28px 20px; border-bottom:1px solid var(--sand); }
+.prod-section h3 { font-size:18px; margin-bottom:14px; }
+
+/* image gallery */
+.gallery { display:flex; gap:10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; margin:0 -20px; padding:0 20px 4px; }
+.gallery::-webkit-scrollbar { display:none; }
+.gallery-img {
+  flex-shrink:0; border-radius:var(--r); overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:6px;
+  font-size:11px; color:rgba(255,255,255,.6);
+  background:#D8CFC4;
+}
+.gallery-img.big { width:240px; height:240px; }
+.gallery-img.sm { width:150px; height:150px; }
+.gallery-img .g-emoji { font-size:36px; }
+
+/* ingredients */
+.ingredients-list { display:flex; flex-direction:column; gap:8px; }
+.ingredient-row { display:flex; align-items:center; gap:12px; background:var(--card); border-radius:var(--r-sm); padding:11px 14px; }
+.ingredient-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.ingredient-name { font-size:14px; font-weight:500; color:var(--text); }
+.ingredient-desc { font-size:12px; color:var(--text-soft); }
+
+/* nutrition table */
+.nutri-table { width:100%; border-collapse:collapse; font-size:13px; }
+.nutri-table th { text-align:left; font-size:10px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--text-soft); padding:8px 0 4px; border-bottom:1px solid var(--border); }
+.nutri-table td { padding:9px 0; border-bottom:1px solid var(--sand); color:var(--text-mid); }
+.nutri-table td:last-child { font-weight:500; color:var(--text); text-align:right; }
+.nutri-note { font-size:11px; color:var(--text-soft); margin-top:8px; line-height:1.5; }
+
+/* moments */
+.moments-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.moment-card { background:var(--card); border-radius:var(--r); padding:16px 14px; border:1px solid var(--border); }
+.moment-icon { font-size:24px; margin-bottom:8px; }
+.moment-title { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
+.moment-desc { font-size:12px; color:var(--text-soft); line-height:1.5; }
+
+/* testimonios en producto */
+.prod-testis { display:flex; flex-direction:column; gap:10px; }
+.prod-testi-card { background:var(--card); border-radius:var(--r); padding:18px 16px 16px 18px; border-left:3px solid var(--salmon); border:1px solid var(--border); border-left:3px solid var(--salmon); }
+.prod-testi-quote { font-size:14px; font-style:italic; color:var(--text-mid); line-height:1.65; margin-bottom:12px; }
+.prod-testi-photo { width:100%; height:120px; background:#E8DECE; border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; flex-direction:column; gap:5px; font-size:11px; color:#A89880; margin-bottom:10px; }
+.prod-testi-photo span { font-size:28px; }
+.prod-testi-author { display:flex; align-items:center; gap:10px; }
+.prod-testi-avatar { width:30px; height:30px; border-radius:50%; background:var(--sand); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.prod-testi-name { font-size:12px; color:var(--text-soft); }
+
+/* also try */
+.also-try-scroll { display:flex; gap:10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; margin:0 -20px; padding:0 20px 4px; }
+.also-try-scroll::-webkit-scrollbar { display:none; }
+.also-card { flex-shrink:0; width:140px; background:var(--card); border-radius:var(--r); overflow:hidden; border:1px solid var(--border); cursor:pointer; }
+.also-card-img { height:80px; display:flex; align-items:center; justify-content:center; font-size:32px; }
+.also-card-body { padding:10px; }
+.also-card-sabor { font-size:9px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--salmon); margin-bottom:2px; }
+.also-card-name { font-size:12px; font-weight:600; color:var(--text); line-height:1.3; }
+
+/* ── MIX TABS ─────────────────────────────────────────────── */
+.mix-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.mix-tab {
+  font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500;
+  padding:8px 16px; border:1.5px solid var(--border);
+  border-radius:20px; background:var(--white); color:var(--text-soft);
+  cursor:pointer; transition:all .15s;
+}
+.mix-tab.active { background:var(--salmon); color:#fff; border-color:var(--salmon); }
+.mix-tab-content { display:none; }
+.mix-tab-content.active { display:block; }
+
+/* desktop */
+@media(min-width:680px){
+  section { padding:52px 48px; }
+  .prod-section { padding:36px 48px; }
+  nav { padding:0 40px; }
+  .hero { min-height:560px; }
+  .hero-content,.prod-hero-content { padding:0 48px; }
+  .hero h1 { font-size:38px; }
+  .kids-grid,.diff-grid { grid-template-columns:repeat(4,1fr); }
+  .prod-scroll { flex-wrap:wrap; width:auto; }
+  .prod-card-landing { width:calc(25% - 9px); }
+  .prod-scroll-wrap { overflow-x:visible; }
+  .testi-scroll { flex-wrap:wrap; width:auto; }
+  .testi-card { width:calc(33.33% - 8px); }
+  .testi-scroll-wrap { overflow-x:visible; }
+  .gallery { flex-wrap:wrap; overflow-x:visible; }
+  .moments-grid { grid-template-columns:repeat(4,1fr); }
+  .prod-testis { display:grid; grid-template-columns:repeat(3,1fr); }
+  .btn-primary,.btn-outline { display:inline-block; width:auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     LANDING PAGE
+══════════════════════════════════════════════════════════ -->
+<div id="landing" class="page active">
+
+  <div class="sticky-bar">🚚 Envío gratis en compras mayores a $X — 48/72hs a todo el país</div>
+
+  <nav>
+    <div class="nav-logo">iQ Kids</div>
+    <div class="nav-right">
+      <div class="cart-btn">🛒</div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-photo"><span>📷</span>Foto lifestyle: mamá + hijo + producto</div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-tag">Snacks para niños</div>
+      <h1>Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.</h1>
+      <p class="hero-sub">Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.</p>
+      <div class="hero-checks">
+        <span class="hero-check">✓ Nutricionistas</span>
+        <span class="hero-check">✓ Sin sellos negros</span>
+        <span class="hero-check">✓ Ingredientes reales</span>
+      </div>
+      <button class="btn btn-primary" onclick="goToProduct('mix')">Empezá con la caja mix → 3 sabores, 12 barritas</button>
+      <p class="hero-discount">10% off en tu primera compra · 15% para siempre suscribiéndote</p>
+    </div>
+  </div>
+
+  <!-- CÓMO FUNCIONA -->
+  <section>
+    <p class="eyebrow">¿Cómo funciona?</p>
+    <h2>Una decisión menos todos los días.</h2>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div><h3>Nutricionistas eligieron por vos</h3><p>Revisaron ingredientes, descartaron lo que no vale y eligieron lo que sí.</p></div></div>
+      <div class="step"><div class="step-num">2</div><div><h3>Vos no leés etiquetas ni comparás</h3><p>El trabajo difícil ya está hecho. Resolver el snack toma segundos.</p></div></div>
+      <div class="step"><div class="step-num">3</div><div><h3>El snack de tu hijo ya está resuelto</h3><p>Para las mañanas apuradas, las mochilas y los tuppers.</p></div></div>
+    </div>
+  </section>
+
+  <!-- POR QUÉ LES ENCANTA -->
+  <section>
+    <p class="eyebrow">¿Por qué les encanta a los chicos?</p>
+    <h2>Naturales, simples y pensadas para ellos.</h2>
+    <div class="kids-grid">
+      <div class="kids-card"><div class="kids-icon">🧠</div><h3>Concentración</h3><p>Sabores que aceptan naturalmente, sin negociar.</p></div>
+      <div class="kids-card"><div class="kids-icon">⚡</div><h3>Energía real</h3><p>Sin pico de azúcar. Energía sostenida para el recreo y el club.</p></div>
+      <div class="kids-card"><div class="kids-icon">😊</div><h3>¡Les encanta!</h3><p>Ingredientes que reconocés. Sabor que tu hijo acepta.</p></div>
+      <div class="kids-card"><div class="kids-icon">✅</div><h3>Sale lo mejor</h3><p>Duerme bien, tiene energía estable. Sin complicaciones.</p></div>
+    </div>
+  </section>
+
+  <!-- DIFERENCIALES -->
+  <section class="diff-section">
+    <p class="eyebrow">Lo que tiene y lo que no tiene</p>
+    <h2>Ingredientes que reconocés. Nada más.</h2>
+    <div class="diff-grid">
+      <div class="diff-card"><div class="diff-icon">🌿</div><h3>Ingredientes reales</h3><p>4 a 6 ingredientes. Lo que ves es lo que hay.</p></div>
+      <div class="diff-card"><div class="diff-icon">🚫</div><h3>Sin azúcar agregada</h3><p>Sin endulzantes escondidos en el listado.</p></div>
+      <div class="diff-card"><div class="diff-icon">🌾</div><h3>Sin TACC</h3><p>Apta para celíacos. Sin contaminación cruzada.</p></div>
+      <div class="diff-card"><div class="diff-icon">⭕</div><h3>Sin sellos negros</h3><p>Sin conservantes, colorantes ni artificiales.</p></div>
+    </div>
+  </section>
+
+  <!-- PRODUCTOS -->
+  <section id="productos">
+    <p class="eyebrow">Empezá por acá</p>
+    <h2>Descubrí el favorito de tu hijo.</h2>
+    <p class="scroll-hint">← Deslizá para ver todos los sabores</p>
+    <div class="prod-scroll-wrap">
+      <div class="prod-scroll">
+
+        <div class="prod-card-landing featured">
+          <div class="prod-badge-landing">⭐ Más elegida</div>
+          <div class="prod-img-landing" style="background:var(--mix-bg)">📦</div>
+          <div class="prod-body-landing">
+            <p class="prod-sabor">Banana · Maní · Cacao</p>
+            <p class="prod-name-landing">Descubrí el favorito de tu hijo</p>
+            <p class="prod-mini-testi">"Una genialidad, me di cuenta que su preferido es el de cacao."</p>
+            <p class="prod-price-landing">$21.660</p>
+            <p class="prod-unit-landing">= $1.805 por barrita</p>
+            <div class="prod-actions">
+              <button class="btn btn-primary btn-sm" onclick="addToCart()">Agregar al carrito</button>
+              <button class="btn btn-outline btn-sm" onclick="goToProduct('mix')">Ver más →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="prod-card-landing">
+          <div class="prod-img-landing" style="background:var(--mani-bg)">🥜</div>
+          <div class="prod-body-landing">
+            <p class="prod-sabor">Maní</p>
+            <p class="prod-name-landing">La vianda resuelta para toda la semana</p>
+            <p class="prod-mini-testi">"La vianda volvió vacía. Eso no pasaba en meses."</p>
+            <p class="prod-price-landing">$21.660</p>
+            <p class="prod-unit-landing">= $1.805 por barrita</p>
+            <div class="prod-actions">
+              <button class="btn btn-primary btn-sm" onclick="addToCart()">Agregar al carrito</button>
+              <button class="btn btn-outline btn-sm" onclick="goToProduct('mani')">Ver más →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="prod-card-landing">
+          <div class="prod-img-landing" style="background:var(--cacao-bg)">🍫</div>
+          <div class="prod-body-landing">
+            <p class="prod-sabor">Cacao</p>
+            <p class="prod-name-landing">Chocolate sin leer etiquetas</p>
+            <p class="prod-mini-testi">"Siempre batallé con los snacks. Esta la pide él solo."</p>
+            <p class="prod-price-landing">$21.660</p>
+            <p class="prod-unit-landing">= $1.805 por barrita</p>
+            <div class="prod-actions">
+              <button class="btn btn-primary btn-sm" onclick="addToCart()">Agregar al carrito</button>
+              <button class="btn btn-outline btn-sm" onclick="goToProduct('cacao')">Ver más →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="prod-card-landing">
+          <div class="prod-img-landing" style="background:var(--banana-bg)">🍌</div>
+          <div class="prod-body-landing">
+            <p class="prod-sabor">Banana</p>
+            <p class="prod-name-landing">Ingredientes que reconocés, sabor que acepta</p>
+            <p class="prod-mini-testi">"La lleva al colegio, a la plaza, al club. Va a todos lados."</p>
+            <p class="prod-price-landing">$21.660</p>
+            <p class="prod-unit-landing">= $1.805 por barrita</p>
+            <div class="prod-actions">
+              <button class="btn btn-primary btn-sm" onclick="addToCart()">Agregar al carrito</button>
+              <button class="btn btn-outline btn-sm" onclick="goToProduct('banana')">Ver más →</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIENES SOMOS -->
+  <section class="nosotros-bg">
+    <div class="nos-img"><span>📷</span>Foto lifestyle: mamá + hijo + producto en cocina real</div>
+    <p class="eyebrow">Nuestra historia</p>
+    <h2>Somos padres que saben lo que es querer hacer las cosas bien y no tener tiempo para hacerlo.</h2>
+    <p class="nos-body">IQ Kids nació de esa tensión — no para buscar la perfección, sino para hacer posible algo que en la rutina real cuesta más de lo que debería: alimentar mejor a los hijos.<br><br>Trabajamos con nutricionistas que ya hicieron el trabajo difícil: revisar ingredientes, descartar lo que no vale y elegir lo que sí. Para que vos no tengas que descifrar etiquetas ni dudar cada vez que armás una mochila.</p>
+    <div class="divider"></div>
+    <div class="beliefs">
+      <div class="belief">La practicidad no contradice la buena nutrición. La hace posible.</div>
+      <div class="belief">Los padres ya hacen muchísimo. No necesitan otra fuente de presión.</div>
+      <div class="belief">La tranquilidad también es un valor nutricional.</div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIOS -->
+  <section>
+    <p class="eyebrow">Lo que dicen las mamás</p>
+    <h2>Palabras reales de familias reales.</h2>
+    <p class="scroll-hint">← Deslizá para leer más</p>
+    <div class="testi-scroll-wrap">
+      <div class="testi-scroll">
+        <div class="testi-card"><p class="testi-quote">"La primera semana, la vianda volvió vacía. Eso no pasaba en meses."</p><div class="testi-author"><div class="testi-avatar">👩</div><span class="testi-name">Valeria, mamá de Mateo (7)</span></div></div>
+        <div class="testi-card"><p class="testi-quote">"Siempre batallé con los snacks. Esta la pide él solo."</p><div class="testi-author"><div class="testi-avatar">👨</div><span class="testi-name">Marcos, papá de Tomás (5)</span></div></div>
+        <div class="testi-card"><p class="testi-quote">"La lleva al colegio, a la plaza, al club. Va a todos lados."</p><div class="testi-author"><div class="testi-avatar">👩</div><span class="testi-name">Caro, mamá de Lucía (9)</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUSCRIPCIÓN -->
+  <section class="subs-section">
+    <p class="eyebrow">Próximamente</p>
+    <h2>Algo más integral está por llegar.</h2>
+    <p class="subs-desc">Estamos armando un plan mensual con barritas, menú quincenal y sesión con nutricionista incluida.</p>
+    <button class="btn btn-teal">Anotarme en la lista →</button>
+    <div class="subs-items">
+      <div class="subs-item"><span>📦</span> 6 cajas a elección</div>
+      <div class="subs-item"><span>📋</span> Menú quincenal</div>
+      <div class="subs-item"><span>👩‍⚕️</span> Sesión nutricional</div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">iQ Kids</div>
+    <div class="footer-tagline">Alimentos con Sentido Común · Con Ingredientes Naturales y Nada Más</div>
+    <div class="footer-links">
+      <a href="#">Inicio</a><a href="#">Productos</a><a href="#">Quiénes somos</a><a href="#">Contacto</a>
+    </div>
+  </footer>
+
+</div><!-- /landing -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     PRODUCT PAGE — CAJA MIX
+══════════════════════════════════════════════════════════ -->
+<div id="prod-mix" class="page">
+  <div class="sticky-bar">🚚 Envío gratis en compras mayores a $X — 48/72hs</div>
+  <nav>
+    <div class="back-btn" onclick="goBack()"><span>‹</span> Volver</div>
+    <div class="nav-right"><div class="cart-btn">🛒</div></div>
+  </nav>
+
+  <div class="prod-hero" style="background:var(--mix-bg)">
+    <div class="prod-hero-bg">
+      <div class="prod-hero-emoji">📦</div>
+      <div class="prod-hero-photo-note">📷 Foto producto real aquí</div>
+    </div>
+    <div class="prod-hero-overlay"></div>
+    <div class="prod-hero-content">
+      <div class="prod-hero-tag" style="background:var(--mix-acc)">Caja Mix · 3 sabores</div>
+      <h1>Descubrí el favorito de tu hijo</h1>
+      <p class="prod-hero-sub">3 sabores · 12 unidades · 4 de cada sabor</p>
+    </div>
+  </div>
+
+  <div class="prod-sticky-cta">
+    <div class="prod-sticky-price"><strong>$21.660</strong><span>= $1.805 por barrita</span></div>
+    <button class="btn btn-primary btn-sm" style="flex:2" onclick="addToCart()">Agregar al carrito</button>
+  </div>
+
+  <div class="prod-section">
+    <div class="gallery">
+      <div class="gallery-img big"><div class="g-emoji">📦</div><span>Foto caja mix</span></div>
+      <div class="gallery-img sm"><div class="g-emoji">🥜</div><span>Sabor maní</span></div>
+      <div class="gallery-img sm"><div class="g-emoji">🍫</div><span>Sabor cacao</span></div>
+      <div class="gallery-img sm"><div class="g-emoji">🍌</div><span>Sabor banana</span></div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>¿Por qué empezar por la mix?</h3>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.75;margin-bottom:16px;">La caja mix existe para resolver la primera pregunta de todo padre: <em>¿cuál le va a gustar?</em> En lugar de apostar todo a un solo sabor, probás los tres y descubrís el favorito. Sin riesgo, sin desperdicio.</p>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.75;">Con 4 barritas de cada sabor, alcanza para 12 meriendas o viandas — más de dos semanas si va al cole 5 días.</p>
+  </div>
+
+  <div class="prod-section">
+    <h3>Ingredientes por sabor</h3>
+    <p style="font-size:13px;color:var(--text-soft);margin-bottom:18px;">Cada barrita tiene su propia combinación. Todos los ingredientes son reales. Y nada más.</p>
+
+    <!-- TABS -->
+    <div class="mix-tabs">
+      <button class="mix-tab active" onclick="switchTab('mani-tab', this)">🥜 Maní</button>
+      <button class="mix-tab" onclick="switchTab('cacao-tab', this)">🍫 Cacao</button>
+      <button class="mix-tab" onclick="switchTab('banana-tab', this)">🍌 Banana</button>
+    </div>
+
+    <div id="mani-tab" class="mix-tab-content active">
+      <p style="font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mani-acc);margin-bottom:10px;">4 ingredientes</p>
+      <div class="ingredients-list">
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B6914"></div><div><div class="ingredient-name">Dátiles</div><div class="ingredient-desc">Endulzante natural. Sin azúcar agregada, rico en fibra y minerales.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B4513"></div><div><div class="ingredient-name">Pasas de uva</div><div class="ingredient-desc">Dulzor natural, energía y antioxidantes.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#D4A04A"></div><div><div class="ingredient-name">Harina de almendras</div><div class="ingredient-desc">Proteína vegetal y grasas saludables. Sin gluten.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--mani-acc)"></div><div><div class="ingredient-name">Maní</div><div class="ingredient-desc">Textura, proteína y el sabor característico.</div></div></div>
+      </div>
+    </div>
+
+    <div id="cacao-tab" class="mix-tab-content">
+      <p style="font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--cacao-acc);margin-bottom:10px;">4 ingredientes</p>
+      <div class="ingredients-list">
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B4513"></div><div><div class="ingredient-name">Pasas de uva</div><div class="ingredient-desc">Dulzor natural, energía y antioxidantes.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B6914"></div><div><div class="ingredient-name">Dátiles</div><div class="ingredient-desc">Endulzante natural. Sin azúcar agregada.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#D4A04A"></div><div><div class="ingredient-name">Harina de almendras</div><div class="ingredient-desc">Proteína vegetal y grasas saludables. Sin gluten.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--cacao-acc)"></div><div><div class="ingredient-name">Cacao natural</div><div class="ingredient-desc">Sabor chocolate real. Sin azúcar. Puro cacao en polvo.</div></div></div>
+      </div>
+    </div>
+
+    <div id="banana-tab" class="mix-tab-content">
+      <p style="font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--banana-acc);margin-bottom:10px;">6 ingredientes</p>
+      <div class="ingredients-list">
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B4513"></div><div><div class="ingredient-name">Pasas de uva</div><div class="ingredient-desc">Dulzor natural, energía y antioxidantes.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B6914"></div><div><div class="ingredient-name">Dátiles</div><div class="ingredient-desc">Endulzante natural. Sin azúcar agregada.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--banana-acc)"></div><div><div class="ingredient-name">Chips de banana</div><div class="ingredient-desc">El sabor distintivo. Natural y crujiente.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:#D4A04A"></div><div><div class="ingredient-name">Harina de almendras</div><div class="ingredient-desc">Proteína vegetal y grasas saludables. Sin gluten.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--cacao-acc)"></div><div><div class="ingredient-name">Cacao natural</div><div class="ingredient-desc">Un toque de cacao que equilibra el dulzor de la banana.</div></div></div>
+        <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--mani-acc)"></div><div><div class="ingredient-name">Maní</div><div class="ingredient-desc">Textura, proteína y sabor. El complemento perfecto.</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prod-section" style="background:var(--cream)">
+    <h3>Información nutricional por sabor</h3>
+    <p style="font-size:12px;color:var(--text-soft);margin-bottom:16px;">Por porción (1 barrita — 30g)</p>
+    <div class="mix-tabs">
+      <button class="mix-tab active" onclick="switchTab('mani-nutri', this)">🥜 Maní</button>
+      <button class="mix-tab" onclick="switchTab('cacao-nutri', this)">🍫 Cacao</button>
+      <button class="mix-tab" onclick="switchTab('banana-nutri', this)">🍌 Banana</button>
+    </div>
+
+    <div id="mani-nutri" class="mix-tab-content active">
+      <table class="nutri-table">
+        <tr><th>Nutriente</th><th>Por porción</th></tr>
+        <tr><td>Valor energético</td><td>116 kcal</td></tr>
+        <tr><td>Carbohidratos</td><td>19 g</td></tr>
+        <tr><td>Azúcares totales</td><td>15 g</td></tr>
+        <tr><td>Azúcares añadidos</td><td>0 g</td></tr>
+        <tr><td>Proteínas</td><td>2,2 g</td></tr>
+        <tr><td>Grasas totales</td><td>3,4 g</td></tr>
+        <tr><td>Grasas saturadas</td><td>0,3 g</td></tr>
+        <tr><td>Grasas trans</td><td>0 g</td></tr>
+        <tr><td>Fibra alimentaria</td><td>2,2 g</td></tr>
+        <tr><td>Sodio</td><td>0,5 mg</td></tr>
+      </table>
+    </div>
+    <div id="cacao-nutri" class="mix-tab-content">
+      <table class="nutri-table">
+        <tr><th>Nutriente</th><th>Por porción</th></tr>
+        <tr><td>Valor energético</td><td>115 kcal</td></tr>
+        <tr><td>Carbohidratos</td><td>19 g</td></tr>
+        <tr><td>Azúcares totales</td><td>14 g</td></tr>
+        <tr><td>Azúcares añadidos</td><td>0 g</td></tr>
+        <tr><td>Proteínas</td><td>2,3 g</td></tr>
+        <tr><td>Grasas totales</td><td>3,4 g</td></tr>
+        <tr><td>Grasas saturadas</td><td>0,3 g</td></tr>
+        <tr><td>Grasas trans</td><td>0 g</td></tr>
+        <tr><td>Fibra alimentaria</td><td>2,3 g</td></tr>
+        <tr><td>Sodio</td><td>2,9 mg</td></tr>
+      </table>
+    </div>
+    <div id="banana-nutri" class="mix-tab-content">
+      <table class="nutri-table">
+        <tr><th>Nutriente</th><th>Por porción</th></tr>
+        <tr><td>Valor energético</td><td>112 kcal</td></tr>
+        <tr><td>Carbohidratos</td><td>20 g</td></tr>
+        <tr><td>Azúcares totales</td><td>11 g</td></tr>
+        <tr><td>Azúcares añadidos</td><td>0 g</td></tr>
+        <tr><td>Proteínas</td><td>2,1 g</td></tr>
+        <tr><td>Grasas totales</td><td>2,4 g</td></tr>
+        <tr><td>Grasas saturadas</td><td>0,3 g</td></tr>
+        <tr><td>Grasas trans</td><td>0 g</td></tr>
+        <tr><td>Fibra alimentaria</td><td>2 g</td></tr>
+        <tr><td>Sodio</td><td>3,8 mg</td></tr>
+      </table>
+    </div>
+    <p class="nutri-note" style="margin-top:14px;">Sin azúcares añadidos · Sin TACC · Sin conservantes · Sin colorantes artificiales</p>
+  </div>
+
+  <div class="prod-section">
+    <h3>¿Cuándo la usan más?</h3>
+    <div class="moments-grid">
+      <div class="moment-card"><div class="moment-icon">🎒</div><div class="moment-title">Mochila del cole</div><div class="moment-desc">No se aplasta, no se derrite, no necesita frío.</div></div>
+      <div class="moment-card"><div class="moment-icon">⚽</div><div class="moment-title">Antes del club</div><div class="moment-desc">Energía rápida sin el pico de azúcar.</div></div>
+      <div class="moment-card"><div class="moment-icon">🚗</div><div class="moment-title">En el auto</div><div class="moment-desc">No ensucia. Perfecta para los traslados.</div></div>
+      <div class="moment-card"><div class="moment-icon">🏠</div><div class="moment-title">Merienda en casa</div><div class="moment-desc">La piden sola. Sin negociar ni convencer.</div></div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>Lo que vivieron otras familias</h3>
+    <div class="prod-testis">
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Una genialidad. Probó las tres y me dijo que la de cacao era la mejor. Ahora pide que la compremos siempre."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👩</div><span class="prod-testi-name">Lore, mamá de Tomi (4) · Buenos Aires</span></div>
+      </div>
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Compré la mix para probar sin compromiso. Terminaron las 12 en menos de una semana. Pedí una caja entera de la de maní."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👨</div><span class="prod-testi-name">Rodrigo, papá de Lucía y Emilio · Córdoba</span></div>
+      </div>
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Lo que más me sorprendió fue que mi hija la pidió sola. Nunca pasa eso con las cosas saludables."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👩</div><span class="prod-testi-name">Sofi, mamá de Cata (6) · Rosario</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>También te puede gustar</h3>
+    <div class="also-try-scroll">
+      <div class="also-card" onclick="goToProduct('mani')"><div class="also-card-img" style="background:var(--mani-bg)">🥜</div><div class="also-card-body"><div class="also-card-sabor">Maní</div><div class="also-card-name">La vianda resuelta</div></div></div>
+      <div class="also-card" onclick="goToProduct('cacao')"><div class="also-card-img" style="background:var(--cacao-bg)">🍫</div><div class="also-card-body"><div class="also-card-sabor">Cacao</div><div class="also-card-name">Chocolate sin culpa</div></div></div>
+      <div class="also-card" onclick="goToProduct('banana')"><div class="also-card-img" style="background:var(--banana-bg)">🍌</div><div class="also-card-body"><div class="also-card-sabor">Banana</div><div class="also-card-name">La clásica favorita</div></div></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-logo" style="cursor:pointer" onclick="goBack()">iQ Kids</div>
+    <div class="footer-tagline">Alimentos con Sentido Común · Con Ingredientes Naturales y Nada Más</div>
+  </footer>
+</div><!-- /prod-mix -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     PRODUCT PAGE — MANÍ
+══════════════════════════════════════════════════════════ -->
+<div id="prod-mani" class="page">
+  <div class="sticky-bar">🚚 Envío gratis en compras mayores a $X — 48/72hs</div>
+  <nav>
+    <div class="back-btn" onclick="goBack()"><span>‹</span> Volver</div>
+    <div class="nav-right"><div class="cart-btn">🛒</div></div>
+  </nav>
+
+  <div class="prod-hero" style="background:var(--mani-bg)">
+    <div class="prod-hero-bg"><div class="prod-hero-emoji">🥜</div><div class="prod-hero-photo-note">📷 Foto producto real aquí</div></div>
+    <div class="prod-hero-overlay"></div>
+    <div class="prod-hero-content">
+      <div class="prod-hero-tag" style="background:var(--mani-acc)">Sabor Maní</div>
+      <h1>La vianda resuelta para toda la semana</h1>
+      <p class="prod-hero-sub">12 unidades · Barrita de Maní</p>
+    </div>
+  </div>
+
+  <div class="prod-sticky-cta">
+    <div class="prod-sticky-price"><strong>$21.660</strong><span>= $1.805 por barrita</span></div>
+    <button class="btn btn-primary btn-sm" style="flex:2;background:var(--mani-acc)" onclick="addToCart()">Agregar al carrito</button>
+  </div>
+
+  <div class="prod-section">
+    <div class="gallery">
+      <div class="gallery-img big" style="background:var(--mani-bg)"><div class="g-emoji">🥜</div><span>Foto caja maní</span></div>
+      <div class="gallery-img sm" style="background:var(--mani-bg)"><div class="g-emoji">📷</div><span>Foto barrita</span></div>
+      <div class="gallery-img sm" style="background:var(--mani-bg)"><div class="g-emoji">📷</div><span>Foto vianda</span></div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>El favorito de los que más piden</h3>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.75;margin-bottom:14px;">El sabor maní es el que más piden volver a comprar. Tiene un balance entre dulce y salado que hace que los chicos lo acepten rápido — y que los papás la piropeen también.</p>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.75;">12 unidades alcanzan para toda la semana de vianda. Entra en la mochila, no necesita frío y no se aplasta.</p>
+  </div>
+
+  <div class="prod-section">
+    <h3>Ingredientes</h3>
+    <div class="ingredients-list">
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--mani-acc)"></div><div><div class="ingredient-name">Maní tostado</div><div class="ingredient-desc">Proteína vegetal y grasas buenas. Energía real.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:#BBA020"></div><div><div class="ingredient-name">Banana deshidratada</div><div class="ingredient-desc">El dulzor natural. Sin azúcar agregada.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:#E8927A"></div><div><div class="ingredient-name">Avena sin TACC</div><div class="ingredient-desc">Fibra y saciedad hasta la próxima comida.</div></div></div>
+    </div>
+  </div>
+
+  <div class="prod-section" style="background:var(--cream)">
+    <h3>Información nutricional</h3>
+    <p style="font-size:12px;color:var(--text-soft);margin-bottom:14px;">Por porción (1 barrita — 30g)</p>
+    <table class="nutri-table">
+      <tr><th>Nutriente</th><th>Por porción</th></tr>
+      <tr><td>Valor energético</td><td>116 kcal</td></tr>
+      <tr><td>Carbohidratos</td><td>19 g</td></tr>
+      <tr><td>Azúcares totales</td><td>15 g</td></tr>
+      <tr><td>Azúcares añadidos</td><td>0 g</td></tr>
+      <tr><td>Proteínas</td><td>2,2 g</td></tr>
+      <tr><td>Grasas totales</td><td>3,4 g</td></tr>
+      <tr><td>Grasas saturadas</td><td>0,3 g</td></tr>
+      <tr><td>Grasas trans</td><td>0 g</td></tr>
+      <tr><td>Fibra alimentaria</td><td>2,2 g</td></tr>
+      <tr><td>Sodio</td><td>0,5 mg</td></tr>
+    </table>
+    <p class="nutri-note">Sin azúcares añadidos · Sin TACC · Sin conservantes · Sin colorantes artificiales</p>
+  </div>
+
+  <div class="prod-section">
+    <h3>¿Cuándo la usan más?</h3>
+    <div class="moments-grid">
+      <div class="moment-card"><div class="moment-icon">🎒</div><div class="moment-title">Vianda del cole</div><div class="moment-desc">La vianda más fácil de la semana. Ya está.</div></div>
+      <div class="moment-card"><div class="moment-icon">⚽</div><div class="moment-title">Previa al entrenamiento</div><div class="moment-desc">Proteína y energía para rendir mejor.</div></div>
+      <div class="moment-card"><div class="moment-icon">🚗</div><div class="moment-title">En el auto</div><div class="moment-desc">No ensucia. Perfecta para los traslados.</div></div>
+      <div class="moment-card"><div class="moment-icon">🏠</div><div class="moment-title">Merienda en casa</div><div class="moment-desc">La piden sola. Sin convencer a nadie.</div></div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>Lo que vivieron otras familias</h3>
+    <div class="prod-testis">
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"La primera semana, la vianda volvió vacía. Eso no pasaba en meses. Desde ahí no cambiamos más."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👩</div><span class="prod-testi-name">Valeria, mamá de Mateo (7) · Buenos Aires</span></div>
+      </div>
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Mi hijo es muy selectivo. El de maní fue el único snack saludable que aceptó sin drama."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👨</div><span class="prod-testi-name">Diego, papá de Bautista (8) · Mendoza</span></div>
+      </div>
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Lo que más me gustó es saber exactamente qué tiene. Tres ingredientes. Nada más."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👩</div><span class="prod-testi-name">Laura, mamá de Nico (5) · Rosario</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>También te puede gustar</h3>
+    <div class="also-try-scroll">
+      <div class="also-card" onclick="goToProduct('mix')"><div class="also-card-img" style="background:var(--mix-bg)">📦</div><div class="also-card-body"><div class="also-card-sabor">Mix</div><div class="also-card-name">Probá los 3 sabores</div></div></div>
+      <div class="also-card" onclick="goToProduct('cacao')"><div class="also-card-img" style="background:var(--cacao-bg)">🍫</div><div class="also-card-body"><div class="also-card-sabor">Cacao</div><div class="also-card-name">Chocolate sin culpa</div></div></div>
+      <div class="also-card" onclick="goToProduct('banana')"><div class="also-card-img" style="background:var(--banana-bg)">🍌</div><div class="also-card-body"><div class="also-card-sabor">Banana</div><div class="also-card-name">La clásica favorita</div></div></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-logo" style="cursor:pointer" onclick="goBack()">iQ Kids</div>
+    <div class="footer-tagline">Alimentos con Sentido Común · Con Ingredientes Naturales y Nada Más</div>
+  </footer>
+</div><!-- /prod-mani -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     PRODUCT PAGE — CACAO
+══════════════════════════════════════════════════════════ -->
+<div id="prod-cacao" class="page">
+  <div class="sticky-bar">🚚 Envío gratis en compras mayores a $X — 48/72hs</div>
+  <nav>
+    <div class="back-btn" onclick="goBack()"><span>‹</span> Volver</div>
+    <div class="nav-right"><div class="cart-btn">🛒</div></div>
+  </nav>
+
+  <div class="prod-hero" style="background:var(--cacao-bg)">
+    <div class="prod-hero-bg"><div class="prod-hero-emoji">🍫</div><div class="prod-hero-photo-note">📷 Foto producto real aquí</div></div>
+    <div class="prod-hero-overlay"></div>
+    <div class="prod-hero-content">
+      <div class="prod-hero-tag" style="background:var(--cacao-acc)">Sabor Cacao</div>
+      <h1>Chocolate sin leer etiquetas</h1>
+      <p class="prod-hero-sub">12 unidades · Barrita de Cacao</p>
+    </div>
+  </div>
+
+  <div class="prod-sticky-cta">
+    <div class="prod-sticky-price"><strong>$21.660</strong><span>= $1.805 por barrita</span></div>
+    <button class="btn btn-primary btn-sm" style="flex:2;background:var(--cacao-acc)" onclick="addToCart()">Agregar al carrito</button>
+  </div>
+
+  <div class="prod-section">
+    <div class="gallery">
+      <div class="gallery-img big" style="background:var(--cacao-bg)"><div class="g-emoji">🍫</div><span>Foto caja cacao</span></div>
+      <div class="gallery-img sm" style="background:var(--cacao-bg)"><div class="g-emoji">📷</div><span>Foto barrita</span></div>
+      <div class="gallery-img sm" style="background:var(--cacao-bg)"><div class="g-emoji">📷</div><span>Foto merienda</span></div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>El "chocolate" que podés decir que sí</h3>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.75;margin-bottom:14px;">La de cacao resuelve uno de los pedidos más frecuentes — y más difíciles de responder bien: <em>"quiero algo de chocolate."</em> Sabor real de cacao, sin azúcar agregada, sin el dilema de siempre.</p>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.75;">Es la que más piden como merienda en casa y la que más sorprende a los papás que esperaban algo más "saludable y seco".</p>
+  </div>
+
+  <div class="prod-section">
+    <h3>4 ingredientes reales. Y nada más.</h3>
+    <div class="ingredients-list">
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B4513"></div><div><div class="ingredient-name">Pasas de uva</div><div class="ingredient-desc">Dulzor natural, energía y antioxidantes.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B6914"></div><div><div class="ingredient-name">Dátiles</div><div class="ingredient-desc">El endulzante natural. Sin azúcar agregada, rico en fibra y minerales.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:#D4A04A"></div><div><div class="ingredient-name">Harina de almendras</div><div class="ingredient-desc">Proteína vegetal y grasas saludables. Sin gluten.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--cacao-acc)"></div><div><div class="ingredient-name">Cacao natural</div><div class="ingredient-desc">Sabor chocolate real. Sin azúcar. Puro cacao en polvo.</div></div></div>
+    </div>
+  </div>
+
+  <div class="prod-section" style="background:var(--cream)">
+    <h3>Información nutricional</h3>
+    <p style="font-size:12px;color:var(--text-soft);margin-bottom:14px;">Por porción (1 barrita — 30g)</p>
+    <table class="nutri-table">
+      <tr><th>Nutriente</th><th>Por porción</th></tr>
+      <tr><td>Valor energético</td><td>115 kcal</td></tr>
+      <tr><td>Carbohidratos</td><td>19 g</td></tr>
+      <tr><td>Azúcares totales</td><td>14 g</td></tr>
+      <tr><td>Azúcares añadidos</td><td>0 g</td></tr>
+      <tr><td>Proteínas</td><td>2,3 g</td></tr>
+      <tr><td>Grasas totales</td><td>3,4 g</td></tr>
+      <tr><td>Grasas saturadas</td><td>0,3 g</td></tr>
+      <tr><td>Grasas trans</td><td>0 g</td></tr>
+      <tr><td>Fibra alimentaria</td><td>2,3 g</td></tr>
+      <tr><td>Sodio</td><td>2,9 mg</td></tr>
+    </table>
+    <p class="nutri-note">Sin azúcares añadidos · Sin TACC · Sin conservantes · Sin colorantes artificiales</p>
+  </div>
+
+  <div class="prod-section">
+    <h3>¿Cuándo la usan más?</h3>
+    <div class="moments-grid">
+      <div class="moment-card"><div class="moment-icon">🍫</div><div class="moment-title">Antojo de dulce</div><div class="moment-desc">La respuesta cuando piden "algo de chocolate".</div></div>
+      <div class="moment-card"><div class="moment-icon">🏠</div><div class="moment-title">Merienda en casa</div><div class="moment-desc">La más pedida para la tarde.</div></div>
+      <div class="moment-card"><div class="moment-icon">🎒</div><div class="moment-title">Recreo</div><div class="moment-desc">La que vuelve en la mochila vacía.</div></div>
+      <div class="moment-card"><div class="moment-icon">🌙</div><div class="moment-title">Post cena</div><div class="moment-desc">Cierra el dulce sin culpa.</div></div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>Lo que vivieron otras familias</h3>
+    <div class="prod-testis">
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Siempre batallé con los snacks. Esta la pide él solo. Ya no tengo que convencer a nadie."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👨</div><span class="prod-testi-name">Marcos, papá de Tomás (5) · Buenos Aires</span></div>
+      </div>
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Por fin una cosa de chocolate que puedo decir que sí sin culpa. Y le encanta igual que las otras."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👩</div><span class="prod-testi-name">Ceci, mamá de Juanita (7) · Córdoba</span></div>
+      </div>
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Mi hijo celíaco por fin tiene algo rico de chocolate que puede llevar al cole como todos."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👩</div><span class="prod-testi-name">Ana, mamá de Lean (9) · Rosario</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>También te puede gustar</h3>
+    <div class="also-try-scroll">
+      <div class="also-card" onclick="goToProduct('mix')"><div class="also-card-img" style="background:var(--mix-bg)">📦</div><div class="also-card-body"><div class="also-card-sabor">Mix</div><div class="also-card-name">Probá los 3 sabores</div></div></div>
+      <div class="also-card" onclick="goToProduct('mani')"><div class="also-card-img" style="background:var(--mani-bg)">🥜</div><div class="also-card-body"><div class="also-card-sabor">Maní</div><div class="also-card-name">La vianda resuelta</div></div></div>
+      <div class="also-card" onclick="goToProduct('banana')"><div class="also-card-img" style="background:var(--banana-bg)">🍌</div><div class="also-card-body"><div class="also-card-sabor">Banana</div><div class="also-card-name">La clásica favorita</div></div></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-logo" style="cursor:pointer" onclick="goBack()">iQ Kids</div>
+    <div class="footer-tagline">Alimentos con Sentido Común · Con Ingredientes Naturales y Nada Más</div>
+  </footer>
+</div><!-- /prod-cacao -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     PRODUCT PAGE — BANANA
+══════════════════════════════════════════════════════════ -->
+<div id="prod-banana" class="page">
+  <div class="sticky-bar">🚚 Envío gratis en compras mayores a $X — 48/72hs</div>
+  <nav>
+    <div class="back-btn" onclick="goBack()"><span>‹</span> Volver</div>
+    <div class="nav-right"><div class="cart-btn">🛒</div></div>
+  </nav>
+
+  <div class="prod-hero" style="background:var(--banana-bg)">
+    <div class="prod-hero-bg"><div class="prod-hero-emoji">🍌</div><div class="prod-hero-photo-note">📷 Foto producto real aquí</div></div>
+    <div class="prod-hero-overlay"></div>
+    <div class="prod-hero-content">
+      <div class="prod-hero-tag" style="background:var(--banana-acc)">Sabor Banana</div>
+      <h1>Ingredientes que reconocés, sabor que acepta</h1>
+      <p class="prod-hero-sub">12 unidades · Barrita de Banana</p>
+    </div>
+  </div>
+
+  <div class="prod-sticky-cta">
+    <div class="prod-sticky-price"><strong>$21.660</strong><span>= $1.805 por barrita</span></div>
+    <button class="btn btn-primary btn-sm" style="flex:2;background:var(--banana-acc);color:#fff" onclick="addToCart()">Agregar al carrito</button>
+  </div>
+
+  <div class="prod-section">
+    <div class="gallery">
+      <div class="gallery-img big" style="background:var(--banana-bg)"><div class="g-emoji">🍌</div><span>Foto caja banana</span></div>
+      <div class="gallery-img sm" style="background:var(--banana-bg)"><div class="g-emoji">📷</div><span>Foto barrita</span></div>
+      <div class="gallery-img sm" style="background:var(--banana-bg)"><div class="g-emoji">📷</div><span>Foto niño comiendo</span></div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>La que va a todos lados</h3>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.75;margin-bottom:14px;">El sabor banana es el más versátil — funciona como merienda, en la mochila, en el club, en el auto. Es la que los chicos aceptan más rápido porque el sabor es familiar y natural.</p>
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.75;">Ideal para los más chiquitos que arrancan con los snacks, y también para los más grandes que la piden ellos solos.</p>
+  </div>
+
+  <div class="prod-section">
+    <h3>6 ingredientes reales. Y nada más.</h3>
+    <div class="ingredients-list">
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B4513"></div><div><div class="ingredient-name">Pasas de uva</div><div class="ingredient-desc">Dulzor natural, energía y antioxidantes.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:#8B6914"></div><div><div class="ingredient-name">Dátiles</div><div class="ingredient-desc">El endulzante natural. Sin azúcar agregada, rico en fibra y minerales.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--banana-acc)"></div><div><div class="ingredient-name">Chips de banana</div><div class="ingredient-desc">El sabor distintivo. Natural y crujiente.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:#D4A04A"></div><div><div class="ingredient-name">Harina de almendras</div><div class="ingredient-desc">Proteína vegetal y grasas saludables. Sin gluten.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--cacao-acc)"></div><div><div class="ingredient-name">Cacao natural</div><div class="ingredient-desc">Un toque de cacao que equilibra el dulzor de la banana.</div></div></div>
+      <div class="ingredient-row"><div class="ingredient-dot" style="background:var(--mani-acc)"></div><div><div class="ingredient-name">Maní</div><div class="ingredient-desc">Textura, proteína y sabor. El complemento perfecto.</div></div></div>
+    </div>
+  </div>
+
+  <div class="prod-section" style="background:var(--cream)">
+    <h3>Información nutricional</h3>
+    <p style="font-size:12px;color:var(--text-soft);margin-bottom:14px;">Por porción (1 barrita — 30g)</p>
+    <table class="nutri-table">
+      <tr><th>Nutriente</th><th>Por porción</th></tr>
+      <tr><td>Valor energético</td><td>112 kcal</td></tr>
+      <tr><td>Carbohidratos</td><td>20 g</td></tr>
+      <tr><td>Azúcares totales</td><td>11 g</td></tr>
+      <tr><td>Azúcares añadidos</td><td>0 g</td></tr>
+      <tr><td>Proteínas</td><td>2,1 g</td></tr>
+      <tr><td>Grasas totales</td><td>2,4 g</td></tr>
+      <tr><td>Grasas saturadas</td><td>0,3 g</td></tr>
+      <tr><td>Grasas trans</td><td>0 g</td></tr>
+      <tr><td>Fibra alimentaria</td><td>2 g</td></tr>
+      <tr><td>Sodio</td><td>3,8 mg</td></tr>
+    </table>
+    <p class="nutri-note">Sin azúcares añadidos · Sin TACC · Sin conservantes · Sin colorantes artificiales</p>
+  </div>
+
+  <div class="prod-section">
+    <h3>¿Cuándo la usan más?</h3>
+    <div class="moments-grid">
+      <div class="moment-card"><div class="moment-icon">🎒</div><div class="moment-title">Mochila todos los días</div><div class="moment-desc">La más pedida para el cole. Va y no vuelve.</div></div>
+      <div class="moment-card"><div class="moment-icon">🏃</div><div class="moment-title">Actividad física</div><div class="moment-desc">Energía rápida y natural antes de moverse.</div></div>
+      <div class="moment-card"><div class="moment-icon">🚗</div><div class="moment-title">En el auto</div><div class="moment-desc">Para los traslados interminables.</div></div>
+      <div class="moment-card"><div class="moment-icon">🌅</div><div class="moment-title">Desayuno express</div><div class="moment-desc">Cuando no hay tiempo para nada más.</div></div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>Lo que vivieron otras familias</h3>
+    <div class="prod-testis">
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"La lleva al colegio, a la plaza, al club. Va a todos lados. Ya la metemos automático en la mochila."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👩</div><span class="prod-testi-name">Caro, mamá de Lucía (9) · Buenos Aires</span></div>
+      </div>
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Mi hija de 3 años la acepta. Eso ya es un logro enorme. Y sé exactamente qué tiene."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👩</div><span class="prod-testi-name">Male, mamá de Mora (3) · La Plata</span></div>
+      </div>
+      <div class="prod-testi-card">
+        <div class="prod-testi-photo"><span>📷</span>Foto real del consumidor</div>
+        <p class="prod-testi-quote">"Se la mando en el desayuno cuando estamos en apuros. Sé que algo nutritivo se llevó."</p>
+        <div class="prod-testi-author"><div class="prod-testi-avatar">👨</div><span class="prod-testi-name">Pablo, papá de Santi (6) · Córdoba</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prod-section">
+    <h3>También te puede gustar</h3>
+    <div class="also-try-scroll">
+      <div class="also-card" onclick="goToProduct('mix')"><div class="also-card-img" style="background:var(--mix-bg)">📦</div><div class="also-card-body"><div class="also-card-sabor">Mix</div><div class="also-card-name">Probá los 3 sabores</div></div></div>
+      <div class="also-card" onclick="goToProduct('mani')"><div class="also-card-img" style="background:var(--mani-bg)">🥜</div><div class="also-card-body"><div class="also-card-sabor">Maní</div><div class="also-card-name">La vianda resuelta</div></div></div>
+      <div class="also-card" onclick="goToProduct('cacao')"><div class="also-card-img" style="background:var(--cacao-bg)">🍫</div><div class="also-card-body"><div class="also-card-sabor">Cacao</div><div class="also-card-name">Chocolate sin culpa</div></div></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-logo" style="cursor:pointer" onclick="goBack()">iQ Kids</div>
+    <div class="footer-tagline">Alimentos con Sentido Común · Con Ingredientes Naturales y Nada Más</div>
+  </footer>
+</div><!-- /prod-banana -->
+
+
+<script>
+  let history = ['landing'];
+
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  function goToProduct(slug) {
+    history.push('prod-' + slug);
+    showPage('prod-' + slug);
+  }
+
+  function goBack() {
+    history.pop();
+    const prev = history[history.length - 1] || 'landing';
+    showPage(prev);
+  }
+
+  function switchTab(id, btn) {
+    // find the parent section to scope the switch
+    const tabContent = document.getElementById(id);
+    const section = tabContent.closest('.prod-section, section');
+    // hide all siblings
+    section.querySelectorAll('.mix-tab-content').forEach(el => el.classList.remove('active'));
+    section.querySelectorAll('.mix-tab').forEach(el => el.classList.remove('active'));
+    tabContent.classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function addToCart() {
+    alert('🛒 ¡Agregado al carrito!\n\n(Esta función se conecta con el sistema de e-commerce real)');
+  }
+
+  // logo click goes to landing
+  document.querySelectorAll('.nav-logo').forEach(el => {
+    el.addEventListener('click', () => { history = ['landing']; showPage('landing'); });
+  });
+</script>
+</body>
+</html>

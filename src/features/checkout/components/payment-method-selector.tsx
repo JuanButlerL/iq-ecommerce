@@ -1,9 +1,10 @@
 "use client";
 
 import { CreditCard, Landmark, CheckCircle2 } from "lucide-react";
-import type { PaymentMethod } from "@prisma/client";
 
 import { cn } from "@/lib/utils/cn";
+
+type PaymentMethod = "BANK_TRANSFER" | "MERCADO_PAGO";
 
 type PaymentMethodSelectorProps = {
   value: PaymentMethod;

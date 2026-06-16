@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
+import { DM_Sans, DM_Serif_Display } from "next/font/google";
 
 import "@/app/globals.css";
 
@@ -34,6 +35,19 @@ export const viewport: Viewport = {
   themeColor: "#F48991",
 };
 
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-nunito",
+  display: "swap",
+});
+
+const dmSerifDisplay = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-baloo",
+  display: "swap",
+});
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -44,7 +58,7 @@ export default async function RootLayout({
   const facebookPixelId = env.hasFacebookPixel ? env.NEXT_PUBLIC_FB_PIXEL_ID : null;
 
   return (
-    <html lang="es">
+    <html lang="es" className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
       <body>
         {env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_MEASUREMENT_ID} /> : null}
         <MicrosoftClarity projectId={clarityProjectId} />
@@ -55,6 +69,9 @@ export default async function RootLayout({
           contactEmail={settings?.contactEmail}
           whatsappNumber={settings?.whatsappNumber}
           showFloatingWhatsapp={settings?.showFloatingWhatsapp}
+          announcementBarEnabled={settings?.announcementBarEnabled}
+          announcementBarText={settings?.announcementBarText}
+          subscriptionSectionEnabled={settings?.subscriptionSectionEnabled}
         >
           {children}
         </AppChrome>

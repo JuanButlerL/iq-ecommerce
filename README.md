@@ -2,6 +2,10 @@
 
 E-commerce propio para IQ Kids construido con Next.js App Router, TypeScript, Tailwind, Prisma y Supabase. El proyecto incluye storefront publico, panel admin protegido, persistencia de pedidos primero en DB, upload obligatorio de comprobante y capa desacoplada de sincronizacion hacia Google Sheets/AppSheet.
 
+## Documentacion
+
+- Documentacion general del sistema: `docs/documentacion-web.md`
+
 ## Stack
 
 - Next.js 15.5
@@ -68,7 +72,7 @@ E-commerce propio para IQ Kids construido con Next.js App Router, TypeScript, Ta
 
 ## Variables de entorno
 
-Copiá `.env.example` a `.env` y completá:
+CopiÃ¡ `.env.example` a `.env` y completÃ¡:
 
 ```env
 DATABASE_URL=
@@ -212,7 +216,7 @@ npm run db:seed
 - Upload cliente via `/api/orders/[orderNumber]/proof`
 - Guarda en `proofs/{orderNumber}/...`
 - Si el bucket es privado, admin consume signed URLs
-- Si necesitás URL publica para integraciones externas, usar `ENABLE_PROOF_PUBLIC_URL_SYNC=true`
+- Si necesitÃ¡s URL publica para integraciones externas, usar `ENABLE_PROOF_PUBLIC_URL_SYNC=true`
 
 ### Fallback local sin Supabase
 
@@ -253,7 +257,7 @@ La abstraccion y el provider estan creados, pero la implementacion concreta de e
 
 - `src/lib/integrations/sheets/providers/google-sheets.ts`
 
-Si querés usarlo en la siguiente iteracion, lo correcto es completarlo con autenticacion de service account y append a las hojas `pedidos` y `pedidos_items`.
+Si querÃ©s usarlo en la siguiente iteracion, lo correcto es completarlo con autenticacion de service account y append a las hojas `pedidos` y `pedidos_items`.
 
 ## Mercado Pago
 
@@ -370,7 +374,7 @@ curl -I https://iqkids.com.ar
    - `sync_jobs`
    - `sync_logs`
 8. Entrar a `/admin/pedidos` y `/admin/sync`.
-9. Reintentar sync desde admin si usás `mock` o `apps_script`.
+9. Reintentar sync desde admin si usÃ¡s `mock` o `apps_script`.
 
 ## Placeholders tecnicos explicitados
 

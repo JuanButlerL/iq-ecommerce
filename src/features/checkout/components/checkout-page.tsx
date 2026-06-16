@@ -34,6 +34,7 @@ type CheckoutPageProps = {
   products: ProductWithImages[];
   settings: SettingsWithRule;
   mercadoPagoEnabled: boolean;
+  initialProvince?: string;
 };
 
 type CouponPreview = {
@@ -44,7 +45,7 @@ type CouponPreview = {
   subtotalWithDiscountArs: number;
 };
 
-export function CheckoutPage({ products, settings, mercadoPagoEnabled }: CheckoutPageProps) {
+export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialProvince: requestedProvince }: CheckoutPageProps) {
   const router = useRouter();
   const [checkoutRequestKey] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +58,9 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
   const items = useCartStore((state) => state.items);
   const allowBankTransfer = settings.enableBankTransfer;
   const allowMercadoPago = settings.enableMercadoPago && mercadoPagoEnabled;
+  const initialProvince = requestedProvince && ARGENTINA_PROVINCES.some((province) => province.name === requestedProvince)
+    ? requestedProvince
+    : "Buenos Aires";
 
   const productItems = useMemo(
     () =>
@@ -76,7 +80,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
       lastName: "",
       email: "",
       phone: "",
-      province: "Buenos Aires",
+      province: initialProvince,
       locality: "",
       postalCode: "",
       addressLine: "",
@@ -187,7 +191,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled }: Checkou
       <EmptyState
         title="No hay productos en el checkout"
         description="Primero agrega al menos una caja al carrito para continuar."
-        actionHref="/productos"
+        actionHref="/#productos"
         actionLabel="Volver a productos"
       />
     );

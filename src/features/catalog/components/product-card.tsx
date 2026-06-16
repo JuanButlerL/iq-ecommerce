@@ -5,7 +5,7 @@ import type { Product, ProductImage } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { productFallbackImageMap, productThemeMap } from "@/features/catalog/product-theme";
+import { productFallbackImageMap, resolveProductTheme } from "@/features/catalog/product-theme";
 import { formatArs } from "@/lib/utils/currency";
 
 type ProductCardProps = {
@@ -13,8 +13,8 @@ type ProductCardProps = {
 };
 
 export function ProductCard({ product }: ProductCardProps) {
-  const image = product.images[0];
-  const theme = productThemeMap[product.colorTheme];
+  const image = product.images.find((entry) => entry.isPrimary) ?? product.images[0];
+  const theme = resolveProductTheme(product);
   const fallbackImage = productFallbackImageMap[product.colorTheme];
 
   return (

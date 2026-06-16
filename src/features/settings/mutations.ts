@@ -22,6 +22,11 @@ export async function updateStoreSettings(payload: unknown) {
       checkoutMessage: parsed.data.checkoutMessage || null,
       transferInstructions: parsed.data.transferInstructions || null,
       institutionalBanner: parsed.data.institutionalBanner || null,
+      announcementBarText: parsed.data.announcementBarText || null,
+      subscriptionCtaUrl: parsed.data.subscriptionCtaUrl || null,
+      subscriptionItemOne: parsed.data.subscriptionItemOne || null,
+      subscriptionItemTwo: parsed.data.subscriptionItemTwo || null,
+      subscriptionItemThree: parsed.data.subscriptionItemThree || null,
       purchaseSuccessMessage: parsed.data.purchaseSuccessMessage || null,
     },
   });

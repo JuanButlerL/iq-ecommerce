@@ -4,8 +4,8 @@
 
 :root {
   color-scheme: light;
-  --font-baloo: "Arial Rounded MT Bold", "Trebuchet MS", "Avenir Next Rounded", "Segoe UI", sans-serif;
-  --font-nunito: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-baloo: "DM Serif Display", Georgia, serif;
+  --font-nunito: "DM Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
@@ -19,4 +19,18 @@ a {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(244, 137, 145, 0.35) transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-33.333%, 0, 0);
+  }
 }

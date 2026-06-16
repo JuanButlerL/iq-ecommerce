@@ -1,4 +1,4 @@
-import { PaymentMethod } from "@prisma/client";
+type PaymentMethod = "BANK_TRANSFER" | "MERCADO_PAGO";
 
 type CheckoutPricingInput = {
   paymentMethod: PaymentMethod;
@@ -44,7 +44,7 @@ export function getBankTransferDiscountPercentage(input: {
   bankTransferDiscountPercentage: number;
 }) {
   if (
-    input.paymentMethod !== PaymentMethod.BANK_TRANSFER ||
+    input.paymentMethod !== "BANK_TRANSFER" ||
     !input.enableBankTransferDiscount ||
     input.bankTransferDiscountPercentage <= 0
   ) {

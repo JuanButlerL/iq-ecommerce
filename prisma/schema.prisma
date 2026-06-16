@@ -108,7 +108,11 @@ model Product {
   shortDescription String            @map("short_description")
   longDescription  String            @map("long_description")
   priceArs         Int               @map("price_ars")
+  homeVarietyLabel String?           @map("home_variety_label")
   colorTheme       ProductColorTheme @map("color_theme")
+  visualAccentHex  String?           @map("visual_accent_hex")
+  visualSurfaceHex String?           @map("visual_surface_hex")
+  visualTextHex    String?           @map("visual_text_hex")
   active           Boolean           @default(true)
   visible          Boolean           @default(true)
   manualSoldOut    Boolean           @default(false) @map("manual_sold_out")
@@ -116,6 +120,7 @@ model Product {
   sortOrder        Int               @default(0) @map("sort_order")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
+  homeFeaturedSlots HomeFeaturedProductSlot[]
   images           ProductImage[]
   orderItems       OrderItem[]
 
@@ -196,6 +201,13 @@ model StoreSettings {
   bankTransferDiscountPercentage Decimal @default(0) @map("bank_transfer_discount_percentage") @db.Decimal(5, 2)
   orderReservationHours  Int?          @map("order_reservation_hours")
   institutionalBanner    String?       @map("institutional_banner")
+  announcementBarEnabled Boolean       @default(false) @map("announcement_bar_enabled")
+  announcementBarText    String?       @map("announcement_bar_text")
+  subscriptionSectionEnabled Boolean   @default(true) @map("subscription_section_enabled")
+  subscriptionCtaUrl     String?       @map("subscription_cta_url")
+  subscriptionItemOne    String?       @map("subscription_item_one")
+  subscriptionItemTwo    String?       @map("subscription_item_two")
+  subscriptionItemThree  String?       @map("subscription_item_three")
   purchaseSuccessMessage String?       @map("purchase_success_message")
   requireTaxId           Boolean       @default(false) @map("require_tax_id")
   showFloatingWhatsapp   Boolean       @default(true) @map("show_floating_whatsapp")
@@ -219,6 +231,39 @@ model Coupon {
 
   @@index([active, code], map: "coupons_active_code_idx")
   @@map("coupons")
+}
+
+model Testimonial {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  roleLabel   String?  @map("role_label")
+  quote       String
+  avatarLabel String?  @map("avatar_label")
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder], map: "testimonials_active_sort_idx")
+  @@map("testimonials")
+}
+
+model HomeFeaturedProductSlot {
+  id          String   @id @default(uuid()) @db.Uuid
+  slotOrder   Int      @unique @map("slot_order")
+  productId   String   @map("product_id") @db.Uuid
+  eyebrow     String
+  title       String
+  description String
+  quote       String?  @db.Text
+  buttonLabel String   @map("button_label")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([slotOrder], map: "home_featured_product_slots_order_idx")
+  @@index([productId], map: "home_featured_product_slots_product_idx")
+  @@map("home_featured_product_slots")
 }
 
 model Order {
