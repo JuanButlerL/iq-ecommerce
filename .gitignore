@@ -9,6 +9,8 @@ coverage
 dist
 *.log
 .dev-server*
+.dev-*
+.next-start.*
 public/uploads
 tsconfig.tsbuildinfo
 pnpm-lock.yaml

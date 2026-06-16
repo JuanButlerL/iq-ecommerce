@@ -79,10 +79,10 @@ const ingredientPoints = [
     iconClass: "h-10 w-10 sm:h-11 sm:w-11",
   },
   {
-    title: "Sin sellos negros",
+    title: "Sin sellos",
     body: "Sin conservantes, colorantes ni artificiales.",
     icon: "/redesign/ingredient-no-warnings.svg",
-    iconAlt: "Sin sellos negros",
+    iconAlt: "Sin sellos",
     iconClass: "h-10 w-10 sm:h-11 sm:w-11",
   },
 ];
@@ -400,7 +400,7 @@ export default async function HomePage() {
             </p>
             <div className="relative mt-8 flex flex-wrap gap-3 text-sm font-bold text-brand-ink">
               <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Nutricionistas</span>
-              <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Sin sellos negros</span>
+              <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Sin sellos</span>
               <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Ingredientes reales</span>
             </div>
             <div className="relative mt-10 flex flex-col items-start gap-4">
