@@ -205,6 +205,7 @@ model StoreSettings {
   announcementBarText    String?       @map("announcement_bar_text")
   subscriptionSectionEnabled Boolean   @default(true) @map("subscription_section_enabled")
   subscriptionCtaUrl     String?       @map("subscription_cta_url")
+  subscriptionHeroNote   String?       @map("subscription_hero_note")
   subscriptionItemOne    String?       @map("subscription_item_one")
   subscriptionItemTwo    String?       @map("subscription_item_two")
   subscriptionItemThree  String?       @map("subscription_item_three")
@@ -238,7 +239,6 @@ model Testimonial {
   name        String
   roleLabel   String?  @map("role_label")
   quote       String
-  avatarLabel String?  @map("avatar_label")
   active      Boolean  @default(true)
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")

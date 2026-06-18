@@ -23,7 +23,8 @@ export default async function ConfirmationPage({
   }
 
   const isMercadoPago = order.paymentMethod === "MERCADO_PAGO";
-  const shouldTrackPurchase = order.paymentStatus === "PAID";
+  const shouldTrackAnalyticsPurchase = order.paymentStatus === "PAID";
+  const shouldTrackMetaPurchase = shouldTrackAnalyticsPurchase || order.paymentMethod === "BANK_TRANSFER";
   const paymentCopy = isMercadoPago
     ? order.paymentStatus === "PAID"
       ? "Mercado Pago confirmo el pago y el pedido ya quedo registrado."
@@ -37,8 +38,7 @@ export default async function ConfirmationPage({
   return (
     <Container className="py-16">
       <Card className="mx-auto max-w-3xl space-y-6 p-8 text-center">
-        {shouldTrackPurchase ? (
-          <>
+        {shouldTrackAnalyticsPurchase ? (
             <TrackEventOnView
               eventName="purchase"
               dedupeKey={`purchase:${order.publicOrderNumber}`}
@@ -58,13 +58,14 @@ export default async function ConfirmationPage({
                 })),
               }}
             />
+        ) : null}
+        {shouldTrackMetaPurchase ? (
             <MetaPixelPurchase
               orderNumber={order.publicOrderNumber}
               total={order.totalArs}
               productIds={order.items.map((item) => item.productId ?? item.id)}
               itemCount={order.items.reduce((totalItems, item) => totalItems + item.quantity, 0)}
             />
-          </>
         ) : null}
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Compra confirmada</p>
         <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>

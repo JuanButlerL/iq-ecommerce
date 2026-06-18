@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { HashScrollHandler } from "@/components/hash-scroll-handler";
 import { HomeProductCardActions } from "@/features/catalog/components/home-product-card-actions";
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
@@ -351,6 +352,7 @@ export default async function HomePage() {
   const hasTestimonials = testimonials.length > 0;
   const hasProducts = products.length > 0;
   const showSubscriptionSection = Boolean(settings?.subscriptionSectionEnabled);
+  const subscriptionHeroNote = settings?.subscriptionHeroNote?.trim();
   const firstProduct = products[0];
   const landingProducts = findProductsForLanding(products);
   const subscriptionItems = [
@@ -373,6 +375,7 @@ export default async function HomePage() {
 
   return (
     <main className="overflow-x-hidden bg-white text-brand-ink">
+      <HashScrollHandler />
       <section id="inicio" className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img
@@ -410,9 +413,9 @@ export default async function HomePage() {
               >
                 Empezá con la caja mix → 3 sabores, 12 barritas
               </Link>
-              <p className="text-sm font-bold text-brand-ink/70">
-                10% off en tu primera compra · 15% para siempre suscribiéndote
-              </p>
+              {showSubscriptionSection && subscriptionHeroNote ? (
+                <p className="text-sm font-bold text-brand-ink/70">{subscriptionHeroNote}</p>
+              ) : null}
             </div>
             </div>
           </div>

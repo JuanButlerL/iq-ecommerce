@@ -17,7 +17,6 @@ export async function saveTestimonial(payload: unknown, testimonialId?: string) 
     name: parsed.data.name,
     roleLabel: parsed.data.roleLabel || null,
     quote: parsed.data.quote,
-    avatarLabel: parsed.data.avatarLabel || null,
     active: parsed.data.active,
     sortOrder: parsed.data.sortOrder,
   };

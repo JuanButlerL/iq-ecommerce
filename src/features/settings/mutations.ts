@@ -24,6 +24,7 @@ export async function updateStoreSettings(payload: unknown) {
       institutionalBanner: parsed.data.institutionalBanner || null,
       announcementBarText: parsed.data.announcementBarText || null,
       subscriptionCtaUrl: parsed.data.subscriptionCtaUrl || null,
+      subscriptionHeroNote: parsed.data.subscriptionHeroNote || null,
       subscriptionItemOne: parsed.data.subscriptionItemOne || null,
       subscriptionItemTwo: parsed.data.subscriptionItemTwo || null,
       subscriptionItemThree: parsed.data.subscriptionItemThree || null,

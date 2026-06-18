@@ -15,7 +15,6 @@ type TestimonialListItem = {
   name: string;
   roleLabel: string | null;
   quote: string;
-  avatarLabel: string | null;
   active: boolean;
   sortOrder: number;
 };
@@ -28,7 +27,6 @@ type TestimonialFormState = {
   name: string;
   roleLabel: string;
   quote: string;
-  avatarLabel: string;
   active: boolean;
   sortOrder: string;
 };
@@ -37,7 +35,6 @@ const emptyForm: TestimonialFormState = {
   name: "",
   roleLabel: "",
   quote: "",
-  avatarLabel: "",
   active: true,
   sortOrder: "0",
 };
@@ -66,7 +63,6 @@ export function TestimonialsAdminPanel({ testimonials }: TestimonialsAdminPanelP
       name: testimonial.name,
       roleLabel: testimonial.roleLabel ?? "",
       quote: testimonial.quote,
-      avatarLabel: testimonial.avatarLabel ?? "",
       active: testimonial.active,
       sortOrder: String(testimonial.sortOrder),
     });
@@ -151,14 +147,6 @@ export function TestimonialsAdminPanel({ testimonials }: TestimonialsAdminPanelP
                 value={form.roleLabel}
                 placeholder="Mama de Mateo (7) - Buenos Aires"
                 onChange={(event) => setForm((current) => ({ ...current, roleLabel: event.target.value }))}
-              />
-            </Field>
-            <Field label="Inicial / avatar corto">
-              <Input
-                value={form.avatarLabel}
-                maxLength={8}
-                placeholder="V"
-                onChange={(event) => setForm((current) => ({ ...current, avatarLabel: event.target.value }))}
               />
             </Field>
             <Field label="Orden">

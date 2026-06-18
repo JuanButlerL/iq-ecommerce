@@ -30,6 +30,7 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
     institutionalBanner: settings.institutionalBanner ?? "",
     announcementBarText: settings.announcementBarText ?? "",
     subscriptionCtaUrl: settings.subscriptionCtaUrl ?? "",
+    subscriptionHeroNote: settings.subscriptionHeroNote ?? "",
     subscriptionItemOne: settings.subscriptionItemOne ?? "",
     subscriptionItemTwo: settings.subscriptionItemTwo ?? "",
     subscriptionItemThree: settings.subscriptionItemThree ?? "",
@@ -249,7 +250,19 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
                 }
               />
             </Field>
-            <div className="hidden xl:block" />
+            <Field label="Frase debajo del boton principal del home">
+              <Input
+                value={form.subscriptionHeroNote}
+                disabled={!form.subscriptionSectionEnabled}
+                placeholder="10% off en tu primera compra - 15% para siempre suscribiendote"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    subscriptionHeroNote: event.target.value,
+                  }))
+                }
+              />
+            </Field>
             <Field label="Caja 1">
               <Input
                 value={form.subscriptionItemOne}

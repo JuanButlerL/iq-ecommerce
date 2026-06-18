@@ -5,6 +5,7 @@ import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import "@/app/globals.css";
 
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { GoogleTagManager, GoogleTagManagerNoScript } from "@/components/analytics/google-tag-manager";
 import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { MicrosoftClarity } from "@/components/analytics/microsoft-clarity";
 import { WebVitals } from "@/components/analytics/web-vitals";
@@ -59,7 +60,11 @@ export default async function RootLayout({
 
   return (
     <html lang="es" className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
+      <head>
+        <GoogleTagManager />
+      </head>
       <body>
+        <GoogleTagManagerNoScript />
         {env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_MEASUREMENT_ID} /> : null}
         <MicrosoftClarity projectId={clarityProjectId} />
         {facebookPixelId ? <MetaPixel pixelId={facebookPixelId} /> : null}

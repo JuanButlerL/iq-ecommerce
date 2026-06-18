@@ -28,6 +28,7 @@ export const storeSettingsSchema = z.object({
   announcementBarText: z.string().max(240).optional().or(z.literal("")),
   subscriptionSectionEnabled: z.boolean().default(true),
   subscriptionCtaUrl: z.string().url().optional().or(z.literal("")),
+  subscriptionHeroNote: z.string().max(180).optional().or(z.literal("")),
   subscriptionItemOne: z.string().max(120).optional().or(z.literal("")),
   subscriptionItemTwo: z.string().max(120).optional().or(z.literal("")),
   subscriptionItemThree: z.string().max(120).optional().or(z.literal("")),
