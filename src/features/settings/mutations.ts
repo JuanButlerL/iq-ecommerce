@@ -23,6 +23,8 @@ export async function updateStoreSettings(payload: unknown) {
       transferInstructions: parsed.data.transferInstructions || null,
       institutionalBanner: parsed.data.institutionalBanner || null,
       announcementBarText: parsed.data.announcementBarText || null,
+      heroCtaLabel: parsed.data.heroCtaLabel || null,
+      heroCtaUrl: parsed.data.heroCtaUrl || null,
       subscriptionCtaUrl: parsed.data.subscriptionCtaUrl || null,
       subscriptionHeroNote: parsed.data.subscriptionHeroNote || null,
       subscriptionItemOne: parsed.data.subscriptionItemOne || null,

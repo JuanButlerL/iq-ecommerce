@@ -44,3 +44,21 @@ html {
     transform: translate3d(-50%, 0, 0);
   }
 }
+
+@keyframes cart-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.18) rotate(-7deg);
+  }
+
+  65% {
+    transform: scale(0.96) rotate(3deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}

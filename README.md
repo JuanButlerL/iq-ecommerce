@@ -5,6 +5,7 @@ E-commerce propio para IQ Kids construido con Next.js App Router, TypeScript, Ta
 ## Documentacion
 
 - Documentacion general del sistema: `docs/documentacion-web.md`
+- Runbook de produccion en DigitalOcean: `docs/deploy-produccion-digitalocean.md`
 
 ## Stack
 
@@ -78,6 +79,7 @@ CopiÃ¡ `.env.example` a `.env` y completÃ¡:
 DATABASE_URL=
 DIRECT_URL=
 NEXT_PUBLIC_SITE_URL=
+NEXT_PUBLIC_GTM_ID=
 NEXT_PUBLIC_GA_MEASUREMENT_ID=
 NEXT_PUBLIC_MICROSOFT_CLARITY_ID=
 NEXT_PUBLIC_FB_PIXEL_ID=
@@ -311,37 +313,14 @@ La app valida que sandbox use token `TEST-` y que produccion no use token de tes
 
 ## Migrar ajustes a produccion (DO)
 
-Flujo corto para pasar cambios desde local al Droplet:
+El pase requiere backup previo, build de una revision exacta y migraciones antes de reemplazar el contenedor web. Seguir completo `docs/deploy-produccion-digitalocean.md`.
 
-1. Hacer cambios en local y probar.
-2. Subir a GitHub:
+Reglas obligatorias:
 
-```bash
-git add .
-git commit -m "tu cambio"
-git push
-```
-
-3. Entrar al servidor y actualizar:
-
-```bash
-cd /opt/iqkids/web
-git pull
-docker compose up -d --build
-```
-
-4. Si hubo cambios en Prisma:
-
-```bash
-docker compose exec app npx prisma migrate deploy
-```
-
-5. Verificar:
-
-```bash
-docker compose ps
-curl -I https://iqkids.com.ar
-```
+- ejecutar `prisma migrate deploy` con la nueva imagen antes de levantarla
+- no ejecutar `prisma db seed` ni `npm run db:seed` en produccion
+- conservar y validar todas las variables de integraciones
+- comparar cantidades de productos, pedidos y reglas de envio antes y despues
 
 ## Flujo funcional esperado
 

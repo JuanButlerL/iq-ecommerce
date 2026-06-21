@@ -29,6 +29,8 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
     transferInstructions: settings.transferInstructions ?? "",
     institutionalBanner: settings.institutionalBanner ?? "",
     announcementBarText: settings.announcementBarText ?? "",
+    heroCtaLabel: settings.heroCtaLabel ?? "",
+    heroCtaUrl: settings.heroCtaUrl ?? "",
     subscriptionCtaUrl: settings.subscriptionCtaUrl ?? "",
     subscriptionHeroNote: settings.subscriptionHeroNote ?? "",
     subscriptionItemOne: settings.subscriptionItemOne ?? "",
@@ -182,6 +184,32 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
         <Field label="Texto institucional destacado" className="md:col-span-2">
           <Input value={form.institutionalBanner} onChange={(event) => setForm((current) => ({ ...current, institutionalBanner: event.target.value }))} placeholder="Texto corto de marca o banner institucional" />
         </Field>
+        <div className="rounded-[1.75rem] border border-brand-ink/10 bg-background p-4 md:col-span-2 md:p-5">
+          <div>
+            <span className="block text-sm font-bold text-brand-ink/75">CTA principal del home</span>
+            <p className="mt-1 text-sm text-brand-ink/60">
+              Edita el boton rosa de la primera seccion. Si dejas los campos vacios, se usa el texto actual y el producto del primer slot.
+            </p>
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <Field label="Texto del boton">
+              <Input
+                value={form.heroCtaLabel}
+                maxLength={120}
+                placeholder="Empeza con la caja mix - 3 sabores, 12 barritas"
+                onChange={(event) => setForm((current) => ({ ...current, heroCtaLabel: event.target.value }))}
+              />
+            </Field>
+            <Field label="Destino del boton">
+              <Input
+                value={form.heroCtaUrl}
+                maxLength={500}
+                placeholder="/productos/caja-mix-x-12-unidades"
+                onChange={(event) => setForm((current) => ({ ...current, heroCtaUrl: event.target.value }))}
+              />
+            </Field>
+          </div>
+        </div>
         <div className="rounded-[1.75rem] border border-brand-ink/10 bg-background p-4 md:col-span-2 md:p-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>

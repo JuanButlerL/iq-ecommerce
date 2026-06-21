@@ -57,14 +57,15 @@ export default async function RootLayout({
   const settings = await getStoreSettings();
   const clarityProjectId = env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID || "wqhtpsarz4";
   const facebookPixelId = env.hasFacebookPixel ? env.NEXT_PUBLIC_FB_PIXEL_ID : null;
+  const googleTagManagerId = env.hasGoogleTagManager ? env.NEXT_PUBLIC_GTM_ID : null;
 
   return (
     <html lang="es" className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
       <head>
-        <GoogleTagManager />
+        {googleTagManagerId ? <GoogleTagManager containerId={googleTagManagerId} /> : null}
       </head>
       <body>
-        <GoogleTagManagerNoScript />
+        {googleTagManagerId ? <GoogleTagManagerNoScript containerId={googleTagManagerId} /> : null}
         {env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_MEASUREMENT_ID} /> : null}
         <MicrosoftClarity projectId={clarityProjectId} />
         {facebookPixelId ? <MetaPixel pixelId={facebookPixelId} /> : null}

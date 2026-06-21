@@ -4,6 +4,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
   DIRECT_URL: z.string().optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_GTM_ID: z.string().regex(/^GTM-[A-Z0-9]+$/).optional().or(z.literal("")),
   NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
   NEXT_PUBLIC_MICROSOFT_CLARITY_ID: z.string().optional(),
   NEXT_PUBLIC_FB_PIXEL_ID: z.string().optional(),
@@ -40,6 +41,7 @@ const parsedEnv = envSchema.parse({
   DATABASE_URL: process.env.DATABASE_URL,
   DIRECT_URL: process.env.DIRECT_URL,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+  NEXT_PUBLIC_GTM_ID: process.env.NEXT_PUBLIC_GTM_ID,
   NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
   NEXT_PUBLIC_MICROSOFT_CLARITY_ID: process.env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID,
   NEXT_PUBLIC_FB_PIXEL_ID: process.env.NEXT_PUBLIC_FB_PIXEL_ID,
@@ -126,6 +128,7 @@ export const env = {
       (parsedEnv.ADMIN_LOCAL_PASSWORD !== "Cambiame123!" &&
         parsedEnv.ADMIN_SESSION_SECRET !== "iqkids-local-admin-secret")),
   hasGoogleAnalytics: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID),
+  hasGoogleTagManager: Boolean(parsedEnv.NEXT_PUBLIC_GTM_ID),
   hasMicrosoftClarity: Boolean(parsedEnv.NEXT_PUBLIC_MICROSOFT_CLARITY_ID),
   hasFacebookPixel: isRealFacebookPixelId(parsedEnv.NEXT_PUBLIC_FB_PIXEL_ID),
   hasMetaConversionsApi:

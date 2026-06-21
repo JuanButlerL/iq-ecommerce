@@ -19,6 +19,9 @@ type HomeProductCardItem = {
   buttonLabel: string;
 };
 
+// Keep the section ready while its final content and imagery are being defined.
+const SHOW_PROCESS_SECTION = false;
+
 const processSteps = [
   {
     title: "Nutricionistas eligieron por vos",
@@ -51,8 +54,8 @@ const whyKidsLikeIt = [
     accent: "bg-brand-pink",
   },
   {
-    title: "Sale lo mejor",
-    body: "Duerme bien, tiene energía estable. Sin complicaciones.",
+    title: "Duerme bien, tiene energía",
+    body: "Sin pico de azúcar ni bajón. Lo que come se nota en cómo rinde el resto del día.",
     accent: "bg-brand-cyan",
   },
 ];
@@ -64,6 +67,7 @@ const ingredientPoints = [
     icon: "/redesign/ingredient-real.svg",
     iconAlt: "Ingredientes reales",
     iconClass: "h-9 w-9 sm:h-10 sm:w-10",
+    iconSurface: "border-[#B9DCC2] bg-[#EAF7EE]",
   },
   {
     title: "Sin azucar agregada",
@@ -71,6 +75,7 @@ const ingredientPoints = [
     icon: "/redesign/ingredient-no-sugar-20260615.png",
     iconAlt: "Sin azucar agregada",
     iconClass: "h-9 w-9 sm:h-10 sm:w-10",
+    iconSurface: "border-[#F2B8BD] bg-[#FFF0F1]",
   },
   {
     title: "Sin TACC",
@@ -78,6 +83,7 @@ const ingredientPoints = [
     icon: "/redesign/ingredient-gluten-free.svg",
     iconAlt: "Sin TACC",
     iconClass: "h-10 w-10 sm:h-11 sm:w-11",
+    iconSurface: "border-[#B9DDEB] bg-[#EAF8FE]",
   },
   {
     title: "Sin sellos",
@@ -85,14 +91,15 @@ const ingredientPoints = [
     icon: "/redesign/ingredient-no-warnings.svg",
     iconAlt: "Sin sellos",
     iconClass: "h-10 w-10 sm:h-11 sm:w-11",
+    iconSurface: "border-[#D5D7DC] bg-[#F1F2F4]",
   },
 ];
 
 const whyKidsLikeItImages = [
-  "/redesign/decision-less-5.jpg",
-  "/redesign/decision-less-6.jpg",
-  "/redesign/decision-less-7.jpg",
-  "/redesign/decision-less-8.jpg",
+  "/redesign/natural-simple-1.jpg",
+  "/redesign/natural-simple-2.jpg",
+  "/redesign/natural-simple-3.jpg",
+  "/redesign/natural-simple-4.jpg",
 ];
 
 function formatCurrency(amount: number) {
@@ -281,6 +288,7 @@ function HomeFeaturedSlotCard({
   description,
   quote,
   buttonLabel,
+  highlighted = false,
 }: {
   product: ProductItem;
   eyebrow: string;
@@ -288,6 +296,7 @@ function HomeFeaturedSlotCard({
   description: string;
   quote?: string | null;
   buttonLabel: string;
+  highlighted?: boolean;
 }) {
   const theme = getThemeColors(product);
   const homeLabel = product.homeVarietyLabel?.trim() || eyebrow;
@@ -295,10 +304,19 @@ function HomeFeaturedSlotCard({
 
   return (
     <article
-      className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[2rem] border border-brand-ink/10 bg-white shadow-card transition-transform duration-200 hover:-translate-y-1"
+      className={`group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 md:h-full md:w-auto md:shrink ${
+        highlighted
+          ? "border-brand-pink/60 shadow-[0_20px_48px_rgba(244,137,145,0.2)] ring-1 ring-brand-pink/20"
+          : "border-brand-ink/10 shadow-card"
+      }`}
       style={{ backgroundColor: theme.surface, color: theme.text }}
     >
       <Link href={`/productos/${product.slug}`} className="relative aspect-[4/3] overflow-hidden">
+        {highlighted ? (
+          <span className="absolute left-4 top-4 z-10 rounded-full bg-brand-pink px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.16em] text-white shadow-soft">
+            Más elegido
+          </span>
+        ) : null}
         <img
           src={theme.image}
           alt={product.name}
@@ -316,7 +334,7 @@ function HomeFeaturedSlotCard({
           <p className="text-sm leading-6 text-brand-ink/80">{description}</p>
         </div>
         <div className="mt-auto space-y-4">
-          {quote ? <p className="text-sm font-semibold italic text-brand-ink/80">“{quote}”</p> : null}
+          {quote ? <p className="hidden text-sm font-semibold italic text-brand-ink/80 md:block">“{quote}”</p> : null}
           <div className="space-y-3">
             <div>
               <div className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</div>
@@ -354,6 +372,9 @@ export default async function HomePage() {
   const showSubscriptionSection = Boolean(settings?.subscriptionSectionEnabled);
   const subscriptionHeroNote = settings?.subscriptionHeroNote?.trim();
   const firstProduct = products[0];
+  const heroDefaultProduct = homeFeaturedSlots.find((slot) => slot.slotOrder === 1)?.product ?? firstProduct;
+  const heroCtaLabel = settings?.heroCtaLabel?.trim() || "Empezá con la caja mix → 3 sabores, 12 barritas";
+  const heroCtaUrl = settings?.heroCtaUrl?.trim() || (heroDefaultProduct ? `/productos/${heroDefaultProduct.slug}` : "/productos");
   const landingProducts = findProductsForLanding(products);
   const subscriptionItems = [
     settings?.subscriptionItemOne?.trim(),
@@ -381,22 +402,26 @@ export default async function HomePage() {
           <img
             src="/redesign/hero-home.jpg"
             alt={settings?.storeName ?? "IQ Kids"}
-            className="absolute inset-0 h-full w-full object-cover object-[62%_center] sm:object-[74%_center] lg:object-[76%_center] xl:object-[78%_center]"
+            className="absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,249,250,0.76)_0%,rgba(255,249,250,0.72)_22%,rgba(255,249,250,0.78)_46%,rgba(255,249,250,0.38)_74%,rgba(255,249,250,0.08)_100%)] md:bg-[linear-gradient(90deg,rgba(255,248,250,0.84)_0%,rgba(255,248,250,0.72)_22%,rgba(255,248,250,0.52)_38%,rgba(255,248,250,0.26)_54%,rgba(255,248,250,0.08)_70%,rgba(255,248,250,0)_84%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,249,250,0.28)_0%,rgba(255,249,250,0.22)_48%,rgba(255,249,250,0.16)_78%,rgba(255,249,250,0.1)_100%)] md:bg-[linear-gradient(90deg,rgba(255,248,250,0.94)_0%,rgba(255,248,250,0.86)_28%,rgba(255,248,250,0.62)_45%,rgba(255,248,250,0.18)_65%,rgba(255,248,250,0)_78%)]" />
           <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(123,216,247,0.12),rgba(255,255,255,0))]" />
           <div className="absolute inset-y-0 right-0 w-24 bg-[linear-gradient(270deg,rgba(255,211,92,0.12),rgba(255,255,255,0))] sm:w-40" />
+          <div className="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_at_83%_5%,rgba(44,34,65,0.24)_0%,rgba(44,34,65,0.13)_18%,rgba(44,34,65,0.04)_34%,transparent_48%)] lg:block" />
         </div>
 
         <div className="relative mx-auto max-w-[1600px] px-0 pb-0 pt-0 sm:px-6 sm:pb-14 sm:pt-6 lg:px-10 lg:pb-24 lg:pt-14 xl:px-12">
           <div className="flex min-h-[560px] w-full max-w-[860px] flex-col justify-stretch sm:min-h-[620px] sm:justify-center lg:min-h-[610px] xl:min-h-[640px] xl:max-w-[980px]">
             <div className="relative flex min-h-[560px] w-full flex-col justify-center px-8 py-10 sm:mx-0 sm:min-h-0 sm:max-w-none sm:p-0">
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(255,255,255,0.74)_100%)] shadow-[0_14px_34px_rgba(255,255,255,0.18)] backdrop-blur-[2px] sm:hidden" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.72)_100%)] shadow-[0_14px_34px_rgba(255,255,255,0.18)] backdrop-blur-[2px] sm:hidden" />
             <p className="relative mb-4 text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
               Snacks para niños
             </p>
-            <h1 className="relative max-w-[860px] font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:text-[4.8rem]">
-              Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.
+            <h1 className="relative max-w-[860px] font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.8rem]">
+              <span className="sm:hidden">El snack ya está resuelto.</span>
+              <span className="hidden sm:inline">
+                Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.
+              </span>
             </h1>
             <p className="relative mt-5 max-w-[760px] text-[1.05rem] leading-8 text-brand-ink/80 sm:text-xl sm:leading-8">
               Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.
@@ -408,10 +433,10 @@ export default async function HomePage() {
             </div>
             <div className="relative mt-10 flex flex-col items-start gap-4">
               <Link
-                href={firstProduct ? `/productos/${firstProduct.slug}` : "/productos"}
-                className="rounded-full bg-brand-pink px-7 py-4 text-base font-extrabold text-white shadow-soft transition hover:bg-[#ea737d]"
+                href={heroCtaUrl}
+                className="inline-flex w-full max-w-[420px] items-center justify-center rounded-full bg-brand-pink px-8 py-5 text-center text-lg font-extrabold text-white shadow-soft transition hover:bg-[#ea737d] sm:w-auto sm:max-w-none sm:px-10"
               >
-                Empezá con la caja mix → 3 sabores, 12 barritas
+                {heroCtaLabel}
               </Link>
               {showSubscriptionSection && subscriptionHeroNote ? (
                 <p className="text-sm font-bold text-brand-ink/70">{subscriptionHeroNote}</p>
@@ -422,40 +447,42 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="como-funciona" className="bg-white py-20 sm:py-24">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
-          <div className="max-w-3xl">
-            <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">¿Cómo funciona?</p>
-            <h2 className="mt-4 font-display text-[2.4rem] leading-[1.02] text-brand-ink sm:text-[3.35rem]">
-              Una decisión menos todos los días.
-            </h2>
-          </div>
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            {processSteps.map((step, index) => (
-              <article
-                key={step.title}
-                className="group relative overflow-hidden rounded-[2rem] border border-brand-ink/10 bg-[#fff8f8] p-4 shadow-card transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-brand-pink/28 hover:shadow-[0_24px_56px_rgba(244,137,145,0.18)] lg:p-7"
-              >
-                <div className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-brand-pink transition-transform duration-300 ease-out group-hover:scale-x-100" />
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,137,145,0.14),transparent_34%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                <div className="flex items-start gap-3 lg:gap-4">
-                  <div className="relative mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-pink text-base font-extrabold text-white shadow-[0_10px_18px_rgba(244,137,145,0.22)] transition-all duration-300 group-hover:scale-105 group-hover:bg-[#ef7f89] group-hover:shadow-[0_14px_28px_rgba(244,137,145,0.3)] lg:h-12 lg:w-12 lg:text-lg">
-                    {index + 1}
+      {SHOW_PROCESS_SECTION ? (
+        <section id="como-funciona" className="bg-white py-20 sm:py-24">
+          <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
+            <div className="max-w-3xl">
+              <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">¿Cómo funciona?</p>
+              <h2 className="mt-4 font-display text-[2.4rem] leading-[1.02] text-brand-ink sm:text-[3.35rem]">
+                Una decisión menos todos los días.
+              </h2>
+            </div>
+            <div className="mt-10 grid items-start gap-5 lg:grid-cols-3">
+              {processSteps.map((step, index) => (
+                <article
+                  key={step.title}
+                  className="group relative h-fit overflow-hidden rounded-[2rem] border border-brand-ink/10 bg-[#fff8f8] p-4 shadow-card transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-brand-pink/28 hover:shadow-[0_24px_56px_rgba(244,137,145,0.18)] lg:px-6 lg:py-5"
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-brand-pink transition-transform duration-300 ease-out group-hover:scale-x-100" />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(244,137,145,0.14),transparent_34%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <div className="flex items-start gap-3 lg:gap-4">
+                    <div className="relative mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-pink text-base font-extrabold text-white shadow-[0_10px_18px_rgba(244,137,145,0.22)] transition-all duration-300 group-hover:scale-105 group-hover:bg-[#ef7f89] group-hover:shadow-[0_14px_28px_rgba(244,137,145,0.3)] lg:h-12 lg:w-12 lg:text-lg">
+                      {index + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-display text-[1rem] leading-[1.08] text-brand-ink transition-colors duration-300 group-hover:text-[#221838] lg:text-2xl lg:leading-tight">
+                        {step.title}
+                      </h3>
+                      <p className="mt-1.5 text-[0.9rem] leading-6 text-brand-ink/78 transition-colors duration-300 group-hover:text-brand-ink/92 lg:mt-3 lg:text-base">
+                        {step.body}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-display text-[1rem] leading-[1.08] text-brand-ink transition-colors duration-300 group-hover:text-[#221838] lg:text-2xl lg:leading-tight">
-                      {step.title}
-                    </h3>
-                    <p className="mt-1.5 text-[0.9rem] leading-6 text-brand-ink/78 transition-colors duration-300 group-hover:text-brand-ink/92 lg:mt-3 lg:text-base">
-                      {step.body}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className="bg-[#fffaf0] py-20 sm:py-24">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
@@ -473,7 +500,7 @@ export default async function HomePage() {
                 key={item.title}
                 className="group overflow-hidden rounded-[2rem] bg-white shadow-card transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_56px_rgba(44,34,65,0.16)]"
               >
-                <div className="relative aspect-[1/1] overflow-hidden sm:aspect-[4/3]">
+                <div className="relative aspect-[4/3] overflow-hidden">
                   <img
                     src={whyKidsLikeItImages[index]}
                     alt={item.title}
@@ -515,7 +542,7 @@ export default async function HomePage() {
                   className="rounded-[1.8rem] border border-brand-ink/10 bg-[#fff8f8] p-6 shadow-card transition-transform duration-300 hover:-translate-y-1"
                 >
                   <div
-                    className="mb-5 flex h-[4.35rem] w-[4.35rem] items-center justify-center rounded-[1.35rem] bg-[linear-gradient(135deg,rgba(244,137,145,0.18),rgba(255,255,255,0.9))] shadow-[0_12px_26px_rgba(44,34,65,0.08)]"
+                    className={`mb-5 flex h-[4.35rem] w-[4.35rem] items-center justify-center rounded-[1.35rem] border shadow-[0_12px_26px_rgba(44,34,65,0.08)] ${item.iconSurface}`}
                   >
                     <img
                       src={item.icon}
@@ -541,25 +568,30 @@ export default async function HomePage() {
             <h2 className="mt-4 font-display text-[2.4rem] leading-[1.02] text-brand-ink sm:text-[3.35rem]">
               Descubrí el favorito de tu hijo.
             </h2>
-            <p className="mt-4 text-sm font-bold uppercase tracking-[0.22em] text-brand-ink/58">
-              ← Deslizá para ver todos los sabores
+            <p className="mt-5 inline-flex items-center gap-3 rounded-full bg-white/80 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.18em] text-brand-ink/65 shadow-sm md:hidden">
+              Deslizá para ver más
+              <span className="animate-pulse text-lg leading-none text-brand-pink" aria-hidden="true">→</span>
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {hasProducts
-              ? homeProductCards.map((slot: HomeProductCardItem) => (
-                  <HomeFeaturedSlotCard
-                    key={`${slot.slotOrder}-${slot.product.id}`}
-                    product={slot.product}
-                    eyebrow={slot.eyebrow}
-                    title={slot.title}
-                    description={slot.description}
-                    quote={slot.quote}
-                    buttonLabel={slot.buttonLabel}
-                  />
-                ))
-              : null}
+          <div className="relative">
+            <div className="mt-8 flex items-stretch snap-x snap-mandatory gap-5 overflow-x-auto pb-5 pr-12 md:mt-10 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 md:pr-0 xl:grid-cols-4">
+              {hasProducts
+                ? homeProductCards.map((slot: HomeProductCardItem) => (
+                    <HomeFeaturedSlotCard
+                      key={`${slot.slotOrder}-${slot.product.id}`}
+                      product={slot.product}
+                      eyebrow={slot.eyebrow}
+                      title={slot.title}
+                      description={slot.description}
+                      quote={slot.quote}
+                      buttonLabel={slot.buttonLabel}
+                      highlighted={slot.slotOrder === 1}
+                    />
+                  ))
+                : null}
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#fff6f7] via-[#fff6f7]/75 to-transparent md:hidden" />
           </div>
 
           <div className="hidden mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4">
@@ -634,9 +666,6 @@ export default async function HomePage() {
                 <span className="inline-flex rounded-full bg-brand-pink/12 px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.28em] text-brand-pink">
                   Nuestra historia
                 </span>
-                <span className="inline-flex rounded-full bg-brand-ink/[0.03] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-brand-ink/55">
-                  Hecho por padres, pensado para padres
-                </span>
               </div>
               <h2 className="mt-6 max-w-4xl font-display text-[2.45rem] leading-[1] text-brand-ink sm:text-[3.35rem] xl:text-[4rem]">
                 Somos padres que saben lo que es querer hacer las cosas bien y no tener tiempo para hacerlo.
@@ -679,32 +708,23 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="testimonios" className="bg-[#fffaf0] py-20 sm:py-24">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
-          <div className="max-w-5xl">
-            <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">Lo que dicen las mamas</p>
-            <h2 className="mt-4 font-display text-[2.45rem] leading-[1] text-brand-ink sm:text-[3.35rem] lg:text-[4rem]">
-              Palabras reales de familias reales.
-            </h2>
-            <p className="mt-5 text-sm font-bold uppercase tracking-[0.22em] text-brand-ink/58">
-              Comentarios reales de clientes
-            </p>
-          </div>
-
-          {hasTestimonials ? (
-            <TestimonialsCarousel testimonials={testimonials} />
-          ) : (
-            <div className="mt-10">
-              <article className="rounded-[2rem] border border-brand-ink/10 bg-white p-6 shadow-card">
-                <h3 className="font-display text-2xl text-brand-ink">Todav?a no hay testimonios cargados</h3>
-                <p className="mt-3 text-base leading-7 text-brand-ink/78">
-                  Pod?s crearlos desde el admin en la secci?n de testimonios.
-                </p>
-              </article>
+      {hasTestimonials ? (
+        <section id="testimonios" className="bg-[#fffaf0] py-20 sm:py-24">
+          <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
+            <div className="max-w-5xl">
+              <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">Lo que dicen las mamas</p>
+              <h2 className="mt-4 font-display text-[2.45rem] leading-[1] text-brand-ink sm:text-[3.35rem] lg:text-[4rem]">
+                Palabras reales de familias reales.
+              </h2>
+              <p className="mt-5 text-sm font-bold uppercase tracking-[0.22em] text-brand-ink/58">
+                Comentarios reales de clientes
+              </p>
             </div>
-          )}
-        </div>
-      </section>
+
+            <TestimonialsCarousel testimonials={testimonials} />
+          </div>
+        </section>
+      ) : null}
 
       {showSubscriptionSection ? (
         <section id="suscripcion" className="overflow-hidden bg-white py-0">

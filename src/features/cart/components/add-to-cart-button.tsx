@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 
 import { Button } from "@/components/ui/button";
+import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { useCartStore } from "@/features/cart/store";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { event as trackMetaEvent } from "@/lib/pixel";
@@ -34,6 +35,7 @@ export function AddToCartButton({
       style={style}
       onClick={() => {
         addItem(productId, initialQuantity);
+        announceCartItemAdded({ productName, quantity: initialQuantity });
         trackEvent("add_to_cart", {
           currency: "ARS",
           value: priceArs * initialQuantity,

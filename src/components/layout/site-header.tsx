@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { IQKidsLogo } from "@/components/brand/logo";
 import { CartBadge } from "@/features/cart/components/cart-badge";
+import { CartFeedback } from "@/features/cart/components/cart-feedback";
 import { cn } from "@/lib/utils/cn";
 
 const navigation = [
@@ -77,6 +78,7 @@ export function SiteHeader({
 
   return (
     <header className="sticky top-0 z-40 transition-all duration-300">
+      <CartFeedback />
       {announcementBarEnabled && announcementBarText && isHomeRoute ? (
         <div className="overflow-hidden bg-brand-pink py-1.5 text-[9px] font-extrabold uppercase tracking-[0.14em] text-white md:py-2 md:text-[11px] md:tracking-[0.16em]">
           <div className="flex w-max min-w-full animate-[marquee_26s_linear_infinite] whitespace-nowrap">

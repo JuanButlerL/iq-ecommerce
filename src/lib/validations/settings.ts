@@ -26,7 +26,9 @@ export const storeSettingsSchema = z.object({
   institutionalBanner: z.string().max(160).optional().or(z.literal("")),
   announcementBarEnabled: z.boolean().default(false),
   announcementBarText: z.string().max(240).optional().or(z.literal("")),
-  subscriptionSectionEnabled: z.boolean().default(true),
+  heroCtaLabel: z.string().max(120).optional().or(z.literal("")),
+  heroCtaUrl: z.string().max(500).optional().or(z.literal("")),
+  subscriptionSectionEnabled: z.boolean().default(false),
   subscriptionCtaUrl: z.string().url().optional().or(z.literal("")),
   subscriptionHeroNote: z.string().max(180).optional().or(z.literal("")),
   subscriptionItemOne: z.string().max(120).optional().or(z.literal("")),
@@ -66,6 +68,14 @@ export const storeSettingsSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "Ingresa el texto del ticker superior.",
       path: ["announcementBarText"],
+    });
+  }
+
+  if (data.heroCtaUrl && !data.heroCtaUrl.startsWith("/") && !z.string().url().safeParse(data.heroCtaUrl).success) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Ingresa una ruta interna o una URL completa.",
+      path: ["heroCtaUrl"],
     });
   }
 
