@@ -15,7 +15,6 @@ type HomeProductCardItem = {
   eyebrow: string;
   title: string;
   description: string;
-  quote?: string | null;
   buttonLabel: string;
 };
 
@@ -39,8 +38,8 @@ const processSteps = [
 
 const whyKidsLikeIt = [
   {
-    title: "Concentración",
-    body: "Sabores que aceptan naturalmente, sin negociar.",
+    title: "¡Les encanta!",
+    body: "Sabores que aceptan naturalmente, sin negociar ni esconder nada en el medio.",
     accent: "bg-brand-cyan",
   },
   {
@@ -49,13 +48,13 @@ const whyKidsLikeIt = [
     accent: "bg-brand-yellow",
   },
   {
-    title: "¡Les encanta!",
-    body: "Ingredientes que reconocés. Sabor que tu hijo acepta.",
+    title: "Ingredientes que reconocés",
+    body: "Sin sellos negros, sin nombres raros. Lo que ves es lo que hay.",
     accent: "bg-brand-pink",
   },
   {
-    title: "Duerme bien, tiene energía",
-    body: "Sin pico de azúcar ni bajón. Lo que come se nota en cómo rinde el resto del día.",
+    title: "Bienestar diario",
+    body: "Duerme bien, tiene energía estable. Sin el bajón de después.",
     accent: "bg-brand-cyan",
   },
 ];
@@ -70,7 +69,7 @@ const ingredientPoints = [
     iconSurface: "border-[#B9DCC2] bg-[#EAF7EE]",
   },
   {
-    title: "Sin azucar agregada",
+    title: "Sin azúcar agregada",
     body: "Sin endulzantes escondidos en el listado.",
     icon: "/redesign/ingredient-no-sugar-20260615.png",
     iconAlt: "Sin azucar agregada",
@@ -181,12 +180,10 @@ function ProductLandingCard({
   product,
   eyebrow,
   title,
-  quote,
 }: {
   product: ProductItem;
   eyebrow: string;
   title: string;
-  quote: string;
 }) {
   const theme = getThemeColors(product);
 
@@ -212,7 +209,6 @@ function ProductLandingCard({
           <p className="text-sm leading-6 text-brand-ink/80">{product.shortDescription}</p>
         </div>
         <div className="mt-auto space-y-4">
-          <p className="text-sm font-semibold italic text-brand-ink/80">“{quote}”</p>
           <div className="flex items-center justify-between">
             <span className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</span>
             <span
@@ -286,7 +282,6 @@ function HomeFeaturedSlotCard({
   eyebrow,
   title,
   description,
-  quote,
   buttonLabel,
   highlighted = false,
 }: {
@@ -294,7 +289,6 @@ function HomeFeaturedSlotCard({
   eyebrow: string;
   title: string;
   description: string;
-  quote?: string | null;
   buttonLabel: string;
   highlighted?: boolean;
 }) {
@@ -334,7 +328,6 @@ function HomeFeaturedSlotCard({
           <p className="text-sm leading-6 text-brand-ink/80">{description}</p>
         </div>
         <div className="mt-auto space-y-4">
-          {quote ? <p className="hidden text-sm font-semibold italic text-brand-ink/80 md:block">“{quote}”</p> : null}
           <div className="space-y-3">
             <div>
               <div className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</div>
@@ -389,7 +382,6 @@ export default async function HomePage() {
           eyebrow: slot.eyebrow,
           title: slot.title,
           description: slot.description,
-          quote: slot.quote,
           buttonLabel: slot.buttonLabel,
         }))
       : buildHomeFeaturedFallbackSlots(products);
@@ -417,7 +409,7 @@ export default async function HomePage() {
             <p className="relative mb-4 text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
               Snacks para niños
             </p>
-            <h1 className="relative max-w-[860px] font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.8rem]">
+            <h1 className="relative max-w-[860px] font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.25rem] xl:text-[4.45rem]">
               <span className="sm:hidden">El snack ya está resuelto.</span>
               <span className="hidden sm:inline">
                 Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.
@@ -584,7 +576,6 @@ export default async function HomePage() {
                       eyebrow={slot.eyebrow}
                       title={slot.title}
                       description={slot.description}
-                      quote={slot.quote}
                       buttonLabel={slot.buttonLabel}
                       highlighted={slot.slotOrder === 1}
                     />
@@ -635,19 +626,16 @@ export default async function HomePage() {
                   product={landingProducts.peanut}
                   eyebrow={landingProducts.peanut.name}
                   title="La vianda resuelta para toda la semana"
-                  quote="La vianda volvió vacía. Eso no pasaba en meses."
                 />
                 <ProductLandingCard
                   product={landingProducts.cacao}
                   eyebrow={landingProducts.cacao.name}
                   title="Chocolate sin leer etiquetas"
-                  quote="Siempre batallé con los snacks. Esta la pide él solo."
                 />
                 <ProductLandingCard
                   product={landingProducts.banana}
                   eyebrow={landingProducts.banana.name}
                   title="Ingredientes que reconocés, sabor que acepta"
-                  quote="La lleva al colegio, a la plaza, al club. Va a todos lados."
                 />
               </>
             ) : null}
