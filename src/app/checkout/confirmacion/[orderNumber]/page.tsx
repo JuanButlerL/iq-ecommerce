@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { formatArs } from "@/lib/utils/currency";
+import { getProductsValue } from "@/lib/meta-commerce";
 
 export default async function ConfirmationPage({
   params,
@@ -25,6 +26,13 @@ export default async function ConfirmationPage({
   const isMercadoPago = order.paymentMethod === "MERCADO_PAGO";
   const shouldTrackAnalyticsPurchase = order.paymentStatus === "PAID";
   const shouldTrackMetaPurchase = shouldTrackAnalyticsPurchase || order.paymentMethod === "BANK_TRANSFER";
+  const productsValue = getProductsValue(order.totalArs, order.shippingArs);
+  const purchaseItems = order.items.map((item) => ({
+    id: item.productId ?? item.id,
+    name: item.productNameSnapshot,
+    quantity: item.quantity,
+    itemPrice: item.unitPriceArs,
+  }));
   const paymentCopy = isMercadoPago
     ? order.paymentStatus === "PAID"
       ? "Mercado Pago confirmo el pago y el pedido ya quedo registrado."
@@ -45,7 +53,7 @@ export default async function ConfirmationPage({
               params={{
                 transaction_id: order.publicOrderNumber,
                 currency: order.currency,
-                value: order.totalArs,
+                value: productsValue,
                 shipping: order.shippingArs,
                 coupon: order.couponCode ?? undefined,
                 payment_type: order.paymentMethod,
@@ -62,9 +70,9 @@ export default async function ConfirmationPage({
         {shouldTrackMetaPurchase ? (
             <MetaPixelPurchase
               orderNumber={order.publicOrderNumber}
-              total={order.totalArs}
-              productIds={order.items.map((item) => item.productId ?? item.id)}
-              itemCount={order.items.reduce((totalItems, item) => totalItems + item.quantity, 0)}
+              totalArs={order.totalArs}
+              shippingArs={order.shippingArs}
+              items={purchaseItems}
             />
         ) : null}
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Compra confirmada</p>

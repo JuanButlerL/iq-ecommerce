@@ -2,7 +2,7 @@
 
 export const FB_PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
 
-export type PixelEventOptions = Record<string, string | number | boolean | string[] | undefined>;
+export type PixelEventOptions = Record<string, unknown>;
 type PixelTrackingOptions = {
   eventID?: string;
 };

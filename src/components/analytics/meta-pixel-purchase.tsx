@@ -3,16 +3,17 @@
 import { useEffect, useRef } from "react";
 
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
+import { buildMetaPurchaseData, type MetaCommerceItem } from "@/lib/meta-commerce";
 import { event } from "@/lib/pixel";
 
 type MetaPixelPurchaseProps = {
   orderNumber: string;
-  total: number;
-  productIds: string[];
-  itemCount: number;
+  totalArs: number;
+  shippingArs: number;
+  items: MetaCommerceItem[];
 };
 
-export function MetaPixelPurchase({ orderNumber, total, productIds, itemCount }: MetaPixelPurchaseProps) {
+export function MetaPixelPurchase({ orderNumber, totalArs, shippingArs, items }: MetaPixelPurchaseProps) {
   const trackedRef = useRef(false);
 
   useEffect(() => {
@@ -27,22 +28,18 @@ export function MetaPixelPurchase({ orderNumber, total, productIds, itemCount }:
       return;
     }
 
-    event("Purchase", {
-      value: total,
-      currency: "ARS",
-      content_ids: productIds,
-      content_type: "product",
-      num_items: itemCount,
-    }, {
-      eventID: buildMetaPurchaseEventId(orderNumber),
-    });
+    event(
+      "Purchase",
+      buildMetaPurchaseData({ orderNumber, totalArs, shippingArs, items }),
+      { eventID: buildMetaPurchaseEventId(orderNumber) },
+    );
 
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem(storageKey, "1");
     }
 
     trackedRef.current = true;
-  }, [itemCount, orderNumber, productIds, total]);
+  }, [items, orderNumber, shippingArs, totalArs]);
 
   return null;
 }

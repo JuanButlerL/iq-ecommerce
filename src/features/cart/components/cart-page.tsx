@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { useCartStore } from "@/features/cart/store";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
+import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { formatArs } from "@/lib/utils/currency";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
@@ -144,7 +145,16 @@ export function CartPage({ products, settings }: CartPageProps) {
                   <button
                     type="button"
                     className="flex h-9 w-9 items-center justify-center text-xl font-light text-brand-ink/70"
-                    onClick={() => updateItem(product.id, Math.min(cart.quantity + 1, 99))}
+                    onClick={() => {
+                      if (cart.quantity >= 99) return;
+                      updateItem(product.id, cart.quantity + 1);
+                      trackAddToCart({
+                        productId: product.id,
+                        productName: product.name,
+                        priceArs: product.priceArs,
+                        quantity: 1,
+                      });
+                    }}
                   >
                     +
                   </button>

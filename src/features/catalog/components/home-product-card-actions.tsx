@@ -6,8 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { useCartStore } from "@/features/cart/store";
-import { trackEvent } from "@/lib/integrations/google-analytics/client";
-import { event as trackMetaEvent } from "@/lib/pixel";
+import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 
 type HomeProductCardActionsProps = {
   productId: string;
@@ -36,27 +35,7 @@ export function HomeProductCardActions({
   function handleAddToCart() {
     addItem(productId, 1);
     announceCartItemAdded({ productName, quantity: 1 });
-    trackEvent("add_to_cart", {
-      currency: "ARS",
-      value: priceArs,
-      items: [
-        {
-          item_id: productId,
-          item_name: productName,
-          item_category: "Productos",
-          price: priceArs,
-          quantity: 1,
-        },
-      ],
-    });
-    trackMetaEvent("AddToCart", {
-      content_ids: [productId],
-      content_name: productName,
-      content_type: "product",
-      currency: "ARS",
-      value: priceArs,
-      num_items: 1,
-    });
+    trackAddToCart({ productId, productName, priceArs, quantity: 1 });
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1200);
   }
@@ -89,7 +68,11 @@ export function HomeProductCardActions({
               type="button"
               className="flex h-9 w-9 items-center justify-center rounded-[0.7rem] text-lg font-extrabold text-brand-ink transition hover:bg-brand-ink/5"
               aria-label="Sumar cantidad"
-              onClick={() => updateItem(productId, Math.min(99, quantityInCart + 1))}
+              onClick={() => {
+                if (quantityInCart >= 99) return;
+                updateItem(productId, quantityInCart + 1);
+                trackAddToCart({ productId, productName, priceArs, quantity: 1 });
+              }}
             >
               +
             </button>

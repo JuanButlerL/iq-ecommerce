@@ -8,6 +8,7 @@ import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
+import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
@@ -391,19 +392,17 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
       zip: order.postalCode,
       country: "ar",
     },
-    customData: {
-      currency: order.currency,
-      value: order.totalArs,
-      order_id: order.publicOrderNumber,
-      content_type: "product",
-      content_ids: order.items.map((item) => item.productId),
-      contents: order.items.map((item) => ({
-        id: item.productId,
+    customData: buildMetaPurchaseData({
+      orderNumber: order.publicOrderNumber,
+      totalArs: order.totalArs,
+      shippingArs: order.shippingArs,
+      items: order.items.map((item) => ({
+        id: item.productId ?? item.id,
+        name: item.productNameSnapshot,
         quantity: item.quantity,
-        item_price: item.unitPriceArs,
+        itemPrice: item.unitPriceArs,
       })),
-      num_items: order.items.reduce((totalItems, item) => totalItems + item.quantity, 0),
-    },
+    }),
   }).catch((error) => {
     console.error("Meta Conversions API transfer purchase event failed", error);
   });
