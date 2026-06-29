@@ -691,7 +691,7 @@ export default async function HomePage() {
                 <img
                   src="/redesign/who-we-are.jpg"
                   alt="Familia IQ Kids"
-                  className="absolute inset-0 h-full w-full object-cover object-center"
+                  className="absolute inset-0 h-full w-full object-cover object-center lg:object-[70%_center] xl:object-[72%_center] 2xl:object-[68%_center]"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(44,34,65,0.1))]" />
               </div>

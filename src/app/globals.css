@@ -2,10 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Watermelon Regular";
+  src:
+    local("Watermelon Regular"),
+    local("Watermelon"),
+    url("/fonts/watermelon-regular.woff2") format("woff2"),
+    url("/fonts/watermelon-regular.woff") format("woff");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Chalkduster";
+  src:
+    local("Chalkduster"),
+    url("/fonts/chalkduster.woff2") format("woff2"),
+    url("/fonts/chalkduster.woff") format("woff");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
 :root {
   color-scheme: light;
-  --font-baloo: "DM Serif Display", Georgia, serif;
-  --font-nunito: "DM Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-baloo: "Watermelon Regular", Georgia, "Times New Roman", serif;
+  --font-nunito: "Chalkduster", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 body {

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, DM_Serif_Display } from "next/font/google";
 
 import "@/app/globals.css";
 
@@ -36,19 +35,6 @@ export const viewport: Viewport = {
   themeColor: "#F48991",
 };
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-nunito",
-  display: "swap",
-});
-
-const dmSerifDisplay = DM_Serif_Display({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-baloo",
-  display: "swap",
-});
-
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -60,7 +46,7 @@ export default async function RootLayout({
   const googleTagManagerId = env.hasGoogleTagManager ? env.NEXT_PUBLIC_GTM_ID : null;
 
   return (
-    <html lang="es" className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
+    <html lang="es">
       <head>
         {googleTagManagerId ? <GoogleTagManager containerId={googleTagManagerId} /> : null}
       </head>
