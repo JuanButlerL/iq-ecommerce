@@ -19,12 +19,16 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="relative h-80 bg-white p-4">
+      <Link
+        href={`/productos/${product.slug}`}
+        className="group relative block h-80 bg-white p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink focus-visible:ring-inset"
+        aria-label={`Ver detalle de ${product.name}`}
+      >
         {image ? (
           <img
             src={image.publicUrl}
             alt={image.altText}
-            className="absolute inset-0 h-full w-full scale-[1.14] object-contain p-2 md:scale-[1.18] md:p-3"
+            className="absolute inset-0 h-full w-full scale-[1.14] object-contain p-2 transition-transform duration-300 group-hover:scale-[1.18] md:scale-[1.18] md:p-3 md:group-hover:scale-[1.22]"
             onError={(event) => {
               event.currentTarget.onerror = null;
               event.currentTarget.src = fallbackImage;
@@ -34,10 +38,10 @@ export function ProductCard({ product }: ProductCardProps) {
           <img
             src={fallbackImage}
             alt={product.name}
-            className="absolute inset-0 h-full w-full scale-[1.14] object-contain p-2 md:scale-[1.18] md:p-3"
+            className="absolute inset-0 h-full w-full scale-[1.14] object-contain p-2 transition-transform duration-300 group-hover:scale-[1.18] md:scale-[1.18] md:p-3 md:group-hover:scale-[1.22]"
           />
         )}
-      </div>
+      </Link>
 
       <div className="space-y-4 p-6">
         <div
@@ -48,7 +52,14 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div>
-          <h3 className="text-xl font-extrabold text-brand-ink">{product.name}</h3>
+          <h3>
+            <Link
+              href={`/productos/${product.slug}`}
+              className="text-xl font-extrabold text-brand-ink transition-colors hover:text-brand-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/50"
+            >
+              {product.name}
+            </Link>
+          </h3>
           <p className="mt-2 line-clamp-2 text-sm text-brand-ink/70">{product.shortDescription}</p>
         </div>
 

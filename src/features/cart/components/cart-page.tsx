@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
+import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { useCartStore } from "@/features/cart/store";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
@@ -35,6 +36,7 @@ const cartFallbackImageMap: Record<string, string> = {
 
 export function CartPage({ products, settings }: CartPageProps) {
   const items = useCartStore((state) => state.items);
+  const addItem = useCartStore((state) => state.addItem);
   const updateItem = useCartStore((state) => state.updateItem);
   const removeItem = useCartStore((state) => state.removeItem);
   const [province, setProvince] = useState("Buenos Aires");
@@ -49,6 +51,22 @@ export function CartPage({ products, settings }: CartPageProps) {
         .filter((entry): entry is { cart: typeof items[number]; product: ProductWithImages } => Boolean(entry.product)),
     [items, products],
   );
+  const suggestedProducts = useMemo(() => {
+    const selectedProductIds = new Set(items.map((item) => item.productId));
+    const selectedFlavorCount = products.filter((product) => {
+      const label = `${product.homeVarietyLabel ?? ""} ${product.name}`.toLocaleLowerCase("es");
+      return selectedProductIds.has(product.id) && !label.includes("mix");
+    }).length;
+
+    if (selectedFlavorCount === 0) {
+      return [];
+    }
+
+    return products.filter((product) => {
+      const label = `${product.homeVarietyLabel ?? ""} ${product.name}`.toLocaleLowerCase("es");
+      return !selectedProductIds.has(product.id) && !product.manualSoldOut && !label.includes("mix");
+    });
+  }, [items, products]);
 
   if (detailedItems.length === 0) {
     return (
@@ -65,6 +83,19 @@ export function CartPage({ products, settings }: CartPageProps) {
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
   const total = subtotal + shippingQuote.shippingArs;
   const checkoutHref = `/checkout?province=${encodeURIComponent(province)}`;
+  const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - subtotal);
+  const oneMoreUnitReachesFreeShipping =
+    amountToFreeShipping > 0 &&
+    products.some((product) => {
+      const label = `${product.homeVarietyLabel ?? ""} ${product.name}`.toLocaleLowerCase("es");
+      return !product.manualSoldOut && !label.includes("mix") && product.priceArs >= amountToFreeShipping;
+    });
+  const freeShippingNudge =
+    amountToFreeShipping <= 0
+      ? "Ya tenés envío gratis."
+      : oneMoreUnitReachesFreeShipping
+        ? "Sumá una unidad más para llegar al envío gratis y tener la semana resuelta."
+        : `El pedido todavía no alcanza el envío gratis. Envío gratis desde: ${formatArs(settings.freeShippingThreshold)}.`;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
@@ -163,6 +194,46 @@ export function CartPage({ products, settings }: CartPageProps) {
             </div>
           </Card>
         ))}
+
+        <div className="rounded-[1.5rem] border border-brand-pink/16 bg-[#fff8f8] px-4 py-3">
+          {suggestedProducts.length > 0 ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-bold leading-5 text-brand-ink">Sumar otro sabor</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0">
+                {suggestedProducts.map((product) => {
+                  const productLabel = product.homeVarietyLabel?.trim() || product.name;
+
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      className="shrink-0 rounded-full border border-brand-pink/22 bg-white px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] text-brand-ink transition hover:border-brand-pink hover:bg-brand-pink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/40"
+                      onClick={() => {
+                        addItem(product.id, 1);
+                        announceCartItemAdded({ productName: product.name, quantity: 1 });
+                        trackAddToCart({
+                          productId: product.id,
+                          productName: product.name,
+                          priceArs: product.priceArs,
+                          quantity: 1,
+                        });
+                      }}
+                    >
+                      + {productLabel}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <Link
+              href="/#productos"
+              className="inline-flex w-full items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-extrabold text-brand-pink shadow-sm ring-1 ring-brand-pink/20 transition hover:bg-brand-pink hover:text-white"
+            >
+              Ver más productos
+            </Link>
+          )}
+        </div>
       </div>
 
       <Card className="h-fit space-y-5 p-5 md:p-6">
@@ -193,15 +264,9 @@ export function CartPage({ products, settings }: CartPageProps) {
             </div>
           </div>
         </div>
-        <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
-          <p>{shippingQuote.message}</p>
-          <p className="mt-2">Envío gratis desde: {formatArs(settings.freeShippingThreshold)}.</p>
-        </div>
+        <p className="text-sm font-bold leading-6 text-emerald-700">{freeShippingNudge}</p>
         <Link href={checkoutHref} className="block pt-2">
           <Button className="w-full">Continuar compra</Button>
-        </Link>
-        <Link href="/#productos" className="block text-center text-sm text-brand-ink/70 underline underline-offset-4 hover:text-brand-pink">
-          Ver más productos
         </Link>
       </Card>
     </div>

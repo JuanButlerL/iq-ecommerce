@@ -387,7 +387,7 @@ export default async function HomePage() {
       : buildHomeFeaturedFallbackSlots(products);
 
   return (
-    <main className="overflow-x-hidden bg-white text-brand-ink">
+    <main className="flex flex-col overflow-x-hidden bg-white text-brand-ink">
       <HashScrollHandler />
       <section id="inicio" className="relative overflow-hidden">
         <div className="absolute inset-0">
@@ -476,7 +476,7 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <section className="bg-[#fffaf0] py-20 sm:py-24">
+      <section className="order-1 bg-[#fffaf0] py-20 sm:py-24">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
           <div className="max-w-3xl">
             <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
@@ -516,7 +516,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="bg-white py-20 sm:py-24">
+      <section id="ingredientes" className="order-4 bg-white py-20 sm:py-24">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
           <div className="max-w-4xl">
             <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
@@ -526,26 +526,30 @@ export default async function HomePage() {
               Ingredientes que reconocés. Nada más.
             </h2>
           </div>
-          <div className="mt-10 grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             {ingredientPoints.map((item) => {
               return (
                 <article
                   key={item.title}
-                  className="rounded-[1.8rem] border border-brand-ink/10 bg-[#fff8f8] p-6 shadow-card transition-transform duration-300 hover:-translate-y-1"
+                  className="group relative overflow-hidden rounded-[1.6rem] border border-brand-ink/10 bg-[#fff8f8] px-3.5 py-4 shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-brand-pink/30 hover:bg-white hover:shadow-[0_18px_38px_rgba(244,137,145,0.14)] sm:px-5 sm:py-5 xl:min-h-[112px] xl:rounded-[1.45rem]"
                 >
-                  <div
-                    className={`mb-5 flex h-[4.35rem] w-[4.35rem] items-center justify-center rounded-[1.35rem] border shadow-[0_12px_26px_rgba(44,34,65,0.08)] ${item.iconSurface}`}
-                  >
-                    <img
-                      src={item.icon}
-                      alt={item.iconAlt}
-                      width={42}
-                      height={42}
-                      className={`${item.iconClass} object-contain`}
-                    />
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-brand-pink/0 blur-2xl transition-colors duration-300 group-hover:bg-brand-pink/10" />
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-center xl:flex-row xl:justify-start xl:gap-4 xl:text-left">
+                    <div
+                      className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.1rem] border shadow-[0_12px_24px_rgba(44,34,65,0.08)] transition-transform duration-300 group-hover:scale-105 sm:h-16 sm:w-16 xl:h-[4.15rem] xl:w-[4.15rem] ${item.iconSurface}`}
+                    >
+                      <img
+                        src={item.icon}
+                        alt={item.iconAlt}
+                        width={42}
+                        height={42}
+                        className={`${item.iconClass} object-contain`}
+                      />
+                    </div>
+                    <h3 className="max-w-[9.5rem] font-display text-[1.15rem] leading-[1.04] text-brand-ink sm:max-w-[11rem] sm:text-[1.35rem] xl:max-w-[10.5rem] xl:text-[1.42rem]">
+                      {item.title}
+                    </h3>
                   </div>
-                  <h3 className="font-display text-2xl text-brand-ink">{item.title}</h3>
-                  <p className="mt-3 text-base leading-7 text-brand-ink/78">{item.body}</p>
                 </article>
               );
             })}
@@ -553,7 +557,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="productos" className="bg-[#fff6f7] py-20 sm:py-24">
+      <section id="productos" className="order-2 bg-[#fff6f7] py-20 sm:py-24">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
           <div className="max-w-3xl">
             <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">Empezá por acá</p>
@@ -645,7 +649,7 @@ export default async function HomePage() {
 
       <section
         id="quienes-somos"
-        className="overflow-hidden bg-white py-0"
+        className="order-5 overflow-hidden bg-white py-0"
       >
         <div className="grid w-full items-stretch gap-0 overflow-hidden bg-white lg:grid-cols-[1.02fr_0.98fr] lg:rounded-l-[2.8rem] lg:rounded-r-none">
           <div className="relative order-2 lg:order-1">
@@ -697,7 +701,7 @@ export default async function HomePage() {
       </section>
 
       {hasTestimonials ? (
-        <section id="testimonios" className="bg-[#fffaf0] py-20 sm:py-24">
+        <section id="testimonios" className="order-3 bg-[#fffaf0] py-20 sm:py-24">
           <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
             <div className="max-w-5xl">
               <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">Lo que dicen las mamas</p>
@@ -715,7 +719,7 @@ export default async function HomePage() {
       ) : null}
 
       {showSubscriptionSection ? (
-        <section id="suscripcion" className="overflow-hidden bg-white py-0">
+        <section id="suscripcion" className="order-6 overflow-hidden bg-white py-0">
           <div className="grid w-full items-stretch gap-0 overflow-hidden rounded-none bg-[#fffaf6] lg:grid-cols-[0.96fr_1.04fr]">
             <div className="relative min-h-[300px] overflow-hidden sm:min-h-[360px] lg:min-h-[760px]">
               <img

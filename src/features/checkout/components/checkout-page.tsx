@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSettings } from "@prisma/client";
-import { CheckCircle2, TicketPercent } from "lucide-react";
+import { CheckCircle2, Plus, TicketPercent } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
@@ -15,9 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCartStore } from "@/features/cart/store";
+import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
+import { productFallbackImageMap } from "@/features/catalog/product-theme";
+import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
 import { event as trackMetaEvent } from "@/lib/pixel";
@@ -56,6 +59,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
   const [isApplyingCoupon, startApplyingCoupon] = useTransition();
   const hasTrackedCheckoutRef = useRef(false);
   const items = useCartStore((state) => state.items);
+  const addItem = useCartStore((state) => state.addItem);
   const allowBankTransfer = settings.enableBankTransfer;
   const allowMercadoPago = settings.enableMercadoPago && mercadoPagoEnabled;
   const initialProvince = requestedProvince && ARGENTINA_PROVINCES.some((province) => province.name === requestedProvince)
@@ -72,6 +76,16 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
         .filter((entry): entry is typeof entry & { product: ProductWithImages } => Boolean(entry.product)),
     [items, products],
   );
+  const suggestedProducts = useMemo(() => {
+    const selectedProductIds = new Set(items.map((item) => item.productId));
+
+    return products
+      .filter((product) => {
+        const productLabel = `${product.homeVarietyLabel ?? ""} ${product.name}`.toLocaleLowerCase("es");
+        return !selectedProductIds.has(product.id) && !product.manualSoldOut && !productLabel.includes("mix");
+      })
+      .slice(0, 3);
+  }, [items, products]);
 
   const form = useForm<CheckoutCustomerInput>({
     resolver: zodResolver(checkoutCustomerSchema),
@@ -105,6 +119,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
     enableBankTransferDiscount: settings.enableBankTransferDiscount,
     bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
   });
+  const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - subtotal);
 
   useEffect(() => {
     if (paymentMethod === "MERCADO_PAGO" && !allowMercadoPago && allowBankTransfer) {
@@ -435,6 +450,68 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
             <span className="font-display text-2xl text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</span>
           </div>
         </div>
+
+        <div className="space-y-4 border-t border-brand-ink/10 pt-4">
+          <p className="text-sm italic leading-6 text-brand-ink/65">
+            “Revisamos cada ingrediente para que vos no tengas que hacerlo. Eso es lo que llega a tu casa.”
+          </p>
+          <p className="text-sm font-bold leading-6 text-emerald-700">
+            {amountToFreeShipping > 0
+              ? `Sumá un segundo sabor para llegar al envío gratis. Te faltan ${formatArs(amountToFreeShipping)}.`
+              : "Ya tenés envío gratis. Sumá otro sabor y dejá más días de la semana resueltos."}
+          </p>
+
+          {suggestedProducts.length > 0 ? (
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/50">Otros sabores</p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {suggestedProducts.map((product) => {
+                  const image = product.images.find((entry) => entry.isPrimary) ?? product.images[0];
+                  const productLabel = product.homeVarietyLabel?.trim() || product.name;
+
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      className="group flex min-w-0 flex-col items-center rounded-[1.1rem] border border-brand-ink/10 bg-white p-2 text-center transition hover:-translate-y-0.5 hover:border-brand-pink/40 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/50"
+                      aria-label={`Agregar ${productLabel} al carrito`}
+                      onClick={() => {
+                        addItem(product.id, 1);
+                        announceCartItemAdded({ productName: product.name, quantity: 1 });
+                        trackAddToCart({
+                          productId: product.id,
+                          productName: product.name,
+                          priceArs: product.priceArs,
+                          quantity: 1,
+                        });
+                      }}
+                    >
+                      <span className="relative h-14 w-full overflow-hidden rounded-[0.8rem] bg-background">
+                        <img
+                          src={image?.publicUrl ?? productFallbackImageMap[product.colorTheme]}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-contain p-1 transition-transform group-hover:scale-105"
+                          onError={(event) => {
+                            event.currentTarget.onerror = null;
+                            event.currentTarget.src = productFallbackImageMap[product.colorTheme];
+                          }}
+                        />
+                      </span>
+                      <span className="mt-2 line-clamp-1 max-w-full text-xs font-extrabold uppercase tracking-[0.08em] text-brand-ink">
+                        {productLabel}
+                      </span>
+                      <span className="mt-1 text-[11px] font-semibold text-brand-ink/55">{formatArs(product.priceArs)}</span>
+                      <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-pink">
+                        <Plus className="h-3 w-3" /> Agregar
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
           <p>{settings.checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
           <p className="mt-2">Envio gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
