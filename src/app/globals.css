@@ -6,9 +6,7 @@
   font-family: "Watermelon Regular";
   src:
     local("Watermelon Regular"),
-    local("Watermelon"),
-    url("/fonts/watermelon-regular.woff2") format("woff2"),
-    url("/fonts/watermelon-regular.woff") format("woff");
+    local("Watermelon");
   font-display: swap;
   font-style: normal;
   font-weight: 400;
@@ -17,9 +15,7 @@
 @font-face {
   font-family: "Chalkduster";
   src:
-    local("Chalkduster"),
-    url("/fonts/chalkduster.woff2") format("woff2"),
-    url("/fonts/chalkduster.woff") format("woff");
+    local("Chalkduster");
   font-display: swap;
   font-style: normal;
   font-weight: 400;

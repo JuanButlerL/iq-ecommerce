@@ -10,7 +10,6 @@ type ParsedDescription = {
 
 type ProductLongDescriptionProps = {
   content: string;
-  lead?: string;
 };
 
 const listSectionKeywords = ["INGREDIENTES", "SABORES", "HECHA"];
@@ -92,19 +91,10 @@ function parseDescription(content: string): ParsedDescription {
   return { intro, sections };
 }
 
-function parseParagraphs(content?: string) {
-  return (content ?? "")
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
-export function ProductLongDescription({ content, lead }: ProductLongDescriptionProps) {
+export function ProductLongDescription({ content }: ProductLongDescriptionProps) {
   const parsed = parseDescription(content);
-  const leadParagraphs = parseParagraphs(lead);
 
-  if (!leadParagraphs.length && !parsed.intro.length && !parsed.sections.length) {
+  if (!parsed.intro.length && !parsed.sections.length) {
     return null;
   }
 
@@ -128,20 +118,6 @@ export function ProductLongDescription({ content, lead }: ProductLongDescription
       </summary>
 
       <div className="space-y-5 px-1 pb-1 pt-4">
-
-      {leadParagraphs.length ? (
-        <div className="space-y-2.5 border-b border-brand-ink/10 pb-5">
-          {leadParagraphs.map((paragraph, index) => (
-            <p
-              key={`${paragraph}-${index}`}
-              className="max-w-3xl text-[0.98rem] leading-7 text-brand-ink/78"
-            >
-              {paragraph}
-            </p>
-          ))}
-        </div>
-      ) : null}
-
       {parsed.intro.length ? (
         <div className="space-y-3 border-b border-brand-ink/10 pb-5">
           {parsed.intro.map((paragraph, index) => (

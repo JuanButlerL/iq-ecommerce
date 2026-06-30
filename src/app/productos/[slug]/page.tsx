@@ -59,9 +59,21 @@ export default async function ProductDetailPage({
           <div className="space-y-3">
             <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Nuestras Barritas</p>
             <h1 className="font-display text-3xl leading-none text-brand-ink md:text-5xl">{product.name}</h1>
+            <div className="space-y-2 border-t border-brand-ink/10 pt-4">
+              {product.shortDescription
+                .replace(/\r\n/g, "\n")
+                .split("\n")
+                .map((line) => line.trim())
+                .filter(Boolean)
+                .map((line) => (
+                  <p key={line} className="text-base leading-7 text-brand-ink/76 md:text-lg md:leading-8">
+                    {line}
+                  </p>
+                ))}
+            </div>
           </div>
           <ProductPurchasePanel productId={product.id} productName={product.name} priceArs={product.priceArs} />
-          <ProductLongDescription lead={product.shortDescription} content={product.longDescription} />
+          <ProductLongDescription content={product.longDescription} />
         </div>
       </div>
 
