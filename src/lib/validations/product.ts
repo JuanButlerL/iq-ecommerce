@@ -11,7 +11,7 @@ export const productFormSchema = z.object({
   slug: z.string().min(3).max(140),
   homeVarietyLabel: z.string().trim().min(2).max(40).optional().or(z.literal("")),
   shortDescription: z.string().min(10).max(240),
-  longDescription: z.string().min(20).max(4000),
+  longDescription: z.string().min(20).max(8000),
   priceArs: z.coerce.number().int().min(1),
   colorTheme: z.nativeEnum(ProductColorTheme),
   visualAccentHex: hexColorSchema.optional().or(z.literal("")),

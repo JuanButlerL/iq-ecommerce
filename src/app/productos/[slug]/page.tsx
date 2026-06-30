@@ -5,6 +5,7 @@ import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
 import { HomeInstitutionalStrip } from "@/features/catalog/components/home-institutional-strip";
 import { ProductGallery } from "@/features/catalog/components/product-gallery";
+import { ProductLongDescription } from "@/features/catalog/components/product-long-description";
 import { ProductPurchasePanel } from "@/features/catalog/components/product-purchase-panel";
 import { ProductCard } from "@/features/catalog/components/product-card";
 import { getProductBySlug, getSimilarProducts } from "@/features/catalog/queries";
@@ -58,10 +59,9 @@ export default async function ProductDetailPage({
           <div className="space-y-3">
             <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Nuestras Barritas</p>
             <h1 className="font-display text-3xl leading-none text-brand-ink md:text-5xl">{product.name}</h1>
-            <p className="text-base leading-7 text-brand-ink/75 md:text-lg">{product.shortDescription}</p>
-            <p className="text-sm leading-7 text-brand-ink/70 md:text-base">{product.longDescription}</p>
           </div>
           <ProductPurchasePanel productId={product.id} productName={product.name} priceArs={product.priceArs} />
+          <ProductLongDescription lead={product.shortDescription} content={product.longDescription} />
         </div>
       </div>
 

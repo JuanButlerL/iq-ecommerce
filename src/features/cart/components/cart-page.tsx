@@ -195,8 +195,8 @@ export function CartPage({ products, settings }: CartPageProps) {
           </Card>
         ))}
 
-        <div className="rounded-[1.5rem] border border-brand-pink/16 bg-[#fff8f8] px-4 py-3">
-          {suggestedProducts.length > 0 ? (
+        {suggestedProducts.length > 0 ? (
+          <div className="rounded-[1.5rem] border border-brand-ink/8 bg-white px-4 py-3 shadow-[0_10px_26px_rgba(44,34,65,0.04)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-bold leading-5 text-brand-ink">Sumar otro sabor</p>
               <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0">
@@ -225,15 +225,15 @@ export function CartPage({ products, settings }: CartPageProps) {
                 })}
               </div>
             </div>
-          ) : (
+          </div>
+        ) : (
             <Link
               href="/#productos"
-              className="inline-flex w-full items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-extrabold text-brand-pink shadow-sm ring-1 ring-brand-pink/20 transition hover:bg-brand-pink hover:text-white"
+              className="inline-flex w-full items-center justify-center rounded-full border border-brand-pink/28 bg-white px-4 py-2.5 text-sm font-extrabold text-brand-pink transition hover:border-brand-pink hover:bg-brand-pink/6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/30"
             >
               Ver más productos
             </Link>
-          )}
-        </div>
+        )}
       </div>
 
       <Card className="h-fit space-y-5 p-5 md:p-6">

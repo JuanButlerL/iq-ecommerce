@@ -182,8 +182,12 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
           />
         </div>
         <div className="md:col-span-2">
+          <p className="mb-2 text-sm font-bold text-brand-ink/70">
+            Descripcion larga: pegala con saltos de linea. Los titulos en MAYUSCULAS se muestran como secciones.
+          </p>
           <Textarea
             placeholder="Descripcion larga"
+            className="min-h-[260px] font-mono text-sm leading-6"
             value={form.longDescription}
             onChange={(event) => setForm((current) => ({ ...current, longDescription: event.target.value }))}
           />

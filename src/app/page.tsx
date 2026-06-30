@@ -516,7 +516,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="ingredientes" className="order-4 bg-white py-20 sm:py-24">
+      <section id="ingredientes" className="order-4 bg-[#fffaf6] py-20 sm:py-24">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
           <div className="max-w-4xl">
             <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
@@ -531,7 +531,7 @@ export default async function HomePage() {
               return (
                 <article
                   key={item.title}
-                  className="group relative overflow-hidden rounded-[1.6rem] border border-brand-ink/10 bg-[#fff8f8] px-3.5 py-4 shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-brand-pink/30 hover:bg-white hover:shadow-[0_18px_38px_rgba(244,137,145,0.14)] sm:px-5 sm:py-5 xl:min-h-[112px] xl:rounded-[1.45rem]"
+                  className="group relative overflow-hidden rounded-[1.6rem] border border-brand-ink/10 bg-white px-3.5 py-4 shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-brand-pink/30 hover:shadow-[0_18px_38px_rgba(244,137,145,0.14)] sm:px-5 sm:py-5 xl:min-h-[112px] xl:rounded-[1.45rem]"
                 >
                   <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-brand-pink/0 blur-2xl transition-colors duration-300 group-hover:bg-brand-pink/10" />
                   <div className="flex h-full flex-col items-center justify-center gap-3 text-center xl:flex-row xl:justify-start xl:gap-4 xl:text-left">
