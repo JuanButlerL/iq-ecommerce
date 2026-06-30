@@ -452,9 +452,6 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
         </div>
 
         <div className="space-y-4 border-t border-brand-ink/10 pt-4">
-          <p className="text-sm italic leading-6 text-brand-ink/65">
-            “Revisamos cada ingrediente para que vos no tengas que hacerlo. Eso es lo que llega a tu casa.”
-          </p>
           <p className="text-sm font-bold leading-6 text-emerald-700">
             {amountToFreeShipping > 0
               ? `Sumá un segundo sabor para llegar al envío gratis. Te faltan ${formatArs(amountToFreeShipping)}.`

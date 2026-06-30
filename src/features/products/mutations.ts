@@ -31,7 +31,14 @@ export async function saveProduct(payload: ProductPayload, productId?: string) {
   const parsed = productFormSchema.safeParse(payload.product);
 
   if (!parsed.success) {
-    throw new AppError("Datos de producto invalidos.", 400);
+    const details = parsed.error.issues
+      .map((issue) => {
+        const field = issue.path.length > 0 ? issue.path.join(".") : "producto";
+        return `${field}: ${issue.message}`;
+      })
+      .join(" | ");
+
+    throw new AppError(`Datos de producto invalidos. ${details}`, 400);
   }
 
   const productData = {

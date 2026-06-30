@@ -10,7 +10,7 @@ export const productFormSchema = z.object({
   name: z.string().min(3).max(120),
   slug: z.string().min(3).max(140),
   homeVarietyLabel: z.string().trim().min(2).max(40).optional().or(z.literal("")),
-  shortDescription: z.string().min(10).max(240),
+  shortDescription: z.string().trim().min(10, "La descripcion corta debe tener al menos 10 caracteres.").max(1000, "La descripcion corta no puede superar los 1000 caracteres."),
   longDescription: z.string().min(20).max(8000),
   priceArs: z.coerce.number().int().min(1),
   colorTheme: z.nativeEnum(ProductColorTheme),
