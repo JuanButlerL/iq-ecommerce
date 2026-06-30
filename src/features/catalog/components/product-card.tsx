@@ -55,7 +55,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <h3>
             <Link
               href={`/productos/${product.slug}`}
-              className="text-xl font-extrabold text-brand-ink transition-colors hover:text-brand-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/50"
+              className="font-display text-2xl leading-tight text-brand-ink transition-colors hover:text-brand-pink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/50"
             >
               {product.name}
             </Link>
@@ -64,7 +64,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <p className="font-display text-3xl text-brand-ink">{formatArs(product.priceArs)}</p>
+          <p className="text-2xl font-extrabold text-brand-ink">{formatArs(product.priceArs)}</p>
           <Link href={`/productos/${product.slug}`}>
             <Button size="sm">Comprar</Button>
           </Link>

@@ -81,7 +81,7 @@ export default async function ConfirmationPage({
         <div className="rounded-[2rem] bg-brand-peach p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
           <p className="mt-2 text-2xl font-extrabold text-brand-ink">{order.publicOrderNumber}</p>
-          <p className="mt-4 font-display text-4xl text-brand-pink">{formatArs(order.totalArs)}</p>
+          <p className="mt-4 text-4xl font-extrabold text-brand-pink">{formatArs(order.totalArs)}</p>
           <div className="mt-4 space-y-2 text-left text-sm text-brand-ink/70">
             <div className="flex items-center justify-between">
               <span>Subtotal</span>

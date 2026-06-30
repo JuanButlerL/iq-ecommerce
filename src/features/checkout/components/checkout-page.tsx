@@ -447,7 +447,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
           ) : null}
           <div className="flex items-center justify-between border-t border-brand-ink/10 pt-3">
             <span>Total</span>
-            <span className="font-display text-2xl text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</span>
+            <span className="text-2xl font-extrabold text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</span>
           </div>
         </div>
 

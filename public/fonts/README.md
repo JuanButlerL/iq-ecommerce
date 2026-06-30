@@ -1,6 +1,5 @@
-Colocar aca las fuentes de marca en formato web:
+Fuentes web usadas por la marca:
 
-- `watermelon-regular.woff2` (recomendado) o `watermelon-regular.woff`
-- `chalkduster.woff2` (recomendado) o `chalkduster.woff`
+- `watermelon-regular.woff2`: titulos y headlines (`font-display`).
 
-Los nombres deben respetarse porque `src/app/globals.css` los carga con esas rutas.
+Los textos secundarios usan la pila `DM Sans` definida en `src/app/globals.css`.

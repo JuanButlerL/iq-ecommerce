@@ -5,6 +5,7 @@
 @font-face {
   font-family: "Watermelon Regular";
   src:
+    url("/fonts/watermelon-regular.woff2") format("woff2"),
     local("Watermelon Regular"),
     local("Watermelon");
   font-display: swap;
@@ -12,19 +13,10 @@
   font-weight: 400;
 }
 
-@font-face {
-  font-family: "Chalkduster";
-  src:
-    local("Chalkduster");
-  font-display: swap;
-  font-style: normal;
-  font-weight: 400;
-}
-
 :root {
   color-scheme: light;
-  --font-baloo: "Watermelon Regular", Georgia, "Times New Roman", serif;
-  --font-nunito: "Chalkduster", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-baloo: "Watermelon Regular", "Arial Rounded MT Bold", "Trebuchet MS", "Avenir Next Rounded", "Segoe UI", sans-serif;
+  --font-nunito: "DM Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 body {

@@ -19,7 +19,7 @@ export function ProductPurchasePanel({ productId, productName, priceArs }: Produ
     <div className="space-y-4">
       <div className="rounded-[2rem] bg-white p-5 shadow-card">
         <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Precio</p>
-        <p className="mt-2 font-display text-3xl text-brand-pink md:text-4xl">{formatArs(priceArs)}</p>
+        <p className="mt-2 text-3xl font-extrabold text-brand-pink md:text-4xl">{formatArs(priceArs)}</p>
       </div>
       <div className="rounded-[2rem] bg-white p-5 shadow-card">
         <p className="mb-4 text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Cantidad</p>

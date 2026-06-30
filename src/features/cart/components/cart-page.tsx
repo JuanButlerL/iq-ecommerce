@@ -260,7 +260,7 @@ export function CartPage({ products, settings }: CartPageProps) {
             </div>
             <div className="flex items-center justify-between border-t border-brand-ink/10 pt-3">
               <span>Total estimado</span>
-              <span className="font-display text-2xl text-brand-pink md:text-3xl">{formatArs(total)}</span>
+              <span className="text-2xl font-extrabold text-brand-pink md:text-3xl">{formatArs(total)}</span>
             </div>
           </div>
         </div>

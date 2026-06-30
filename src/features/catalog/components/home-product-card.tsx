@@ -42,7 +42,7 @@ export function HomeProductCard({ product }: HomeProductCardProps) {
       </div>
 
       <div className="mt-4 space-y-2 px-2">
-        <Link href={`/productos/${product.slug}`} className="text-lg leading-snug text-brand-ink/70 md:text-[18px]">
+        <Link href={`/productos/${product.slug}`} className="font-display text-xl leading-tight text-brand-ink md:text-2xl">
           {product.name}
         </Link>
         <p className="text-xl font-semibold text-brand-ink md:text-[17px]">{formatArs(product.priceArs)}</p>

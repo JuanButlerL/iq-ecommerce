@@ -24,7 +24,7 @@ export default async function AdminDashboardPage() {
       <Card className="p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-extrabold text-brand-ink md:text-2xl">Últimos pedidos</h2>
+            <h2 className="font-display text-2xl text-brand-ink md:text-3xl">Últimos pedidos</h2>
             <p className="text-sm text-brand-ink/60">Vista operativa rapida para seguimiento.</p>
           </div>
           <Link href="/admin/pedidos">
@@ -85,7 +85,7 @@ function MetricCard({ label, value }: { label: string; value: number }) {
   return (
     <Card className="p-5">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50 md:text-sm">{label}</p>
-      <p className="mt-3 font-display text-3xl text-brand-pink md:text-4xl">{value}</p>
+      <p className="mt-3 text-3xl font-extrabold text-brand-pink md:text-4xl">{value}</p>
     </Card>
   );
 }
