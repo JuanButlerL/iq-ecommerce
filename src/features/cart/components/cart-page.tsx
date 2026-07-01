@@ -53,19 +53,14 @@ export function CartPage({ products, settings }: CartPageProps) {
   );
   const suggestedProducts = useMemo(() => {
     const selectedProductIds = new Set(items.map((item) => item.productId));
-    const selectedFlavorCount = products.filter((product) => {
-      const label = `${product.homeVarietyLabel ?? ""} ${product.name}`.toLocaleLowerCase("es");
-      return selectedProductIds.has(product.id) && !label.includes("mix");
-    }).length;
 
-    if (selectedFlavorCount === 0) {
-      return [];
-    }
-
-    return products.filter((product) => {
-      const label = `${product.homeVarietyLabel ?? ""} ${product.name}`.toLocaleLowerCase("es");
-      return !selectedProductIds.has(product.id) && !product.manualSoldOut && !label.includes("mix");
-    });
+    return products.filter(
+      (product) =>
+        product.active &&
+        product.visible &&
+        !product.manualSoldOut &&
+        !selectedProductIds.has(product.id),
+    );
   }, [items, products]);
 
   if (detailedItems.length === 0) {
