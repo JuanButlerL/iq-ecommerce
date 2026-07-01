@@ -71,7 +71,7 @@ export function CartPage({ products, settings }: CartPageProps) {
   if (detailedItems.length === 0) {
     return (
       <EmptyState
-        title="Tu carrito esta vacio"
+        title="Tu carrito está vacío"
         description="Elegí una de nuestras barritas y avanzá con un checkout rápido por transferencia."
         actionHref="/#productos"
         actionLabel="Ver productos"
@@ -115,8 +115,8 @@ export function CartPage({ products, settings }: CartPageProps) {
       />
       <div className="space-y-4">
         {detailedItems.map(({ cart, product }) => (
-          <Card key={product.id} className="p-4 md:flex md:items-center md:justify-between md:p-5">
-            <div className="grid grid-cols-[56px_minmax(0,1fr)_88px] items-start gap-x-4 gap-y-2 md:flex md:min-w-0 md:flex-1 md:gap-4">
+          <Card key={product.id} className="p-4 md:p-5">
+            <div className="grid grid-cols-[56px_minmax(0,1fr)_88px] items-start gap-x-4 gap-y-2 md:grid-cols-[80px_minmax(0,1fr)_120px] md:items-center md:gap-5">
               <div className="relative mt-1 h-14 w-14 shrink-0 overflow-hidden bg-white md:h-20 md:w-20 md:rounded-[1.25rem]">
                 <img
                   src={product.images[0]?.publicUrl ?? cartFallbackImageMap[product.colorTheme]}
@@ -133,12 +133,15 @@ export function CartPage({ products, settings }: CartPageProps) {
                 <h2 className="text-[0.95rem] font-medium leading-[1.16] text-brand-ink md:text-lg md:font-extrabold md:leading-6">
                   {product.name}
                 </h2>
+                <p className="mt-1 text-xs font-extrabold leading-5 text-emerald-700 md:text-sm">
+                  ✓ Seleccionado por nutricionistas · Sin sellos
+                </p>
                 <p className="mt-2 text-[0.95rem] leading-none text-brand-ink md:mt-1 md:text-sm md:text-brand-ink/60">
                   {formatArs(product.priceArs * cart.quantity)}
                 </p>
               </div>
 
-              <div className="flex flex-col items-end gap-3">
+              <div className="flex flex-col items-end gap-3 md:justify-self-end">
                 <button
                   type="button"
                   className="text-[0.95rem] font-normal leading-none text-brand-ink/70 underline underline-offset-2 hover:text-brand-pink"
@@ -196,34 +199,71 @@ export function CartPage({ products, settings }: CartPageProps) {
         ))}
 
         {suggestedProducts.length > 0 ? (
-          <div className="rounded-[1.5rem] border border-brand-ink/8 bg-white px-4 py-3 shadow-[0_10px_26px_rgba(44,34,65,0.04)]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-bold leading-5 text-brand-ink">Sumar otro sabor</p>
-              <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0">
-                {suggestedProducts.map((product) => {
-                  const productLabel = product.homeVarietyLabel?.trim() || product.name;
+          <div className="rounded-[1.65rem] border border-brand-ink/8 bg-white p-4 shadow-[0_10px_26px_rgba(44,34,65,0.04)]">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-extrabold leading-5 text-brand-ink">Sumar otro sabor</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {suggestedProducts.map((product) => {
+                const productLabel = product.homeVarietyLabel?.trim() || product.name;
+                const image = product.images[0];
+                const fallbackImage = cartFallbackImageMap[product.colorTheme];
 
-                  return (
-                    <button
-                      key={product.id}
-                      type="button"
-                      className="shrink-0 rounded-full border border-brand-pink/22 bg-white px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] text-brand-ink transition hover:border-brand-pink hover:bg-brand-pink hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/40"
-                      onClick={() => {
-                        addItem(product.id, 1);
-                        announceCartItemAdded({ productName: product.name, quantity: 1 });
-                        trackAddToCart({
-                          productId: product.id,
-                          productName: product.name,
-                          priceArs: product.priceArs,
-                          quantity: 1,
-                        });
-                      }}
-                    >
-                      + {productLabel}
-                    </button>
-                  );
-                })}
-              </div>
+                return (
+                  <div
+                    key={product.id}
+                    className="grid grid-cols-[58px_minmax(0,1fr)_92px] items-center gap-3 rounded-[1.25rem] border border-brand-ink/8 bg-brand-cream/35 p-3 transition hover:border-brand-pink/30 hover:bg-white hover:shadow-[0_12px_30px_rgba(44,34,65,0.06)]"
+                  >
+                    <div className="h-14 w-14 overflow-hidden rounded-[1rem] bg-white shadow-[0_8px_18px_rgba(44,34,65,0.06)]">
+                      <img
+                        src={image?.publicUrl ?? fallbackImage}
+                        alt={image?.altText ?? product.name}
+                        className="h-full w-full object-contain p-1.5"
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = fallbackImage;
+                        }}
+                      />
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-[0.92rem] font-extrabold leading-5 text-brand-ink">{productLabel}</p>
+                      <p className="mt-1 text-sm font-bold text-brand-ink/55">{formatArs(product.priceArs)}</p>
+                    </div>
+
+                    <div className="inline-flex items-center justify-self-end rounded-full border border-brand-ink/12 bg-white shadow-[0_8px_18px_rgba(44,34,65,0.05)]">
+                      <button
+                        type="button"
+                        className="flex h-9 w-8 cursor-not-allowed items-center justify-center text-lg font-light text-brand-ink/25"
+                        disabled
+                        aria-label={`${productLabel} todavia no esta en el carrito`}
+                      >
+                        -
+                      </button>
+                      <span className="flex h-9 min-w-7 items-center justify-center text-sm font-extrabold text-brand-ink/55">
+                        0
+                      </span>
+                      <button
+                        type="button"
+                        className="flex h-9 w-8 items-center justify-center text-lg font-light text-brand-pink transition hover:text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/30"
+                        aria-label={`Agregar ${productLabel} al carrito`}
+                        onClick={() => {
+                          addItem(product.id, 1);
+                          announceCartItemAdded({ productName: product.name, quantity: 1 });
+                          trackAddToCart({
+                            productId: product.id,
+                            productName: product.name,
+                            priceArs: product.priceArs,
+                            quantity: 1,
+                          });
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -264,6 +304,9 @@ export function CartPage({ products, settings }: CartPageProps) {
             </div>
           </div>
         </div>
+        <p className="text-sm italic leading-6 text-brand-ink/60">
+          Revisamos cada ingrediente para que vos no tengas que hacerlo. Eso es lo que llega a tu casa.
+        </p>
         <p className="text-sm font-bold leading-6 text-emerald-700">{freeShippingNudge}</p>
         <Link href={checkoutHref} className="block pt-2">
           <Button className="w-full">Continuar compra</Button>

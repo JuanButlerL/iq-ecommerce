@@ -9,6 +9,7 @@ import { ProductLongDescription } from "@/features/catalog/components/product-lo
 import { ProductPurchasePanel } from "@/features/catalog/components/product-purchase-panel";
 import { ProductCard } from "@/features/catalog/components/product-card";
 import { getProductBySlug, getSimilarProducts } from "@/features/catalog/queries";
+import { formatArs } from "@/lib/utils/currency";
 
 export default async function ProductDetailPage({
   params,
@@ -59,21 +60,29 @@ export default async function ProductDetailPage({
           <div className="space-y-3">
             <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Nuestras Barritas</p>
             <h1 className="font-display text-3xl leading-none text-brand-ink md:text-5xl">{product.name}</h1>
-            <div className="space-y-2 border-t border-brand-ink/10 pt-4">
-              {product.shortDescription
-                .replace(/\r\n/g, "\n")
-                .split("\n")
-                .map((line) => line.trim())
-                .filter(Boolean)
-                .map((line) => (
-                  <p key={line} className="text-base leading-7 text-brand-ink/76 md:text-lg md:leading-8">
-                    {line}
-                  </p>
-                ))}
-            </div>
           </div>
-          <ProductPurchasePanel productId={product.id} productName={product.name} priceArs={product.priceArs} />
+
+          <div className="rounded-[2rem] bg-white p-5 shadow-card">
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Precio</p>
+            <p className="mt-2 text-3xl font-extrabold text-brand-pink md:text-4xl">{formatArs(product.priceArs)}</p>
+          </div>
+
+          <div className="space-y-2 border-t border-brand-ink/10 pt-4">
+            {product.shortDescription
+              .replace(/\r\n/g, "\n")
+              .split("\n")
+              .map((line) => line.trim())
+              .filter(Boolean)
+              .map((line) => (
+                <p key={line} className="text-base leading-7 text-brand-ink/76 md:text-lg md:leading-8">
+                  {line}
+                </p>
+              ))}
+          </div>
+
           <ProductLongDescription content={product.longDescription} />
+
+          <ProductPurchasePanel productId={product.id} productName={product.name} priceArs={product.priceArs} />
         </div>
       </div>
 

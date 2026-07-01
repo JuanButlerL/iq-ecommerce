@@ -440,7 +440,7 @@ export default async function HomePage() {
       </section>
 
       {SHOW_PROCESS_SECTION ? (
-        <section id="como-funciona" className="bg-white py-20 sm:py-24">
+        <section id="como-funciona" className="bg-white py-12 sm:py-14 lg:py-16">
           <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
             <div className="max-w-3xl">
               <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">¿Cómo funciona?</p>
@@ -476,7 +476,7 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      <section className="order-1 bg-[#fffaf0] py-20 sm:py-24">
+      <section className="order-1 bg-[#fffaf0] py-12 sm:py-14 lg:py-16">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
           <div className="max-w-3xl">
             <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
@@ -516,7 +516,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="ingredientes" className="order-4 bg-[#fffaf6] py-20 sm:py-24">
+      <section id="ingredientes" className="order-4 bg-[#fffaf6] py-12 sm:py-14 lg:py-16">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
           <div className="max-w-4xl">
             <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
@@ -557,7 +557,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="productos" className="order-2 bg-[#fff6f7] py-20 sm:py-24">
+      <section id="productos" className="order-2 bg-[#fff6f7] py-12 sm:py-14 lg:py-16">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
           <div className="max-w-3xl">
             <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">Empezá por acá</p>
@@ -660,7 +660,7 @@ export default async function HomePage() {
                 </span>
               </div>
               <h2 className="mt-6 max-w-4xl font-display text-[2.45rem] leading-[1] text-brand-ink sm:text-[3.35rem] xl:text-[4rem]">
-                Somos padres que saben lo que es querer hacer las cosas bien y no tener tiempo para hacerlo.
+                Somos padres que sabemos lo que es querer hacer las cosas bien y no tener tiempo para hacerlo.
               </h2>
               <div className="mt-7 space-y-5 text-lg leading-8 text-brand-ink/78 lg:max-w-[92%]">
               <p>
@@ -701,10 +701,10 @@ export default async function HomePage() {
       </section>
 
       {hasTestimonials ? (
-        <section id="testimonios" className="order-3 bg-[#fffaf0] py-20 sm:py-24">
+        <section id="testimonios" className="order-3 bg-[#fffaf0] py-12 sm:py-14 lg:py-16">
           <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 xl:px-12">
             <div className="max-w-5xl">
-              <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">Lo que dicen las mamas</p>
+              <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">Lo que dicen las mamás</p>
               <h2 className="mt-4 font-display text-[2.45rem] leading-[1] text-brand-ink sm:text-[3.35rem] lg:text-[4rem]">
                 Palabras reales de familias reales.
               </h2>
