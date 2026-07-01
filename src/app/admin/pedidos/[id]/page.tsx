@@ -6,7 +6,9 @@ import { Card } from "@/components/ui/card";
 import { RetrySyncButton } from "@/features/admin/components/retry-sync-button";
 import { OrderStatusForm } from "@/features/admin/components/order-status-form";
 import { getOrderDetail } from "@/features/orders/queries";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminSection } from "@/lib/auth/admin";
+import { canAccessAdminSection } from "@/lib/auth/admin-permissions";
+import { env } from "@/lib/env";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -15,7 +17,8 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireAdminSection("orders");
+  const canRetrySync = canAccessAdminSection(session.adminUser, "sync", env.ADMIN_LOCAL_EMAIL);
   const { id } = await params;
   const order = await getOrderDetail(id);
 
@@ -243,7 +246,7 @@ export default async function AdminOrderDetailPage({
               </div>
             </div>
             <OrderStatusForm orderId={order.id} currentStatus={order.orderStatus} />
-            <RetrySyncButton orderNumber={order.publicOrderNumber} />
+            {canRetrySync ? <RetrySyncButton orderNumber={order.publicOrderNumber} /> : null}
           </Card>
           <Card className="space-y-3 p-6">
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Historial</p>

@@ -1,9 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/db/prisma";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminSection } from "@/lib/auth/admin";
 
 export default async function AdminSyncPage() {
-  await requireAdmin();
+  await requireAdminSection("sync");
   const jobs = await prisma.syncJob.findMany({
     include: {
       order: true,

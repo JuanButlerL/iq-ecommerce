@@ -1,5 +1,5 @@
 import { getOrders } from "@/features/orders/queries";
-import { requireAdmin } from "@/lib/auth/admin";
+import { assertAdminSection } from "@/lib/auth/admin";
 
 function parseDateParam(value: string | null, endOfDay = false) {
   if (!value) {
@@ -31,7 +31,7 @@ function formatDateTime(value: Date) {
 }
 
 export async function GET(request: Request) {
-  await requireAdmin();
+  await assertAdminSection("orders");
 
   const { searchParams } = new URL(request.url);
   const dateFrom = parseDateParam(searchParams.get("dateFrom"));

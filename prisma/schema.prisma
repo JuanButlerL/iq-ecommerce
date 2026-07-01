@@ -93,7 +93,9 @@ model AdminUser {
   supabaseUserId String?   @unique @map("supabase_user_id") @db.Uuid
   email          String    @unique
   fullName       String    @map("full_name")
+  passwordHash   String?   @map("password_hash")
   role           AdminRole @default(OPERATIONS)
+  allowedSections String[] @default([]) @map("allowed_sections")
   active         Boolean   @default(true)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")

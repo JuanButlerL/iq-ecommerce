@@ -1,7 +1,7 @@
 import { HomeFeaturedProductsAdminPanel } from "@/features/admin/components/home-featured-products-admin-panel";
 import { getAdminProducts } from "@/features/products/queries";
 import { getAdminHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminSection } from "@/lib/auth/admin";
 
 type AdminProducts = Awaited<ReturnType<typeof getAdminProducts>>;
 type AdminHomeSlots = Awaited<ReturnType<typeof getAdminHomeFeaturedProductSlots>>;
@@ -66,7 +66,7 @@ function buildFallbackSlots(
 }
 
 export default async function AdminHomeProductsPage() {
-  await requireAdmin();
+  await requireAdminSection("home-products");
 
   const [products, slots] = await Promise.all([
     getAdminProducts(),

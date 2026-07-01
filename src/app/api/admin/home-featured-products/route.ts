@@ -1,10 +1,10 @@
 import { saveHomeFeaturedProductSlots } from "@/features/home-featured-products/mutations";
-import { requireAdmin } from "@/lib/auth/admin";
+import { assertAdminSection } from "@/lib/auth/admin";
 import { routeError, routeOk } from "@/lib/http/route";
 
 export async function PATCH(request: Request) {
   try {
-    await requireAdmin();
+    await assertAdminSection("home-products");
     const payload = await request.json();
     await saveHomeFeaturedProductSlots(payload);
 

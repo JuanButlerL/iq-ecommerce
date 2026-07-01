@@ -2,14 +2,14 @@ import { notFound } from "next/navigation";
 
 import { ProductForm } from "@/features/admin/components/product-form";
 import { getAdminProductById } from "@/features/products/queries";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminSection } from "@/lib/auth/admin";
 
 export default async function AdminEditProductPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminSection("products");
   const { id } = await params;
   const product = await getAdminProductById(id);
 

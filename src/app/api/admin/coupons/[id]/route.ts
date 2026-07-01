@@ -1,5 +1,5 @@
 import { deleteCoupon, saveCoupon } from "@/features/coupons/mutations";
-import { requireAdmin } from "@/lib/auth/admin";
+import { assertAdminSection } from "@/lib/auth/admin";
 import { routeError, routeOk } from "@/lib/http/route";
 
 export async function PATCH(
@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    await assertAdminSection("coupons");
     const payload = await request.json();
     const { id } = await params;
     await saveCoupon(payload, id);
@@ -23,7 +23,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    await assertAdminSection("coupons");
     const { id } = await params;
     await deleteCoupon(id);
 

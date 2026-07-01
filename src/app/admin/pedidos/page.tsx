@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getOrders } from "@/features/orders/queries";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminSection } from "@/lib/auth/admin";
 
 function parseDateParam(value?: string) {
   if (!value) {
@@ -28,7 +28,7 @@ export default async function AdminOrdersPage({
 }: {
   searchParams?: Promise<{ dateFrom?: string; dateTo?: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminSection("orders");
   const resolvedSearchParams = (await searchParams) ?? {};
   const dateFrom = parseDateParam(resolvedSearchParams.dateFrom);
   const dateTo = parseDateParamEnd(resolvedSearchParams.dateTo);

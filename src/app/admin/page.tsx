@@ -3,10 +3,10 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getDashboardMetrics, getOrders } from "@/features/orders/queries";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminSection } from "@/lib/auth/admin";
 
 export default async function AdminDashboardPage() {
-  await requireAdmin();
+  await requireAdminSection("dashboard");
   const [metrics, latestOrders] = await Promise.all([getDashboardMetrics(), getOrders()]);
 
   return (

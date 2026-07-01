@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth/admin";
+import { assertAdminSection } from "@/lib/auth/admin";
 import { routeError, routeOk } from "@/lib/http/route";
 import { saveShippingRule } from "@/features/shipping/mutations";
 
@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    await assertAdminSection("shipping");
     const payload = await request.json();
     const { id } = await params;
     await saveShippingRule(payload, id);

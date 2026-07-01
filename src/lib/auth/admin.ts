@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { getLocalAdminSession } from "@/lib/auth/local-admin";
+import { canAccessAdminSection, getFirstAccessibleAdminHref, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
 import { createSupabaseServerClient } from "@/lib/auth/supabase/server";
+import { AppError } from "@/lib/errors/app-error";
 
 export async function getAdminSession() {
   if (env.devAdminBypass) {
@@ -19,6 +21,7 @@ export async function getAdminSession() {
         email: "dev-admin@local",
         fullName: "Local Dev Admin",
         role: AdminRole.SUPER_ADMIN,
+        allowedSections: [],
         active: true,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -34,8 +37,13 @@ export async function getAdminSession() {
       const adminUser = await prisma.adminUser.findUnique({
         where: { email: localSession.email },
       });
+      const isPrincipal = isPrincipalAdminEmail(localSession.email, env.ADMIN_LOCAL_EMAIL);
 
       if (adminUser && !adminUser.active) {
+        return null;
+      }
+
+      if (!adminUser && !isPrincipal) {
         return null;
       }
 
@@ -50,6 +58,7 @@ export async function getAdminSession() {
           email: localSession.email,
           fullName: "Local Admin",
           role: AdminRole.SUPER_ADMIN,
+          allowedSections: [],
           active: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -102,6 +111,7 @@ export async function getAdminSession() {
       email: user.email,
       fullName: "Bootstrap Admin",
       role: AdminRole.SUPER_ADMIN,
+      allowedSections: [],
       active: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -115,6 +125,54 @@ export async function requireAdmin() {
 
   if (!session) {
     redirect("/admin/login");
+  }
+
+  return session;
+}
+
+export async function requireAdminSection(section: AdminSectionId) {
+  const session = await requireAdmin();
+
+  if (!canAccessAdminSection(session.adminUser, section, env.ADMIN_LOCAL_EMAIL)) {
+    redirect(getFirstAccessibleAdminHref(session.adminUser, env.ADMIN_LOCAL_EMAIL));
+  }
+
+  return session;
+}
+
+export async function assertAdminSection(section: AdminSectionId) {
+  const session = await getAdminSession();
+
+  if (!session) {
+    throw new AppError("No autorizado.", 401, true);
+  }
+
+  if (!canAccessAdminSection(session.adminUser, section, env.ADMIN_LOCAL_EMAIL)) {
+    throw new AppError("No tenes permiso para esta seccion.", 403, true);
+  }
+
+  return session;
+}
+
+export async function requirePrincipalAdmin() {
+  const session = await requireAdmin();
+
+  if (!isPrincipalAdminEmail(session.adminUser.email, env.ADMIN_LOCAL_EMAIL)) {
+    redirect(getFirstAccessibleAdminHref(session.adminUser, env.ADMIN_LOCAL_EMAIL));
+  }
+
+  return session;
+}
+
+export async function assertPrincipalAdmin() {
+  const session = await getAdminSession();
+
+  if (!session) {
+    throw new AppError("No autorizado.", 401, true);
+  }
+
+  if (!isPrincipalAdminEmail(session.adminUser.email, env.ADMIN_LOCAL_EMAIL)) {
+    throw new AppError("Solo el administrador principal puede gestionar usuarios.", 403, true);
   }
 
   return session;

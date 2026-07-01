@@ -1,5 +1,5 @@
 import { deleteTestimonial, saveTestimonial } from "@/features/testimonials/mutations";
-import { requireAdmin } from "@/lib/auth/admin";
+import { assertAdminSection } from "@/lib/auth/admin";
 import { routeError, routeOk } from "@/lib/http/route";
 
 export async function PATCH(
@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    await assertAdminSection("testimonials");
     const payload = await request.json();
     const { id } = await params;
     await saveTestimonial(payload, id);
@@ -23,7 +23,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAdmin();
+    await assertAdminSection("testimonials");
     const { id } = await params;
     await deleteTestimonial(id);
 

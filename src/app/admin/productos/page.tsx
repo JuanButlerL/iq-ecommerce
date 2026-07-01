@@ -3,10 +3,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getAdminProducts } from "@/features/products/queries";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminSection } from "@/lib/auth/admin";
 
 export default async function AdminProductsPage() {
-  await requireAdmin();
+  await requireAdminSection("products");
   const products = await getAdminProducts();
 
   return (
