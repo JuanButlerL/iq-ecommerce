@@ -1,14 +1,6 @@
 import { getOrders } from "@/features/orders/queries";
 import { assertAdminSection } from "@/lib/auth/admin";
-
-function parseDateParam(value: string | null, endOfDay = false) {
-  if (!value) {
-    return undefined;
-  }
-
-  const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}`);
-  return Number.isNaN(date.getTime()) ? undefined : date;
-}
+import { formatArgentinaDate, formatArgentinaDateTime, parseArgentinaDateParam } from "@/lib/utils/datetime";
 
 function escapeHtml(value: string | number | null | undefined) {
   const stringValue = value == null ? "" : String(value);
@@ -20,22 +12,12 @@ function escapeHtml(value: string | number | null | undefined) {
     .replace(/"/g, "&quot;");
 }
 
-function formatDateTime(value: Date) {
-  return value.toLocaleString("es-AR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export async function GET(request: Request) {
   await assertAdminSection("orders");
 
   const { searchParams } = new URL(request.url);
-  const dateFrom = parseDateParam(searchParams.get("dateFrom"));
-  const dateTo = parseDateParam(searchParams.get("dateTo"), true);
+  const dateFrom = parseArgentinaDateParam(searchParams.get("dateFrom"));
+  const dateTo = parseArgentinaDateParam(searchParams.get("dateTo"), true);
   const orders = await getOrders({ dateFrom, dateTo });
 
   const columns = [
@@ -84,7 +66,7 @@ export async function GET(request: Request) {
 
     return [
       order.publicOrderNumber,
-      formatDateTime(order.createdAt),
+      formatArgentinaDateTime(order.createdAt),
       order.customerFirstName,
       order.customerLastName,
       order.customerEmail,
@@ -110,7 +92,7 @@ export async function GET(request: Request) {
       order.paymentProviderStatus,
       order.paymentProviderStatusDetail,
       order.paymentProviderReference,
-      order.paidAt ? formatDateTime(order.paidAt) : "",
+      order.paidAt ? formatArgentinaDateTime(order.paidAt) : "",
       order.paymentStatus,
       order.orderStatus,
       order.syncStatus,
@@ -152,7 +134,7 @@ export async function GET(request: Request) {
   return new Response(`\uFEFF${html}`, {
     headers: {
       "Content-Type": "application/vnd.ms-excel; charset=utf-8",
-      "Content-Disposition": `attachment; filename="pedidos-${new Date().toISOString().slice(0, 10)}.xls"`,
+      "Content-Disposition": `attachment; filename="pedidos-${formatArgentinaDate(new Date()).replace(/\//g, "-")}.xls"`,
     },
   });
 }
