@@ -7,6 +7,7 @@ import { DashboardSalesChart } from "@/features/admin/components/dashboard-sales
 import { getAdminDashboardAnalytics } from "@/features/orders/queries";
 import { requireAdminSection } from "@/lib/auth/admin";
 import { formatArs } from "@/lib/utils/currency";
+import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 
 export default async function AdminDashboardPage() {
   await requireAdminSection("dashboard");
@@ -133,13 +134,7 @@ export default async function AdminDashboardPage() {
                           {order.publicOrderNumber} - {order.customerFirstName} {order.customerLastName}
                         </p>
                         <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-brand-ink/45">
-                          {order.createdAt.toLocaleString("es-AR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {formatArgentinaDateTime(order.createdAt)}
                         </p>
                         <p className="mt-2 text-sm font-bold text-brand-pink">{formatArs(order.totalArs)}</p>
                       </div>
@@ -194,13 +189,7 @@ export default async function AdminDashboardPage() {
                   <p className="mt-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-brand-ink/45">
                     <Clock3 className="h-3.5 w-3.5" />
                     Fecha y hora:{" "}
-                    {order.createdAt.toLocaleString("es-AR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatArgentinaDateTime(order.createdAt)}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 md:justify-end">

@@ -2,6 +2,17 @@ import { cache } from "react";
 import { OrderStatus, PaymentMethod, PaymentStatus, SyncStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import {
+  addArgentinaDays,
+  formatArgentinaDayLabel,
+  formatArgentinaMonthLabel,
+  getArgentinaDateKey,
+  getArgentinaDateParts,
+  getArgentinaMonthKey,
+  getArgentinaMonthStart,
+  getArgentinaStartOfDay,
+  getArgentinaStartOfMonth,
+} from "@/lib/utils/datetime";
 
 export type OrderFilters = {
   search?: string;
@@ -54,18 +65,8 @@ const validOrderStatuses: OrderStatus[] = [
   OrderStatus.DELIVERED,
 ];
 
-function startOfLocalDay(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function startOfLocalMonth(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
 function startOfRollingWindow(days: number) {
-  const date = startOfLocalDay();
-  date.setDate(date.getDate() - days + 1);
-  return date;
+  return addArgentinaDays(getArgentinaStartOfDay(), -days + 1);
 }
 
 function getNetProductsRevenue(order: {
@@ -76,16 +77,8 @@ function getNetProductsRevenue(order: {
   return Math.max(order.subtotalArs - order.discountArs - order.paymentMethodDiscountArs, 0);
 }
 
-function formatDayLabel(date: Date) {
-  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
-}
-
-function formatMonthLabel(date: Date) {
-  return date.toLocaleDateString("es-AR", { month: "short" }).replace(".", "");
-}
-
 function buildWeekLabel(start: Date, end: Date) {
-  return `${formatDayLabel(start)}-${formatDayLabel(end)}`;
+  return `${formatArgentinaDayLabel(start)}-${formatArgentinaDayLabel(end)}`;
 }
 
 type DashboardSeriesOrder = {
@@ -98,28 +91,27 @@ type DashboardSeriesOrder = {
 
 function buildDashboardTimeSeries(inputOrders: DashboardSeriesOrder[], now: Date) {
   const dailyMap = new Map<string, { label: string; orders: number; revenue: number; units: number }>();
+  const todayStart = getArgentinaStartOfDay(now);
   for (let index = 29; index >= 0; index -= 1) {
-    const date = startOfLocalDay(now);
-    date.setDate(date.getDate() - index);
-    const key = date.toISOString().slice(0, 10);
-    dailyMap.set(key, { label: formatDayLabel(date), orders: 0, revenue: 0, units: 0 });
+    const date = addArgentinaDays(todayStart, -index);
+    const key = getArgentinaDateKey(date);
+    dailyMap.set(key, { label: formatArgentinaDayLabel(date), orders: 0, revenue: 0, units: 0 });
   }
 
   const monthlyMap = new Map<string, { label: string; orders: number; revenue: number; units: number }>();
+  const currentMonthParts = getArgentinaDateParts(now);
   for (let index = 5; index >= 0; index -= 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    monthlyMap.set(key, { label: formatMonthLabel(date), orders: 0, revenue: 0, units: 0 });
+    const date = getArgentinaMonthStart(currentMonthParts.year, currentMonthParts.month - index);
+    const key = getArgentinaMonthKey(date);
+    monthlyMap.set(key, { label: formatArgentinaMonthLabel(date), orders: 0, revenue: 0, units: 0 });
   }
 
   const weeklyRanges = Array.from({ length: 8 }, (_, index) => {
-    const start = startOfLocalDay(now);
-    start.setDate(start.getDate() - (7 * (7 - index) + 6));
-    const end = startOfLocalDay(start);
-    end.setDate(start.getDate() + 6);
+    const start = addArgentinaDays(todayStart, -(7 * (7 - index) + 6));
+    const end = addArgentinaDays(start, 7);
 
     return {
-      label: buildWeekLabel(start, end),
+      label: buildWeekLabel(start, addArgentinaDays(end, -1)),
       start,
       end,
       orders: 0,
@@ -131,8 +123,8 @@ function buildDashboardTimeSeries(inputOrders: DashboardSeriesOrder[], now: Date
   for (const order of inputOrders) {
     const orderRevenue = getNetProductsRevenue(order);
     const orderUnits = order.items.reduce((acc, item) => acc + item.quantity, 0);
-    const dayKey = order.createdAt.toISOString().slice(0, 10);
-    const monthKey = `${order.createdAt.getFullYear()}-${String(order.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    const dayKey = getArgentinaDateKey(order.createdAt);
+    const monthKey = getArgentinaMonthKey(order.createdAt);
     const day = dailyMap.get(dayKey);
     const month = monthlyMap.get(monthKey);
 
@@ -148,7 +140,7 @@ function buildDashboardTimeSeries(inputOrders: DashboardSeriesOrder[], now: Date
       month.units += orderUnits;
     }
 
-    const week = weeklyRanges.find((range) => order.createdAt >= range.start && order.createdAt <= range.end);
+    const week = weeklyRanges.find((range) => order.createdAt >= range.start && order.createdAt < range.end);
 
     if (week) {
       week.orders += 1;
@@ -197,8 +189,8 @@ function getProductFlavor(item: {
 
 export const getAdminDashboardAnalytics = cache(async () => {
   const now = new Date();
-  const todayStart = startOfLocalDay(now);
-  const monthStart = startOfLocalMonth(now);
+  const todayStart = getArgentinaStartOfDay(now);
+  const monthStart = getArgentinaStartOfMonth(now);
   const rolling30Start = startOfRollingWindow(30);
   const rolling90Start = startOfRollingWindow(90);
 
@@ -248,27 +240,25 @@ export const getAdminDashboardAnalytics = cache(async () => {
 
   const dailyMap = new Map<string, { label: string; orders: number; revenue: number; units: number }>();
   for (let index = 29; index >= 0; index -= 1) {
-    const date = startOfLocalDay(now);
-    date.setDate(date.getDate() - index);
-    const key = date.toISOString().slice(0, 10);
-    dailyMap.set(key, { label: formatDayLabel(date), orders: 0, revenue: 0, units: 0 });
+    const date = addArgentinaDays(todayStart, -index);
+    const key = getArgentinaDateKey(date);
+    dailyMap.set(key, { label: formatArgentinaDayLabel(date), orders: 0, revenue: 0, units: 0 });
   }
 
   const monthlyMap = new Map<string, { label: string; orders: number; revenue: number; units: number }>();
+  const currentMonthParts = getArgentinaDateParts(now);
   for (let index = 5; index >= 0; index -= 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    monthlyMap.set(key, { label: formatMonthLabel(date), orders: 0, revenue: 0, units: 0 });
+    const date = getArgentinaMonthStart(currentMonthParts.year, currentMonthParts.month - index);
+    const key = getArgentinaMonthKey(date);
+    monthlyMap.set(key, { label: formatArgentinaMonthLabel(date), orders: 0, revenue: 0, units: 0 });
   }
 
   const weeklyRanges = Array.from({ length: 8 }, (_, index) => {
-    const start = startOfLocalDay(now);
-    start.setDate(start.getDate() - (7 * (7 - index) + 6));
-    const end = startOfLocalDay(start);
-    end.setDate(start.getDate() + 6);
+    const start = addArgentinaDays(todayStart, -(7 * (7 - index) + 6));
+    const end = addArgentinaDays(start, 7);
 
     return {
-      label: buildWeekLabel(start, end),
+      label: buildWeekLabel(start, addArgentinaDays(end, -1)),
       start,
       end,
       orders: 0,
@@ -285,8 +275,8 @@ export const getAdminDashboardAnalytics = cache(async () => {
   for (const order of orders) {
     const orderRevenue = getNetProductsRevenue(order);
     const orderUnits = order.items.reduce((acc, item) => acc + item.quantity, 0);
-    const dayKey = order.createdAt.toISOString().slice(0, 10);
-    const monthKey = `${order.createdAt.getFullYear()}-${String(order.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    const dayKey = getArgentinaDateKey(order.createdAt);
+    const monthKey = getArgentinaMonthKey(order.createdAt);
     const day = dailyMap.get(dayKey);
     const month = monthlyMap.get(monthKey);
 
@@ -302,7 +292,7 @@ export const getAdminDashboardAnalytics = cache(async () => {
       month.units += orderUnits;
     }
 
-    const week = weeklyRanges.find((range) => order.createdAt >= range.start && order.createdAt <= range.end);
+    const week = weeklyRanges.find((range) => order.createdAt >= range.start && order.createdAt < range.end);
 
     if (week) {
       week.orders += 1;

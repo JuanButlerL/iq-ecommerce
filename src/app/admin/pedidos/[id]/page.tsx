@@ -11,6 +11,7 @@ import { canAccessAdminSection } from "@/lib/auth/admin-permissions";
 import { env } from "@/lib/env";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArs } from "@/lib/utils/currency";
+import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -175,7 +176,7 @@ export default async function AdminOrderDetailPage({
                   <div className="rounded-[1.5rem] bg-background p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Fecha informada</p>
                     <p className="mt-2 font-bold text-brand-ink">
-                      {latestProof.transferDate ? latestProof.transferDate.toLocaleString("es-AR") : "No informada"}
+                      {latestProof.transferDate ? formatArgentinaDateTime(latestProof.transferDate) : "No informada"}
                     </p>
                   </div>
                   <div className="rounded-[1.5rem] bg-background p-4">
@@ -222,7 +223,7 @@ export default async function AdminOrderDetailPage({
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Ultimo webhook</p>
                   <p className="mt-2 text-sm font-bold text-brand-ink">
                     {order.paymentWebhookEvents[0]
-                      ? `${order.paymentWebhookEvents[0].processingStatus} · ${order.paymentWebhookEvents[0].createdAt.toLocaleString("es-AR")}`
+                      ? `${order.paymentWebhookEvents[0].processingStatus} · ${formatArgentinaDateTime(order.paymentWebhookEvents[0].createdAt)}`
                       : "Sin eventos"}
                   </p>
                 </div>
@@ -254,7 +255,7 @@ export default async function AdminOrderDetailPage({
               <div key={event.id} className="rounded-[1.5rem] bg-background p-4 text-sm text-brand-ink/70">
                 <p className="font-bold text-brand-ink">{event.status}</p>
                 <p>{event.note ?? "Sin nota"}</p>
-                <p>{event.createdAt.toLocaleString("es-AR")}</p>
+                <p>{formatArgentinaDateTime(event.createdAt)}</p>
               </div>
             ))}
           </Card>
