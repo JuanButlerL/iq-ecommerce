@@ -9,6 +9,8 @@ type Settings = {
   shippingMode: ShippingMode;
   activeShippingRule: {
     flatPrice: number | null;
+    discountThresholdArs?: number | null;
+    discountPercentage?: number | null;
     provinces: Array<{
       active: boolean;
       provinceName: string;
@@ -19,8 +21,12 @@ type Settings = {
 
 export type ShippingQuote = {
   shippingArs: number;
+  baseShippingArs: number;
   minimumReached: boolean;
   freeShippingReached: boolean;
+  shippingDiscountReached: boolean;
+  shippingDiscountThresholdArs: number | null;
+  shippingDiscountPercentage: number;
   message: string;
 };
 
@@ -32,25 +38,18 @@ export function calculateShippingQuote(
   if (!settings) {
     return {
       shippingArs: 0,
+      baseShippingArs: 0,
       minimumReached: false,
       freeShippingReached: false,
-      message: "Configuración de tienda no disponible.",
+      shippingDiscountReached: false,
+      shippingDiscountThresholdArs: null,
+      shippingDiscountPercentage: 0,
+      message: "Configuracion de tienda no disponible.",
     };
   }
 
   const minimumReached = subtotalArs >= settings.minimumOrderAmount;
-  const freeShippingReached = subtotalArs >= settings.freeShippingThreshold;
-
-  if (freeShippingReached) {
-    return {
-      shippingArs: 0,
-      minimumReached,
-      freeShippingReached: true,
-      message: "Tu compra supera el umbral de envío gratis.",
-    };
-  }
-
-  let shippingArs = settings.flatShippingPrice;
+  let baseShippingArs = settings.flatShippingPrice;
 
   if (settings.shippingMode === "PROVINCE" && settings.activeShippingRule) {
     const selectedProvince = provinceName ? normalizeProvinceName(provinceName) : undefined;
@@ -59,16 +58,45 @@ export function calculateShippingQuote(
     );
 
     if (provinceRule) {
-      shippingArs = provinceRule.shippingPrice;
+      baseShippingArs = provinceRule.shippingPrice;
     } else if (settings.activeShippingRule.flatPrice) {
-      shippingArs = settings.activeShippingRule.flatPrice;
+      baseShippingArs = settings.activeShippingRule.flatPrice;
     }
   }
 
+  const discountThresholdArs = settings.activeShippingRule?.discountThresholdArs ?? null;
+  const discountPercentage = settings.activeShippingRule?.discountPercentage ?? 0;
+  const freeShippingReached = subtotalArs >= settings.freeShippingThreshold;
+
+  if (freeShippingReached) {
+    return {
+      shippingArs: 0,
+      baseShippingArs,
+      minimumReached,
+      freeShippingReached: true,
+      shippingDiscountReached: false,
+      shippingDiscountThresholdArs: discountThresholdArs,
+      shippingDiscountPercentage: discountPercentage,
+      message: "Tu compra supera el umbral de envio gratis.",
+    };
+  }
+
+  const shippingDiscountReached =
+    Boolean(discountThresholdArs) &&
+    discountPercentage > 0 &&
+    subtotalArs >= Number(discountThresholdArs);
+  const shippingArs = shippingDiscountReached
+    ? Math.max(0, Math.round(baseShippingArs * (1 - discountPercentage / 100)))
+    : baseShippingArs;
+
   return {
     shippingArs,
+    baseShippingArs,
     minimumReached,
     freeShippingReached: false,
-    message: "El pedido todavía no alcanza el envío gratis.",
+    shippingDiscountReached,
+    shippingDiscountThresholdArs: discountThresholdArs,
+    shippingDiscountPercentage: discountPercentage,
+    message: "El pedido todavia no alcanza el envio gratis.",
   };
 }

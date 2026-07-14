@@ -6,6 +6,8 @@ export const shippingRuleSchema = z.object({
   description: z.string().max(240).optional().or(z.literal("")),
   mode: z.nativeEnum(ShippingMode),
   flatPrice: z.coerce.number().int().min(0).optional(),
+  discountThresholdArs: z.coerce.number().int().min(0).nullable().optional(),
+  discountPercentage: z.coerce.number().int().min(0).max(100).nullable().optional(),
   active: z.boolean().default(true),
   isDefault: z.boolean().default(false),
 });

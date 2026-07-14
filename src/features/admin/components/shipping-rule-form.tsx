@@ -25,6 +25,8 @@ export function ShippingRuleForm({ rule }: ShippingRuleFormProps) {
     description: rule.description ?? "",
     mode: rule.mode,
     flatPrice: rule.flatPrice ?? 0,
+    discountThresholdArs: rule.discountThresholdArs?.toString() ?? "",
+    discountPercentage: rule.discountPercentage?.toString() ?? "",
     active: rule.active,
     isDefault: rule.isDefault,
   });
@@ -85,6 +87,38 @@ export function ShippingRuleForm({ rule }: ShippingRuleFormProps) {
         <Checkbox label="Activa" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))} />
         <Checkbox label="Por defecto" checked={form.isDefault} onChange={(event) => setForm((current) => ({ ...current, isDefault: event.target.checked }))} />
       </div>
+      <div className="rounded-[1.5rem] border border-brand-pink/15 bg-brand-pink/5 p-4">
+        <div className="mb-4">
+          <h2 className="text-base font-extrabold text-brand-ink">Descuento parcial de envio</h2>
+          <p className="mt-1 text-sm leading-6 text-brand-ink/60">
+            Opcional. Se aplica cuando el subtotal supera este minimo y todavia no llega al envio gratis.
+            Si el pedido llega al envio gratis, el envio queda en $0 como siempre.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-brand-ink">Activar descuento desde</span>
+            <Input
+              type="number"
+              min={0}
+              placeholder="Ej: 40000"
+              value={form.discountThresholdArs}
+              onChange={(event) => setForm((current) => ({ ...current, discountThresholdArs: event.target.value }))}
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-bold text-brand-ink">% de descuento sobre el envio</span>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Ej: 50"
+              value={form.discountPercentage}
+              onChange={(event) => setForm((current) => ({ ...current, discountPercentage: event.target.value }))}
+            />
+          </label>
+        </div>
+      </div>
       <div className="space-y-3">
         {provinces.map((province, index) => (
           <div key={province.id} className="grid gap-3 rounded-[1.5rem] bg-background p-4 md:grid-cols-[1fr_140px_100px]">
@@ -129,7 +163,11 @@ export function ShippingRuleForm({ rule }: ShippingRuleFormProps) {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                rule: form,
+                rule: {
+                  ...form,
+                  discountThresholdArs: form.discountThresholdArs.trim() ? Number(form.discountThresholdArs) : null,
+                  discountPercentage: form.discountPercentage.trim() ? Number(form.discountPercentage) : null,
+                },
                 provinces,
               }),
             });

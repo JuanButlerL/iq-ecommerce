@@ -78,6 +78,9 @@ export function CartPage({ products, settings }: CartPageProps) {
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
   const total = subtotal + shippingQuote.shippingArs;
   const checkoutHref = `/checkout?province=${encodeURIComponent(province)}`;
+  const amountToShippingDiscount = shippingQuote.shippingDiscountThresholdArs
+    ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
+    : 0;
   const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - subtotal);
   const oneMoreUnitReachesFreeShipping =
     amountToFreeShipping > 0 &&
@@ -91,6 +94,14 @@ export function CartPage({ products, settings }: CartPageProps) {
       : oneMoreUnitReachesFreeShipping
         ? "Sumá una unidad más para llegar al envío gratis y tener la semana resuelta."
         : `El pedido todavía no alcanza el envío gratis. Envío gratis desde: ${formatArs(settings.freeShippingThreshold)}.`;
+
+  const shippingNudge = shippingQuote.freeShippingReached
+    ? "Ya tenés envío gratis."
+    : shippingQuote.shippingDiscountReached
+      ? `Tenés ${shippingQuote.shippingDiscountPercentage}% off en el envío. Si llegás a ${formatArs(settings.freeShippingThreshold)}, el envío es gratis.`
+      : amountToShippingDiscount > 0 && shippingQuote.shippingDiscountPercentage > 0
+        ? `Sumá un producto más y activá ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
+        : freeShippingNudge;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
@@ -291,7 +302,16 @@ export function CartPage({ products, settings }: CartPageProps) {
             </div>
             <div className="flex items-center justify-between">
               <span>Envío estimado</span>
-              <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
+              {shippingQuote.freeShippingReached ? (
+                <span className="font-bold text-emerald-700">Gratis</span>
+              ) : shippingQuote.shippingDiscountReached ? (
+                <span className="flex items-center gap-2 font-bold">
+                  <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
+                  <span className="text-emerald-700">{formatArs(shippingQuote.shippingArs)}</span>
+                </span>
+              ) : (
+                <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
+              )}
             </div>
             <div className="flex items-center justify-between border-t border-brand-ink/10 pt-3">
               <span>Total estimado</span>
@@ -302,7 +322,7 @@ export function CartPage({ products, settings }: CartPageProps) {
         <p className="text-sm italic leading-6 text-brand-ink/60">
           Revisamos cada ingrediente para que vos no tengas que hacerlo. Eso es lo que llega a tu casa.
         </p>
-        <p className="text-sm font-bold leading-6 text-emerald-700">{freeShippingNudge}</p>
+        <p className="text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p>
         <Link href={checkoutHref} className="block pt-2">
           <Button className="w-full">Continuar compra</Button>
         </Link>

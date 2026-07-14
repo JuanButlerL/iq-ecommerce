@@ -120,6 +120,16 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
     bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
   });
   const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - subtotal);
+  const amountToShippingDiscount = shippingQuote.shippingDiscountThresholdArs
+    ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
+    : 0;
+  const checkoutShippingNudge = shippingQuote.freeShippingReached
+    ? "Ya tenés envío gratis. Sumá otro sabor y dejá más días de la semana resueltos."
+    : shippingQuote.shippingDiscountReached
+      ? `Tenés ${shippingQuote.shippingDiscountPercentage}% off en el envío. Si llegás a ${formatArs(settings.freeShippingThreshold)}, el envío es gratis.`
+      : amountToShippingDiscount > 0 && shippingQuote.shippingDiscountPercentage > 0
+        ? `Sumá un producto más y activá ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
+        : `Suma un segundo sabor para llegar al envio gratis. Te faltan ${formatArs(amountToFreeShipping)}.`;
 
   useEffect(() => {
     if (paymentMethod === "MERCADO_PAGO" && !allowMercadoPago && allowBankTransfer) {
@@ -437,7 +447,16 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
           ) : null}
           <div className="flex items-center justify-between">
             <span>Envio</span>
-            <span className="font-bold text-brand-ink">{formatArs(pricing.shippingArs)}</span>
+            {shippingQuote.freeShippingReached ? (
+              <span className="font-bold text-emerald-700">Gratis</span>
+            ) : shippingQuote.shippingDiscountReached ? (
+              <span className="flex items-center gap-2 font-bold">
+                <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
+                <span className="text-emerald-700">{formatArs(pricing.shippingArs)}</span>
+              </span>
+            ) : (
+              <span className="font-bold text-brand-ink">{formatArs(pricing.shippingArs)}</span>
+            )}
           </div>
           {pricing.paymentMethodDiscountArs > 0 ? (
             <div className="flex items-center justify-between">
@@ -453,9 +472,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
 
         <div className="space-y-4 border-t border-brand-ink/10 pt-4">
           <p className="text-sm font-bold leading-6 text-emerald-700">
-            {amountToFreeShipping > 0
-              ? `Sumá un segundo sabor para llegar al envío gratis. Te faltan ${formatArs(amountToFreeShipping)}.`
-              : "Ya tenés envío gratis. Sumá otro sabor y dejá más días de la semana resueltos."}
+            {checkoutShippingNudge}
           </p>
 
           {suggestedProducts.length > 0 ? (
