@@ -86,8 +86,11 @@ type DashboardSeriesOrder = {
   subtotalArs: number;
   discountArs: number;
   paymentMethodDiscountArs: number;
+  totalArs: number;
   items: Array<{ quantity: number }>;
 };
+
+export type DashboardOrderStatusFilter = "ALL" | "CONFIRMED" | "PENDING";
 
 function buildDashboardTimeSeries(inputOrders: DashboardSeriesOrder[], now: Date) {
   const dailyMap = new Map<string, { label: string; orders: number; revenue: number; units: number }>();
@@ -121,7 +124,7 @@ function buildDashboardTimeSeries(inputOrders: DashboardSeriesOrder[], now: Date
   });
 
   for (const order of inputOrders) {
-    const orderRevenue = getNetProductsRevenue(order);
+    const orderRevenue = order.totalArs;
     const orderUnits = order.items.reduce((acc, item) => acc + item.quantity, 0);
     const dayKey = getArgentinaDateKey(order.createdAt);
     const monthKey = getArgentinaMonthKey(order.createdAt);
@@ -160,6 +163,32 @@ function isCollectedOrder(order: { paymentStatus: PaymentStatus }) {
   return paidLikePaymentStatuses.includes(order.paymentStatus);
 }
 
+function buildDashboardOrderWhere(orderStatusFilter: DashboardOrderStatusFilter) {
+  if (orderStatusFilter === "CONFIRMED") {
+    return {
+      orderStatus: {
+        notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED],
+      },
+      paymentStatus: {
+        in: paidLikePaymentStatuses,
+      },
+    };
+  }
+
+  if (orderStatusFilter === "PENDING") {
+    return {
+      orderStatus: OrderStatus.PENDING_PAYMENT,
+      paymentStatus: PaymentStatus.PENDING,
+    };
+  }
+
+  return {
+    orderStatus: {
+      in: validOrderStatuses,
+    },
+  };
+}
+
 function getCustomerKeys(order: {
   customerEmail: string;
   customerPhone: string;
@@ -187,18 +216,31 @@ function getProductFlavor(item: {
   return rawLabel;
 }
 
+function formatArgentinaMonthYearLabel(date: Date) {
+  const parts = getArgentinaDateParts(date);
+
+  return `${formatArgentinaMonthLabel(date)} ${parts.year}`;
+}
+
 export const getAdminDashboardAnalytics = cache(async () => {
+  return getAdminDashboardAnalyticsByStatus("ALL");
+});
+
+export const getAdminDashboardAnalyticsByStatus = cache(async (
+  orderStatusFilter: DashboardOrderStatusFilter = "ALL",
+  recoveryMonthFilter = "ALL",
+) => {
   const now = new Date();
   const todayStart = getArgentinaStartOfDay(now);
   const monthStart = getArgentinaStartOfMonth(now);
-  const rolling30Start = startOfRollingWindow(30);
   const rolling90Start = startOfRollingWindow(90);
+  const dashboardWhere = buildDashboardOrderWhere(orderStatusFilter);
 
-  const [orders, recentOrders, activeProducts, syncPending] = await Promise.all([
+  const [orders, recentOrders, activeProducts, syncPending, recoveryCandidates, collectedIdentityOrders] = await Promise.all([
     prisma.order.findMany({
       where: {
         createdAt: { gte: rolling90Start },
-        orderStatus: { in: validOrderStatuses },
+        ...dashboardWhere,
       },
       include: {
         items: {
@@ -216,6 +258,9 @@ export const getAdminDashboardAnalytics = cache(async () => {
     }),
     prisma.order.findMany({
       take: 10,
+      where: {
+        ...dashboardWhere,
+      },
       include: {
         items: true,
       },
@@ -223,16 +268,39 @@ export const getAdminDashboardAnalytics = cache(async () => {
     }),
     prisma.product.count({ where: { active: true } }),
     prisma.order.count({ where: { syncStatus: { in: [SyncStatus.PENDING, SyncStatus.ERROR] } } }),
+    orderStatusFilter === "ALL" || orderStatusFilter === "PENDING"
+      ? prisma.order.findMany({
+          where: {
+            paymentStatus: PaymentStatus.PENDING,
+            orderStatus: OrderStatus.PENDING_PAYMENT,
+          },
+          include: {
+            items: true,
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
+    prisma.order.findMany({
+      where: {
+        paymentStatus: { in: paidLikePaymentStatuses },
+      },
+      select: {
+        createdAt: true,
+        customerEmail: true,
+        customerPhone: true,
+        customerTaxId: true,
+      },
+    }),
   ]);
 
   const todayOrders = orders.filter((order) => order.createdAt >= todayStart);
   const monthOrders = orders.filter((order) => order.createdAt >= monthStart);
-  const rolling30Orders = orders.filter((order) => order.createdAt >= rolling30Start);
   const paidMonthOrders = monthOrders.filter(isCollectedOrder);
   const collectedOrders = orders.filter(isCollectedOrder);
   const collectedSeries = buildDashboardTimeSeries(collectedOrders, now);
 
   const buildRevenue = (items: typeof orders) => items.reduce((acc, order) => acc + getNetProductsRevenue(order), 0);
+  const buildGrossRevenue = (items: typeof orders) => items.reduce((acc, order) => acc + order.totalArs, 0);
   const buildUnits = (items: typeof orders) =>
     items.reduce((acc, order) => acc + order.items.reduce((itemAcc, item) => itemAcc + item.quantity, 0), 0);
   const buildDiscounts = (items: typeof orders) =>
@@ -273,7 +341,7 @@ export const getAdminDashboardAnalytics = cache(async () => {
   const sourceMap = new Map<string, { name: string; orders: number; revenue: number }>();
 
   for (const order of orders) {
-    const orderRevenue = getNetProductsRevenue(order);
+    const orderRevenue = order.totalArs;
     const orderUnits = order.items.reduce((acc, item) => acc + item.quantity, 0);
     const dayKey = getArgentinaDateKey(order.createdAt);
     const monthKey = getArgentinaMonthKey(order.createdAt);
@@ -335,21 +403,45 @@ export const getAdminDashboardAnalytics = cache(async () => {
   }
 
   const monthRevenue = buildRevenue(monthOrders);
-  const rolling30Revenue = buildRevenue(rolling30Orders);
-  const rolling30OrderCount = rolling30Orders.length;
-  const recoveryOrders = orders
-    .filter((order) => order.paymentStatus === PaymentStatus.PENDING && order.orderStatus === OrderStatus.PENDING_PAYMENT)
+  const monthGrossRevenue = buildGrossRevenue(monthOrders);
+  const monthOrderCount = monthOrders.length;
+  const monthUnits = buildUnits(monthOrders);
+  const monthShipping = monthOrders.reduce((acc, order) => acc + order.shippingArs, 0);
+  const actionableRecoveryOrders = recoveryCandidates
     .filter((order) => {
       const keys = getCustomerKeys(order);
 
-      return !collectedOrders.some(
+      return !collectedIdentityOrders.some(
         (collectedOrder) =>
           collectedOrder.createdAt > order.createdAt &&
           getCustomerKeys(collectedOrder).some((key) => keys.includes(key)),
       );
     })
     .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-    .slice(0, 8);
+    .map((order) => ({
+      ...order,
+      productsRevenue: getNetProductsRevenue(order),
+    }));
+  const recoveryMonthMap = new Map<string, { value: string; label: string }>();
+
+  for (const order of actionableRecoveryOrders) {
+    const monthKey = getArgentinaMonthKey(order.createdAt);
+
+    if (!recoveryMonthMap.has(monthKey)) {
+      recoveryMonthMap.set(monthKey, {
+        value: monthKey,
+        label: formatArgentinaMonthYearLabel(order.createdAt),
+      });
+    }
+  }
+
+  const recoveryMonths = Array.from(recoveryMonthMap.values()).sort((left, right) =>
+    right.value.localeCompare(left.value),
+  );
+  const recoveryOrders =
+    recoveryMonthFilter === "ALL"
+      ? actionableRecoveryOrders
+      : actionableRecoveryOrders.filter((order) => getArgentinaMonthKey(order.createdAt) === recoveryMonthFilter);
 
   return {
     generatedAt: now,
@@ -358,11 +450,13 @@ export const getAdminDashboardAnalytics = cache(async () => {
       todayRevenue: buildRevenue(todayOrders),
       monthOrders: monthOrders.length,
       monthRevenue,
+      monthGrossRevenue,
       paidMonthRevenue: buildRevenue(paidMonthOrders),
-      monthUnits: buildUnits(monthOrders),
+      monthUnits,
       monthDiscounts: buildDiscounts(monthOrders),
-      monthShipping: monthOrders.reduce((acc, order) => acc + order.shippingArs, 0),
-      averageTicket30: rolling30OrderCount ? Math.round(rolling30Revenue / rolling30OrderCount) : 0,
+      averagePaidTicket: monthOrderCount ? Math.round(monthGrossRevenue / monthOrderCount) : 0,
+      averageShipping: monthOrderCount ? Math.round(monthShipping / monthOrderCount) : 0,
+      averageUnits: monthOrderCount ? Number((monthUnits / monthOrderCount).toFixed(1)) : 0,
       activeProducts,
       syncPending,
     },
@@ -372,11 +466,16 @@ export const getAdminDashboardAnalytics = cache(async () => {
     collectedDaily: collectedSeries.daily,
     collectedWeekly: collectedSeries.weekly,
     collectedMonthly: collectedSeries.monthly,
+    recoveryMonths,
+    selectedRecoveryMonth: recoveryMonthFilter,
     products: Array.from(productMap.values()).sort((left, right) => right.units - left.units).slice(0, 8),
     flavors: Array.from(flavorMap.values()).sort((left, right) => right.units - left.units),
     payments: Array.from(paymentMap.values()).sort((left, right) => right.revenue - left.revenue),
     sources: Array.from(sourceMap.values()).sort((left, right) => right.orders - left.orders),
-    recentOrders,
+    recentOrders: recentOrders.map((order) => ({
+      ...order,
+      productsRevenue: getNetProductsRevenue(order),
+    })),
     recoveryOrders,
   };
 });

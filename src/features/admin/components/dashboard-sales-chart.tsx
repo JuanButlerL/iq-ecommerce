@@ -13,7 +13,6 @@ type ChartPoint = {
 };
 
 type Period = "day" | "week" | "month";
-type Scope = "all" | "collected";
 
 type SalesDataset = {
   daily: ChartPoint[];
@@ -22,8 +21,7 @@ type SalesDataset = {
 };
 
 type DashboardSalesChartProps = {
-  all: SalesDataset;
-  collected: SalesDataset;
+  series: SalesDataset;
 };
 
 const periodCopy: Record<Period, { label: string; eyebrow: string; title: string; helper: string }> = {
@@ -47,28 +45,14 @@ const periodCopy: Record<Period, { label: string; eyebrow: string; title: string
   },
 };
 
-const scopeCopy: Record<Scope, { label: string; helper: string }> = {
-  all: {
-    label: "Todos",
-    helper: "Incluye pedidos iniciados, pendientes y cobrados para leer demanda total.",
-  },
-  collected: {
-    label: "Cobrados",
-    helper: "Solo pagos confirmados o transferencias con comprobante para limpiar ruido.",
-  },
-};
-
-export function DashboardSalesChart({ all, collected }: DashboardSalesChartProps) {
+export function DashboardSalesChart({ series }: DashboardSalesChartProps) {
   const [period, setPeriod] = useState<Period>("day");
-  const [scope, setScope] = useState<Scope>("all");
-  const dataset = scope === "all" ? all : collected;
-  const points = period === "day" ? dataset.daily : period === "week" ? dataset.weekly : dataset.monthly;
+  const points = period === "day" ? series.daily : period === "week" ? series.weekly : series.monthly;
 
-  const maxRevenue = Math.max(...points.map((point) => point.revenue), 1);
+  const maxOrders = Math.max(...points.map((point) => point.orders), 1);
   const totalRevenue = useMemo(() => points.reduce((acc, point) => acc + point.revenue, 0), [points]);
   const totalOrders = useMemo(() => points.reduce((acc, point) => acc + point.orders, 0), [points]);
   const copy = periodCopy[period];
-  const selectedScopeCopy = scopeCopy[scope];
 
   return (
     <Card className="overflow-hidden p-5 md:p-6">
@@ -79,24 +63,10 @@ export function DashboardSalesChart({ all, collected }: DashboardSalesChartProps
             {copy.title}
           </h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-brand-ink/55">
-            {copy.helper} {selectedScopeCopy.helper}
+            {copy.helper} El alto de cada barra muestra cantidad de pedidos; el detalle incluye facturacion total.
           </p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row lg:flex-col lg:items-end">
-          <div className="inline-flex rounded-full border border-brand-ink/10 bg-background p-1">
-            {(Object.keys(scopeCopy) as Scope[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setScope(item)}
-                className={`rounded-full px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] transition ${
-                  scope === item ? "bg-brand-ink text-white shadow-soft" : "text-brand-ink/55 hover:text-brand-pink"
-                }`}
-              >
-                {scopeCopy[item].label}
-              </button>
-            ))}
-          </div>
           <div className="inline-flex rounded-full border border-brand-ink/10 bg-background p-1">
             {(Object.keys(periodCopy) as Period[]).map((item) => (
               <button
@@ -125,8 +95,8 @@ export function DashboardSalesChart({ all, collected }: DashboardSalesChartProps
             <div className="flex h-40 w-full items-end rounded-full bg-brand-pink/5">
               <div
                 className="w-full rounded-full bg-brand-pink shadow-[0_10px_24px_rgba(248,128,140,0.28)] transition-all"
-                style={{ height: `${Math.max(7, (point.revenue / maxRevenue) * 100)}%` }}
-                title={`${point.label}: ${formatArs(point.revenue)} - ${point.orders} pedidos`}
+                style={{ height: point.orders ? `${Math.max(7, (point.orders / maxOrders) * 100)}%` : "0%" }}
+                title={`${point.label}: ${point.orders} pedidos - ${formatArs(point.revenue)} facturados`}
               />
             </div>
             <span className="max-w-14 text-center text-[0.62rem] font-bold leading-tight text-brand-ink/45">

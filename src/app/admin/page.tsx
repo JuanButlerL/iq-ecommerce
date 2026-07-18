@@ -1,17 +1,56 @@
 import Link from "next/link";
-import { ArrowUpRight, Clock3, CreditCard, MessageCircle, Package, ShoppingBag } from "lucide-react";
+import { Clock3, CreditCard, MessageCircle, Package, ShoppingBag, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DashboardSalesChart } from "@/features/admin/components/dashboard-sales-chart";
-import { getAdminDashboardAnalytics } from "@/features/orders/queries";
+import { getAdminDashboardAnalyticsByStatus, type DashboardOrderStatusFilter } from "@/features/orders/queries";
 import { requireAdminSection } from "@/lib/auth/admin";
 import { formatArs } from "@/lib/utils/currency";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 
-export default async function AdminDashboardPage() {
+const orderStatusOptions: Array<{ value: DashboardOrderStatusFilter; label: string }> = [
+  { value: "ALL", label: "Todos" },
+  { value: "CONFIRMED", label: "Confirmados" },
+  { value: "PENDING", label: "Pendientes" },
+];
+
+function normalizeDashboardStatus(value?: string): DashboardOrderStatusFilter {
+  if (value === "CONFIRMED" || value === "PENDING") return value;
+
+  return "ALL";
+}
+
+function normalizeRecoveryMonth(value?: string) {
+  return value && /^\d{4}-\d{2}$/.test(value) ? value : "ALL";
+}
+
+function buildDashboardHref(status: DashboardOrderStatusFilter, recoveryMonth = "ALL") {
+  const params = new URLSearchParams();
+
+  if (status !== "ALL") {
+    params.set("status", status);
+  }
+
+  if (recoveryMonth !== "ALL") {
+    params.set("recoveryMonth", recoveryMonth);
+  }
+
+  const query = params.toString();
+
+  return query ? `/admin?${query}` : "/admin";
+}
+
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ status?: string; recoveryMonth?: string }>;
+}) {
   await requireAdminSection("dashboard");
-  const analytics = await getAdminDashboardAnalytics();
+  const params = await searchParams;
+  const selectedStatus = normalizeDashboardStatus(params?.status);
+  const selectedRecoveryMonth = normalizeRecoveryMonth(params?.recoveryMonth);
+  const analytics = await getAdminDashboardAnalyticsByStatus(selectedStatus, selectedRecoveryMonth);
   const maxProductUnits = Math.max(...analytics.products.map((product) => product.units), 1);
   const maxFlavorUnits = Math.max(...analytics.flavors.map((flavor) => flavor.units), 1);
 
@@ -41,41 +80,68 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
+      <section className="rounded-[1.75rem] border border-brand-ink/8 bg-white p-3 shadow-[0_10px_28px_rgba(44,34,65,0.04)]">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="px-2">
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-pink">Filtro global</p>
+            <p className="mt-1 text-sm font-bold text-brand-ink/60">
+              Impacta KPIs, grafico, rankings, canales, recuperacion y ultimos pedidos.
+            </p>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:justify-end md:pb-0">
+            {orderStatusOptions.map((option) => {
+              const isActive = selectedStatus === option.value;
+              const href = buildDashboardHref(option.value, selectedRecoveryMonth);
+
+              return (
+                <Link
+                  key={option.value}
+                  href={href}
+                  className={`shrink-0 rounded-full px-4 py-2 text-xs font-extrabold uppercase tracking-[0.12em] transition ${
+                    isActive
+                      ? "bg-brand-ink text-white shadow-soft"
+                      : "border border-brand-ink/10 bg-background text-brand-ink/55 hover:border-brand-pink/30 hover:text-brand-pink"
+                  }`}
+                >
+                  {option.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={<ShoppingBag className="h-5 w-5" />}
-          label="Pedidos hoy"
-          value={analytics.totals.todayOrders.toLocaleString("es-AR")}
-          helper={`${formatArs(analytics.totals.todayRevenue)} vendidos hoy`}
-        />
-        <MetricCard
-          icon={<ArrowUpRight className="h-5 w-5" />}
-          label="Facturacion mes"
-          value={formatArs(analytics.totals.monthRevenue)}
-          helper={`${analytics.totals.monthOrders} pedidos del mes`}
-        />
-        <MetricCard
-          icon={<Package className="h-5 w-5" />}
-          label="Unidades mes"
-          value={analytics.totals.monthUnits.toLocaleString("es-AR")}
-          helper={`${analytics.totals.activeProducts} productos activos`}
+          label="Facturacion total"
+          value={formatArs(analytics.totals.monthGrossRevenue)}
+          helper={`${analytics.totals.monthOrders} compras del mes actual`}
         />
         <MetricCard
           icon={<CreditCard className="h-5 w-5" />}
           label="Ticket promedio"
-          value={formatArs(analytics.totals.averageTicket30)}
-          helper="Ultimos 30 dias"
+          value={formatArs(analytics.totals.averagePaidTicket)}
+          helper="Promedio de lo que paga el cliente"
+        />
+        <MetricCard
+          icon={<Truck className="h-5 w-5" />}
+          label="Flete promedio"
+          value={formatArs(analytics.totals.averageShipping)}
+          helper="Promedio de envio facturado"
+        />
+        <MetricCard
+          icon={<Package className="h-5 w-5" />}
+          label="Cantidad promedio"
+          value={analytics.totals.averageUnits.toLocaleString("es-AR", {
+            minimumFractionDigits: analytics.totals.averageUnits % 1 === 0 ? 0 : 1,
+            maximumFractionDigits: 1,
+          })}
+          helper={`${analytics.totals.monthUnits.toLocaleString("es-AR")} unidades vendidas`}
         />
       </section>
 
-      <DashboardSalesChart
-        all={{ daily: analytics.daily, weekly: analytics.weekly, monthly: analytics.monthly }}
-        collected={{
-          daily: analytics.collectedDaily,
-          weekly: analytics.collectedWeekly,
-          monthly: analytics.collectedMonthly,
-        }}
-      />
+      <DashboardSalesChart series={{ daily: analytics.daily, weekly: analytics.weekly, monthly: analytics.monthly }} />
 
       <section className="grid gap-4 xl:grid-cols-3">
         <RankingCard
@@ -118,6 +184,33 @@ export default async function AdminDashboardPage() {
           <p className="mt-2 text-sm leading-6 text-brand-ink/55">
             Pendientes sin compra posterior detectada por email, telefono o DNI.
           </p>
+          {analytics.recoveryMonths.length > 1 ? (
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+              <Link
+                href={buildDashboardHref(selectedStatus)}
+                className={`shrink-0 rounded-full px-3 py-2 text-xs font-extrabold uppercase tracking-[0.12em] transition ${
+                  selectedRecoveryMonth === "ALL"
+                    ? "bg-brand-ink text-white shadow-soft"
+                    : "border border-brand-ink/10 bg-background text-brand-ink/55 hover:border-brand-pink/30 hover:text-brand-pink"
+                }`}
+              >
+                Todos
+              </Link>
+              {analytics.recoveryMonths.map((month) => (
+                <Link
+                  key={month.value}
+                  href={buildDashboardHref(selectedStatus, month.value)}
+                  className={`shrink-0 rounded-full px-3 py-2 text-xs font-extrabold uppercase tracking-[0.12em] transition ${
+                    selectedRecoveryMonth === month.value
+                      ? "bg-brand-ink text-white shadow-soft"
+                      : "border border-brand-ink/10 bg-background text-brand-ink/55 hover:border-brand-pink/30 hover:text-brand-pink"
+                  }`}
+                >
+                  {month.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
           <div className="mt-5 space-y-3">
             {analytics.recoveryOrders.length ? (
               analytics.recoveryOrders.map((order) => {
@@ -134,9 +227,9 @@ export default async function AdminDashboardPage() {
                           {order.publicOrderNumber} - {order.customerFirstName} {order.customerLastName}
                         </p>
                         <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-brand-ink/45">
-                          {formatArgentinaDateTime(order.createdAt)}
+                          Fecha: {formatArgentinaDateTime(order.createdAt)}
                         </p>
-                        <p className="mt-2 text-sm font-bold text-brand-pink">{formatArs(order.totalArs)}</p>
+                        <p className="mt-2 text-sm font-bold text-brand-pink">{formatArs(order.productsRevenue)}</p>
                       </div>
                       {whatsappUrl ? (
                         <a
@@ -195,7 +288,7 @@ export default async function AdminDashboardPage() {
                 <div className="flex flex-wrap items-center gap-2 md:justify-end">
                   <Pill>{order.paymentStatus}</Pill>
                   <Pill>{order.orderStatus}</Pill>
-                  <span className="font-bold text-brand-pink">{formatArs(order.totalArs)}</span>
+                  <span className="font-bold text-brand-pink">{formatArs(order.productsRevenue)}</span>
                 </div>
               </Link>
             ))}
