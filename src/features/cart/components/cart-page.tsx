@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSettings } from "@prisma/client";
 
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
@@ -26,6 +27,7 @@ type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & 
 type CartPageProps = {
   products: ProductWithImages[];
   settings: SettingsWithRule;
+  recoveryToken?: string;
 };
 
 const cartFallbackImageMap: Record<string, string> = {
@@ -34,12 +36,19 @@ const cartFallbackImageMap: Record<string, string> = {
   PEANUT: "/home/mani.webp",
 };
 
-export function CartPage({ products, settings }: CartPageProps) {
+export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
+  const router = useRouter();
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const updateItem = useCartStore((state) => state.updateItem);
   const removeItem = useCartStore((state) => state.removeItem);
+  const replaceItems = useCartStore((state) => state.replaceItems);
   const [province, setProvince] = useState("Buenos Aires");
+  const [email, setEmail] = useState("");
+  const [capturedEmail, setCapturedEmail] = useState("");
+  const [captureError, setCaptureError] = useState("");
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isRecoveringCart, setIsRecoveringCart] = useState(Boolean(recoveryToken));
 
   const detailedItems = useMemo(
     () =>
@@ -63,21 +72,67 @@ export function CartPage({ products, settings }: CartPageProps) {
     );
   }, [items, products]);
 
-  if (detailedItems.length === 0) {
-    return (
-      <EmptyState
-        title="Tu carrito está vacío"
-        description="Elegí una de nuestras barritas y avanzá con un checkout rápido por transferencia."
-        actionHref="/#productos"
-        actionLabel="Ver productos"
-      />
-    );
-  }
+  useEffect(() => {
+    if (!recoveryToken) {
+      return;
+    }
+
+    let isMounted = true;
+    const token = recoveryToken;
+
+    async function recoverCart() {
+      try {
+        const response = await fetch(`/api/cart-recovery/${encodeURIComponent(token)}`);
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.error || "No se pudo recuperar el carrito.");
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        replaceItems(payload.data.items);
+        setEmail(payload.data.email);
+        setCapturedEmail(payload.data.email);
+
+        if (payload.data.province) {
+          setProvince(payload.data.province);
+        }
+
+        setCaptureError("");
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setCaptureError(error instanceof Error ? error.message : "No se pudo recuperar el carrito.");
+      } finally {
+        if (isMounted) {
+          setIsRecoveringCart(false);
+        }
+      }
+    }
+
+    recoverCart();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [recoveryToken, replaceItems]);
 
   const subtotal = detailedItems.reduce((acc, item) => acc + item.product.priceArs * item.cart.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
   const total = subtotal + shippingQuote.shippingArs;
-  const checkoutHref = `/checkout?province=${encodeURIComponent(province)}`;
+  const checkoutParams = new URLSearchParams({ province });
+  const checkoutEmail = capturedEmail || email.trim();
+
+  if (checkoutEmail) {
+    checkoutParams.set("email", checkoutEmail);
+  }
+
+  const checkoutHref = `/checkout?${checkoutParams.toString()}`;
   const amountToShippingDiscount = shippingQuote.shippingDiscountThresholdArs
     ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
     : 0;
@@ -102,6 +157,106 @@ export function CartPage({ products, settings }: CartPageProps) {
       : amountToShippingDiscount > 0 && shippingQuote.shippingDiscountPercentage > 0
         ? `Sumá un producto más y activá ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
         : freeShippingNudge;
+
+  async function captureCartRecovery(emailToCapture: string, options: { silent?: boolean } = {}) {
+    const trimmedEmail = emailToCapture.trim().toLowerCase();
+
+    if (!trimmedEmail || detailedItems.length === 0) {
+      return false;
+    }
+
+    if (!options.silent) {
+      setIsCapturing(true);
+      setCaptureError("");
+    }
+
+    try {
+      const response = await fetch("/api/cart-recovery", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          province,
+          items: detailedItems.map(({ cart }) => ({
+            productId: cart.productId,
+            quantity: cart.quantity,
+          })),
+        }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "No pudimos guardar tu carrito.");
+      }
+
+      setCapturedEmail(payload.data.email);
+      return true;
+    } catch (error) {
+      if (!options.silent) {
+        setCaptureError(error instanceof Error ? error.message : "No pudimos validar el email.");
+      }
+
+      return false;
+    } finally {
+      if (!options.silent) {
+        setIsCapturing(false);
+      }
+    }
+  }
+
+  async function handleContinueCheckout() {
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setCaptureError("Ingresa un email valido para continuar.");
+      return;
+    }
+
+    const wasCaptured = await captureCartRecovery(trimmedEmail);
+
+    if (!wasCaptured) {
+      return;
+    }
+
+    router.push(checkoutHref);
+  }
+
+  useEffect(() => {
+    if (!capturedEmail || detailedItems.length === 0) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      captureCartRecovery(capturedEmail, { silent: true });
+    }, 900);
+
+    return () => window.clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capturedEmail, province, items]);
+
+  if (isRecoveringCart) {
+    return (
+      <EmptyState
+        title="Estamos recuperando tu carrito"
+        description="En unos segundos vas a ver los productos que habías seleccionado."
+        actionHref="/#productos"
+        actionLabel="Ver productos"
+      />
+    );
+  }
+
+  if (detailedItems.length === 0) {
+    return (
+      <EmptyState
+        title="Tu carrito está vacío"
+        description="Elegí una de nuestras barritas y avanzá con un checkout rápido por transferencia."
+        actionHref="/#productos"
+        actionLabel="Ver productos"
+      />
+    );
+  }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
@@ -322,10 +477,32 @@ export function CartPage({ products, settings }: CartPageProps) {
         <p className="text-sm italic leading-6 text-brand-ink/60">
           Revisamos cada ingrediente para que vos no tengas que hacerlo. Eso es lo que llega a tu casa.
         </p>
+        <div className="border-t border-brand-ink/10 pt-4">
+          <label htmlFor="cart-recovery-email" className="mb-2 block text-sm font-bold text-brand-ink">
+            Email
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              id="cart-recovery-email"
+              type="email"
+              required
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setCaptureError("");
+              }}
+              placeholder="nombre@correo.com"
+              className="min-h-11 flex-1 rounded-full border border-brand-ink/12 bg-white px-4 text-sm font-bold text-brand-ink outline-none transition placeholder:text-brand-ink/30 focus:border-brand-pink/50 focus:ring-4 focus:ring-brand-pink/10"
+            />
+          </div>
+          {captureError ? <p className="mt-2 text-xs font-bold text-brand-pink">{captureError}</p> : null}
+        </div>
         <p className="text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p>
-        <Link href={checkoutHref} className="block pt-2">
-          <Button className="w-full">Continuar compra</Button>
-        </Link>
+        <div className="pt-2">
+          <Button type="button" className="w-full" disabled={isCapturing} onClick={handleContinueCheckout}>
+            {isCapturing ? "Continuando..." : "Continuar compra"}
+          </Button>
+        </div>
       </Card>
     </div>
   );

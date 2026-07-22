@@ -8,12 +8,14 @@ import { notFound } from "next/navigation";
 type CheckoutRoutePageProps = {
   searchParams?: Promise<{
     province?: string | string[];
+    email?: string | string[];
   }>;
 };
 
 export default async function CheckoutRoutePage({ searchParams }: CheckoutRoutePageProps) {
   const params = await searchParams;
   const requestedProvince = Array.isArray(params?.province) ? params.province[0] : params?.province;
+  const requestedEmail = Array.isArray(params?.email) ? params.email[0] : params?.email;
   const [products, settings] = await Promise.all([getVisibleProducts(), getStoreSettingsForClient()]);
 
   if (!settings) {
@@ -27,6 +29,7 @@ export default async function CheckoutRoutePage({ searchParams }: CheckoutRouteP
         settings={settings}
         mercadoPagoEnabled={env.mercadoPagoEnabled && env.hasMercadoPagoAccessToken}
         initialProvince={requestedProvince}
+        initialEmail={requestedEmail}
       />
     </Container>
   );

@@ -272,6 +272,31 @@ model HomeFeaturedProductSlot {
   @@map("home_featured_product_slots")
 }
 
+model CartRecoveryLead {
+  id                   String    @id @default(uuid()) @db.Uuid
+  email                String
+  recoveryToken        String    @unique @map("recovery_token")
+  items                Json
+  subtotalArs          Int       @default(0) @map("subtotal_ars")
+  currency             String    @default("ARS")
+  province             String?
+  status               String    @default("CAPTURED")
+  checkoutOrderId      String?   @map("checkout_order_id") @db.Uuid
+  checkoutOrderNumber  String?   @map("checkout_order_number")
+  checkoutStartedAt    DateTime? @map("checkout_started_at")
+  convertedOrderId     String?   @map("converted_order_id") @db.Uuid
+  convertedOrderNumber String?   @map("converted_order_number")
+  convertedAt          DateTime? @map("converted_at")
+  userAgent            String?   @map("user_agent")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@index([email], map: "cart_recovery_leads_email_idx")
+  @@index([status], map: "cart_recovery_leads_status_idx")
+  @@index([updatedAt], map: "cart_recovery_leads_updated_at_idx")
+  @@map("cart_recovery_leads")
+}
+
 model Order {
   id                    String               @id @default(uuid()) @db.Uuid
   publicOrderNumber     String               @unique @map("public_order_number")

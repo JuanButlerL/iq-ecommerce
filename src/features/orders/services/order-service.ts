@@ -2,6 +2,7 @@ import { OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, Syn
 
 import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
+import { markCartRecoveryCheckoutStarted, markCartRecoveryConverted } from "@/features/cart-recovery/services";
 import { getStoreSettings } from "@/features/settings/queries";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
@@ -241,6 +242,12 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     throw new AppError("No pudimos generar el numero de pedido.", 500, false);
   }
 
+  await markCartRecoveryCheckoutStarted({
+    id: createdOrder.id,
+    publicOrderNumber: createdOrder.publicOrderNumber,
+    customerEmail: input.email,
+  });
+
   await syncOrder(createdOrder.id).catch(async (syncError) => {
     const message = syncError instanceof Error ? syncError.message : "Sync error";
 
@@ -374,6 +381,12 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     });
 
     return null;
+  });
+
+  await markCartRecoveryConverted({
+    id: order.id,
+    publicOrderNumber: order.publicOrderNumber,
+    customerEmail: order.customerEmail,
   });
 
   await sendMetaConversionsApiEvent({

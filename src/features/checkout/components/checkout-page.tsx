@@ -38,6 +38,7 @@ type CheckoutPageProps = {
   settings: SettingsWithRule;
   mercadoPagoEnabled: boolean;
   initialProvince?: string;
+  initialEmail?: string;
 };
 
 type CouponPreview = {
@@ -48,7 +49,13 @@ type CouponPreview = {
   subtotalWithDiscountArs: number;
 };
 
-export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialProvince: requestedProvince }: CheckoutPageProps) {
+export function CheckoutPage({
+  products,
+  settings,
+  mercadoPagoEnabled,
+  initialProvince: requestedProvince,
+  initialEmail = "",
+}: CheckoutPageProps) {
   const router = useRouter();
   const [checkoutRequestKey] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +99,7 @@ export function CheckoutPage({ products, settings, mercadoPagoEnabled, initialPr
     defaultValues: {
       firstName: "",
       lastName: "",
-      email: "",
+      email: initialEmail,
       phone: "",
       province: initialProvince,
       locality: "",

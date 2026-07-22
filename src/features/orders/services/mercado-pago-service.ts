@@ -19,6 +19,7 @@ import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { syncOrder } from "@/features/orders/services/sync-service";
+import { markCartRecoveryConverted } from "@/features/cart-recovery/services";
 
 type MercadoPagoOrderRecord = Prisma.OrderGetPayload<{
   include: {
@@ -390,6 +391,12 @@ async function upsertMercadoPagoPayment(
   }
 
   if (nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID") {
+    await markCartRecoveryConverted({
+      id: order.id,
+      publicOrderNumber: order.publicOrderNumber,
+      customerEmail: order.customerEmail,
+    });
+
     await sendMetaConversionsApiEvent({
       eventName: "Purchase",
       eventId: buildMetaPurchaseEventId(order.publicOrderNumber),
