@@ -88,6 +88,18 @@ enum PaymentWebhookProcessingStatus {
   FAILED
 }
 
+enum EmailAutomationTrigger {
+  CART_ABANDONED
+  ORDER_CREATED
+  POST_PURCHASE
+}
+
+enum EmailSendStatus {
+  SENT
+  SKIPPED
+  ERROR
+}
+
 model AdminUser {
   id             String    @id @default(uuid()) @db.Uuid
   supabaseUserId String?   @unique @map("supabase_user_id") @db.Uuid
@@ -290,11 +302,60 @@ model CartRecoveryLead {
   userAgent            String?   @map("user_agent")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
+  emailLogs            EmailSendLog[]
 
   @@index([email], map: "cart_recovery_leads_email_idx")
   @@index([status], map: "cart_recovery_leads_status_idx")
   @@index([updatedAt], map: "cart_recovery_leads_updated_at_idx")
   @@map("cart_recovery_leads")
+}
+
+model EmailAutomation {
+  id             String                 @id @default(uuid()) @db.Uuid
+  name           String
+  trigger        EmailAutomationTrigger
+  active         Boolean                @default(false)
+  delayHours     Int                    @default(24) @map("delay_hours")
+  subject        String
+  previewText    String?                @map("preview_text")
+  bodyText       String                 @map("body_text") @db.Text
+  ctaLabel       String?                @map("cta_label")
+  ctaUrlTemplate String?                @map("cta_url_template")
+  senderName     String                 @default("IQ Kids") @map("sender_name")
+  fromEmail      String                 @default("no-reply@iqkids.com.ar") @map("from_email")
+  replyToEmail   String?                @map("reply_to_email")
+  bccEmail       String?                @map("bcc_email")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  logs           EmailSendLog[]
+
+  @@index([active, trigger], map: "email_automations_active_trigger_idx")
+  @@map("email_automations")
+}
+
+model EmailSendLog {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  automationId       String                 @map("automation_id") @db.Uuid
+  trigger            EmailAutomationTrigger
+  status             EmailSendStatus
+  recipientEmail     String                 @map("recipient_email")
+  subject            String
+  targetType         String                 @map("target_type")
+  targetId           String                 @map("target_id")
+  orderId            String?                @map("order_id") @db.Uuid
+  cartRecoveryLeadId String?                @map("cart_recovery_lead_id") @db.Uuid
+  providerMessageId  String?                @map("provider_message_id")
+  errorMessage       String?                @map("error_message")
+  sentAt             DateTime?              @map("sent_at")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  automation         EmailAutomation        @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  order              Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  cartRecoveryLead   CartRecoveryLead?      @relation(fields: [cartRecoveryLeadId], references: [id], onDelete: SetNull)
+
+  @@unique([automationId, targetType, targetId], map: "email_send_logs_automation_target_key")
+  @@index([recipientEmail, createdAt], map: "email_send_logs_recipient_created_idx")
+  @@index([status, createdAt], map: "email_send_logs_status_created_idx")
+  @@map("email_send_logs")
 }
 
 model Order {
@@ -346,6 +407,7 @@ model Order {
   mercadoPagoPayments   MercadoPagoPayment[]
   paymentWebhookEvents  PaymentWebhookEvent[]
   syncJobs              SyncJob[]
+  emailLogs             EmailSendLog[]
 
   @@index([couponId], map: "orders_coupon_idx")
   @@index([createdAt], map: "orders_created_at_idx")

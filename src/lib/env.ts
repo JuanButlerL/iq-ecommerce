@@ -34,6 +34,17 @@ const envSchema = z.object({
   ADMIN_LOCAL_PASSWORD: z.string().min(8).optional(),
   ADMIN_SESSION_SECRET: z.string().min(16).optional(),
   ENABLE_PROOF_PUBLIC_URL_SYNC: z.enum(["true", "false"]).default("false"),
+  EMAIL_SENDING_ENABLED: z.enum(["true", "false"]).default("false"),
+  EMAIL_PROVIDER: z.enum(["resend", "smtp"]).default("resend"),
+  EMAIL_FROM_DEFAULT: z.string().email().default("no-reply@iqkids.com.ar"),
+  EMAIL_REPLY_TO_DEFAULT: z.string().email().optional().or(z.literal("")),
+  EMAIL_CRON_SECRET: z.string().min(16).optional().or(z.literal("")),
+  RESEND_API_KEY: z.string().optional().or(z.literal("")),
+  SMTP_HOST: z.string().optional().or(z.literal("")),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_SECURE: z.enum(["true", "false"]).default("false"),
+  SMTP_USER: z.string().optional().or(z.literal("")),
+  SMTP_PASSWORD: z.string().optional().or(z.literal("")),
   DEV_ADMIN_BYPASS: z.enum(["true", "false"]).default("false"),
 });
 
@@ -71,6 +82,17 @@ const parsedEnv = envSchema.parse({
   ADMIN_LOCAL_PASSWORD: process.env.ADMIN_LOCAL_PASSWORD,
   ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
   ENABLE_PROOF_PUBLIC_URL_SYNC: process.env.ENABLE_PROOF_PUBLIC_URL_SYNC,
+  EMAIL_SENDING_ENABLED: process.env.EMAIL_SENDING_ENABLED,
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
+  EMAIL_FROM_DEFAULT: process.env.EMAIL_FROM_DEFAULT,
+  EMAIL_REPLY_TO_DEFAULT: process.env.EMAIL_REPLY_TO_DEFAULT,
+  EMAIL_CRON_SECRET: process.env.EMAIL_CRON_SECRET,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT,
+  SMTP_SECURE: process.env.SMTP_SECURE,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD,
   DEV_ADMIN_BYPASS: process.env.DEV_ADMIN_BYPASS,
 });
 
@@ -98,11 +120,32 @@ function isRealMetaConversionsApiAccessToken(value?: string) {
   return Boolean(value) && !String(value).includes("your-meta-conversions-api-access-token");
 }
 
+function isRealResendApiKey(value?: string) {
+  return Boolean(value) && !String(value).includes("your-resend-api-key");
+}
+
+function hasSmtpConfig(values: typeof parsedEnv) {
+  return (
+    values.EMAIL_PROVIDER === "smtp" &&
+    Boolean(values.SMTP_HOST) &&
+    Boolean(values.SMTP_USER) &&
+    Boolean(values.SMTP_PASSWORD)
+  );
+}
+
+function hasResendConfig(values: typeof parsedEnv) {
+  return values.EMAIL_PROVIDER === "resend" && isRealResendApiKey(values.RESEND_API_KEY);
+}
+
 export const env = {
   ...parsedEnv,
   isProduction: process.env.NODE_ENV === "production",
   isProductBucketPublic: parsedEnv.SUPABASE_PRODUCT_BUCKET_PUBLIC === "true",
   enableProofPublicUrlSync: parsedEnv.ENABLE_PROOF_PUBLIC_URL_SYNC === "true",
+  emailSendingEnabled: parsedEnv.EMAIL_SENDING_ENABLED === "true",
+  isSmtpSecure: parsedEnv.SMTP_SECURE === "true",
+  hasEmailProvider: hasResendConfig(parsedEnv) || hasSmtpConfig(parsedEnv),
+  canSendEmail: parsedEnv.EMAIL_SENDING_ENABLED === "true" && (hasResendConfig(parsedEnv) || hasSmtpConfig(parsedEnv)),
   devAdminBypass: parsedEnv.DEV_ADMIN_BYPASS === "true" && process.env.NODE_ENV !== "production",
   hasLocalAdminAuth:
     Boolean(parsedEnv.ADMIN_LOCAL_EMAIL) &&

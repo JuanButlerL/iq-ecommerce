@@ -1,0 +1,355 @@
+import { EmailAutomationTrigger, EmailSendStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
+
+import { sendEmail } from "@/features/email/provider";
+import { renderMarketingEmail, renderTemplate } from "@/features/email/render";
+import { prisma } from "@/lib/db/prisma";
+import { env } from "@/lib/env";
+import { formatArs } from "@/lib/utils/currency";
+
+const DEFAULT_LIMIT = 25;
+
+type ProcessResult = {
+  automationId: string;
+  automationName: string;
+  sent: number;
+  skipped: number;
+  errors: number;
+};
+
+type Candidate = {
+  targetType: "cart_recovery_lead" | "order";
+  targetId: string;
+  recipientEmail: string;
+  orderId?: string;
+  cartRecoveryLeadId?: string;
+  variables: Record<string, string | number | null | undefined>;
+};
+
+export async function processEmailAutomations(options: { automationId?: string; limit?: number } = {}) {
+  const automations = await prisma.emailAutomation.findMany({
+    where: {
+      active: true,
+      ...(options.automationId ? { id: options.automationId } : {}),
+    },
+    orderBy: [{ trigger: "asc" }, { createdAt: "asc" }],
+  });
+  const results: ProcessResult[] = [];
+
+  for (const automation of automations) {
+    const candidates = await getCandidatesForAutomation(automation, options.limit ?? DEFAULT_LIMIT);
+    const result: ProcessResult = {
+      automationId: automation.id,
+      automationName: automation.name,
+      sent: 0,
+      skipped: 0,
+      errors: 0,
+    };
+
+    for (const candidate of candidates) {
+      const existingLog = await prisma.emailSendLog.findUnique({
+        where: {
+          automationId_targetType_targetId: {
+            automationId: automation.id,
+            targetType: candidate.targetType,
+            targetId: candidate.targetId,
+          },
+        },
+      });
+
+      if (existingLog) {
+        result.skipped += 1;
+        continue;
+      }
+
+      const subject = renderTemplate(automation.subject, candidate.variables);
+      const previewText = automation.previewText ? renderTemplate(automation.previewText, candidate.variables) : null;
+      const bodyText = renderTemplate(automation.bodyText, candidate.variables);
+      const ctaLabel = automation.ctaLabel ? renderTemplate(automation.ctaLabel, candidate.variables) : null;
+      const ctaUrl = automation.ctaUrlTemplate ? renderTemplate(automation.ctaUrlTemplate, candidate.variables) : null;
+      const html = renderMarketingEmail({ subject, previewText, bodyText, ctaLabel, ctaUrl });
+
+      try {
+        const sent = await sendEmail({
+          fromEmail: automation.fromEmail || env.EMAIL_FROM_DEFAULT,
+          senderName: automation.senderName || "IQ Kids",
+          replyToEmail: automation.replyToEmail,
+          to: candidate.recipientEmail,
+          subject,
+          html,
+          text: [subject, bodyText, ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : ""].filter(Boolean).join("\n\n"),
+          bccEmail: automation.bccEmail,
+        });
+
+        await createEmailLog({
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.SENT,
+          recipientEmail: candidate.recipientEmail,
+          subject,
+          targetType: candidate.targetType,
+          targetId: candidate.targetId,
+          orderId: candidate.orderId,
+          cartRecoveryLeadId: candidate.cartRecoveryLeadId,
+          providerMessageId: sent.providerMessageId,
+        });
+        result.sent += 1;
+      } catch (error) {
+        await createEmailLog({
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.ERROR,
+          recipientEmail: candidate.recipientEmail,
+          subject,
+          targetType: candidate.targetType,
+          targetId: candidate.targetId,
+          orderId: candidate.orderId,
+          cartRecoveryLeadId: candidate.cartRecoveryLeadId,
+          errorMessage: error instanceof Error ? error.message : "Email error",
+        });
+        result.errors += 1;
+      }
+    }
+
+    results.push(result);
+  }
+
+  return results;
+}
+
+export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo?: Date } = {}) {
+  const logCreatedAtWhere =
+    options.logFrom || options.logTo
+      ? {
+          createdAt: {
+            ...(options.logFrom ? { gte: options.logFrom } : {}),
+            ...(options.logTo ? { lte: options.logTo } : {}),
+          },
+        }
+      : {};
+  const [automations, recentLogs, cartLeads] = await Promise.all([
+    prisma.emailAutomation.findMany({
+      orderBy: [{ active: "desc" }, { trigger: "asc" }, { name: "asc" }],
+      include: {
+        _count: {
+          select: { logs: true },
+        },
+      },
+    }),
+    prisma.emailSendLog.findMany({
+      take: 250,
+      where: logCreatedAtWhere,
+      orderBy: { createdAt: "desc" },
+      include: {
+        automation: {
+          select: { name: true },
+        },
+        order: {
+          select: {
+            publicOrderNumber: true,
+            createdAt: true,
+            paidAt: true,
+            paymentStatus: true,
+            totalArs: true,
+            customerEmail: true,
+            paymentProofs: {
+              orderBy: { uploadedAt: "desc" },
+              take: 1,
+              select: { uploadedAt: true },
+            },
+          },
+        },
+        cartRecoveryLead: {
+          select: {
+            email: true,
+            status: true,
+            subtotalArs: true,
+            createdAt: true,
+            checkoutStartedAt: true,
+            convertedAt: true,
+            convertedOrderNumber: true,
+          },
+        },
+      },
+    }),
+    prisma.cartRecoveryLead.findMany({
+      take: 20,
+      where: {
+        status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+  ]);
+
+  return {
+    automations,
+    recentLogs,
+    cartLeads,
+    emailEnabled: env.canSendEmail,
+  };
+}
+
+export async function getEmailAuditPreview(options: { logFrom?: Date; logTo?: Date } = {}) {
+  const preview = await getEmailAutomationPreview(options);
+
+  return {
+    recentLogs: preview.recentLogs,
+    emailEnabled: preview.emailEnabled,
+  };
+}
+
+async function getCandidatesForAutomation(
+  automation: { id: string; trigger: EmailAutomationTrigger; delayHours: number },
+  limit: number,
+): Promise<Candidate[]> {
+  const readyAt = new Date(Date.now() - Math.max(automation.delayHours, 0) * 60 * 60 * 1000);
+
+  if (automation.trigger === EmailAutomationTrigger.CART_ABANDONED) {
+    const leads = await prisma.cartRecoveryLead.findMany({
+      take: limit,
+      where: {
+        status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
+        updatedAt: { lte: readyAt },
+      },
+      orderBy: { updatedAt: "asc" },
+    });
+    const candidates: Candidate[] = [];
+
+    for (const lead of leads) {
+      const convertedLater = await prisma.order.findFirst({
+        where: {
+          customerEmail: {
+            equals: lead.email,
+            mode: "insensitive",
+          },
+          createdAt: {
+            gte: lead.createdAt,
+          },
+          orderStatus: {
+            notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED],
+          },
+          paymentStatus: {
+            in: [PaymentStatus.PROOF_UPLOADED, PaymentStatus.PAID],
+          },
+        },
+        select: { id: true, publicOrderNumber: true },
+      });
+
+      if (convertedLater) {
+        await prisma.cartRecoveryLead.update({
+          where: { id: lead.id },
+          data: {
+            status: "CONVERTED",
+            convertedOrderId: convertedLater.id,
+            convertedOrderNumber: convertedLater.publicOrderNumber,
+            convertedAt: new Date(),
+          },
+        });
+
+        await createEmailLog({
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.SKIPPED,
+          recipientEmail: lead.email,
+          subject: "Skipped: customer converted",
+          targetType: "cart_recovery_lead",
+          targetId: lead.id,
+          cartRecoveryLeadId: lead.id,
+        errorMessage: "Omitido: el email ya tiene una compra posterior confirmada.",
+        });
+        continue;
+      }
+
+      candidates.push({
+        targetType: "cart_recovery_lead",
+        targetId: lead.id,
+        recipientEmail: lead.email,
+        cartRecoveryLeadId: lead.id,
+        variables: {
+          email: lead.email,
+          recoveryUrl: `${env.NEXT_PUBLIC_SITE_URL}/carrito?recuperar=${lead.recoveryToken}`,
+          siteUrl: env.NEXT_PUBLIC_SITE_URL,
+          subtotal: formatArs(lead.subtotalArs),
+        },
+      });
+    }
+
+    return candidates;
+  }
+
+  if (automation.trigger === EmailAutomationTrigger.ORDER_CREATED) {
+    const orders = await prisma.order.findMany({
+      take: limit,
+      where: {
+        createdAt: { lte: readyAt },
+        orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return orders.map((order) => buildOrderCandidate(order));
+  }
+
+  const orders = await prisma.order.findMany({
+    take: Math.max(limit * 3, limit),
+    where: {
+      paymentStatus: { in: [PaymentStatus.PROOF_UPLOADED, PaymentStatus.PAID] },
+      orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
+      OR: [{ paidAt: { lte: readyAt } }, { paymentProofs: { some: { uploadedAt: { lte: readyAt } } } }],
+    },
+    orderBy: { createdAt: "asc" },
+    include: {
+      paymentProofs: {
+        orderBy: { uploadedAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+
+  return orders
+    .filter((order) => getPostPurchaseEventDate(order) <= readyAt)
+    .slice(0, limit)
+    .map((order) => buildOrderCandidate(order));
+}
+
+function getPostPurchaseEventDate(order: { paidAt: Date | null; paymentProofs?: Array<{ uploadedAt: Date }> }) {
+  return order.paidAt ?? order.paymentProofs?.[0]?.uploadedAt ?? new Date(0);
+}
+
+function buildOrderCandidate(order: {
+  id: string;
+  publicOrderNumber: string;
+  customerEmail: string;
+  customerFirstName: string;
+  totalArs: number;
+}) {
+  return {
+    targetType: "order" as const,
+    targetId: order.id,
+    recipientEmail: order.customerEmail,
+    orderId: order.id,
+    variables: {
+      firstName: order.customerFirstName,
+      orderNumber: order.publicOrderNumber,
+      orderUrl: `${env.NEXT_PUBLIC_SITE_URL}/checkout/confirmacion/${order.publicOrderNumber}`,
+      siteUrl: env.NEXT_PUBLIC_SITE_URL,
+      total: formatArs(order.totalArs),
+    },
+  };
+}
+
+async function createEmailLog(input: Prisma.EmailSendLogUncheckedCreateInput) {
+  try {
+    return await prisma.emailSendLog.create({
+      data: {
+        ...input,
+        sentAt: input.status === EmailSendStatus.SENT ? new Date() : input.sentAt,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return null;
+    }
+
+    throw error;
+  }
+}
