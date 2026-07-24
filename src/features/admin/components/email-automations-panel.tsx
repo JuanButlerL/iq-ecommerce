@@ -27,6 +27,15 @@ type AutomationItem = {
   fromEmail: string;
   replyToEmail: string | null;
   bccEmail: string | null;
+  couponId: string | null;
+  couponHeadline: string | null;
+  couponMessage: string | null;
+  coupon: {
+    id: string;
+    code: string;
+    discountPercentage: unknown;
+    description: string | null;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
   _count: { logs: number };
@@ -40,9 +49,20 @@ type LogItem = {
   subject: string;
   targetType: string;
   errorMessage: string | null;
+  clickCount: number;
+  firstClickedAt: Date | null;
+  lastClickedAt: Date | null;
+  convertedOrderNumber: string | null;
+  convertedAt: Date | null;
   sentAt: Date | null;
   createdAt: Date;
   automation: { name: string };
+  convertedOrder: {
+    publicOrderNumber: string;
+    totalArs: number;
+    paymentStatus: string;
+    createdAt: Date;
+  } | null;
   order: {
     publicOrderNumber: string;
     createdAt: Date;
@@ -75,6 +95,17 @@ type EmailAutomationsPanelProps = {
   automations: AutomationItem[];
   recentLogs: LogItem[];
   cartLeads: CartLeadItem[];
+  coupons: Array<{
+    id: string;
+    code: string;
+    discountPercentage: unknown;
+    description: string | null;
+  }>;
+  trackingSummary: {
+    sent: number;
+    clicked: number;
+    converted: number;
+  };
   emailEnabled: boolean;
 };
 
@@ -93,6 +124,9 @@ type FormState = {
   fromEmail: string;
   replyToEmail: string;
   bccEmail: string;
+  couponId: string;
+  couponHeadline: string;
+  couponMessage: string;
 };
 
 const defaultForm: FormState = {
@@ -110,6 +144,9 @@ const defaultForm: FormState = {
   fromEmail: "no-reply@iqkids.com.ar",
   replyToEmail: "",
   bccEmail: "",
+  couponId: "",
+  couponHeadline: "",
+  couponMessage: "",
 };
 
 const triggerLabels: Record<EmailAutomationTrigger, string> = {
@@ -166,7 +203,7 @@ const variableDescriptions: Partial<Record<EmailAutomationTrigger, Record<string
   },
 };
 
-export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, emailEnabled }: EmailAutomationsPanelProps) {
+export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, emailEnabled }: EmailAutomationsPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(automations[0]?.id ?? null);
   const [form, setForm] = useState<FormState>(() => automationToForm(automations[0] ?? null));
   const [testEmail, setTestEmail] = useState("");
@@ -326,8 +363,10 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, emai
         <Metric label="Activas" value={activeCount.toString()} />
         <Metric label="Sin compra" value={cartLeads.length.toString()} />
         <Metric label="Enviados recientes" value={sentCount.toString()} />
-        <Metric label="Errores recientes" value={errorCount.toString()} tone={errorCount ? "danger" : "default"} />
+        <Metric label="Clicks recientes" value={trackingSummary.clicked.toString()} />
+        <Metric label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
       </div>
+      {errorCount ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Hay {errorCount} errores recientes de email. Revisalos en auditoria.</p> : null}
 
       <div
         className={cn(
@@ -545,6 +584,51 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, emai
                 </div>
               </div>
 
+              <div className="rounded-3xl border border-brand-ink/10 bg-white p-4 md:p-5">
+                <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-pink">Cupón opcional</p>
+                    <p className="mt-2 text-sm leading-6 text-brand-ink/55">
+                      Si elegís uno, aparece como bloque destacado dentro del mail.
+                    </p>
+                  </div>
+                  <div className="grid gap-4">
+                    <Field label="Cupón">
+                      <select
+                        value={form.couponId}
+                        onChange={(event) => setForm((current) => ({ ...current, couponId: event.target.value }))}
+                        className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+                      >
+                        <option value="">Sin cupón</option>
+                        {coupons.map((coupon) => (
+                          <option key={coupon.id} value={coupon.id}>
+                            {coupon.code} - {Number(coupon.discountPercentage)}% off
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    {form.couponId ? (
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <Field label="Título del regalo">
+                          <Input
+                            placeholder="Un mimo para volver a resolver la semana"
+                            value={form.couponHeadline}
+                            onChange={(event) => setForm((current) => ({ ...current, couponHeadline: event.target.value }))}
+                          />
+                        </Field>
+                        <Field label="Mensaje del cupón">
+                          <Input
+                            placeholder="Usalo en tu compra antes de finalizar."
+                            value={form.couponMessage}
+                            onChange={(event) => setForm((current) => ({ ...current, couponMessage: event.target.value }))}
+                          />
+                        </Field>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
               <details className="rounded-3xl border border-brand-ink/10 bg-white p-4">
                 <summary className="cursor-pointer text-sm font-extrabold uppercase tracking-[0.14em] text-brand-ink/55">
                   Remitente avanzado
@@ -656,6 +740,8 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, emai
               <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Estado de envios</p>
               <div className="mt-4 space-y-3">
                 <MetricLine label="Enviados" value={sentCount.toString()} />
+                <MetricLine label="Clics" value={trackingSummary.clicked.toString()} />
+                <MetricLine label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
                 <MetricLine label="Omitidos" value={recentLogs.filter((log) => log.status === "SKIPPED").length.toString()} />
                 <MetricLine label="Errores" value={errorCount.toString()} />
               </div>
@@ -755,6 +841,9 @@ function automationToForm(automation: AutomationItem | null): FormState {
     fromEmail: automation.fromEmail,
     replyToEmail: automation.replyToEmail ?? "",
     bccEmail: automation.bccEmail ?? "",
+    couponId: automation.couponId ?? "",
+    couponHeadline: automation.couponHeadline ?? "",
+    couponMessage: automation.couponMessage ?? "",
   };
 }
 

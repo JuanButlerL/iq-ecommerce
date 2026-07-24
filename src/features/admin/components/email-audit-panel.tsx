@@ -19,9 +19,20 @@ type LogItem = {
   subject: string;
   targetType: string;
   errorMessage: string | null;
+  clickCount: number;
+  firstClickedAt: Date | null;
+  lastClickedAt: Date | null;
+  convertedOrderNumber: string | null;
+  convertedAt: Date | null;
   sentAt: Date | null;
   createdAt: Date;
   automation: { name: string };
+  convertedOrder: {
+    publicOrderNumber: string;
+    createdAt: Date;
+    paymentStatus: string;
+    totalArs: number;
+  } | null;
   order: {
     publicOrderNumber: string;
     createdAt: Date;
@@ -96,8 +107,14 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
       </Card>
 
       <Card className="p-5 md:p-6">
+        <div className="mb-5 grid gap-3 md:grid-cols-4">
+          <Metric label="Enviados" value={recentLogs.filter((log) => log.status === "SENT").length.toString()} />
+          <Metric label="Con click" value={recentLogs.filter((log) => log.clickCount > 0).length.toString()} />
+          <Metric label="Ventas atribuidas" value={recentLogs.filter((log) => log.convertedAt).length.toString()} />
+          <Metric label="Errores" value={recentLogs.filter((log) => log.status === "ERROR").length.toString()} />
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-[1180px] text-left text-sm">
             <thead>
               <tr className="border-b border-brand-ink/10 text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/45">
                 <th className="py-3 pr-4">Estado</th>
@@ -106,6 +123,8 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                 <th className="py-3 pr-4">Disparador</th>
                 <th className="py-3 pr-4">Fecha envio/log</th>
                 <th className="py-3 pr-4">Fecha inicio</th>
+                <th className="py-3 pr-4">Click</th>
+                <th className="py-3 pr-4">Venta atribuida</th>
                 <th className="py-3 pr-4">Objetivo</th>
                 <th className="py-3 pr-4">Detalle</th>
               </tr>
@@ -122,6 +141,26 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                     <td className="py-3 pr-4 text-brand-ink/70">{triggerLabels[log.trigger]}</td>
                     <td className="py-3 pr-4 text-brand-ink/70">{formatArgentinaDateTime(new Date(log.sentAt ?? log.createdAt))}</td>
                     <td className="py-3 pr-4 text-brand-ink/70">{getLogStartDate(log)}</td>
+                    <td className="py-3 pr-4 text-brand-ink/70">
+                      {log.clickCount > 0 ? (
+                        <div>
+                          <p className="font-bold text-brand-ink">{log.clickCount} click{log.clickCount === 1 ? "" : "s"}</p>
+                          <p className="text-xs text-brand-ink/55">{log.lastClickedAt ? formatArgentinaDateTime(new Date(log.lastClickedAt)) : "-"}</p>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="py-3 pr-4 text-brand-ink/70">
+                      {log.convertedOrderNumber ? (
+                        <div>
+                          <p className="font-bold text-emerald-700">{log.convertedOrderNumber}</p>
+                          <p className="text-xs text-brand-ink/55">{log.convertedAt ? formatArgentinaDateTime(new Date(log.convertedAt)) : "-"}</p>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                     <td className="py-3 pr-4 text-brand-ink/70">{getLogTargetLabel(log)}</td>
                     <td className="py-3 pr-4 text-brand-ink/60">
                       <p className="max-w-[280px] font-bold text-brand-ink">{log.subject}</p>
@@ -137,7 +176,7 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-brand-ink/55">
+                  <td colSpan={10} className="py-8 text-center text-brand-ink/55">
                     No hay emails para el filtro seleccionado.
                   </td>
                 </tr>
@@ -159,6 +198,15 @@ function getLogStartDate(log: LogItem) {
         : log.order?.createdAt;
 
   return start ? formatArgentinaDateTime(new Date(start)) : "-";
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-3xl bg-background px-4 py-3">
+      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/45">{label}</p>
+      <p className="mt-2 font-display text-2xl text-brand-ink">{value}</p>
+    </div>
+  );
 }
 
 function getLogTargetLabel(log: LogItem) {

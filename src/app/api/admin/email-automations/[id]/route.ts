@@ -22,6 +22,9 @@ export async function PATCH(request: Request, context: RouteContext) {
         ctaUrlTemplate: parsed.ctaUrlTemplate || null,
         replyToEmail: parsed.replyToEmail || null,
         bccEmail: parsed.bccEmail || null,
+        couponId: parsed.couponId || null,
+        couponHeadline: parsed.couponHeadline || null,
+        couponMessage: parsed.couponMessage || null,
       },
     });
 

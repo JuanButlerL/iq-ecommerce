@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { EmailAutomationTrigger, EmailSendStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
@@ -30,6 +31,9 @@ export async function processEmailAutomations(options: { automationId?: string; 
     where: {
       active: true,
       ...(options.automationId ? { id: options.automationId } : {}),
+    },
+    include: {
+      coupon: true,
     },
     orderBy: [{ trigger: "asc" }, { createdAt: "asc" }],
   });
@@ -66,7 +70,24 @@ export async function processEmailAutomations(options: { automationId?: string; 
       const bodyText = renderTemplate(automation.bodyText, candidate.variables);
       const ctaLabel = automation.ctaLabel ? renderTemplate(automation.ctaLabel, candidate.variables) : null;
       const ctaUrl = automation.ctaUrlTemplate ? renderTemplate(automation.ctaUrlTemplate, candidate.variables) : null;
-      const html = renderMarketingEmail({ subject, previewText, bodyText, ctaLabel, ctaUrl });
+      const logId = randomUUID();
+      const clickToken = ctaUrl ? randomUUID() : null;
+      const trackedCtaUrl = clickToken ? `${env.NEXT_PUBLIC_SITE_URL}/api/email/click/${clickToken}` : null;
+      const html = renderMarketingEmail({
+        subject,
+        previewText,
+        bodyText,
+        ctaLabel,
+        ctaUrl: trackedCtaUrl ?? ctaUrl,
+        coupon: automation.coupon
+          ? {
+              code: automation.coupon.code,
+              discountPercentage: Number(automation.coupon.discountPercentage),
+              headline: automation.couponHeadline,
+              message: automation.couponMessage,
+            }
+          : null,
+      });
 
       try {
         const sent = await sendEmail({
@@ -81,6 +102,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
         });
 
         await createEmailLog({
+          id: logId,
           automationId: automation.id,
           trigger: automation.trigger,
           status: EmailSendStatus.SENT,
@@ -91,10 +113,13 @@ export async function processEmailAutomations(options: { automationId?: string; 
           orderId: candidate.orderId,
           cartRecoveryLeadId: candidate.cartRecoveryLeadId,
           providerMessageId: sent.providerMessageId,
+          ctaUrl,
+          clickToken,
         });
         result.sent += 1;
       } catch (error) {
         await createEmailLog({
+          id: logId,
           automationId: automation.id,
           trigger: automation.trigger,
           status: EmailSendStatus.ERROR,
@@ -104,6 +129,8 @@ export async function processEmailAutomations(options: { automationId?: string; 
           targetId: candidate.targetId,
           orderId: candidate.orderId,
           cartRecoveryLeadId: candidate.cartRecoveryLeadId,
+          ctaUrl,
+          clickToken,
           errorMessage: error instanceof Error ? error.message : "Email error",
         });
         result.errors += 1;
@@ -126,10 +153,11 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
           },
         }
       : {};
-  const [automations, recentLogs, cartLeads] = await Promise.all([
+  const [automations, recentLogs, cartLeads, coupons] = await Promise.all([
     prisma.emailAutomation.findMany({
       orderBy: [{ active: "desc" }, { trigger: "asc" }, { name: "asc" }],
       include: {
+        coupon: true,
         _count: {
           select: { logs: true },
         },
@@ -142,6 +170,14 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       include: {
         automation: {
           select: { name: true },
+        },
+        convertedOrder: {
+          select: {
+            publicOrderNumber: true,
+            totalArs: true,
+            paymentStatus: true,
+            createdAt: true,
+          },
         },
         order: {
           select: {
@@ -178,12 +214,31 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       },
       orderBy: { updatedAt: "desc" },
     }),
+    prisma.coupon.findMany({
+      where: { active: true },
+      orderBy: { code: "asc" },
+      select: {
+        id: true,
+        code: true,
+        discountPercentage: true,
+        description: true,
+      },
+    }),
   ]);
+
+  const logsWithClicks = recentLogs.filter((log) => log.clickCount > 0).length;
+  const logsWithConversions = recentLogs.filter((log) => log.convertedAt).length;
 
   return {
     automations,
     recentLogs,
     cartLeads,
+    coupons,
+    trackingSummary: {
+      clicked: logsWithClicks,
+      converted: logsWithConversions,
+      sent: recentLogs.filter((log) => log.status === EmailSendStatus.SENT).length,
+    },
     emailEnabled: env.canSendEmail,
   };
 }
@@ -254,7 +309,7 @@ async function getCandidatesForAutomation(
           targetType: "cart_recovery_lead",
           targetId: lead.id,
           cartRecoveryLeadId: lead.id,
-        errorMessage: "Omitido: el email ya tiene una compra posterior confirmada.",
+          errorMessage: "Omitido: el email ya tiene una compra posterior confirmada.",
         });
         continue;
       }
@@ -309,6 +364,30 @@ async function getCandidatesForAutomation(
     .filter((order) => getPostPurchaseEventDate(order) <= readyAt)
     .slice(0, limit)
     .map((order) => buildOrderCandidate(order));
+}
+
+export async function markEmailClicksConverted(order: {
+  id: string;
+  publicOrderNumber: string;
+  customerEmail: string;
+}) {
+  await prisma.emailSendLog.updateMany({
+    where: {
+      recipientEmail: {
+        equals: order.customerEmail.toLowerCase(),
+        mode: "insensitive",
+      },
+      status: EmailSendStatus.SENT,
+      firstClickedAt: { not: null },
+      convertedOrderId: null,
+      createdAt: { lte: new Date() },
+    },
+    data: {
+      convertedOrderId: order.id,
+      convertedOrderNumber: order.publicOrderNumber,
+      convertedAt: new Date(),
+    },
+  });
 }
 
 function getPostPurchaseEventDate(order: { paidAt: Date | null; paymentProofs?: Array<{ uploadedAt: Date }> }) {

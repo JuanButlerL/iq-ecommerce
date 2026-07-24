@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { markEmailClicksConverted } from "@/features/email/automation-service";
 
 const ACTIVE_LEAD_WINDOW_HOURS = 24;
 
@@ -49,4 +50,6 @@ export async function markCartRecoveryConverted(order: OrderReference) {
       convertedAt: new Date(),
     },
   });
+
+  await markEmailClicksConverted(order);
 }

@@ -15,4 +15,7 @@ export const emailAutomationSchema = z.object({
   fromEmail: z.string().trim().email().default("no-reply@iqkids.com.ar"),
   replyToEmail: z.string().trim().email().optional().or(z.literal("")),
   bccEmail: z.string().trim().email().optional().or(z.literal("")),
+  couponId: z.string().uuid().optional().or(z.literal("")),
+  couponHeadline: z.string().trim().max(120).optional().or(z.literal("")),
+  couponMessage: z.string().trim().max(600).optional().or(z.literal("")),
 });

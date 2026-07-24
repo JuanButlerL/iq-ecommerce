@@ -10,6 +10,7 @@ export const ADMIN_SECTIONS = [
   { id: "shipping", label: "Envios", href: "/admin/envios" },
   { id: "orders", label: "Pedidos", href: "/admin/pedidos" },
   { id: "emails", label: "Emails", href: "/admin/emails" },
+  { id: "links", label: "Links", href: "/admin/links" },
   { id: "sync", label: "Sync", href: "/admin/sync" },
   { id: "users", label: "Usuarios", href: "/admin/usuarios" },
 ] as const;

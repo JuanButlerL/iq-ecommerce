@@ -247,6 +247,7 @@ model Coupon {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
   orders             Order[]
+  emailAutomations   EmailAutomation[]
 
   @@index([active, code], map: "coupons_active_code_idx")
   @@map("coupons")
@@ -325,11 +326,16 @@ model EmailAutomation {
   fromEmail      String                 @default("no-reply@iqkids.com.ar") @map("from_email")
   replyToEmail   String?                @map("reply_to_email")
   bccEmail       String?                @map("bcc_email")
+  couponId       String?                @map("coupon_id") @db.Uuid
+  couponHeadline String?                @map("coupon_headline")
+  couponMessage  String?                @map("coupon_message") @db.Text
   createdAt      DateTime               @default(now()) @map("created_at")
   updatedAt      DateTime               @updatedAt @map("updated_at")
+  coupon         Coupon?                @relation(fields: [couponId], references: [id], onDelete: SetNull)
   logs           EmailSendLog[]
 
   @@index([active, trigger], map: "email_automations_active_trigger_idx")
+  @@index([couponId], map: "email_automations_coupon_idx")
   @@map("email_automations")
 }
 
@@ -345,17 +351,43 @@ model EmailSendLog {
   orderId            String?                @map("order_id") @db.Uuid
   cartRecoveryLeadId String?                @map("cart_recovery_lead_id") @db.Uuid
   providerMessageId  String?                @map("provider_message_id")
+  ctaUrl             String?                @map("cta_url")
+  clickToken         String?                @unique @map("click_token")
+  clickCount         Int                    @default(0) @map("click_count")
+  firstClickedAt     DateTime?              @map("first_clicked_at")
+  lastClickedAt      DateTime?              @map("last_clicked_at")
+  convertedOrderId   String?                @map("converted_order_id") @db.Uuid
+  convertedOrderNumber String?              @map("converted_order_number")
+  convertedAt        DateTime?              @map("converted_at")
   errorMessage       String?                @map("error_message")
   sentAt             DateTime?              @map("sent_at")
   createdAt          DateTime               @default(now()) @map("created_at")
   automation         EmailAutomation        @relation(fields: [automationId], references: [id], onDelete: Cascade)
   order              Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  convertedOrder     Order?                 @relation("EmailLogConvertedOrder", fields: [convertedOrderId], references: [id], onDelete: SetNull)
   cartRecoveryLead   CartRecoveryLead?      @relation(fields: [cartRecoveryLeadId], references: [id], onDelete: SetNull)
 
   @@unique([automationId, targetType, targetId], map: "email_send_logs_automation_target_key")
   @@index([recipientEmail, createdAt], map: "email_send_logs_recipient_created_idx")
   @@index([status, createdAt], map: "email_send_logs_status_created_idx")
+  @@index([convertedAt], map: "email_send_logs_converted_at_idx")
   @@map("email_send_logs")
+}
+
+model ShortLink {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  targetUrl   String   @map("target_url") @db.Text
+  title       String?
+  description String?
+  active      Boolean  @default(true)
+  clickCount  Int      @default(0) @map("click_count")
+  lastClickedAt DateTime? @map("last_clicked_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([active, slug], map: "short_links_active_slug_idx")
+  @@map("short_links")
 }
 
 model Order {
@@ -408,6 +440,7 @@ model Order {
   paymentWebhookEvents  PaymentWebhookEvent[]
   syncJobs              SyncJob[]
   emailLogs             EmailSendLog[]
+  convertedEmailLogs    EmailSendLog[]      @relation("EmailLogConvertedOrder")
 
   @@index([couponId], map: "orders_coupon_idx")
   @@index([createdAt], map: "orders_created_at_idx")

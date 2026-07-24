@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     const parsed = testSchema.parse(await request.json());
     const automation = await prisma.emailAutomation.findUnique({
       where: { id: parsed.automationId },
+      include: { coupon: true },
     });
 
     if (!automation) {
@@ -44,7 +45,21 @@ export async function POST(request: Request) {
     const bodyText = renderTemplate(automation.bodyText, variables);
     const ctaLabel = automation.ctaLabel ? renderTemplate(automation.ctaLabel, variables) : null;
     const ctaUrl = automation.ctaUrlTemplate ? renderTemplate(automation.ctaUrlTemplate, variables) : null;
-    const html = renderMarketingEmail({ subject, previewText, bodyText, ctaLabel, ctaUrl });
+    const html = renderMarketingEmail({
+      subject,
+      previewText,
+      bodyText,
+      ctaLabel,
+      ctaUrl,
+      coupon: automation.coupon
+        ? {
+            code: automation.coupon.code,
+            discountPercentage: Number(automation.coupon.discountPercentage),
+            headline: automation.couponHeadline,
+            message: automation.couponMessage,
+          }
+        : null,
+    });
     const sent = await sendEmail({
       fromEmail: automation.fromEmail,
       senderName: automation.senderName,
