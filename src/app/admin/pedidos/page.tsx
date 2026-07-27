@@ -1,42 +1,105 @@
 import Link from "next/link";
+import { OrderStatus, PaymentMethod, PaymentStatus, SyncStatus } from "@prisma/client";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getOrders } from "@/features/orders/queries";
+import { getOrdersPage, type OrderFilters } from "@/features/orders/queries";
 import { requireAdminSection } from "@/lib/auth/admin";
+import { formatArgentinaDateTime, parseArgentinaDateParam } from "@/lib/utils/datetime";
 
-function parseDateParam(value?: string) {
-  if (!value) {
-    return undefined;
+type SearchParams = {
+  search?: string;
+  operationalStatus?: OrderFilters["operationalStatus"];
+  orderStatus?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  syncStatus?: string;
+  proofStatus?: OrderFilters["proofStatus"];
+  dateFrom?: string;
+  dateTo?: string;
+  page?: string;
+};
+
+function getEnumValue<T extends Record<string, string>>(enumObject: T, value?: string | null) {
+  if (!value || value === "ALL") {
+    return "ALL";
   }
 
-  const date = new Date(`${value}T00:00:00.000`);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  return Object.values(enumObject).includes(value) ? value : "ALL";
 }
 
-function parseDateParamEnd(value?: string) {
-  if (!value) {
-    return undefined;
+function getProofStatus(value?: string | null): OrderFilters["proofStatus"] {
+  return value === "WITH_PROOF" || value === "WITHOUT_PROOF" ? value : "ALL";
+}
+
+function getOperationalStatus(value?: string | null): OrderFilters["operationalStatus"] {
+  const valid: Array<NonNullable<OrderFilters["operationalStatus"]>> = [
+    "ALL",
+    "TO_COLLECT",
+    "PROOF_REVIEW",
+    "TO_PREPARE",
+    "SYNC_ISSUES",
+    "CANCELLED",
+  ];
+
+  return valid.includes(value as NonNullable<OrderFilters["operationalStatus"]>)
+    ? (value as OrderFilters["operationalStatus"])
+    : "ALL";
+}
+
+function buildQuery(params: SearchParams, overrides: Record<string, string | number | undefined> = {}) {
+  const query = new URLSearchParams();
+  const merged = { ...params, ...overrides };
+
+  for (const [key, value] of Object.entries(merged)) {
+    if (value == null || value === "" || value === "ALL") {
+      continue;
+    }
+
+    query.set(key, String(value));
   }
 
-  const date = new Date(`${value}T23:59:59.999`);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  return query.toString();
+}
+
+const operationalFilters: Array<{ value: NonNullable<OrderFilters["operationalStatus"]>; label: string; hint: string }> = [
+  { value: "ALL", label: "Todos", hint: "Ultimos movimientos" },
+  { value: "TO_COLLECT", label: "A cobrar", hint: "Transferencias sin comprobante" },
+  { value: "PROOF_REVIEW", label: "Comprobante", hint: "Pendientes de validar" },
+  { value: "TO_PREPARE", label: "Para preparar", hint: "Pagos confirmados" },
+  { value: "SYNC_ISSUES", label: "Sync", hint: "Pendiente o error" },
+  { value: "CANCELLED", label: "Cancelados", hint: "Cancelados o expirados" },
+];
+
+function statusLabel(value: string) {
+  return value.replace(/_/g, " ");
 }
 
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ dateFrom?: string; dateTo?: string }>;
+  searchParams?: Promise<SearchParams>;
 }) {
   await requireAdminSection("orders");
   const resolvedSearchParams = (await searchParams) ?? {};
-  const dateFrom = parseDateParam(resolvedSearchParams.dateFrom);
-  const dateTo = parseDateParamEnd(resolvedSearchParams.dateTo);
-  const orders = await getOrders({ dateFrom, dateTo });
-  const exportHref = `/api/admin/export/orders?${new URLSearchParams({
-    ...(resolvedSearchParams.dateFrom ? { dateFrom: resolvedSearchParams.dateFrom } : {}),
-    ...(resolvedSearchParams.dateTo ? { dateTo: resolvedSearchParams.dateTo } : {}),
-  }).toString()}`;
+  const page = Math.max(Number(resolvedSearchParams.page ?? 1) || 1, 1);
+  const filters: OrderFilters = {
+    search: resolvedSearchParams.search?.trim() || undefined,
+    operationalStatus: getOperationalStatus(resolvedSearchParams.operationalStatus),
+    orderStatus: getEnumValue(OrderStatus, resolvedSearchParams.orderStatus) as OrderFilters["orderStatus"],
+    paymentStatus: getEnumValue(PaymentStatus, resolvedSearchParams.paymentStatus) as OrderFilters["paymentStatus"],
+    paymentMethod: getEnumValue(PaymentMethod, resolvedSearchParams.paymentMethod) as OrderFilters["paymentMethod"],
+    syncStatus: getEnumValue(SyncStatus, resolvedSearchParams.syncStatus) as OrderFilters["syncStatus"],
+    proofStatus: getProofStatus(resolvedSearchParams.proofStatus),
+    dateFrom: parseArgentinaDateParam(resolvedSearchParams.dateFrom ?? null),
+    dateTo: parseArgentinaDateParam(resolvedSearchParams.dateTo ?? null, true),
+    page,
+    pageSize: 20,
+  };
+  const { orders, total, pageSize, totalPages } = await getOrdersPage(filters);
+  const firstShown = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const lastShown = Math.min(page * pageSize, total);
+  const exportHref = `/api/admin/export/orders?${buildQuery(resolvedSearchParams, { page: undefined })}`;
 
   return (
     <div className="space-y-6">
@@ -50,7 +113,72 @@ export default async function AdminOrdersPage({
         </Link>
       </div>
       <Card className="p-4 md:p-6">
-        <form className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+        <form className="space-y-5">
+          <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
+            <label>
+              <span className="mb-2 block text-sm font-bold text-brand-ink/75">Buscar</span>
+              <input
+                type="search"
+                name="search"
+                defaultValue={resolvedSearchParams.search ?? ""}
+                placeholder="Pedido, cliente, email, telefono o DNI"
+                className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+              />
+            </label>
+            <label>
+              <span className="mb-2 block text-sm font-bold text-brand-ink/75">Operacion</span>
+              <select
+                name="operationalStatus"
+                defaultValue={filters.operationalStatus ?? "ALL"}
+                className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm font-bold text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+              >
+                {operationalFilters.map((filter) => (
+                  <option key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="mb-2 block text-sm font-bold text-brand-ink/75">Comprobante</span>
+              <select
+                name="proofStatus"
+                defaultValue={filters.proofStatus ?? "ALL"}
+                className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm font-bold text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+              >
+                <option value="ALL">Todos</option>
+                <option value="WITH_PROOF">Con comprobante</option>
+                <option value="WITHOUT_PROOF">Sin comprobante</option>
+              </select>
+            </label>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {operationalFilters.map((filter) => {
+              const href = `/admin/pedidos?${buildQuery(resolvedSearchParams, {
+                operationalStatus: filter.value,
+                page: 1,
+              })}`;
+              const isActive = (filters.operationalStatus ?? "ALL") === filter.value;
+
+              return (
+                <Link
+                  key={filter.value}
+                  href={href}
+                  className={`min-w-[150px] rounded-2xl border px-4 py-3 transition ${
+                    isActive
+                      ? "border-brand-pink bg-brand-pink text-white"
+                      : "border-brand-ink/10 bg-white text-brand-ink hover:border-brand-pink/40"
+                  }`}
+                >
+                  <span className="block text-sm font-extrabold">{filter.label}</span>
+                  <span className={`mt-1 block text-xs ${isActive ? "text-white/80" : "text-brand-ink/50"}`}>
+                    {filter.hint}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+          <div className="grid gap-4 md:grid-cols-4">
           <label>
             <span className="mb-2 block text-sm font-bold text-brand-ink/75">Fecha desde</span>
             <input
@@ -69,6 +197,49 @@ export default async function AdminOrdersPage({
               className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
             />
           </label>
+          <label>
+            <span className="mb-2 block text-sm font-bold text-brand-ink/75">Pago</span>
+            <select
+              name="paymentStatus"
+              defaultValue={filters.paymentStatus ?? "ALL"}
+              className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+            >
+              <option value="ALL">Todos</option>
+              {Object.values(PaymentStatus).map((status) => (
+                <option key={status} value={status}>
+                  {statusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span className="mb-2 block text-sm font-bold text-brand-ink/75">Medio</span>
+            <select
+              name="paymentMethod"
+              defaultValue={filters.paymentMethod ?? "ALL"}
+              className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+            >
+              <option value="ALL">Todos</option>
+              <option value={PaymentMethod.BANK_TRANSFER}>Transferencia</option>
+              <option value={PaymentMethod.MERCADO_PAGO}>Mercado Pago</option>
+            </select>
+          </label>
+          <label>
+            <span className="mb-2 block text-sm font-bold text-brand-ink/75">Sync</span>
+            <select
+              name="syncStatus"
+              defaultValue={filters.syncStatus ?? "ALL"}
+              className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+            >
+              <option value="ALL">Todos</option>
+              {Object.values(SyncStatus).map((status) => (
+                <option key={status} value={status}>
+                  {statusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+          </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button type="submit" className="w-full sm:w-auto">
               Filtrar
@@ -82,12 +253,21 @@ export default async function AdminOrdersPage({
         </form>
       </Card>
       <Card className="p-6">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-bold text-brand-ink/65">
+            Mostrando {firstShown}-{lastShown} de {total} pedidos
+          </p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/45">
+            Carga inicial optimizada: ultimos 20
+          </p>
+        </div>
         <div className="space-y-3 md:hidden">
           {orders.map((order) => (
             <Link key={order.id} href={`/admin/pedidos/${order.id}`} className="block rounded-[1.5rem] border border-brand-ink/10 bg-background p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-bold text-brand-ink">{order.publicOrderNumber}</p>
+                  <p className="text-xs font-semibold text-brand-ink/45">{formatArgentinaDateTime(order.createdAt)}</p>
                   <p className="truncate text-sm text-brand-ink/65">
                     {order.customerFirstName} {order.customerLastName}
                   </p>
@@ -110,6 +290,7 @@ export default async function AdminOrdersPage({
             <thead>
               <tr className="text-brand-ink/50">
                 <th className="pb-3">Pedido</th>
+                <th className="pb-3">Fecha</th>
                 <th className="pb-3">Cliente</th>
                 <th className="pb-3">Estado</th>
                 <th className="pb-3">Pago</th>
@@ -128,6 +309,7 @@ export default async function AdminOrdersPage({
                       {order.publicOrderNumber}
                     </Link>
                   </td>
+                  <td className="py-3 text-brand-ink/70">{formatArgentinaDateTime(order.createdAt)}</td>
                   <td className="py-3 text-brand-ink/70">
                     {order.customerFirstName} {order.customerLastName}
                   </td>
@@ -142,6 +324,35 @@ export default async function AdminOrdersPage({
               ))}
             </tbody>
           </table>
+        </div>
+        {orders.length === 0 ? (
+          <div className="rounded-[1.5rem] bg-background p-8 text-center">
+            <p className="font-bold text-brand-ink">No hay pedidos para esos filtros.</p>
+            <p className="mt-1 text-sm text-brand-ink/60">Ajusta busqueda, fechas o estado operativo.</p>
+          </div>
+        ) : null}
+        <div className="mt-6 flex flex-col gap-3 border-t border-brand-ink/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <Link
+            href={`/admin/pedidos?${buildQuery(resolvedSearchParams, { page: Math.max(page - 1, 1) })}`}
+            aria-disabled={page <= 1}
+            className={page <= 1 ? "pointer-events-none opacity-40" : ""}
+          >
+            <Button type="button" variant="secondary" className="w-full sm:w-auto">
+              Anteriores
+            </Button>
+          </Link>
+          <p className="text-center text-sm font-bold text-brand-ink/60">
+            Pagina {page} de {totalPages}
+          </p>
+          <Link
+            href={`/admin/pedidos?${buildQuery(resolvedSearchParams, { page: Math.min(page + 1, totalPages) })}`}
+            aria-disabled={page >= totalPages}
+            className={page >= totalPages ? "pointer-events-none opacity-40" : ""}
+          >
+            <Button type="button" variant="secondary" className="w-full sm:w-auto">
+              Siguientes
+            </Button>
+          </Link>
         </div>
       </Card>
     </div>

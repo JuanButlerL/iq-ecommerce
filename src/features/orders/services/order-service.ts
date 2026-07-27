@@ -90,10 +90,11 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
 
   const shippingQuote = calculateShippingQuote(subtotalArs, input.province, settings);
   const coupon = input.couponCode?.trim()
-    ? await getCouponPreview({
-        code: input.couponCode,
-        subtotalArs,
-      })
+      ? await getCouponPreview({
+          code: input.couponCode,
+          subtotalArs,
+          taxId: input.taxId,
+        })
     : null;
   const pricing = calculateCheckoutPricing({
     paymentMethod: input.paymentMethod,

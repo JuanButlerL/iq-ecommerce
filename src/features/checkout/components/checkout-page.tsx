@@ -197,6 +197,7 @@ export function CheckoutPage({
       body: JSON.stringify({
         code,
         subtotalArs: subtotal,
+        taxId: form.getValues("taxId") ?? "",
       }),
     });
 

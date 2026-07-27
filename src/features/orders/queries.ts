@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { OrderStatus, PaymentMethod, PaymentStatus, SyncStatus } from "@prisma/client";
+import { OrderStatus, PaymentMethod, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -18,9 +18,14 @@ export type OrderFilters = {
   search?: string;
   orderStatus?: OrderStatus | "ALL";
   paymentStatus?: PaymentStatus | "ALL";
+  paymentMethod?: PaymentMethod | "ALL";
   syncStatus?: SyncStatus | "ALL";
+  proofStatus?: "ALL" | "WITH_PROOF" | "WITHOUT_PROOF";
+  operationalStatus?: "ALL" | "TO_COLLECT" | "PROOF_REVIEW" | "TO_PREPARE" | "SYNC_ISSUES" | "CANCELLED";
   dateFrom?: Date;
   dateTo?: Date;
+  page?: number;
+  pageSize?: number;
 };
 
 export const getDashboardMetrics = cache(async () => {
@@ -480,9 +485,8 @@ export const getAdminDashboardAnalyticsByStatus = cache(async (
   };
 });
 
-export async function getOrders(filters: OrderFilters = {}) {
-  return prisma.order.findMany({
-    where: {
+function buildOrdersWhere(filters: OrderFilters = {}): Prisma.OrderWhereInput {
+  return {
       ...(filters.search
         ? {
             OR: [
@@ -490,7 +494,37 @@ export async function getOrders(filters: OrderFilters = {}) {
               { customerFirstName: { contains: filters.search, mode: "insensitive" } },
               { customerLastName: { contains: filters.search, mode: "insensitive" } },
               { customerEmail: { contains: filters.search, mode: "insensitive" } },
+              { customerPhone: { contains: filters.search, mode: "insensitive" } },
+              { customerTaxId: { contains: filters.search, mode: "insensitive" } },
             ],
+          }
+        : {}),
+      ...(filters.operationalStatus === "TO_COLLECT"
+        ? {
+            orderStatus: OrderStatus.PENDING_PAYMENT,
+            paymentStatus: PaymentStatus.PENDING,
+          }
+        : {}),
+      ...(filters.operationalStatus === "PROOF_REVIEW"
+        ? {
+            paymentStatus: PaymentStatus.PROOF_UPLOADED,
+            orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
+          }
+        : {}),
+      ...(filters.operationalStatus === "TO_PREPARE"
+        ? {
+            paymentStatus: { in: [PaymentStatus.PAID, PaymentStatus.PROOF_UPLOADED] },
+            orderStatus: { in: [OrderStatus.PAID, OrderStatus.PROOF_UPLOADED, OrderStatus.PREPARING] },
+          }
+        : {}),
+      ...(filters.operationalStatus === "SYNC_ISSUES"
+        ? {
+            syncStatus: { in: [SyncStatus.PENDING, SyncStatus.ERROR] },
+          }
+        : {}),
+      ...(filters.operationalStatus === "CANCELLED"
+        ? {
+            orderStatus: { in: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
           }
         : {}),
       ...(filters.orderStatus && filters.orderStatus !== "ALL"
@@ -499,7 +533,10 @@ export async function getOrders(filters: OrderFilters = {}) {
       ...(filters.paymentStatus && filters.paymentStatus !== "ALL"
         ? { paymentStatus: filters.paymentStatus }
         : {}),
+      ...(filters.paymentMethod && filters.paymentMethod !== "ALL" ? { paymentMethod: filters.paymentMethod } : {}),
       ...(filters.syncStatus && filters.syncStatus !== "ALL" ? { syncStatus: filters.syncStatus } : {}),
+      ...(filters.proofStatus === "WITH_PROOF" ? { paymentProofs: { some: {} } } : {}),
+      ...(filters.proofStatus === "WITHOUT_PROOF" ? { paymentProofs: { none: {} } } : {}),
       ...(filters.dateFrom || filters.dateTo
         ? {
             createdAt: {
@@ -508,26 +545,63 @@ export async function getOrders(filters: OrderFilters = {}) {
             },
           }
         : {}),
+    };
+}
+
+const ordersInclude = {
+  items: true,
+  paymentProofs: {
+    orderBy: {
+      uploadedAt: "desc",
     },
+    take: 1,
+  },
+  mercadoPagoPayments: {
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 1,
+  },
+} satisfies Prisma.OrderInclude;
+
+export async function getOrders(filters: OrderFilters = {}) {
+  return prisma.order.findMany({
+    where: buildOrdersWhere(filters),
     include: {
-      items: true,
-      paymentProofs: {
-        orderBy: {
-          uploadedAt: "desc",
-        },
-        take: 1,
-      },
-      mercadoPagoPayments: {
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 1,
-      },
+      ...ordersInclude,
     },
     orderBy: {
       createdAt: "desc",
     },
   });
+}
+
+export async function getOrdersPage(filters: OrderFilters = {}) {
+  const pageSize = Math.min(Math.max(filters.pageSize ?? 20, 10), 100);
+  const page = Math.max(filters.page ?? 1, 1);
+  const where = buildOrdersWhere(filters);
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        ...ordersInclude,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: pageSize,
+      skip: (page - 1) * pageSize,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    orders,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(Math.ceil(total / pageSize), 1),
+  };
 }
 
 export async function getOrderDetail(orderId: string) {

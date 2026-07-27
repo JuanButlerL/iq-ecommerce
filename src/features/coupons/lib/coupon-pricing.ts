@@ -14,7 +14,7 @@ export function calculateCouponDiscount(subtotalArs: number, discountPercentage:
   return Math.round((subtotalArs * discountPercentage) / 100);
 }
 
-export function buildCouponSummary(coupon: Pick<Coupon, "id" | "code" | "discountPercentage">, subtotalArs: number) {
+export function buildCouponSummary(coupon: Pick<Coupon, "id" | "code" | "discountPercentage" | "usageType">, subtotalArs: number) {
   const discountPercentage = Number(coupon.discountPercentage);
   const discountArs = calculateCouponDiscount(subtotalArs, discountPercentage);
 
@@ -22,6 +22,7 @@ export function buildCouponSummary(coupon: Pick<Coupon, "id" | "code" | "discoun
     couponId: coupon.id,
     couponCode: coupon.code,
     discountPercentage,
+    usageType: coupon.usageType,
     discountArs,
     subtotalWithDiscountArs: Math.max(subtotalArs - discountArs, 0),
   };

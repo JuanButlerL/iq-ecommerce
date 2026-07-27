@@ -2,10 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
+import { normalizeCouponCode } from "@/features/coupons/lib/coupon-pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { couponFormSchema } from "@/lib/validations/coupon";
-import { normalizeCouponCode } from "@/features/coupons/lib/coupon-pricing";
+
+function uniqueCodes(codes: string[]) {
+  return Array.from(new Set(codes.map(normalizeCouponCode).filter(Boolean)));
+}
 
 export async function saveCoupon(payload: unknown, couponId?: string) {
   const parsed = couponFormSchema.safeParse(payload);
@@ -14,10 +18,20 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
     throw new AppError("Datos de cupón inválidos.", 400);
   }
 
-  const data = {
-    code: normalizeCouponCode(parsed.data.code),
+  const codes = uniqueCodes(parsed.data.codes?.length ? parsed.data.codes : parsed.data.code ? [parsed.data.code] : []);
+
+  if (!codes.length) {
+    throw new AppError("Ingresá al menos un código.", 400);
+  }
+
+  if (couponId && codes.length > 1) {
+    throw new AppError("La edición permite modificar un cupón por vez.", 400);
+  }
+
+  const baseData = {
     description: parsed.data.description || null,
     discountPercentage: parsed.data.discountPercentage,
+    usageType: parsed.data.usageType,
     active: parsed.data.active,
   };
 
@@ -25,27 +39,34 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
     if (couponId) {
       await prisma.coupon.update({
         where: { id: couponId },
-        data,
+        data: {
+          ...baseData,
+          code: codes[0],
+        },
       });
-    } else {
-      await prisma.coupon.create({
-        data,
-      });
+      revalidateCouponViews();
+
+      return { created: 0, updated: 1 };
     }
+
+    await prisma.coupon.createMany({
+      data: codes.map((code) => ({
+        ...baseData,
+        code,
+      })),
+      skipDuplicates: false,
+    });
   } catch (error) {
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "P2002"
-    ) {
-      throw new AppError("Ya existe un cupón con ese código.", 400);
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      throw new AppError("Ya existe un cupón con alguno de esos códigos.", 400);
     }
 
     throw error;
   }
 
   revalidateCouponViews();
+
+  return { created: codes.length, updated: 0 };
 }
 
 export async function deleteCoupon(couponId: string) {

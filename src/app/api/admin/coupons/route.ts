@@ -6,9 +6,9 @@ export async function POST(request: Request) {
   try {
     await assertAdminSection("coupons");
     const payload = await request.json();
-    await saveCoupon(payload);
+    const result = await saveCoupon(payload);
 
-    return routeOk({ success: true });
+    return routeOk({ success: true, ...result });
   } catch (error) {
     return routeError(error);
   }

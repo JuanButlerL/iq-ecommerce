@@ -1,6 +1,25 @@
-import { getOrders } from "@/features/orders/queries";
+import { getOrders, type OrderFilters } from "@/features/orders/queries";
 import { assertAdminSection } from "@/lib/auth/admin";
 import { formatArgentinaDate, formatArgentinaDateTime, parseArgentinaDateParam } from "@/lib/utils/datetime";
+import { OrderStatus, PaymentMethod, PaymentStatus, SyncStatus } from "@prisma/client";
+
+function getEnumValue<T extends Record<string, string>>(enumObject: T, value: string | null) {
+  if (!value || value === "ALL") {
+    return "ALL";
+  }
+
+  return Object.values(enumObject).includes(value) ? value : "ALL";
+}
+
+function getOperationalStatus(value: string | null) {
+  const valid = ["ALL", "TO_COLLECT", "PROOF_REVIEW", "TO_PREPARE", "SYNC_ISSUES", "CANCELLED"];
+
+  return valid.includes(value ?? "") ? value : "ALL";
+}
+
+function getProofStatus(value: string | null) {
+  return value === "WITH_PROOF" || value === "WITHOUT_PROOF" ? value : "ALL";
+}
 
 function escapeHtml(value: string | number | null | undefined) {
   const stringValue = value == null ? "" : String(value);
@@ -18,7 +37,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const dateFrom = parseArgentinaDateParam(searchParams.get("dateFrom"));
   const dateTo = parseArgentinaDateParam(searchParams.get("dateTo"), true);
-  const orders = await getOrders({ dateFrom, dateTo });
+  const orders = await getOrders({
+    search: searchParams.get("search")?.trim() || undefined,
+    operationalStatus: getOperationalStatus(searchParams.get("operationalStatus")) as OrderFilters["operationalStatus"],
+    orderStatus: getEnumValue(OrderStatus, searchParams.get("orderStatus")) as OrderFilters["orderStatus"],
+    paymentStatus: getEnumValue(PaymentStatus, searchParams.get("paymentStatus")) as OrderFilters["paymentStatus"],
+    paymentMethod: getEnumValue(PaymentMethod, searchParams.get("paymentMethod")) as OrderFilters["paymentMethod"],
+    syncStatus: getEnumValue(SyncStatus, searchParams.get("syncStatus")) as OrderFilters["syncStatus"],
+    proofStatus: getProofStatus(searchParams.get("proofStatus")) as OrderFilters["proofStatus"],
+    dateFrom,
+    dateTo,
+  });
 
   const columns = [
     "Numero de pedido",
