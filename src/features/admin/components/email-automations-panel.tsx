@@ -192,14 +192,22 @@ const variableDescriptions: Partial<Record<EmailAutomationTrigger, Record<string
   CART_ABANDONED: {
     "{{recoveryUrl}}": "URL unica que reconstruye el carrito de cada cliente.",
     "{{subtotal}}": "Subtotal del carrito guardado.",
+    "{{siteUrl}}": "URL principal de la tienda.",
+    "{{email}}": "Email que dejo la persona en el carrito.",
   },
   ORDER_CREATED: {
+    "{{firstName}}": "Nombre cargado por el cliente en checkout.",
     "{{orderUrl}}": "URL de confirmacion del pedido.",
     "{{orderNumber}}": "Numero publico del pedido.",
+    "{{total}}": "Total del pedido, incluyendo envio y descuentos.",
+    "{{siteUrl}}": "URL principal de la tienda.",
   },
   POST_PURCHASE: {
-    "{{siteUrl}}": "Home de IQ Kids.",
+    "{{firstName}}": "Nombre del cliente que compro.",
     "{{orderNumber}}": "Numero publico del pedido.",
+    "{{orderUrl}}": "URL de confirmacion del pedido.",
+    "{{total}}": "Total pagado por el cliente.",
+    "{{siteUrl}}": "URL principal de la tienda.",
   },
 };
 
@@ -520,19 +528,30 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                 <div className="rounded-3xl border border-brand-ink/10 bg-white p-4">
                   <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Variables</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {variablesByTrigger[form.trigger].map((variable) => (
-                      <button
-                        key={variable}
-                        type="button"
-                        onClick={() => navigator.clipboard?.writeText(variable)}
-                        className="rounded-full bg-brand-pinkSoft px-3 py-1 text-xs font-extrabold text-brand-ink"
-                      >
-                        {variable}
-                      </button>
-                    ))}
+                    {variablesByTrigger[form.trigger].map((variable) => {
+                      const description =
+                        variableDescriptions[form.trigger]?.[variable] ?? "Variable disponible para este disparador.";
+
+                      return (
+                        <span key={variable} className="group relative inline-flex">
+                          <button
+                            type="button"
+                            title={description}
+                            aria-label={`${variable}: ${description}`}
+                            onClick={() => navigator.clipboard?.writeText(variable)}
+                            className="rounded-full bg-brand-pinkSoft px-3 py-1 text-xs font-extrabold text-brand-ink transition hover:bg-brand-pink hover:text-white focus-visible:bg-brand-pink focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/30"
+                          >
+                            {variable}
+                          </button>
+                          <span className="pointer-events-none absolute left-0 top-[calc(100%+0.5rem)] z-20 hidden w-64 rounded-2xl border border-brand-ink/10 bg-white p-3 text-xs font-semibold leading-5 text-brand-ink/70 shadow-card group-hover:block group-focus-within:block">
+                            {description}
+                          </span>
+                        </span>
+                      );
+                    })}
                   </div>
                   <div className="mt-3 space-y-1 text-xs leading-5 text-brand-ink/55">
-                    <p>Toca una variable para copiarla.</p>
+                    <p>Toca una variable para copiarla. Pasa el mouse o enfoca cada chip para ver que dato inserta.</p>
                     {Object.entries(variableDescriptions[form.trigger] ?? {}).map(([variable, description]) => (
                       <p key={variable}>
                         <span className="font-extrabold text-brand-ink">{variable}</span>: {description}
