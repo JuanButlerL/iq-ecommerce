@@ -36,16 +36,6 @@ type CartRecoveryLeadPreviewSnapshot = CartRecoveryLeadTriggerSnapshot & {
   id: string;
   email: string;
   subtotalArs: number;
-  emailLogs: Array<{
-    id: string;
-    status: EmailSendStatus;
-    sentAt: Date | null;
-    createdAt: Date;
-    errorMessage: string | null;
-    automation: {
-      name: string;
-    };
-  }>;
 };
 
 export async function processEmailAutomations(options: { automationId?: string; limit?: number } = {}) {
@@ -235,20 +225,6 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
       },
       orderBy: [{ checkoutStartedAt: "desc" }, { createdAt: "desc" }],
-      include: {
-        emailLogs: {
-          where: {
-            trigger: EmailAutomationTrigger.CART_ABANDONED,
-          },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: {
-            automation: {
-              select: { name: true },
-            },
-          },
-        },
-      },
     }),
     prisma.coupon.findMany({
       where: { active: true },
@@ -264,11 +240,34 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
 
   const logsWithClicks = recentLogs.filter((log) => log.clickCount > 0).length;
   const logsWithConversions = recentLogs.filter((log) => log.convertedAt).length;
+  const leadIds = cartLeads.map((lead) => lead.id);
+  const leadLogs = leadIds.length
+    ? await prisma.emailSendLog.findMany({
+        where: {
+          trigger: EmailAutomationTrigger.CART_ABANDONED,
+          targetType: "cart_recovery_lead",
+          targetId: { in: leadIds },
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          automation: {
+            select: { name: true },
+          },
+        },
+      })
+    : [];
+  const latestLogByLeadId = new Map<string, (typeof leadLogs)[number]>();
+
+  for (const log of leadLogs) {
+    if (!latestLogByLeadId.has(log.targetId)) {
+      latestLogByLeadId.set(log.targetId, log);
+    }
+  }
 
   return {
     automations,
     recentLogs,
-    cartLeads: cartLeads.map((lead) => buildCartRecoveryLeadPreview(lead)),
+    cartLeads: cartLeads.map((lead) => buildCartRecoveryLeadPreview(lead, latestLogByLeadId.get(lead.id) ?? null)),
     coupons,
     trackingSummary: {
       clicked: logsWithClicks,
@@ -417,9 +416,19 @@ function getCartRecoveryLeadTriggerDate(lead: CartRecoveryLeadTriggerSnapshot) {
   return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.createdAt;
 }
 
-function buildCartRecoveryLeadPreview(lead: CartRecoveryLeadPreviewSnapshot) {
-  const [latestLog] = lead.emailLogs;
-
+function buildCartRecoveryLeadPreview(
+  lead: CartRecoveryLeadPreviewSnapshot,
+  latestLog: {
+    id: string;
+    status: EmailSendStatus;
+    sentAt: Date | null;
+    createdAt: Date;
+    errorMessage: string | null;
+    automation: {
+      name: string;
+    };
+  } | null,
+) {
   return {
     id: lead.id,
     email: lead.email,
