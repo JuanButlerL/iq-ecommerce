@@ -48,6 +48,7 @@ type LogItem = {
   recipientEmail: string;
   subject: string;
   targetType: string;
+  targetId: string;
   errorMessage: string | null;
   clickCount: number;
   firstClickedAt: Date | null;
@@ -248,7 +249,23 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
 
   const activeCount = automations.filter((automation) => automation.active).length;
   const sentCount = recentLogs.filter((log) => log.status === "SENT").length;
-  const errorCount = recentLogs.filter((log) => log.status === "ERROR").length;
+  const latestLogByCase = useMemo(() => {
+    const latest = new Map<string, LogItem>();
+
+    for (const log of recentLogs) {
+      const caseKey = getAutomationCaseKey(log);
+
+      if (!latest.has(caseKey)) {
+        latest.set(caseKey, log);
+      }
+    }
+
+    return latest;
+  }, [recentLogs]);
+  const errorCount = useMemo(
+    () => Array.from(latestLogByCase.values()).filter((log) => log.status === "ERROR").length,
+    [latestLogByCase],
+  );
   const activeRecoveryDelayHours = useMemo(() => {
     const recoveryAutomations = automations
       .filter((automation) => automation.active && automation.trigger === "CART_ABANDONED")
@@ -399,7 +416,11 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
         <Metric label="Clicks recientes" value={trackingSummary.clicked.toString()} />
         <Metric label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
       </div>
-      {errorCount ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Hay {errorCount} errores recientes de email. Revisalos en auditoria.</p> : null}
+      {errorCount ? (
+        <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+          Hay {errorCount} errores vigentes de email. Revisalos en auditoria.
+        </p>
+      ) : null}
 
       <div
         className={cn(
@@ -1079,4 +1100,16 @@ function StatusBadge({ status }: { status: EmailSendStatus }) {
       {statusLabels[status]}
     </span>
   );
+}
+
+function getAutomationCaseKey(log: LogItem) {
+  if (log.targetType === "cart_recovery_lead") {
+    return `${log.targetType}:${normalizeAutomationTargetId(log.targetId)}`;
+  }
+
+  return `${log.targetType}:${log.targetId}`;
+}
+
+function normalizeAutomationTargetId(targetId: string) {
+  return targetId.replace(/:retry:\d+$/, "");
 }
