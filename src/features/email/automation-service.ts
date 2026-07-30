@@ -28,6 +28,7 @@ type Candidate = {
 
 type CartRecoveryLeadTriggerSnapshot = {
   createdAt: Date;
+  updatedAt: Date;
   checkoutStartedAt: Date | null;
   status: string;
 };
@@ -72,9 +73,15 @@ export async function processEmailAutomations(options: { automationId?: string; 
         },
       });
 
-      if (existingLog) {
+      let targetId = candidate.targetId;
+
+      if (existingLog && existingLog.status !== EmailSendStatus.ERROR) {
         result.skipped += 1;
         continue;
+      }
+
+      if (existingLog?.status === EmailSendStatus.ERROR) {
+        targetId = `${candidate.targetId}:retry:${Date.now()}`;
       }
 
       const subject = renderTemplate(automation.subject, candidate.variables);
@@ -121,7 +128,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
           recipientEmail: candidate.recipientEmail,
           subject,
           targetType: candidate.targetType,
-          targetId: candidate.targetId,
+          targetId,
           orderId: candidate.orderId,
           cartRecoveryLeadId: candidate.cartRecoveryLeadId,
           providerMessageId: sent.providerMessageId,
@@ -138,7 +145,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
           recipientEmail: candidate.recipientEmail,
           subject,
           targetType: candidate.targetType,
-          targetId: candidate.targetId,
+          targetId,
           orderId: candidate.orderId,
           cartRecoveryLeadId: candidate.cartRecoveryLeadId,
           ctaUrl,
@@ -245,8 +252,17 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
     ? await prisma.emailSendLog.findMany({
         where: {
           trigger: EmailAutomationTrigger.CART_ABANDONED,
-          targetType: "cart_recovery_lead",
-          targetId: { in: leadIds },
+          OR: [
+            { cartRecoveryLeadId: { in: leadIds } },
+            {
+              targetType: "cart_recovery_lead",
+              OR: leadIds.map((leadId) => ({
+                targetId: {
+                  startsWith: leadId,
+                },
+              })),
+            },
+          ],
         },
         orderBy: { createdAt: "desc" },
         include: {
@@ -259,8 +275,10 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
   const latestLogByLeadId = new Map<string, (typeof leadLogs)[number]>();
 
   for (const log of leadLogs) {
-    if (!latestLogByLeadId.has(log.targetId)) {
-      latestLogByLeadId.set(log.targetId, log);
+    const leadId = log.cartRecoveryLeadId ?? extractLeadIdFromTargetId(log.targetId);
+
+    if (leadId && !latestLogByLeadId.has(leadId)) {
+      latestLogByLeadId.set(leadId, log);
     }
   }
 
@@ -301,7 +319,7 @@ async function getCandidatesForAutomation(
         OR: [
           {
             status: "CAPTURED",
-            createdAt: { lte: readyAt },
+            updatedAt: { lte: readyAt },
           },
           {
             status: "CHECKOUT_STARTED",
@@ -310,12 +328,25 @@ async function getCandidatesForAutomation(
         ],
       },
       orderBy: [{ checkoutStartedAt: "asc" }, { createdAt: "asc" }],
+      include: {
+        emailLogs: {
+          where: {
+            trigger: EmailAutomationTrigger.CART_ABANDONED,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
     });
     const candidates: Candidate[] = [];
 
     for (const lead of leads
-      .sort((a, b) => getCartRecoveryLeadTriggerDate(a).getTime() - getCartRecoveryLeadTriggerDate(b).getTime())
+      .sort((a, b) => getCartRecoveryLeadCycleDate(a).getTime() - getCartRecoveryLeadCycleDate(b).getTime())
       .slice(0, limit)) {
+      const cycleDate = getCartRecoveryLeadCycleDate(lead);
+      const cycleTargetId = buildCartRecoveryTargetId(lead.id, cycleDate);
+      const latestLog = lead.emailLogs[0] ?? null;
+
       const convertedLater = await prisma.order.findFirst({
         where: {
           customerEmail: {
@@ -323,7 +354,7 @@ async function getCandidatesForAutomation(
             mode: "insensitive",
           },
           createdAt: {
-            gte: lead.createdAt,
+            gte: cycleDate,
           },
           orderStatus: {
             notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED],
@@ -353,16 +384,20 @@ async function getCandidatesForAutomation(
           recipientEmail: lead.email,
           subject: "Skipped: customer converted",
           targetType: "cart_recovery_lead",
-          targetId: lead.id,
+          targetId: cycleTargetId,
           cartRecoveryLeadId: lead.id,
           errorMessage: "Omitido: el email ya tiene una compra posterior confirmada.",
         });
         continue;
       }
 
+      if (latestLog?.status === EmailSendStatus.SENT && latestLog.createdAt >= cycleDate) {
+        continue;
+      }
+
       candidates.push({
         targetType: "cart_recovery_lead",
-        targetId: lead.id,
+        targetId: cycleTargetId,
         recipientEmail: lead.email,
         cartRecoveryLeadId: lead.id,
         variables: {
@@ -412,8 +447,8 @@ async function getCandidatesForAutomation(
     .map((order) => buildOrderCandidate(order));
 }
 
-function getCartRecoveryLeadTriggerDate(lead: CartRecoveryLeadTriggerSnapshot) {
-  return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.createdAt;
+function getCartRecoveryLeadCycleDate(lead: CartRecoveryLeadTriggerSnapshot) {
+  return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.updatedAt;
 }
 
 function buildCartRecoveryLeadPreview(
@@ -434,7 +469,7 @@ function buildCartRecoveryLeadPreview(
     email: lead.email,
     status: lead.status,
     subtotalArs: lead.subtotalArs,
-    triggerAt: getCartRecoveryLeadTriggerDate(lead),
+    triggerAt: getCartRecoveryLeadCycleDate(lead),
     latestLog: latestLog
       ? {
           id: latestLog.id,
@@ -446,6 +481,14 @@ function buildCartRecoveryLeadPreview(
         }
       : null,
   };
+}
+
+function buildCartRecoveryTargetId(leadId: string, cycleDate: Date) {
+  return `${leadId}:${cycleDate.getTime()}`;
+}
+
+function extractLeadIdFromTargetId(targetId: string) {
+  return targetId.split(":")[0] || null;
 }
 
 export async function markEmailClicksConverted(order: {
