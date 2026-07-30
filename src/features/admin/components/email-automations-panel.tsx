@@ -88,7 +88,13 @@ type CartLeadItem = {
   email: string;
   status: string;
   subtotalArs: number;
-  updatedAt: Date;
+  triggerAt: Date;
+};
+
+type RecoveryLeadTiming = {
+  scheduledAt: Date | null;
+  isReady: boolean;
+  isOverdue: boolean;
 };
 
 type EmailAutomationsPanelProps = {
@@ -235,6 +241,17 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
   const activeCount = automations.filter((automation) => automation.active).length;
   const sentCount = recentLogs.filter((log) => log.status === "SENT").length;
   const errorCount = recentLogs.filter((log) => log.status === "ERROR").length;
+  const activeRecoveryDelayHours = useMemo(() => {
+    const recoveryAutomations = automations
+      .filter((automation) => automation.active && automation.trigger === "CART_ABANDONED")
+      .map((automation) => automation.delayHours);
+
+    if (!recoveryAutomations.length) {
+      return null;
+    }
+
+    return Math.min(...recoveryAutomations);
+  }, [automations]);
 
   const startNewAutomation = () => {
     setSelectedId(null);
@@ -737,18 +754,73 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="p-5 md:p-6">
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Emails sin compra</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Proximos mails a enviar</p>
+                  <p className="mt-1 text-sm leading-6 text-brand-ink/55">
+                    Muestra el inicio real del caso y cuando deberia salir el mail segun la demora activa.
+                  </p>
+                </div>
+                {activeRecoveryDelayHours !== null ? (
+                  <div className="rounded-2xl bg-background px-3 py-2 text-right text-xs leading-5 text-brand-ink/60">
+                    <p className="font-extrabold uppercase tracking-[0.12em] text-brand-ink/45">Recuperacion activa</p>
+                    <p className="font-bold text-brand-ink">{activeRecoveryDelayHours} hs de demora</p>
+                    <p>Si un caso ya quedo listo y no sale, revisar cron/proceso.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-amber-50 px-3 py-2 text-right text-xs font-bold leading-5 text-amber-800">
+                    No hay automatizacion activa de carrito abandonado.
+                  </div>
+                )}
+              </div>
               <div className="mt-4 space-y-3">
                 {cartLeads.length ? (
-                  cartLeads.slice(0, 8).map((lead) => (
-                    <div key={lead.id} className="flex items-center justify-between gap-3 rounded-2xl bg-background px-4 py-3">
-                      <div>
-                        <p className="text-sm font-bold text-brand-ink">{lead.email}</p>
-                        <p className="text-xs font-bold text-brand-ink/45">{lead.status}</p>
+                  cartLeads.slice(0, 8).map((lead) => {
+                    const timing = getRecoveryLeadTiming(lead.triggerAt, activeRecoveryDelayHours);
+
+                    return (
+                      <div key={lead.id} className="rounded-2xl bg-background px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-brand-ink">{lead.email}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <p className="text-xs font-bold uppercase tracking-[0.08em] text-brand-ink/45">{lead.status}</p>
+                              <span
+                                className={cn(
+                                  "rounded-full px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em]",
+                                  timing.isReady
+                                    ? timing.isOverdue
+                                      ? "bg-red-50 text-red-700"
+                                      : "bg-emerald-50 text-emerald-700"
+                                    : "bg-amber-50 text-amber-700",
+                                )}
+                              >
+                                {timing.isReady ? (timing.isOverdue ? "Listo y pendiente" : "Listo para enviar") : "En espera"}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="shrink-0 text-sm font-bold text-brand-ink">{formatArs(lead.subtotalArs)}</p>
+                        </div>
+                        <div className="mt-3 grid gap-2 text-xs text-brand-ink/55 sm:grid-cols-2">
+                          <div>
+                            <p className="font-extrabold uppercase tracking-[0.12em] text-brand-ink/40">Inicio</p>
+                            <p className="mt-1 font-semibold text-brand-ink/70">{formatArgentinaDateTime(new Date(lead.triggerAt))}</p>
+                          </div>
+                          <div>
+                            <p className="font-extrabold uppercase tracking-[0.12em] text-brand-ink/40">Programado</p>
+                            <p className="mt-1 font-semibold text-brand-ink/70">
+                              {timing.scheduledAt ? formatArgentinaDateTime(timing.scheduledAt) : "Sin automatizacion activa"}
+                            </p>
+                          </div>
+                        </div>
+                        {timing.isOverdue ? (
+                          <p className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-xs font-bold leading-5 text-red-700">
+                            Ya supero la demora configurada. Si sigue aca, probablemente falte ejecutar el cron o el proceso manual.
+                          </p>
+                        ) : null}
                       </div>
-                      <p className="text-sm font-bold text-brand-ink">{formatArs(lead.subtotalArs)}</p>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-sm text-brand-ink/55">No hay emails pendientes de recuperacion.</p>
                 )}
@@ -907,6 +979,27 @@ function getLogTargetLabel(log: LogItem) {
   }
 
   return log.targetType;
+}
+
+function getRecoveryLeadTiming(triggerAt: Date, delayHours: number | null): RecoveryLeadTiming {
+  if (delayHours === null) {
+    return {
+      scheduledAt: null,
+      isReady: false,
+      isOverdue: false,
+    };
+  }
+
+  const scheduledAt = new Date(triggerAt.getTime() + delayHours * 60 * 60 * 1000);
+  const now = Date.now();
+  const isReady = now >= scheduledAt.getTime();
+  const isOverdue = now >= scheduledAt.getTime() + 15 * 60 * 1000;
+
+  return {
+    scheduledAt,
+    isReady,
+    isOverdue,
+  };
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

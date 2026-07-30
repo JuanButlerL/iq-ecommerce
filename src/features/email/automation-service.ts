@@ -26,6 +26,12 @@ type Candidate = {
   variables: Record<string, string | number | null | undefined>;
 };
 
+type CartRecoveryLeadTriggerSnapshot = {
+  createdAt: Date;
+  checkoutStartedAt: Date | null;
+  status: string;
+};
+
 export async function processEmailAutomations(options: { automationId?: string; limit?: number } = {}) {
   const automations = await prisma.emailAutomation.findMany({
     where: {
@@ -212,7 +218,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       where: {
         status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
       },
-      orderBy: { updatedAt: "desc" },
+      orderBy: [{ checkoutStartedAt: "desc" }, { createdAt: "desc" }],
     }),
     prisma.coupon.findMany({
       where: { active: true },
@@ -232,7 +238,10 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
   return {
     automations,
     recentLogs,
-    cartLeads,
+    cartLeads: cartLeads.map((lead) => ({
+      ...lead,
+      triggerAt: getCartRecoveryLeadTriggerDate(lead),
+    })),
     coupons,
     trackingSummary: {
       clicked: logsWithClicks,
@@ -260,16 +269,27 @@ async function getCandidatesForAutomation(
 
   if (automation.trigger === EmailAutomationTrigger.CART_ABANDONED) {
     const leads = await prisma.cartRecoveryLead.findMany({
-      take: limit,
+      take: Math.max(limit * 3, limit),
       where: {
         status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
-        updatedAt: { lte: readyAt },
+        OR: [
+          {
+            status: "CAPTURED",
+            createdAt: { lte: readyAt },
+          },
+          {
+            status: "CHECKOUT_STARTED",
+            checkoutStartedAt: { lte: readyAt },
+          },
+        ],
       },
-      orderBy: { updatedAt: "asc" },
+      orderBy: [{ checkoutStartedAt: "asc" }, { createdAt: "asc" }],
     });
     const candidates: Candidate[] = [];
 
-    for (const lead of leads) {
+    for (const lead of leads
+      .sort((a, b) => getCartRecoveryLeadTriggerDate(a).getTime() - getCartRecoveryLeadTriggerDate(b).getTime())
+      .slice(0, limit)) {
       const convertedLater = await prisma.order.findFirst({
         where: {
           customerEmail: {
@@ -364,6 +384,10 @@ async function getCandidatesForAutomation(
     .filter((order) => getPostPurchaseEventDate(order) <= readyAt)
     .slice(0, limit)
     .map((order) => buildOrderCandidate(order));
+}
+
+function getCartRecoveryLeadTriggerDate(lead: CartRecoveryLeadTriggerSnapshot) {
+  return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.createdAt;
 }
 
 export async function markEmailClicksConverted(order: {
