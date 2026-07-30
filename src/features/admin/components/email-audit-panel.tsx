@@ -18,6 +18,7 @@ type LogItem = {
   recipientEmail: string;
   subject: string;
   targetType: string;
+  targetId: string;
   errorMessage: string | null;
   clickCount: number;
   firstClickedAt: Date | null;
@@ -74,6 +75,16 @@ const statusLabels: Record<EmailSendStatus, string> = {
 };
 
 export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps) {
+  const latestLogByCase = new Map<string, LogItem>();
+
+  for (const log of recentLogs) {
+    const caseKey = getAuditCaseKey(log);
+
+    if (!latestLogByCase.has(caseKey)) {
+      latestLogByCase.set(caseKey, log);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -135,6 +146,7 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                   <tr key={log.id} className="border-b border-brand-ink/10 align-top">
                     <td className="py-3 pr-4">
                       <StatusBadge status={log.status} />
+                      {renderFinalStatus(log, latestLogByCase)}
                     </td>
                     <td className="py-3 pr-4 font-bold text-brand-ink">{log.recipientEmail}</td>
                     <td className="py-3 pr-4 text-brand-ink/70">{log.automation.name}</td>
@@ -221,6 +233,34 @@ function getLogTargetLabel(log: LogItem) {
   }
 
   return log.targetType;
+}
+
+function getAuditCaseKey(log: LogItem) {
+  if (log.targetType === "cart_recovery_lead") {
+    return `${log.targetType}:${normalizeCartRecoveryTargetId(log.targetId)}`;
+  }
+
+  return `${log.targetType}:${log.targetId}`;
+}
+
+function normalizeCartRecoveryTargetId(targetId: string) {
+  return targetId.replace(/:retry:\d+$/, "");
+}
+
+function renderFinalStatus(log: LogItem, latestLogByCase: Map<string, LogItem>) {
+  const latestLog = latestLogByCase.get(getAuditCaseKey(log));
+
+  if (!latestLog || latestLog.id === log.id || latestLog.status === log.status) {
+    return null;
+  }
+
+  return (
+    <p className="mt-2 text-[11px] font-bold leading-4 text-brand-ink/55">
+      Estado final: <span className={latestLog.status === "SENT" ? "text-emerald-700" : latestLog.status === "ERROR" ? "text-red-700" : "text-brand-ink/60"}>{statusLabels[latestLog.status]}</span>
+      {" · "}
+      {formatArgentinaDateTime(new Date(latestLog.sentAt ?? latestLog.createdAt))}
+    </p>
+  );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
