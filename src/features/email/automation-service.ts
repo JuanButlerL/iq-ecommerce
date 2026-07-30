@@ -32,6 +32,22 @@ type CartRecoveryLeadTriggerSnapshot = {
   status: string;
 };
 
+type CartRecoveryLeadPreviewSnapshot = CartRecoveryLeadTriggerSnapshot & {
+  id: string;
+  email: string;
+  subtotalArs: number;
+  emailLogs: Array<{
+    id: string;
+    status: EmailSendStatus;
+    sentAt: Date | null;
+    createdAt: Date;
+    errorMessage: string | null;
+    automation: {
+      name: string;
+    };
+  }>;
+};
+
 export async function processEmailAutomations(options: { automationId?: string; limit?: number } = {}) {
   const automations = await prisma.emailAutomation.findMany({
     where: {
@@ -219,6 +235,20 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
       },
       orderBy: [{ checkoutStartedAt: "desc" }, { createdAt: "desc" }],
+      include: {
+        emailLogs: {
+          where: {
+            trigger: EmailAutomationTrigger.CART_ABANDONED,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          include: {
+            automation: {
+              select: { name: true },
+            },
+          },
+        },
+      },
     }),
     prisma.coupon.findMany({
       where: { active: true },
@@ -238,10 +268,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
   return {
     automations,
     recentLogs,
-    cartLeads: cartLeads.map((lead) => ({
-      ...lead,
-      triggerAt: getCartRecoveryLeadTriggerDate(lead),
-    })),
+    cartLeads: cartLeads.map((lead) => buildCartRecoveryLeadPreview(lead)),
     coupons,
     trackingSummary: {
       clicked: logsWithClicks,
@@ -388,6 +415,28 @@ async function getCandidatesForAutomation(
 
 function getCartRecoveryLeadTriggerDate(lead: CartRecoveryLeadTriggerSnapshot) {
   return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.createdAt;
+}
+
+function buildCartRecoveryLeadPreview(lead: CartRecoveryLeadPreviewSnapshot) {
+  const [latestLog] = lead.emailLogs;
+
+  return {
+    id: lead.id,
+    email: lead.email,
+    status: lead.status,
+    subtotalArs: lead.subtotalArs,
+    triggerAt: getCartRecoveryLeadTriggerDate(lead),
+    latestLog: latestLog
+      ? {
+          id: latestLog.id,
+          status: latestLog.status,
+          sentAt: latestLog.sentAt,
+          createdAt: latestLog.createdAt,
+          errorMessage: latestLog.errorMessage,
+          automationName: latestLog.automation.name,
+        }
+      : null,
+  };
 }
 
 export async function markEmailClicksConverted(order: {

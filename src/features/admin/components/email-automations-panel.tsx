@@ -89,6 +89,14 @@ type CartLeadItem = {
   status: string;
   subtotalArs: number;
   triggerAt: Date;
+  latestLog: {
+    id: string;
+    status: EmailSendStatus;
+    sentAt: Date | null;
+    createdAt: Date;
+    errorMessage: string | null;
+    automationName: string;
+  } | null;
 };
 
 type RecoveryLeadTiming = {
@@ -776,7 +784,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
               <div className="mt-4 space-y-3">
                 {cartLeads.length ? (
                   cartLeads.slice(0, 8).map((lead) => {
-                    const timing = getRecoveryLeadTiming(lead.triggerAt, activeRecoveryDelayHours);
+                    const timing = getRecoveryLeadTiming(lead.triggerAt, activeRecoveryDelayHours, lead.latestLog);
 
                     return (
                       <div key={lead.id} className="rounded-2xl bg-background px-4 py-3">
@@ -788,14 +796,18 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                               <span
                                 className={cn(
                                   "rounded-full px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em]",
-                                  timing.isReady
-                                    ? timing.isOverdue
+                                  timing.visualState === "sent"
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : timing.visualState === "error"
                                       ? "bg-red-50 text-red-700"
-                                      : "bg-emerald-50 text-emerald-700"
-                                    : "bg-amber-50 text-amber-700",
+                                      : timing.visualState === "overdue"
+                                        ? "bg-red-50 text-red-700"
+                                        : timing.visualState === "ready"
+                                          ? "bg-emerald-50 text-emerald-700"
+                                          : "bg-amber-50 text-amber-700",
                                 )}
                               >
-                                {timing.isReady ? (timing.isOverdue ? "Listo y pendiente" : "Listo para enviar") : "En espera"}
+                                {timing.label}
                               </span>
                             </div>
                           </div>
@@ -813,7 +825,24 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                             </p>
                           </div>
                         </div>
-                        {timing.isOverdue ? (
+                        {lead.latestLog ? (
+                          <div
+                            className={cn(
+                              "mt-3 rounded-2xl px-3 py-2 text-xs font-bold leading-5",
+                              lead.latestLog.status === "ERROR"
+                                ? "bg-red-50 text-red-700"
+                                : "bg-emerald-50 text-emerald-800",
+                            )}
+                          >
+                            <p>
+                              {lead.latestLog.status === "ERROR" ? "Ultimo intento con error" : "Ultimo envio registrado"} ·{" "}
+                              {formatArgentinaDateTime(new Date(lead.latestLog.sentAt ?? lead.latestLog.createdAt))}
+                            </p>
+                            <p className="mt-1">{lead.latestLog.automationName}</p>
+                            {lead.latestLog.errorMessage ? <p className="mt-1">{lead.latestLog.errorMessage}</p> : null}
+                          </div>
+                        ) : null}
+                        {!lead.latestLog && timing.isOverdue ? (
                           <p className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-xs font-bold leading-5 text-red-700">
                             Ya supero la demora configurada. Si sigue aca, probablemente falte ejecutar el cron o el proceso manual.
                           </p>
@@ -981,12 +1010,38 @@ function getLogTargetLabel(log: LogItem) {
   return log.targetType;
 }
 
-function getRecoveryLeadTiming(triggerAt: Date, delayHours: number | null): RecoveryLeadTiming {
+function getRecoveryLeadTiming(
+  triggerAt: Date,
+  delayHours: number | null,
+  latestLog: CartLeadItem["latestLog"],
+): RecoveryLeadTiming & { label: string; visualState: "waiting" | "ready" | "overdue" | "sent" | "error" } {
+  if (latestLog?.status === "SENT") {
+    return {
+      scheduledAt: delayHours === null ? null : new Date(triggerAt.getTime() + delayHours * 60 * 60 * 1000),
+      isReady: true,
+      isOverdue: false,
+      label: "Enviado",
+      visualState: "sent",
+    };
+  }
+
+  if (latestLog?.status === "ERROR") {
+    return {
+      scheduledAt: delayHours === null ? null : new Date(triggerAt.getTime() + delayHours * 60 * 60 * 1000),
+      isReady: true,
+      isOverdue: true,
+      label: "Error de envio",
+      visualState: "error",
+    };
+  }
+
   if (delayHours === null) {
     return {
       scheduledAt: null,
       isReady: false,
       isOverdue: false,
+      label: "Sin automatizacion",
+      visualState: "waiting",
     };
   }
 
@@ -999,6 +1054,8 @@ function getRecoveryLeadTiming(triggerAt: Date, delayHours: number | null): Reco
     scheduledAt,
     isReady,
     isOverdue,
+    label: isReady ? (isOverdue ? "Listo y pendiente" : "Listo para enviar") : "En espera",
+    visualState: isReady ? (isOverdue ? "overdue" : "ready") : "waiting",
   };
 }
 
