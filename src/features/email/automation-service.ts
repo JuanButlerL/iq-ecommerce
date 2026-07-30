@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { formatArs } from "@/lib/utils/currency";
 
-const DEFAULT_LIMIT = 25;
+const DEFAULT_LIMIT = 100;
 
 type ProcessResult = {
   automationId: string;
@@ -63,14 +63,16 @@ export async function processEmailAutomations(options: { automationId?: string; 
     };
 
     for (const candidate of candidates) {
-      const existingLog = await prisma.emailSendLog.findUnique({
+      const existingLog = await prisma.emailSendLog.findFirst({
         where: {
-          automationId_targetType_targetId: {
-            automationId: automation.id,
-            targetType: candidate.targetType,
-            targetId: candidate.targetId,
-          },
+          automationId: automation.id,
+          targetType: candidate.targetType,
+          OR: [
+            { targetId: candidate.targetId },
+            { targetId: { startsWith: `${candidate.targetId}:retry:` } },
+          ],
         },
+        orderBy: { createdAt: "desc" },
       });
 
       let targetId = candidate.targetId;
@@ -248,6 +250,9 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
   const logsWithClicks = recentLogs.filter((log) => log.clickCount > 0).length;
   const logsWithConversions = recentLogs.filter((log) => log.convertedAt).length;
   const leadIds = cartLeads.map((lead) => lead.id);
+  const cartLeadCycles = new Map(
+    cartLeads.map((lead) => [lead.id, buildCartRecoveryTargetId(lead.id, getCartRecoveryLeadCycleDate(lead))] as const),
+  );
   const leadLogs = leadIds.length
     ? await prisma.emailSendLog.findMany({
         where: {
@@ -272,20 +277,20 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         },
       })
     : [];
-  const latestLogByLeadId = new Map<string, (typeof leadLogs)[number]>();
-
-  for (const log of leadLogs) {
-    const leadId = log.cartRecoveryLeadId ?? extractLeadIdFromTargetId(log.targetId);
-
-    if (leadId && !latestLogByLeadId.has(leadId)) {
-      latestLogByLeadId.set(leadId, log);
-    }
-  }
 
   return {
     automations,
     recentLogs,
-    cartLeads: cartLeads.map((lead) => buildCartRecoveryLeadPreview(lead, latestLogByLeadId.get(lead.id) ?? null)),
+    cartLeads: cartLeads.map((lead) =>
+      buildCartRecoveryLeadPreview(
+        lead,
+        getCartRecoveryCycleLog(
+          cartLeadCycles.get(lead.id) ?? buildCartRecoveryTargetId(lead.id, getCartRecoveryLeadCycleDate(lead)),
+          lead.id,
+          leadLogs,
+        ),
+      ),
+    ),
     coupons,
     trackingSummary: {
       clicked: logsWithClicks,
@@ -313,7 +318,6 @@ async function getCandidatesForAutomation(
 
   if (automation.trigger === EmailAutomationTrigger.CART_ABANDONED) {
     const leads = await prisma.cartRecoveryLead.findMany({
-      take: Math.max(limit * 3, limit),
       where: {
         status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
         OR: [
@@ -334,18 +338,16 @@ async function getCandidatesForAutomation(
             trigger: EmailAutomationTrigger.CART_ABANDONED,
           },
           orderBy: { createdAt: "desc" },
-          take: 1,
+          take: 10,
         },
       },
     });
     const candidates: Candidate[] = [];
 
-    for (const lead of leads
-      .sort((a, b) => getCartRecoveryLeadCycleDate(a).getTime() - getCartRecoveryLeadCycleDate(b).getTime())
-      .slice(0, limit)) {
+    for (const lead of leads.sort((a, b) => getCartRecoveryLeadCycleDate(a).getTime() - getCartRecoveryLeadCycleDate(b).getTime())) {
       const cycleDate = getCartRecoveryLeadCycleDate(lead);
       const cycleTargetId = buildCartRecoveryTargetId(lead.id, cycleDate);
-      const latestLog = lead.emailLogs[0] ?? null;
+      const latestLog = getCartRecoveryCycleLog(cycleTargetId, lead.id, lead.emailLogs);
 
       const convertedLater = await prisma.order.findFirst({
         where: {
@@ -407,6 +409,10 @@ async function getCandidatesForAutomation(
           subtotal: formatArs(lead.subtotalArs),
         },
       });
+
+      if (candidates.length >= limit) {
+        break;
+      }
     }
 
     return candidates;
@@ -489,6 +495,24 @@ function buildCartRecoveryTargetId(leadId: string, cycleDate: Date) {
 
 function extractLeadIdFromTargetId(targetId: string) {
   return targetId.split(":")[0] || null;
+}
+
+function getCartRecoveryCycleLog<T extends { targetId: string; createdAt: Date; cartRecoveryLeadId?: string | null }>(
+  cycleTargetId: string,
+  leadId: string,
+  logs: T[],
+) {
+  return (
+    logs.find((log) => {
+      const logLeadId = log.cartRecoveryLeadId ?? extractLeadIdFromTargetId(log.targetId);
+
+      if (logLeadId !== leadId) {
+        return false;
+      }
+
+      return log.targetId === cycleTargetId || log.targetId.startsWith(`${cycleTargetId}:retry:`);
+    }) ?? null
+  );
 }
 
 export async function markEmailClicksConverted(order: {
