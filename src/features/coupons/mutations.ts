@@ -62,6 +62,26 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
     active: parsed.data.active,
   };
 
+  const requestedCodes = entries.length ? entries.map((entry) => entry.code) : codes;
+
+  if (requestedCodes.length > 0) {
+    const existingCoupons = await prisma.coupon.findMany({
+      where: {
+        code: { in: requestedCodes },
+        ...(couponId ? { id: { not: couponId } } : {}),
+      },
+      select: { code: true },
+    });
+
+    if (existingCoupons.length > 0) {
+      const duplicatedCodes = existingCoupons.map((coupon) => coupon.code).sort();
+      throw new AppError(
+        `Ya existen cupones con estos codigos: ${duplicatedCodes.join(", ")}.`,
+        400,
+      );
+    }
+  }
+
   try {
     if (couponId) {
       const singleEntry = entries[0] ?? null;
