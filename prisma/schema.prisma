@@ -106,6 +106,11 @@ enum CouponUsageType {
   SINGLE_USE_PER_CUSTOMER
 }
 
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
 model AdminUser {
   id             String    @id @default(uuid()) @db.Uuid
   supabaseUserId String?   @unique @map("supabase_user_id") @db.Uuid
@@ -248,7 +253,9 @@ model Coupon {
   id                 String   @id @default(uuid()) @db.Uuid
   code               String   @unique
   description        String?
-  discountPercentage Decimal  @map("discount_percentage") @db.Decimal(5, 2)
+  discountType       CouponDiscountType @default(PERCENTAGE) @map("discount_type")
+  discountPercentage Decimal? @map("discount_percentage") @db.Decimal(5, 2)
+  fixedDiscountArs   Int?     @map("fixed_discount_ars")
   usageType          CouponUsageType @default(UNLIMITED) @map("usage_type")
   active             Boolean  @default(true)
   createdAt          DateTime @default(now()) @map("created_at")

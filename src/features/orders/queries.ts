@@ -550,6 +550,7 @@ function buildOrdersWhere(filters: OrderFilters = {}): Prisma.OrderWhereInput {
 
 const ordersInclude = {
   items: true,
+  coupon: true,
   paymentProofs: {
     orderBy: {
       uploadedAt: "desc",
@@ -642,6 +643,7 @@ export async function getOrderDetail(orderId: string) {
           createdAt: "desc",
         },
       },
+      coupon: true,
       syncJobs: {
         include: {
           logs: {

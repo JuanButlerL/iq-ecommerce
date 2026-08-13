@@ -103,7 +103,10 @@ export async function processEmailAutomations(options: { automationId?: string; 
         coupon: automation.coupon
           ? {
               code: automation.coupon.code,
-              discountPercentage: Number(automation.coupon.discountPercentage),
+              discountType: automation.coupon.discountType,
+              discountPercentage:
+                automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
+              fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
               headline: automation.couponHeadline,
               message: automation.couponMessage,
             }
@@ -241,7 +244,9 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       select: {
         id: true,
         code: true,
+        discountType: true,
         discountPercentage: true,
+        fixedDiscountArs: true,
         description: true,
       },
     }),

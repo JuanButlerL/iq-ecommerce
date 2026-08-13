@@ -1,6 +1,6 @@
 "use client";
 
-import type { CouponUsageType } from "@prisma/client";
+import type { CouponDiscountType, CouponUsageType } from "@prisma/client";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
@@ -20,7 +20,9 @@ type CouponListItem = {
   id: string;
   code: string;
   description: string | null;
-  discountPercentage: number;
+  discountType: CouponDiscountType;
+  discountPercentage: number | null;
+  fixedDiscountArs: number | null;
   usageType: CouponUsageType;
   active: boolean;
   createdAt: Date;
@@ -28,22 +30,31 @@ type CouponListItem = {
   _count?: { orders: number };
 };
 
+type ParsedBulkEntry = {
+  code: string;
+  rawValue: string;
+};
+
 type CouponFormState = {
   code: string;
-  bulkCodes: string;
   description: string;
+  discountType: CouponDiscountType;
   discountPercentage: string;
+  fixedDiscountArs: string;
   usageType: CouponUsageType;
   active: boolean;
+  bulkEntriesText: string;
 };
 
 const emptyForm: CouponFormState = {
   code: "",
-  bulkCodes: "",
   description: "",
+  discountType: "PERCENTAGE",
   discountPercentage: "10",
+  fixedDiscountArs: "",
   usageType: "UNLIMITED",
   active: true,
+  bulkEntriesText: "",
 };
 
 const usageLabels: Record<CouponUsageType, string> = {
@@ -53,9 +64,14 @@ const usageLabels: Record<CouponUsageType, string> = {
 };
 
 const usageHelp: Record<CouponUsageType, string> = {
-  UNLIMITED: "No se desactiva por uso. Ideal para campañas abiertas.",
-  SINGLE_USE: "Sirve para una sola compra confirmada. Después queda bloqueado automáticamente.",
+  UNLIMITED: "No se desactiva por uso. Ideal para campanas abiertas.",
+  SINGLE_USE: "Sirve para una sola compra confirmada. Despues queda bloqueado automaticamente.",
   SINGLE_USE_PER_CUSTOMER: "Cada DNI puede usarlo una vez en una compra confirmada.",
+};
+
+const discountTypeLabels: Record<CouponDiscountType, string> = {
+  PERCENTAGE: "Porcentaje",
+  FIXED_AMOUNT: "Monto fijo",
 };
 
 export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
@@ -70,8 +86,8 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
     () => coupons.find((coupon) => coupon.id === editingCouponId) ?? null,
     [coupons, editingCouponId],
   );
-  const bulkCodes = parseBulkCodes(form.bulkCodes);
-  const isBulkMode = !editingCouponId && bulkCodes.length > 0;
+  const parsedBulkEntries = useMemo(() => parseBulkEntries(form.bulkEntriesText), [form.bulkEntriesText]);
+  const isBulkMode = !editingCouponId && parsedBulkEntries.length > 0;
 
   function resetForm() {
     setEditingCouponId(null);
@@ -84,45 +100,63 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
     setEditingCouponId(coupon.id);
     setForm({
       code: coupon.code,
-      bulkCodes: "",
       description: coupon.description ?? "",
-      discountPercentage: Number(coupon.discountPercentage).toString(),
+      discountType: coupon.discountType,
+      discountPercentage: coupon.discountPercentage?.toString() ?? "",
+      fixedDiscountArs: coupon.fixedDiscountArs?.toString() ?? "",
       usageType: coupon.usageType,
       active: coupon.active,
+      bulkEntriesText: "",
     });
     setError(null);
     setMessage(null);
   }
 
   async function submitForm() {
-    const codes = isBulkMode ? bulkCodes : [form.code].filter(Boolean);
     const url = editingCouponId ? `/api/admin/coupons/${editingCouponId}` : "/api/admin/coupons";
     const method = editingCouponId ? "PATCH" : "POST";
+    const body = isBulkMode
+      ? {
+          entries: parsedBulkEntries.map((entry) => ({
+            code: entry.code,
+            discountPercentage: form.discountType === "PERCENTAGE" ? entry.rawValue : undefined,
+            fixedDiscountArs: form.discountType === "FIXED_AMOUNT" ? entry.rawValue : undefined,
+          })),
+          description: form.description,
+          discountType: form.discountType,
+          usageType: form.usageType,
+          active: form.active,
+        }
+      : {
+          code: form.code,
+          description: form.description,
+          discountType: form.discountType,
+          discountPercentage: form.discountType === "PERCENTAGE" ? form.discountPercentage : undefined,
+          fixedDiscountArs: form.discountType === "FIXED_AMOUNT" ? form.fixedDiscountArs : undefined,
+          usageType: form.usageType,
+          active: form.active,
+        };
 
     const response = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        code: codes[0] ?? form.code,
-        codes,
-        description: form.description,
-        discountPercentage: form.discountPercentage,
-        usageType: form.usageType,
-        active: form.active,
-      }),
+      body: JSON.stringify(body),
     });
-
-    const payload = (await response.json()) as { error?: string; data?: { created?: number; updated?: number } };
+    const payload = (await response.json()) as {
+      error?: string;
+      data?: { created?: number; updated?: number };
+    };
 
     if (!response.ok) {
-      setError(payload.error ?? "No pudimos guardar el cupón.");
+      setError(payload.error ?? "No pudimos guardar el cupon.");
       return;
     }
 
+    const createdCount = payload.data?.created ?? 0;
     setMessage(
       editingCouponId
-        ? "Cupón actualizado."
-        : `${payload.data?.created ?? codes.length} cupón${(payload.data?.created ?? codes.length) === 1 ? "" : "es"} creado${(payload.data?.created ?? codes.length) === 1 ? "" : "s"}.`,
+        ? "Cupon actualizado."
+        : `${createdCount} cupon${createdCount === 1 ? "" : "es"} creado${createdCount === 1 ? "" : "s"}.`,
     );
     setEditingCouponId(null);
     setForm(emptyForm);
@@ -133,11 +167,10 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
     const response = await fetch(`/api/admin/coupons/${couponId}`, {
       method: "DELETE",
     });
-
     const payload = (await response.json()) as { error?: string };
 
     if (!response.ok) {
-      setError(payload.error ?? "No pudimos eliminar el cupón.");
+      setError(payload.error ?? "No pudimos eliminar el cupon.");
       return;
     }
 
@@ -145,7 +178,7 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
       resetForm();
     }
 
-    setMessage("Cupón eliminado.");
+    setMessage("Cupon eliminado.");
     router.refresh();
   }
 
@@ -154,23 +187,23 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
       <div>
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Cupones</p>
         <h1 className="font-display text-3xl text-brand-ink md:text-5xl">Descuentos del checkout</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/70 md:text-base">
-          Creá códigos ilimitados, de un uso total o de un uso por DNI. El descuento impacta solo en productos, no en el envío.
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-brand-ink/70 md:text-base">
+          Crea codigos con porcentaje o monto fijo, con uso ilimitado, un uso total o un uso por DNI.
         </p>
       </div>
 
       {error ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
       {message ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{message}</p> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-6 xl:grid-cols-[1fr_1.05fr]">
         <Card className="space-y-5 p-5 md:p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">
-                {editingCoupon ? "Editar cupón" : "Nuevo cupón"}
+                {editingCoupon ? "Editar cupon" : "Nuevo cupon"}
               </p>
               <p className="mt-2 text-sm text-brand-ink/70">
-                Para carga masiva, pegá varios códigos en el bloque de abajo.
+                Puedes crear uno individual o una tanda masiva con valores distintos por fila.
               </p>
             </div>
             {editingCoupon ? (
@@ -181,41 +214,54 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
           </div>
 
           <div className="grid gap-4">
-            <Field label="Código">
-              <Input
-                value={form.code}
-                maxLength={40}
-                placeholder="MICA10"
-                disabled={isBulkMode}
-                onChange={(event) => setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))}
-              />
-            </Field>
-
-            {!editingCoupon ? (
-              <Field label="Códigos masivos">
-                <Textarea
-                  rows={5}
-                  value={form.bulkCodes}
-                  placeholder={"MICA10\nMICA11\nMICA12"}
-                  onChange={(event) => setForm((current) => ({ ...current, bulkCodes: event.target.value.toUpperCase() }))}
-                />
-                <p className="mt-2 text-xs font-bold text-brand-ink/45">
-                  Separalos por coma, espacio o salto de línea. Detectados: {bulkCodes.length || 0}.
-                </p>
-              </Field>
-            ) : null}
-
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Descuento (%)">
+              <Field label="Tipo de descuento">
+                <select
+                  value={form.discountType}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      discountType: event.target.value as CouponDiscountType,
+                    }))
+                  }
+                  className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+                >
+                  {Object.entries(discountTypeLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label={form.discountType === "PERCENTAGE" ? "Descuento (%)" : "Monto fijo (ARS)"}>
                 <Input
                   type="number"
-                  step="0.01"
-                  min="0.01"
-                  max="100"
-                  value={form.discountPercentage}
-                  onChange={(event) => setForm((current) => ({ ...current, discountPercentage: event.target.value }))}
+                  step={form.discountType === "PERCENTAGE" ? "0.01" : "1"}
+                  min={form.discountType === "PERCENTAGE" ? "0.01" : "1"}
+                  max={form.discountType === "PERCENTAGE" ? "100" : undefined}
+                  value={form.discountType === "PERCENTAGE" ? form.discountPercentage : form.fixedDiscountArs}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      [form.discountType === "PERCENTAGE" ? "discountPercentage" : "fixedDiscountArs"]: event.target.value,
+                    }))
+                  }
                 />
               </Field>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Codigo">
+                <Input
+                  value={form.code}
+                  maxLength={40}
+                  placeholder={form.discountType === "PERCENTAGE" ? "MICA10" : "REGALO1500"}
+                  disabled={isBulkMode}
+                  onChange={(event) => setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))}
+                />
+              </Field>
+
               <Field label="Tipo de uso">
                 <select
                   value={form.usageType}
@@ -231,20 +277,41 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
               </Field>
             </div>
 
+            {!editingCoupon ? (
+              <Field label={form.discountType === "PERCENTAGE" ? "Carga masiva (CODIGO, %)" : "Carga masiva (CODIGO, monto ARS)"}>
+                <Textarea
+                  rows={7}
+                  value={form.bulkEntriesText}
+                  placeholder={
+                    form.discountType === "PERCENTAGE"
+                      ? "INFLUENCER01,10\nINFLUENCER02,15\nINFLUENCER03,20"
+                      : "REGALO1500A,1500\nREGALO2500B,2500\nREGALO5000C,5000"
+                  }
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, bulkEntriesText: event.target.value.toUpperCase() }))
+                  }
+                />
+                <p className="mt-2 text-xs font-bold text-brand-ink/45">
+                  Una fila por cupon. Separa codigo y valor con coma, punto y coma o tab. Detectados: {parsedBulkEntries.length || 0}.
+                </p>
+              </Field>
+            ) : null}
+
             <p className="rounded-2xl bg-background px-4 py-3 text-xs font-bold leading-5 text-brand-ink/60">
               {usageHelp[form.usageType]}
             </p>
 
-            <Field label="Descripción interna">
+            <Field label="Descripcion interna">
               <Input
                 value={form.description}
                 maxLength={160}
-                placeholder="Influencer abril 2026"
+                placeholder="Campana agosto 2026"
                 onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
               />
             </Field>
+
             <Checkbox
-              label="Cupón activo"
+              label="Cupon activo"
               checked={form.active}
               onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
             />
@@ -262,7 +329,13 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
               });
             }}
           >
-            {isPending ? "Guardando..." : editingCoupon ? "Guardar cambios" : isBulkMode ? `Crear ${bulkCodes.length} cupones` : "Crear cupón"}
+            {isPending
+              ? "Guardando..."
+              : editingCoupon
+                ? "Guardar cambios"
+                : isBulkMode
+                  ? `Crear ${parsedBulkEntries.length} cupones`
+                  : "Crear cupon"}
           </Button>
         </Card>
 
@@ -273,20 +346,23 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
               <p className="mt-2 text-sm text-brand-ink/70">{coupons.length} cupones cargados.</p>
             </div>
             <div className="rounded-full bg-brand-peach px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-brand-pink">
-              Excluye envío
+              Nunca descuenta envio
             </div>
           </div>
 
           <div className="space-y-3">
             {coupons.length === 0 ? (
               <div className="rounded-[1.5rem] border border-dashed border-brand-ink/15 p-6 text-sm text-brand-ink/55">
-                Todavía no hay cupones creados.
+                Todavia no hay cupones creados.
               </div>
             ) : (
               coupons.map((coupon) => {
                 const isEditing = coupon.id === editingCouponId;
                 const sampleSubtotal = 15000;
-                const sampleDiscount = Math.round((sampleSubtotal * Number(coupon.discountPercentage)) / 100);
+                const sampleDiscount =
+                  coupon.discountType === "FIXED_AMOUNT"
+                    ? Math.min(sampleSubtotal, coupon.fixedDiscountArs ?? 0)
+                    : Math.round((sampleSubtotal * (coupon.discountPercentage ?? 0)) / 100);
                 const usedCount = coupon._count?.orders ?? 0;
 
                 return (
@@ -310,10 +386,19 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
                           <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-ink/55">
                             {usageLabels[coupon.usageType]}
                           </span>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-pink">
+                            {discountTypeLabels[coupon.discountType]}
+                          </span>
                         </div>
-                        <p className="mt-2 text-sm text-brand-ink/70">{coupon.description || "Sin descripción interna."}</p>
+
+                        <p className="mt-2 text-sm text-brand-ink/70">{coupon.description || "Sin descripcion interna."}</p>
+
                         <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
-                          <span className="text-brand-pink">{Number(coupon.discountPercentage)}% OFF</span>
+                          <span className="text-brand-pink">
+                            {coupon.discountType === "FIXED_AMOUNT"
+                              ? `${formatArs(coupon.fixedDiscountArs ?? 0)} OFF`
+                              : `${coupon.discountPercentage ?? 0}% OFF`}
+                          </span>
                           <span className="text-brand-ink/55">{usedCount} usos confirmados</span>
                         </div>
                         <p className="mt-1 text-xs text-brand-ink/55">
@@ -353,8 +438,20 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
   );
 }
 
-function parseBulkCodes(value: string) {
-  return Array.from(new Set(value.split(/[\s,;]+/).map((entry) => entry.trim().toUpperCase()).filter(Boolean)));
+function parseBulkEntries(value: string): ParsedBulkEntry[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [codePart = "", valuePart = ""] = line.split(/[,\t;]+/);
+
+      return {
+        code: codePart.trim().toUpperCase(),
+        rawValue: valuePart.trim().replace(",", "."),
+      };
+    })
+    .filter((entry) => entry.code && entry.rawValue);
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

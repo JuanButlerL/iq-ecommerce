@@ -6,6 +6,7 @@ import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { formatArs } from "@/lib/utils/currency";
@@ -90,7 +91,14 @@ export default async function ConfirmationPage({
             {order.discountArs > 0 ? (
               <div className="flex items-center justify-between">
                 <span>
-                  Cupon {order.couponCode} ({Number(order.discountPercentage ?? 0)}%)
+                  Cupon {order.couponCode}{" "}
+                  {order.coupon
+                    ? `(${getCouponDiscountLabel({
+                        discountType: order.coupon.discountType,
+                        discountPercentage: order.discountPercentage == null ? null : Number(order.discountPercentage),
+                        fixedDiscountArs: order.coupon.fixedDiscountArs,
+                      })})`
+                    : ""}
                 </span>
                 <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
               </div>

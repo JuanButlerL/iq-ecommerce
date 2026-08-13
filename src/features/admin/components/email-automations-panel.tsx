@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { formatArs } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
@@ -33,7 +34,9 @@ type AutomationItem = {
   coupon: {
     id: string;
     code: string;
+    discountType: "PERCENTAGE" | "FIXED_AMOUNT";
     discountPercentage: unknown;
+    fixedDiscountArs: number | null;
     description: string | null;
   } | null;
   createdAt: Date;
@@ -113,7 +116,9 @@ type EmailAutomationsPanelProps = {
   coupons: Array<{
     id: string;
     code: string;
+    discountType: "PERCENTAGE" | "FIXED_AMOUNT";
     discountPercentage: unknown;
+    fixedDiscountArs: number | null;
     description: string | null;
   }>;
   trackingSummary: {
@@ -667,7 +672,13 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                         <option value="">Sin cupón</option>
                         {coupons.map((coupon) => (
                           <option key={coupon.id} value={coupon.id}>
-                            {coupon.code} - {Number(coupon.discountPercentage)}% off
+                            {coupon.code} -{" "}
+                            {getCouponDiscountLabel({
+                              discountType: coupon.discountType,
+                              discountPercentage:
+                                coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
+                              fixedDiscountArs: coupon.fixedDiscountArs,
+                            })}
                           </option>
                         ))}
                       </select>

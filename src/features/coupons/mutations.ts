@@ -11,62 +11,113 @@ function uniqueCodes(codes: string[]) {
   return Array.from(new Set(codes.map(normalizeCouponCode).filter(Boolean)));
 }
 
+function buildDiscountPayload(input: {
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountPercentage?: number | null;
+  fixedDiscountArs?: number | null;
+}) {
+  if (input.discountType === "PERCENTAGE") {
+    return {
+      discountType: input.discountType,
+      discountPercentage: input.discountPercentage ?? undefined,
+      fixedDiscountArs: null,
+    } as const;
+  }
+
+  return {
+    discountType: input.discountType,
+    discountPercentage: 0,
+    fixedDiscountArs: input.fixedDiscountArs ?? undefined,
+  } as const;
+}
+
 export async function saveCoupon(payload: unknown, couponId?: string) {
   const parsed = couponFormSchema.safeParse(payload);
 
   if (!parsed.success) {
-    throw new AppError("Datos de cupón inválidos.", 400);
+    const issueMessage = parsed.error.issues[0]?.message ?? "Datos de cupon invalidos.";
+    throw new AppError(issueMessage, 400);
   }
 
+  const entries = parsed.data.entries?.length
+    ? parsed.data.entries.map((entry) => ({
+        code: normalizeCouponCode(entry.code),
+        discountPercentage: entry.discountPercentage ?? null,
+        fixedDiscountArs: entry.fixedDiscountArs ?? null,
+      }))
+    : [];
   const codes = uniqueCodes(parsed.data.codes?.length ? parsed.data.codes : parsed.data.code ? [parsed.data.code] : []);
 
-  if (!codes.length) {
-    throw new AppError("Ingresá al menos un código.", 400);
+  if (!entries.length && !codes.length) {
+    throw new AppError("Ingresa al menos un codigo.", 400);
   }
 
-  if (couponId && codes.length > 1) {
-    throw new AppError("La edición permite modificar un cupón por vez.", 400);
+  if (couponId && (entries.length > 1 || codes.length > 1)) {
+    throw new AppError("La edicion permite modificar un cupon por vez.", 400);
   }
 
   const baseData = {
     description: parsed.data.description || null,
-    discountPercentage: parsed.data.discountPercentage,
     usageType: parsed.data.usageType,
     active: parsed.data.active,
   };
 
   try {
     if (couponId) {
+      const singleEntry = entries[0] ?? null;
+      const code = singleEntry?.code ?? codes[0];
+
       await prisma.coupon.update({
         where: { id: couponId },
         data: {
           ...baseData,
-          code: codes[0],
+          code,
+          ...buildDiscountPayload({
+            discountType: parsed.data.discountType,
+            discountPercentage: singleEntry?.discountPercentage ?? parsed.data.discountPercentage,
+            fixedDiscountArs: singleEntry?.fixedDiscountArs ?? parsed.data.fixedDiscountArs,
+          }),
         },
       });
-      revalidateCouponViews();
 
+      revalidateCouponViews();
       return { created: 0, updated: 1 };
     }
 
+    const createData = entries.length
+      ? entries.map((entry) => ({
+          ...baseData,
+          code: entry.code,
+          ...buildDiscountPayload({
+            discountType: parsed.data.discountType,
+            discountPercentage: entry.discountPercentage ?? parsed.data.discountPercentage,
+            fixedDiscountArs: entry.fixedDiscountArs ?? parsed.data.fixedDiscountArs,
+          }),
+        }))
+      : codes.map((code) => ({
+          ...baseData,
+          code,
+          ...buildDiscountPayload({
+            discountType: parsed.data.discountType,
+            discountPercentage: parsed.data.discountPercentage,
+            fixedDiscountArs: parsed.data.fixedDiscountArs,
+          }),
+        }));
+
     await prisma.coupon.createMany({
-      data: codes.map((code) => ({
-        ...baseData,
-        code,
-      })),
+      data: createData,
       skipDuplicates: false,
     });
+
+    revalidateCouponViews();
+    return { created: createData.length, updated: 0 };
   } catch (error) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
-      throw new AppError("Ya existe un cupón con alguno de esos códigos.", 400);
+      throw new AppError("Ya existe un cupon con alguno de esos codigos.", 400);
     }
 
     throw error;
   }
-
-  revalidateCouponViews();
-
-  return { created: codes.length, updated: 0 };
 }
 
 export async function deleteCoupon(couponId: string) {
@@ -81,4 +132,5 @@ function revalidateCouponViews() {
   revalidatePath("/checkout");
   revalidatePath("/admin/cupones");
   revalidatePath("/admin/pedidos");
+  revalidatePath("/admin/emails");
 }

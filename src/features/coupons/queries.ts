@@ -32,7 +32,8 @@ export async function getCouponsForClient() {
 
   return coupons.map((coupon) => ({
     ...coupon,
-    discountPercentage: Number(coupon.discountPercentage),
+    fixedDiscountArs: coupon.fixedDiscountArs ?? null,
+    discountPercentage: coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
   }));
 }
 

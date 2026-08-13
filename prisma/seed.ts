@@ -268,13 +268,17 @@ async function main() {
     where: { code: "BIENVENIDA10" },
     update: {
       description: "Cupon de ejemplo para testing local.",
+      discountType: "PERCENTAGE",
       discountPercentage: 10,
+      fixedDiscountArs: null,
       active: true,
     },
     create: {
       code: "BIENVENIDA10",
       description: "Cupon de ejemplo para testing local.",
+      discountType: "PERCENTAGE",
       discountPercentage: 10,
+      fixedDiscountArs: null,
       active: true,
     },
   });

@@ -1,5 +1,6 @@
 import { OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 
+import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { markCartRecoveryCheckoutStarted, markCartRecoveryConverted } from "@/features/cart-recovery/services";
@@ -192,8 +193,16 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             status: OrderStatus.PENDING_PAYMENT,
             note: coupon
               ? pricing.paymentMethodDiscountArs > 0
-                ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento) y descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
-                : `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
+                ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${getCouponDiscountLabel({
+                    discountType: coupon.discountType,
+                    discountPercentage: coupon.discountPercentage,
+                    fixedDiscountArs: coupon.fixedDiscountArs,
+                  })}) y descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
+                : `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${getCouponDiscountLabel({
+                    discountType: coupon.discountType,
+                    discountPercentage: coupon.discountPercentage,
+                    fixedDiscountArs: coupon.fixedDiscountArs,
+                  })}).`
               : pricing.paymentMethodDiscountArs > 0
                 ? `Pedido generado desde checkout web con descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
                 : "Pedido generado desde checkout web.",

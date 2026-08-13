@@ -19,6 +19,7 @@ import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
+import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { productFallbackImageMap } from "@/features/catalog/product-theme";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
@@ -44,7 +45,9 @@ type CheckoutPageProps = {
 type CouponPreview = {
   couponId: string;
   couponCode: string;
-  discountPercentage: number;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountPercentage: number | null;
+  fixedDiscountArs: number | null;
   discountArs: number;
   subtotalWithDiscountArs: number;
 };
@@ -420,7 +423,15 @@ export function CheckoutPage({
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   <div>
                     <p className="font-bold">Cupon {appliedCoupon.couponCode} aplicado</p>
-                    <p className="mt-1">Descuento: {appliedCoupon.discountPercentage}% ({formatArs(appliedCoupon.discountArs)})</p>
+                    <p className="mt-1">
+                      Descuento:{" "}
+                      {getCouponDiscountLabel({
+                        discountType: appliedCoupon.discountType,
+                        discountPercentage: appliedCoupon.discountPercentage,
+                        fixedDiscountArs: appliedCoupon.fixedDiscountArs,
+                      })}{" "}
+                      ({formatArs(appliedCoupon.discountArs)})
+                    </p>
                   </div>
                 </div>
                 <button
@@ -449,7 +460,14 @@ export function CheckoutPage({
           </div>
           {appliedCoupon ? (
             <div className="flex items-center justify-between">
-              <span>Descuento ({appliedCoupon.discountPercentage}%)</span>
+              <span>
+                Descuento{" "}
+                {getCouponDiscountLabel({
+                  discountType: appliedCoupon.discountType,
+                  discountPercentage: appliedCoupon.discountPercentage,
+                  fixedDiscountArs: appliedCoupon.fixedDiscountArs,
+                })}
+              </span>
               <span className="font-bold text-green-700">- {formatArs(appliedCoupon.discountArs)}</span>
             </div>
           ) : null}

@@ -5,6 +5,7 @@ import { CheckCircle2, Clock3, FileText, RefreshCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { RetrySyncButton } from "@/features/admin/components/retry-sync-button";
 import { OrderStatusForm } from "@/features/admin/components/order-status-form";
+import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getOrderDetail } from "@/features/orders/queries";
 import { requireAdminSection } from "@/lib/auth/admin";
 import { canAccessAdminSection } from "@/lib/auth/admin-permissions";
@@ -105,7 +106,14 @@ export default async function AdminOrderDetailPage({
             {order.discountArs > 0 ? (
               <div className="flex items-center justify-between">
                 <span>
-                  Cupon {order.couponCode} ({Number(order.discountPercentage ?? 0)}%)
+                  Cupon {order.couponCode}{" "}
+                  {order.coupon
+                    ? `(${getCouponDiscountLabel({
+                        discountType: order.coupon.discountType,
+                        discountPercentage: order.discountPercentage == null ? null : Number(order.discountPercentage),
+                        fixedDiscountArs: order.coupon.fixedDiscountArs,
+                      })})`
+                    : ""}
                 </span>
                 <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
               </div>

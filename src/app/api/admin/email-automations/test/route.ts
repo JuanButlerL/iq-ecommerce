@@ -54,7 +54,10 @@ export async function POST(request: Request) {
       coupon: automation.coupon
         ? {
             code: automation.coupon.code,
-            discountPercentage: Number(automation.coupon.discountPercentage),
+            discountType: automation.coupon.discountType,
+            discountPercentage:
+              automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
+            fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
             headline: automation.couponHeadline,
             message: automation.couponMessage,
           }

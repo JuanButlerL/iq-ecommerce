@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { formatArs } from "@/lib/utils/currency";
 
 type EmailVariables = Record<string, string | number | null | undefined>;
 
@@ -12,6 +13,18 @@ function escapeHtml(value: string) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function getCouponValueLabel(coupon: {
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountPercentage?: string | number | null;
+  fixedDiscountArs?: number | null;
+}) {
+  if (coupon.discountType === "FIXED_AMOUNT") {
+    return `${formatArs(coupon.fixedDiscountArs ?? 0)} OFF`;
+  }
+
+  return `${escapeHtml(String(coupon.discountPercentage ?? 0))}% OFF`;
 }
 
 export function renderTemplate(template: string, variables: EmailVariables) {
@@ -35,7 +48,9 @@ export function renderMarketingEmail({
   ctaUrl?: string | null;
   coupon?: {
     code: string;
-    discountPercentage: string | number;
+    discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+    discountPercentage?: string | number | null;
+    fixedDiscountArs?: number | null;
     headline?: string | null;
     message?: string | null;
   } | null;
@@ -44,24 +59,30 @@ export function renderMarketingEmail({
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
-    .map((paragraph) => `<p style="margin:0 0 16px;color:${brandInk};font-size:16px;line-height:1.65;">${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>`)
+    .map(
+      (paragraph) =>
+        `<p style="margin:0 0 16px;color:${brandInk};font-size:16px;line-height:1.65;">${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>`,
+    )
     .join("");
+
   const cta =
     ctaLabel && ctaUrl
       ? `<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;background:${brandPink};color:#fff;text-decoration:none;border-radius:999px;padding:15px 24px;font-weight:800;font-size:15px;">${escapeHtml(ctaLabel)}</a>`
       : "";
+
   const safePreviewText = previewText?.trim() ? escapeHtml(previewText.trim()) : "";
   const couponBlock = coupon
     ? `<div style="margin:22px 0 20px;border:1px dashed ${brandPink};background:#fff7f8;border-radius:22px;padding:18px 18px 16px;">
         <p style="margin:0 0 7px;color:${brandPink};font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;">${escapeHtml(coupon.headline?.trim() || "Regalo IQ Kids")}</p>
-        <p style="margin:0 0 10px;color:${brandInk};font-size:15px;line-height:1.55;">${escapeHtml(coupon.message?.trim() || "Usá este cupón en tu compra.")}</p>
+        <p style="margin:0 0 10px;color:${brandInk};font-size:15px;line-height:1.55;">${escapeHtml(coupon.message?.trim() || "Usa este cupon en tu compra.")}</p>
         <div style="display:inline-block;background:#ffffff;border:1px solid rgba(244,127,141,.45);border-radius:16px;padding:12px 16px;">
-          <span style="display:block;color:rgba(45,33,66,.55);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;">Cupón</span>
+          <span style="display:block;color:rgba(45,33,66,.55);font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;">Cupon</span>
           <span style="display:block;color:${brandInk};font-size:24px;font-weight:900;letter-spacing:.08em;">${escapeHtml(coupon.code)}</span>
         </div>
-        <span style="display:inline-block;margin-left:10px;color:${brandPink};font-size:14px;font-weight:900;">${escapeHtml(String(coupon.discountPercentage))}% OFF</span>
+        <span style="display:inline-block;margin-left:10px;color:${brandPink};font-size:14px;font-weight:900;">${getCouponValueLabel(coupon)}</span>
       </div>`
     : "";
+
   const hiddenPreview = safePreviewText
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">${safePreviewText}</div><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>`
     : "";
