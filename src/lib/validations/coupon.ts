@@ -48,7 +48,9 @@ export const couponFormSchema = z
       return;
     }
 
-    for (const [index, entry] of data.entries.entries()) {
+    const entries = data.entries ?? [];
+
+    for (const [index, entry] of entries.entries()) {
       if (data.discountType === "PERCENTAGE") {
         if (!entry.discountPercentage || entry.discountPercentage <= 0) {
           ctx.addIssue({
