@@ -48,6 +48,7 @@ export default async function RootLayout({
   return (
     <html lang="es">
       <head>
+        <meta name="facebook-domain-verification" content="uxoukek4qpm1l9lb4w8fjzgr1rm43c" />
         {googleTagManagerId ? <GoogleTagManager containerId={googleTagManagerId} /> : null}
       </head>
       <body>
