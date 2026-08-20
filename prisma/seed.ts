@@ -130,7 +130,7 @@ async function main() {
       shippingMode: ShippingMode.FLAT,
       activeShippingRuleId: shippingRule.id,
       checkoutMessage:
-        "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.",
+        "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.",
       transferInstructions:
         "Transferi el monto exacto dentro del plazo de reserva y subi el comprobante para confirmar tu pedido.",
       enableBankTransfer: true,
@@ -171,7 +171,7 @@ async function main() {
       shippingMode: ShippingMode.FLAT,
       activeShippingRuleId: shippingRule.id,
       checkoutMessage:
-        "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.",
+        "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.",
       transferInstructions:
         "Transferi el monto exacto dentro del plazo de reserva y subi el comprobante para confirmar tu pedido.",
       enableBankTransfer: true,

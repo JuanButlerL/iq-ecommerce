@@ -6,7 +6,6 @@ const reservedSlugs = new Set([
   "carrito",
   "checkout",
   "contacto",
-  "politicas",
   "productos",
   "uploads",
   "_next",

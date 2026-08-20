@@ -94,7 +94,6 @@ Ademas tiene una tercera capa transversal:
 - `/checkout/confirmacion/[orderNumber]`
   confirmacion final
 - `/contacto`
-- `/politicas`
 
 ### Layout global
 

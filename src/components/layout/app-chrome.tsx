@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { FloatingWhatsapp } from "@/components/layout/floating-whatsapp";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { TabTitleNudge } from "@/components/layout/tab-title-nudge";
 
 type AppChromeProps = {
   children: ReactNode;
@@ -37,6 +38,7 @@ export function AppChrome({
 
   return (
     <>
+      <TabTitleNudge />
       {hideHeader ? (
         null
       ) : (

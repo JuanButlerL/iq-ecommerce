@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSettings } from "@prisma/client";
-import { CheckCircle2, Plus, TicketPercent } from "lucide-react";
+import { AlertCircle, CheckCircle2, MapPinned, Plus, TicketPercent } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
@@ -52,6 +52,56 @@ type CouponPreview = {
   subtotalWithDiscountArs: number;
 };
 
+type FieldShellProps = {
+  label: string;
+  error?: string;
+  className?: string;
+  children: React.ReactNode;
+};
+
+const LEGACY_CHECKOUT_MESSAGE =
+  "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.";
+
+function normalizeCheckoutMessage(message: string | null | undefined) {
+  if (!message) {
+    return null;
+  }
+
+  if (message === LEGACY_CHECKOUT_MESSAGE) {
+    return "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.";
+  }
+
+  return message;
+}
+
+function formatCheckoutProductLabel(label: string) {
+  const normalizedLabel = label.trim();
+
+  if (normalizedLabel.toUpperCase() === "MANI") {
+    return "Maní";
+  }
+
+  return normalizedLabel;
+}
+
+function FieldShell({ label, error, className, children }: FieldShellProps) {
+  return (
+    <label className={`space-y-2 ${className ?? ""}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/55">{label}</span>
+        {error ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600">
+            <AlertCircle className="h-3.5 w-3.5" />
+            Revisar
+          </span>
+        ) : null}
+      </div>
+      {children}
+      {error ? <p className="text-xs font-bold leading-5 text-red-600">{error}</p> : null}
+    </label>
+  );
+}
+
 export function CheckoutPage({
   products,
   settings,
@@ -72,6 +122,7 @@ export function CheckoutPage({
   const addItem = useCartStore((state) => state.addItem);
   const allowBankTransfer = settings.enableBankTransfer;
   const allowMercadoPago = settings.enableMercadoPago && mercadoPagoEnabled;
+  const checkoutMessage = normalizeCheckoutMessage(settings.checkoutMessage);
   const initialProvince = requestedProvince && ARGENTINA_PROVINCES.some((province) => province.name === requestedProvince)
     ? requestedProvince
     : "Buenos Aires";
@@ -99,6 +150,8 @@ export function CheckoutPage({
 
   const form = useForm<CheckoutCustomerInput>({
     resolver: zodResolver(checkoutCustomerSchema),
+    mode: "onBlur",
+    reValidateMode: "onChange",
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -116,8 +169,13 @@ export function CheckoutPage({
     },
   });
 
+  const errors = form.formState.errors;
   const province = form.watch("province");
   const paymentMethod = form.watch("paymentMethod");
+  const watchedAddressLine = form.watch("addressLine");
+  const watchedAddressExtra = form.watch("addressExtra");
+  const watchedLocality = form.watch("locality");
+  const watchedPostalCode = form.watch("postalCode");
   const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
   const couponDiscountArs = appliedCoupon?.discountArs ?? 0;
@@ -134,12 +192,49 @@ export function CheckoutPage({
     ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
     : 0;
   const checkoutShippingNudge = shippingQuote.freeShippingReached
-    ? "Ya tenés envío gratis. Sumá otro sabor y dejá más días de la semana resueltos."
+    ? "Ya tenés envío gratis. Sumá otro sabor y deja más días de la semana resueltos."
     : shippingQuote.shippingDiscountReached
       ? `Tenés ${shippingQuote.shippingDiscountPercentage}% off en el envío. Si llegás a ${formatArs(settings.freeShippingThreshold)}, el envío es gratis.`
       : amountToShippingDiscount > 0 && shippingQuote.shippingDiscountPercentage > 0
-        ? `Sumá un producto más y activá ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
-        : `Suma un segundo sabor para llegar al envio gratis. Te faltan ${formatArs(amountToFreeShipping)}.`;
+        ? `Sumá un producto más y activa ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
+        : `Sumá un segundo sabor para llegar al envío gratis. Te faltan ${formatArs(amountToFreeShipping)}.`;
+  const addressPreview = useMemo(() => {
+    const addressParts = [
+      watchedAddressLine?.trim(),
+      watchedAddressExtra?.trim(),
+      watchedLocality?.trim(),
+      province?.trim(),
+      watchedPostalCode?.trim(),
+      "Argentina",
+    ].filter(Boolean);
+    const hasRequiredAddressFields = Boolean(
+      watchedAddressLine?.trim() && watchedLocality?.trim() && province?.trim() && watchedPostalCode?.trim(),
+    );
+    const hasAddressErrors = Boolean(errors.addressLine || errors.locality || errors.postalCode || errors.province);
+
+    if (!hasRequiredAddressFields) {
+      return null;
+    }
+
+    const query = addressParts.join(", ");
+
+    return {
+      query,
+      hasAddressErrors,
+      mapsHref: `https://www.google.com/maps?q=${encodeURIComponent(query)}`,
+      embedSrc: `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`,
+    };
+  }, [
+    errors.addressLine,
+    errors.locality,
+    errors.postalCode,
+    errors.province,
+    province,
+    watchedAddressExtra,
+    watchedAddressLine,
+    watchedLocality,
+    watchedPostalCode,
+  ]);
 
   useEffect(() => {
     if (paymentMethod === "MERCADO_PAGO" && !allowMercadoPago && allowBankTransfer) {
@@ -157,8 +252,7 @@ export function CheckoutPage({
     }
 
     void refreshCoupon(appliedCoupon.couponCode, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subtotal]);
+  }, [appliedCoupon, subtotal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (hasTrackedCheckoutRef.current) {
@@ -305,43 +399,159 @@ export function CheckoutPage({
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 1 de 2</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Completa tu compra</h1>
           <p className="mt-2 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Carga tus datos, elegi el medio de pago y generamos tu pedido.
+            Carga tus datos, elige el medio de pago y generamos tu pedido.
           </p>
         </div>
+
         <div className="grid gap-4 md:grid-cols-3">
-          <Input placeholder="Nombre" {...form.register("firstName")} />
-          <Input placeholder="Apellido" {...form.register("lastName")} />
-          <Input
-            placeholder="Documento o DNI"
-            aria-invalid={form.formState.errors.taxId ? "true" : "false"}
-            {...form.register("taxId")}
-          />
+          <FieldShell label="Nombre" error={errors.firstName?.message}>
+            <Input
+              placeholder="Ej: Maria"
+              autoComplete="given-name"
+              aria-invalid={errors.firstName ? "true" : "false"}
+              {...form.register("firstName")}
+            />
+          </FieldShell>
+          <FieldShell label="Apellido" error={errors.lastName?.message}>
+            <Input
+              placeholder="Ej: Gonzalez"
+              autoComplete="family-name"
+              aria-invalid={errors.lastName ? "true" : "false"}
+              {...form.register("lastName")}
+            />
+          </FieldShell>
+          <FieldShell
+            label="Documento o DNI"
+            error={errors.taxId?.message}
+          >
+            <Input
+              placeholder="Ej: 30123456"
+              inputMode="numeric"
+              autoComplete="off"
+              aria-invalid={errors.taxId ? "true" : "false"}
+              {...form.register("taxId")}
+            />
+          </FieldShell>
         </div>
+
         <div className="grid gap-4 md:grid-cols-2">
-          <Input placeholder="Email" {...form.register("email")} />
-          <Input placeholder="Telefono" {...form.register("phone")} />
-          <Select {...form.register("province")}>
-            {ARGENTINA_PROVINCES.map((provinceOption) => (
-              <option key={provinceOption.code} value={provinceOption.name}>
-                {provinceOption.name}
-              </option>
-            ))}
-          </Select>
-          <Input placeholder="Localidad" {...form.register("locality")} />
-          <Input placeholder="Codigo postal" {...form.register("postalCode")} />
-          <Input placeholder="Direccion" {...form.register("addressLine")} />
-          <Input placeholder="Piso / Depto" className="md:col-span-2" {...form.register("addressExtra")} />
+          <FieldShell label="Email" error={errors.email?.message}>
+            <Input
+              placeholder="nombre@dominio.com"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              aria-invalid={errors.email ? "true" : "false"}
+              {...form.register("email")}
+            />
+          </FieldShell>
+          <FieldShell label="Teléfono" error={errors.phone?.message}>
+            <Input
+              placeholder="Ej: 11 4567 8901"
+              autoComplete="tel"
+              inputMode="tel"
+              aria-invalid={errors.phone ? "true" : "false"}
+              {...form.register("phone")}
+            />
+          </FieldShell>
+          <FieldShell label="Provincia" error={errors.province?.message}>
+            <Select
+              autoComplete="address-level1"
+              aria-invalid={errors.province ? "true" : "false"}
+              {...form.register("province")}
+            >
+              {ARGENTINA_PROVINCES.map((provinceOption) => (
+                <option key={provinceOption.code} value={provinceOption.name}>
+                  {provinceOption.name}
+                </option>
+              ))}
+            </Select>
+          </FieldShell>
+          <FieldShell label="Localidad" error={errors.locality?.message}>
+            <Input
+              placeholder="Ej: Vicente López"
+              autoComplete="address-level2"
+              aria-invalid={errors.locality ? "true" : "false"}
+              {...form.register("locality")}
+            />
+          </FieldShell>
+          <FieldShell label="Código postal" error={errors.postalCode?.message}>
+            <Input
+              placeholder="Ej: 1425"
+              autoComplete="postal-code"
+              inputMode="numeric"
+              aria-invalid={errors.postalCode ? "true" : "false"}
+              {...form.register("postalCode")}
+            />
+          </FieldShell>
+          <FieldShell label="Dirección" error={errors.addressLine?.message}>
+            <Input
+              placeholder="Ej: Amenábar 2451"
+              autoComplete="street-address"
+              aria-invalid={errors.addressLine ? "true" : "false"}
+              {...form.register("addressLine")}
+            />
+          </FieldShell>
+          <FieldShell label="Piso / Depto" error={errors.addressExtra?.message} className="md:col-span-2">
+            <Input
+              placeholder="Ej: Piso 4 Depto B"
+              autoComplete="address-line2"
+              aria-invalid={errors.addressExtra ? "true" : "false"}
+              {...form.register("addressExtra")}
+            />
+          </FieldShell>
+
+          {addressPreview ? (
+            <div className="md:col-span-2">
+              <div className="overflow-hidden rounded-[1.75rem] border border-brand-ink/10 bg-white shadow-card">
+                <div className="flex flex-col gap-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-full bg-brand-pink/10 p-2 text-brand-pink">
+                      <MapPinned className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/46">Ubicación</p>
+                      <p className="mt-1 text-sm font-semibold leading-6 text-brand-ink/78">{addressPreview.query}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm leading-6 text-brand-ink/62">
+                    {addressPreview.hasAddressErrors
+                      ? "Revisa calle, número, localidad o código postal para ubicar mejor el destino."
+                      : "Si no coincide, modifica la dirección o déjanos una aclaración en observaciones."}
+                  </p>
+                </div>
+                <div className="border-t border-brand-ink/10 bg-[#f8f6f4] p-2">
+                  <div className="overflow-hidden rounded-[1.4rem] border border-brand-ink/10 bg-white">
+                    <iframe
+                      title="Vista previa del destino"
+                      src={addressPreview.embedSrc}
+                      className="h-[280px] w-full"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="md:col-span-2">
-            <Textarea placeholder="Observaciones" {...form.register("notes")} />
+            <FieldShell label="Observaciones" error={errors.notes?.message}>
+              <Textarea
+                placeholder="Ej: Timbre roto. Tocar portería. Recibe Lucía por la tarde."
+                aria-invalid={errors.notes ? "true" : "false"}
+                {...form.register("notes")}
+              />
+            </FieldShell>
           </div>
         </div>
-        {form.formState.errors.taxId ? <p className="text-sm font-bold text-red-600">{form.formState.errors.taxId.message}</p> : null}
+
         <PaymentMethodSelector
           value={form.watch("paymentMethod")}
           mercadoPagoEnabled={allowMercadoPago}
           bankTransferEnabled={allowBankTransfer}
           bankTransferDiscountPercentage={pricing.paymentMethodDiscountPercentage}
-          onChange={(paymentMethod) => form.setValue("paymentMethod", paymentMethod, { shouldDirty: true })}
+          onChange={(nextPaymentMethod) => form.setValue("paymentMethod", nextPaymentMethod, { shouldDirty: true })}
         />
         {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
         <Button type="submit" className="w-full" disabled={isPending}>
@@ -363,7 +573,7 @@ export function CheckoutPage({
           {productItems.map((item) => (
             <div key={item.productId} className="flex items-start justify-between gap-3">
               <span className="pr-2">
-              {item.product.name} x {item.quantity}
+                {item.product.name} x {item.quantity}
               </span>
               <span className="shrink-0">{formatArs(item.product.priceArs * item.quantity)}</span>
             </div>
@@ -376,8 +586,8 @@ export function CheckoutPage({
               <TicketPercent className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-brand-ink">Codigo de descuento</p>
-              <p className="mt-1 text-sm text-brand-ink/60">Aplicalo antes de confirmar tu pedido.</p>
+              <p className="font-bold text-brand-ink">Código de descuento</p>
+              <p className="mt-1 text-sm text-brand-ink/60">Aplícalo antes de confirmar tu pedido.</p>
             </div>
           </div>
 
@@ -422,7 +632,7 @@ export function CheckoutPage({
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-bold">Cupon {appliedCoupon.couponCode} aplicado</p>
+                    <p className="font-bold">Cupón {appliedCoupon.couponCode} aplicado</p>
                     <p className="mt-1">
                       Descuento:{" "}
                       {getCouponDiscountLabel({
@@ -472,7 +682,7 @@ export function CheckoutPage({
             </div>
           ) : null}
           <div className="flex items-center justify-between">
-            <span>Envio</span>
+            <span>Envío</span>
             {shippingQuote.freeShippingReached ? (
               <span className="font-bold text-emerald-700">Gratis</span>
             ) : shippingQuote.shippingDiscountReached ? (
@@ -497,9 +707,7 @@ export function CheckoutPage({
         </div>
 
         <div className="space-y-4 border-t border-brand-ink/10 pt-4">
-          <p className="text-sm font-bold leading-6 text-emerald-700">
-            {checkoutShippingNudge}
-          </p>
+          <p className="text-sm font-bold leading-6 text-emerald-700">{checkoutShippingNudge}</p>
 
           {suggestedProducts.length > 0 ? (
             <div>
@@ -538,7 +746,7 @@ export function CheckoutPage({
                         />
                       </span>
                       <span className="mt-2 line-clamp-1 max-w-full text-xs font-extrabold uppercase tracking-[0.08em] text-brand-ink">
-                        {productLabel}
+                        {formatCheckoutProductLabel(productLabel)}
                       </span>
                       <span className="mt-1 text-[11px] font-semibold text-brand-ink/55">{formatArs(product.priceArs)}</span>
                       <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-pink">
@@ -553,8 +761,8 @@ export function CheckoutPage({
         </div>
 
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
-          <p>{settings.checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
-          <p className="mt-2">Envio gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
+          <p>{checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
+          <p className="mt-2">Envío gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
       </Card>
     </form>
