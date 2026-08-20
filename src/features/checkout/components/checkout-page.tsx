@@ -399,7 +399,7 @@ export function CheckoutPage({
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 1 de 2</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Completa tu compra</h1>
           <p className="mt-2 text-sm leading-6 text-brand-ink/70 md:text-base">
-            Carga tus datos, elige el medio de pago y generamos tu pedido.
+            Cargá tus datos, elegí el medio de pago y generamos tu pedido.
           </p>
         </div>
 
@@ -521,14 +521,15 @@ export function CheckoutPage({
                   </p>
                 </div>
                 <div className="border-t border-brand-ink/10 bg-[#f8f6f4] p-2">
-                  <div className="overflow-hidden rounded-[1.4rem] border border-brand-ink/10 bg-white">
+                  <div className="relative overflow-hidden rounded-[1.4rem] border border-brand-ink/10 bg-white">
                     <iframe
                       title="Vista previa del destino"
                       src={addressPreview.embedSrc}
-                      className="h-[280px] w-full"
+                      className="pointer-events-none h-[280px] w-full"
                       loading="lazy"
                       referrerPolicy="no-referrer-when-downgrade"
                     />
+                    <div className="absolute inset-0 z-10" aria-hidden="true" />
                   </div>
                 </div>
               </div>

@@ -371,6 +371,21 @@ Archivos adicionales tocados en esta iteracion:
 - `src/lib/validations/short-link.ts`
 - `docs/documentacion-web.md`
 
+Nota posterior de cierre del 20 de agosto de 2026:
+
+- luego de probarlo en produccion, se retiro el nudge mobile de reenganche porque no resulto confiable al volver desde Safari
+- el comportamiento definitivo quedo solo para desktop mediante cambio dinamico del titulo de la pestaña
+- en checkout tambien se ajusto el copy principal del formulario a: `Cargá tus datos, elegí el medio de pago y generamos tu pedido.`
+- para Safari/iPhone se corrigio el icono del sitio para que use el logo real de IQ Kids en lugar del viejo `iQ` simplificado
+- se declararon iconos explicitos en `metadata` para favicon y Apple touch icon, usando assets de `public/brand`
+- hotfix posterior de desktop: se reforzo la restauracion del titulo con `visibilitychange`, `focus` y `pageshow`, mas una reaplicacion corta del `document.title` para evitar pestañas que quedaban mostrando `Volvé`
+
+Nota posterior de cierre del 20 de agosto de 2026 - Ajustes finales pre prod:
+
+- en checkout se bloqueo la interaccion sobre el mapa embebido para evitar mover el pin
+- en el ticker superior se agrando sutilmente la tipografia para mejorar legibilidad
+- en carrito se reforzo el error de email con foco al campo y alerta visual mas clara junto al CTA
+
 ### 2026-08-18 - Meta tag de verificacion de dominio de Facebook
 
 Pedido:

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSettings } from "@prisma/client";
+import { AlertCircle } from "lucide-react";
 
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { EmptyState } from "@/components/empty-state";
@@ -38,6 +39,7 @@ const cartFallbackImageMap: Record<string, string> = {
 
 export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
   const router = useRouter();
+  const emailInputRef = useRef<HTMLInputElement>(null);
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const updateItem = useCartStore((state) => state.updateItem);
@@ -210,7 +212,8 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setCaptureError("Ingresa un email valido para continuar.");
+      setCaptureError("Ingresá un email válido para continuar con la compra.");
+      emailInputRef.current?.focus();
       return;
     }
 
@@ -484,6 +487,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
               id="cart-recovery-email"
+              ref={emailInputRef}
               type="email"
               required
               value={email}
@@ -492,10 +496,20 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
                 setCaptureError("");
               }}
               placeholder="nombre@correo.com"
-              className="min-h-11 flex-1 rounded-full border border-brand-ink/12 bg-white px-4 text-sm font-bold text-brand-ink outline-none transition placeholder:text-brand-ink/30 focus:border-brand-pink/50 focus:ring-4 focus:ring-brand-pink/10"
+              aria-invalid={captureError ? "true" : "false"}
+              className={`min-h-11 flex-1 rounded-full bg-white px-4 text-sm font-bold text-brand-ink outline-none transition placeholder:text-brand-ink/30 ${
+                captureError
+                  ? "border border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-100"
+                  : "border border-brand-ink/12 focus:border-brand-pink/50 focus:ring-4 focus:ring-brand-pink/10"
+              }`}
             />
           </div>
-          {captureError ? <p className="mt-2 text-xs font-bold text-brand-pink">{captureError}</p> : null}
+          {captureError ? (
+            <div className="mt-3 flex items-start gap-2 rounded-[1.15rem] border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-bold text-red-700">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>{captureError}</p>
+            </div>
+          ) : null}
         </div>
         <p className="text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p>
         <div className="pt-2">

@@ -80,7 +80,7 @@ export function SiteHeader({
     <header className="sticky top-0 z-40 transition-all duration-300">
       <CartFeedback />
       {announcementBarEnabled && announcementBarText && isHomeRoute ? (
-        <div className="overflow-hidden bg-brand-pink py-1.5 text-[9px] font-extrabold uppercase tracking-[0.14em] text-white md:py-2 md:text-[11px] md:tracking-[0.16em]">
+        <div className="overflow-hidden bg-brand-pink py-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-white md:py-2 md:text-[12px] md:tracking-[0.17em]">
           <div className="flex w-max min-w-full animate-[marquee_26s_linear_infinite] whitespace-nowrap">
             {Array.from({ length: 10 }).map((_, index) => (
               <span key={index} className="inline-flex items-center px-6 md:px-10">
