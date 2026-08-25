@@ -21,11 +21,22 @@ export const metadata: Metadata = {
     default: "IQ Kids",
     template: "%s | IQ Kids",
   },
-  icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/brand/iq-kids-logo-cropped.png" }],
-    shortcut: ["/icon.svg"],
-  },
+icons: {
+  icon: [
+    {
+      url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E",
+      type: "image/svg+xml",
+    },
+  ],
+  shortcut: [
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E",
+  ],
+  apple: [
+    {
+      url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E",
+    },
+  ],
+},
   description: siteConfig.description,
   keywords: siteConfig.keywords,
   openGraph: {

@@ -462,3 +462,4 @@ Cuando se arranque una conversacion nueva y se vaya a trabajar sobre este proyec
 
 
 - se revirtio el favicon desktop para usar `public/brand/iq-kids-favicon.svg`, que rendia mejor en tamaño de pestaña
+- se neutralizo temporalmente el favicon para evitar inconsistencias visuales y de cache entre navegadores
