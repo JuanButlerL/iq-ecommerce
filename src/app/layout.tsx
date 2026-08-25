@@ -22,20 +22,8 @@ export const metadata: Metadata = {
     template: "%s | IQ Kids",
   },
 icons: {
-  icon: [
-    {
-      url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E",
-      type: "image/svg+xml",
-    },
-  ],
-  shortcut: [
-    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E",
-  ],
-  apple: [
-    {
-      url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E",
-    },
-  ],
+  icon: [{ url: "/icon.svg?v=20260825-2", type: "image/svg+xml" }],
+  shortcut: ["/icon.svg?v=20260825-2"],
 },
   description: siteConfig.description,
   keywords: siteConfig.keywords,
