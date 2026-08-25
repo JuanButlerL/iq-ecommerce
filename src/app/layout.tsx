@@ -22,9 +22,9 @@ export const metadata: Metadata = {
     template: "%s | IQ Kids",
   },
   icons: {
-    icon: [{ url: "/brand/iq-kids-favicon.svg", type: "image/svg+xml" }],
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     apple: [{ url: "/brand/iq-kids-logo-cropped.png" }],
-    shortcut: ["/brand/iq-kids-favicon.svg"],
+    shortcut: ["/icon.svg"],
   },
   description: siteConfig.description,
   keywords: siteConfig.keywords,
