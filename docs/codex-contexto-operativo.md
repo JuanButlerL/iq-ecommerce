@@ -459,3 +459,6 @@ Cuando se arranque una conversacion nueva y se vaya a trabajar sobre este proyec
 3. leer `docs/deploy-produccion-digitalocean.md` si el cambio puede llegar a prod
 4. antes de proponer deploys, distinguir si el cambio toca solo frontend o tambien DB/migraciones
 5. despues de cada ajuste relevante, agregar una nueva entrada al historial de este documento
+
+
+- se revirtio el favicon desktop para usar `public/brand/iq-kids-favicon.svg`, que rendia mejor en tamaño de pestaña
