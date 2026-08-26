@@ -76,8 +76,7 @@ export default async function ConfirmationPage({
               items={purchaseItems}
             />
         ) : null}
-        <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Compra confirmada</p>
-        <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
+<p className="text-sm font-extrabold uppercase tracking-[0.18em] text-emerald-600">Compra confirmada</p>        <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
         <p className="text-brand-ink/70">{successCopy}</p>
         <div className="rounded-[2rem] bg-brand-peach p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
