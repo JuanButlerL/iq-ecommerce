@@ -13,12 +13,12 @@ type SiteFooterProps = {
 
 export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber }: SiteFooterProps) {
   return (
-    <footer className="border-t border-brand-ink/10 bg-white py-8 md:py-10">
+    <footer id="contacto" className="border-t border-brand-ink/10 bg-white py-8 md:py-10">
       <Container className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="font-display text-2xl text-brand-pink">IQ Kids</p>
-          <p className="max-w-md text-sm leading-6 text-brand-ink/70">Snacks simples y naturales para todos los dias.</p>
-          <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand-pink">
+          <p className="max-w-md text-sm leading-6 text-brand-ink/70">Alimentos con Sentido Común · Con Ingredientes Naturales y Nada Más</p>
+          <p className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-brand-pink">
             <span>Hecho con</span>
             <Heart className="h-4 w-4 fill-current" />
             <span>para niños</span>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ProductColorTheme } from "@prisma/client";
+import { ArrowUp, ArrowDown, ChevronsUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -19,16 +20,44 @@ type ProductImageInput = {
   isPrimary: boolean;
 };
 
+function normalizeImages(images: ProductImageInput[]) {
+  return images.map((image, index) => ({
+    ...image,
+    sortOrder: index,
+    isPrimary: index === 0,
+  }));
+}
+
+function moveImage(images: ProductImageInput[], fromIndex: number, toIndex: number) {
+  if (fromIndex === toIndex || toIndex < 0 || toIndex >= images.length) {
+    return images;
+  }
+
+  const next = [...images];
+  const [moved] = next.splice(fromIndex, 1);
+
+  if (!moved) {
+    return images;
+  }
+
+  next.splice(toIndex, 0, moved);
+  return normalizeImages(next);
+}
+
 type ProductFormProps = {
   mode: "create" | "edit";
   productId?: string;
   initialValue?: {
     name: string;
     slug: string;
+    homeVarietyLabel?: string | null;
     shortDescription: string;
     longDescription: string;
     priceArs: number;
     colorTheme: ProductColorTheme;
+    visualAccentHex?: string | null;
+    visualSurfaceHex?: string | null;
+    visualTextHex?: string | null;
     active: boolean;
     visible: boolean;
     manualSoldOut: boolean;
@@ -40,16 +69,20 @@ type ProductFormProps = {
 
 export function ProductForm({ mode, productId, initialValue }: ProductFormProps) {
   const router = useRouter();
-  const [images, setImages] = useState<ProductImageInput[]>(initialValue?.images ?? []);
+  const [images, setImages] = useState<ProductImageInput[]>(normalizeImages(initialValue?.images ?? []));
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     name: initialValue?.name ?? "",
     slug: initialValue?.slug ?? "",
+    homeVarietyLabel: initialValue?.homeVarietyLabel ?? "",
     shortDescription: initialValue?.shortDescription ?? "",
     longDescription: initialValue?.longDescription ?? "",
     priceArs: initialValue?.priceArs ?? 21660,
     colorTheme: initialValue?.colorTheme ?? ProductColorTheme.CACAO,
+    visualAccentHex: initialValue?.visualAccentHex ?? "",
+    visualSurfaceHex: initialValue?.visualSurfaceHex ?? "",
+    visualTextHex: initialValue?.visualTextHex ?? "",
     active: initialValue?.active ?? true,
     visible: initialValue?.visible ?? true,
     manualSoldOut: initialValue?.manualSoldOut ?? false,
@@ -76,6 +109,11 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
           onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))}
         />
         <Input
+          placeholder="Variedad home (MANI, CACAO, BANANA)"
+          value={form.homeVarietyLabel}
+          onChange={(event) => setForm((current) => ({ ...current, homeVarietyLabel: event.target.value }))}
+        />
+        <Input
           placeholder="Precio ARS"
           type="number"
           value={form.priceArs}
@@ -93,6 +131,21 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
             </option>
           ))}
         </Select>
+        <Input
+          placeholder="Color principal (#F48991)"
+          value={form.visualAccentHex}
+          onChange={(event) => setForm((current) => ({ ...current, visualAccentHex: event.target.value }))}
+        />
+        <Input
+          placeholder="Color fondo (#FFF0F1)"
+          value={form.visualSurfaceHex}
+          onChange={(event) => setForm((current) => ({ ...current, visualSurfaceHex: event.target.value }))}
+        />
+        <Input
+          placeholder="Color texto (#B2555D)"
+          value={form.visualTextHex}
+          onChange={(event) => setForm((current) => ({ ...current, visualTextHex: event.target.value }))}
+        />
         <Input
           placeholder="Orden"
           type="number"
@@ -129,8 +182,12 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
           />
         </div>
         <div className="md:col-span-2">
+          <p className="mb-2 text-sm font-bold text-brand-ink/70">
+            Descripcion larga: pegala con saltos de linea. Los titulos en MAYUSCULAS se muestran como secciones.
+          </p>
           <Textarea
             placeholder="Descripcion larga"
+            className="min-h-[260px] font-mono text-sm leading-6"
             value={form.longDescription}
             onChange={(event) => setForm((current) => ({ ...current, longDescription: event.target.value }))}
           />
@@ -170,16 +227,18 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
                     return;
                   }
 
-                  setImages((current) => [
-                    ...current,
-                    {
-                      filePath: payload.data.storagePath,
-                      publicUrl: payload.data.publicUrl,
-                      altText: `${form.name || "Producto"} imagen ${current.length + 1}`,
-                      sortOrder: current.length,
-                      isPrimary: current.length === 0,
-                    },
-                  ]);
+                  setImages((current) =>
+                    normalizeImages([
+                      ...current,
+                      {
+                        filePath: payload.data.storagePath,
+                        publicUrl: payload.data.publicUrl,
+                        altText: `${form.name || "Producto"} imagen ${current.length + 1}`,
+                        sortOrder: current.length,
+                        isPrimary: false,
+                      },
+                    ]),
+                  );
                 }
               });
             }}
@@ -190,6 +249,15 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
             <div key={`${image.publicUrl}-${index}`} className="flex flex-col gap-3 rounded-[1.5rem] bg-white p-4 shadow-card sm:flex-row sm:flex-wrap sm:items-center">
               <div className="relative h-20 w-20 overflow-hidden rounded-2xl">
                 <img src={image.publicUrl} alt={image.altText} className="absolute inset-0 h-full w-full object-cover" />
+              </div>
+              <div className="min-w-[110px] space-y-1">
+                <p className="text-sm font-extrabold text-brand-ink">
+                  Imagen {index + 1}
+                  {index === 0 ? " · Home" : ""}
+                </p>
+                <p className="text-xs text-brand-ink/55">
+                  {index === 0 ? "La primera imagen es la que se muestra en home." : "Podés subirla o bajarla."}
+                </p>
               </div>
               <Input
                 className="sm:min-w-[220px] sm:flex-1"
@@ -206,31 +274,38 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
                 type="button"
                 variant="secondary"
                 className="w-full sm:w-auto"
-                onClick={() =>
-                  setImages((current) =>
-                    current.map((entry, entryIndex) => ({
-                      ...entry,
-                      isPrimary: entryIndex === index,
-                    })),
-                  )
-                }
+                disabled={index === 0}
+                onClick={() => setImages((current) => moveImage(current, index, 0))}
               >
-                Principal
+                <ChevronsUp className="mr-2 h-4 w-4" />
+                Mover al inicio
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full sm:w-auto"
+                disabled={index === 0}
+                onClick={() => setImages((current) => moveImage(current, index, index - 1))}
+              >
+                <ArrowUp className="mr-2 h-4 w-4" />
+                Subir
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full sm:w-auto"
+                disabled={index === images.length - 1}
+                onClick={() => setImages((current) => moveImage(current, index, index + 1))}
+              >
+                <ArrowDown className="mr-2 h-4 w-4" />
+                Bajar
               </Button>
               <Button
                 type="button"
                 variant="ghost"
                 className="w-full sm:w-auto"
                 onClick={() =>
-                  setImages((current) =>
-                    current
-                      .filter((_, entryIndex) => entryIndex !== index)
-                      .map((entry, entryIndex) => ({
-                        ...entry,
-                        sortOrder: entryIndex,
-                        isPrimary: entryIndex === 0 ? entry.isPrimary || index === 0 : false,
-                      })),
-                  )
+                  setImages((current) => normalizeImages(current.filter((_, entryIndex) => entryIndex !== index)))
                 }
               >
                 Quitar
@@ -255,11 +330,7 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
                 },
                 body: JSON.stringify({
                   product: form,
-                  images: images.map((image, index) => ({
-                    ...image,
-                    sortOrder: index,
-                    isPrimary: image.isPrimary || index === 0,
-                  })),
+                  images: normalizeImages(images),
                 }),
               });
 

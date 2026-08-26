@@ -1,6 +1,7 @@
-import type { Coupon } from "@prisma/client";
+import type { Coupon, CouponDiscountType } from "@prisma/client";
 
 import { AppError } from "@/lib/errors/app-error";
+import { formatArs } from "@/lib/utils/currency";
 
 export function normalizeCouponCode(code: string) {
   return code.trim().toUpperCase();
@@ -14,14 +15,45 @@ export function calculateCouponDiscount(subtotalArs: number, discountPercentage:
   return Math.round((subtotalArs * discountPercentage) / 100);
 }
 
-export function buildCouponSummary(coupon: Pick<Coupon, "id" | "code" | "discountPercentage">, subtotalArs: number) {
-  const discountPercentage = Number(coupon.discountPercentage);
-  const discountArs = calculateCouponDiscount(subtotalArs, discountPercentage);
+export function calculateFixedCouponDiscount(subtotalArs: number, fixedDiscountArs: number) {
+  if (subtotalArs <= 0 || fixedDiscountArs <= 0) {
+    return 0;
+  }
+
+  return Math.min(subtotalArs, fixedDiscountArs);
+}
+
+export function getCouponDiscountLabel(input: {
+  discountType: CouponDiscountType;
+  discountPercentage?: number | null;
+  fixedDiscountArs?: number | null;
+}) {
+  if (input.discountType === "FIXED_AMOUNT") {
+    return `${formatArs(input.fixedDiscountArs ?? 0)} OFF`;
+  }
+
+  return `${input.discountPercentage ?? 0}% OFF`;
+}
+
+export function buildCouponSummary(
+  coupon: Pick<Coupon, "id" | "code" | "discountType" | "discountPercentage" | "fixedDiscountArs" | "usageType">,
+  subtotalArs: number,
+) {
+  const discountType = coupon.discountType;
+  const discountPercentage = coupon.discountPercentage == null ? null : Number(coupon.discountPercentage);
+  const fixedDiscountArs = coupon.fixedDiscountArs ?? null;
+  const discountArs =
+    discountType === "FIXED_AMOUNT"
+      ? calculateFixedCouponDiscount(subtotalArs, fixedDiscountArs ?? 0)
+      : calculateCouponDiscount(subtotalArs, discountPercentage ?? 0);
 
   return {
     couponId: coupon.id,
     couponCode: coupon.code,
+    discountType,
     discountPercentage,
+    fixedDiscountArs,
+    usageType: coupon.usageType,
     discountArs,
     subtotalWithDiscountArs: Math.max(subtotalArs - discountArs, 0),
   };

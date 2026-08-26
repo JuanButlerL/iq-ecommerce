@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 import { IQKidsLogo } from "@/components/brand/logo";
 import { CartBadge } from "@/features/cart/components/cart-badge";
-import { Container } from "@/components/layout/container";
+import { CartFeedback } from "@/features/cart/components/cart-feedback";
 import { cn } from "@/lib/utils/cn";
 
 const navigation = [
@@ -16,10 +16,28 @@ const navigation = [
   { href: "/contacto", label: "Contacto" },
 ];
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  announcementBarEnabled?: boolean | null;
+  announcementBarText?: string | null;
+  subscriptionSectionEnabled?: boolean | null;
+};
+
+export function SiteHeader({
+  announcementBarEnabled,
+  announcementBarText,
+  subscriptionSectionEnabled,
+}: SiteHeaderProps) {
   const pathname = usePathname();
   const [isCompact, setIsCompact] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isHomeRoute = pathname === "/";
+  const homeNavigation = [
+    { id: "inicio", label: "Inicio" },
+    { id: "productos", label: "Productos" },
+    { id: "quienes-somos", label: "Quiénes somos" },
+    ...(subscriptionSectionEnabled ? [{ id: "suscripcion", label: "Suscripción" }] : []),
+    { id: "contacto", label: "Contacto" },
+  ];
 
   useEffect(() => {
     const compactAt = 96;
@@ -47,13 +65,42 @@ export function SiteHeader() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const scrollToSection = (sectionId: string) => {
+    const section = window.document.getElementById(sectionId);
+
+    if (!section) {
+      return;
+    }
+
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+    setIsMenuOpen(false);
+  };
+
   return (
-    <header className="sticky top-0 z-40 border-b border-white/20 bg-brand-pink text-white shadow-soft transition-all duration-300">
-      <Container className={cn("relative transition-all duration-300", isCompact ? "py-2 md:py-3" : "py-4 md:py-7")}>
-        <div className="relative flex min-h-[72px] items-center justify-between md:block md:min-h-0">
+    <header className="sticky top-0 z-40 transition-all duration-300">
+      <CartFeedback />
+      {announcementBarEnabled && announcementBarText && isHomeRoute ? (
+        <div className="overflow-hidden bg-brand-pink py-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-white md:py-2 md:text-[12px] md:tracking-[0.17em]">
+          <div className="flex w-max min-w-full animate-[marquee_26s_linear_infinite] whitespace-nowrap">
+            {Array.from({ length: 10 }).map((_, index) => (
+              <span key={index} className="inline-flex items-center px-6 md:px-10">
+                {announcementBarText}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="w-full border-b border-brand-pink/12 bg-white">
+        <div
+          className={cn(
+            "grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-3 px-4 transition-all duration-300 md:flex md:gap-8 md:px-8 xl:px-10",
+            isCompact ? "min-h-[68px] md:min-h-[72px]" : "min-h-[86px] md:min-h-[78px]",
+          )}
+        >
           <button
             type="button"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-brand-pink/15 bg-white text-brand-pink md:hidden"
             aria-label={isMenuOpen ? "Cerrar menu" : "Abrir menu"}
             onClick={() => setIsMenuOpen((current) => !current)}
           >
@@ -63,74 +110,106 @@ export function SiteHeader() {
           <Link
             href="/"
             aria-label="IQ Kids home"
-            className="absolute left-1/2 top-1/2 block w-fit -translate-x-1/2 -translate-y-1/2 md:static md:mx-auto md:block md:translate-x-0 md:translate-y-0"
+            className="mx-auto block w-fit self-center justify-self-center md:mr-auto md:ml-0 md:shrink-0"
           >
-            <IQKidsLogo inverse className={cn("transition-all duration-300", isCompact ? "h-12 md:h-16" : "h-16 md:h-28")} />
+            <IQKidsLogo
+              pink
+              className={cn("transition-all duration-300", isCompact ? "h-10 md:h-10" : "h-[3.05rem] md:h-11", "md:-ml-1")}
+            />
           </Link>
 
-          <div className="md:hidden">
-            <CartBadge />
+          <div className="justify-self-end md:hidden">
+            <CartBadge
+              className="h-10 w-10 border border-brand-pink/15 bg-white text-brand-pink shadow-none ring-0"
+              countClassName="bg-brand-pink text-white"
+            />
+          </div>
+
+          <div className="hidden min-w-0 flex-none items-center justify-end gap-10 md:flex">
+            <nav
+              className={cn(
+                "flex items-center gap-10 font-semibold text-brand-ink/60 transition-all duration-300",
+                isCompact ? "text-sm" : "text-[15px]",
+              )}
+            >
+              {isHomeRoute
+                ? homeNavigation.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="whitespace-nowrap transition hover:text-brand-pink"
+                      onClick={() => scrollToSection(item.id)}
+                    >
+                      {item.label}
+                    </button>
+                  ))
+                : navigation.map((item) => (
+                    <Link key={item.href} href={item.href} className="whitespace-nowrap transition hover:text-brand-pink">
+                      {item.label}
+                    </Link>
+                  ))}
+            </nav>
+
+            <CartBadge
+              className="h-11 w-11 border border-brand-pink/15 bg-white text-brand-pink shadow-none ring-0"
+              countClassName="bg-brand-pink text-white"
+            />
           </div>
         </div>
+      </div>
 
-        <nav
-          className={cn(
-            "mt-3 hidden items-center justify-center gap-8 font-medium text-white/95 transition-all duration-300 md:flex",
-            isCompact ? "text-sm" : "text-base",
-          )}
-        >
-          {navigation.map((item) => (
-            <Link key={item.href} href={item.href} className="transition hover:text-white/70">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        {isMenuOpen ? (
-          <div className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-brand-ink/35" onClick={() => setIsMenuOpen(false)} />
-            <div className="absolute left-0 top-0 h-full w-[86vw] max-w-[340px] border-r border-brand-ink/10 bg-white p-5 shadow-[0_24px_60px_rgba(44,34,65,0.22)]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-display text-3xl leading-none text-brand-pink">IQ Kids</p>
-                  <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/45">Menu</p>
-                </div>
-                <button
-                  type="button"
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-brand-ink/10 bg-background text-brand-ink"
-                  aria-label="Cerrar menu"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <X className="h-5 w-5" />
-                </button>
+      {isMenuOpen ? (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-brand-ink/35" onClick={() => setIsMenuOpen(false)} />
+          <div className="absolute left-0 top-0 h-full w-[86vw] max-w-[340px] border-r border-brand-ink/10 bg-white p-5 shadow-[0_24px_60px_rgba(44,34,65,0.22)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-display text-3xl leading-none text-brand-pink">IQ Kids</p>
+                <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/45">Menu</p>
               </div>
-
-              <nav className="mt-8 grid gap-2">
-                {navigation.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center justify-between px-4 py-4 text-base font-bold transition",
-                      pathname === item.href
-                        ? "bg-brand-pink text-white shadow-soft"
-                        : "text-brand-ink hover:bg-brand-pink/8",
-                    )}
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    <span>{item.label}</span>
-                    {pathname === item.href ? <ArrowRight className="h-4 w-4" /> : null}
-                  </Link>
-                ))}
-              </nav>
+              <button
+                type="button"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-brand-ink/10 bg-background text-brand-ink"
+                aria-label="Cerrar menu"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-          </div>
-        ) : null}
 
-        <div className={cn("absolute right-4 top-4 hidden transition-all duration-300 md:block md:right-6", isCompact ? "md:top-4" : "md:top-1/2 md:-translate-y-1/2")}>
-          <CartBadge />
+            <nav className="mt-8 grid gap-2">
+              {isHomeRoute
+                ? homeNavigation.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="flex items-center justify-between px-4 py-4 text-left text-base font-bold text-brand-ink transition hover:bg-brand-pink/8"
+                      onClick={() => scrollToSection(item.id)}
+                    >
+                      <span>{item.label}</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  ))
+                : navigation.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center justify-between px-4 py-4 text-base font-bold transition",
+                        pathname === item.href
+                          ? "bg-brand-pink text-white shadow-soft"
+                          : "text-brand-ink hover:bg-brand-pink/8",
+                      )}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <span>{item.label}</span>
+                      {pathname === item.href ? <ArrowRight className="h-4 w-4" /> : null}
+                    </Link>
+                  ))}
+            </nav>
+          </div>
         </div>
-      </Container>
+      ) : null}
     </header>
   );
 }

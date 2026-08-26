@@ -13,6 +13,7 @@ type CartState = {
   addItem: (productId: string, quantity?: number) => void;
   updateItem: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
+  replaceItems: (items: CartItem[]) => void;
   clear: () => void;
 };
 
@@ -54,6 +55,16 @@ export const useCartStore = create<CartState>()(
         set({
           items: get().items.filter((item) => item.productId !== productId),
         });
+      },
+      replaceItems: (items) => {
+        const sanitizedItems = items
+          .filter((item) => item.quantity > 0)
+          .map((item) => ({
+            productId: item.productId,
+            quantity: Math.min(item.quantity, 99),
+          }));
+
+        set({ items: sanitizedItems });
       },
       clear: () => set({ items: [] }),
     }),

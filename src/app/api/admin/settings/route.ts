@@ -1,10 +1,10 @@
-import { requireAdmin } from "@/lib/auth/admin";
+import { assertAdminSection } from "@/lib/auth/admin";
 import { routeError, routeOk } from "@/lib/http/route";
 import { updateStoreSettings } from "@/features/settings/mutations";
 
 export async function PATCH(request: Request) {
   try {
-    await requireAdmin();
+    await assertAdminSection("settings");
     const payload = await request.json();
     await updateStoreSettings(payload);
 

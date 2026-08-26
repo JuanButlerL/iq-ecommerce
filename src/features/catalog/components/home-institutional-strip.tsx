@@ -36,7 +36,7 @@ export function HomeInstitutionalStrip() {
     <section className="pb-3 pt-4 text-center md:pb-4 md:pt-8">
       <Container>
         <div className="mx-auto max-w-5xl">
-          <p className="mx-auto max-w-4xl text-[1.75rem] font-extrabold leading-[1.12] tracking-[-0.02em] text-brand-ink md:text-[1.7rem] md:leading-tight md:tracking-normal">
+          <p className="mx-auto max-w-4xl font-display text-[1.95rem] leading-[1.02] tracking-[-0.02em] text-brand-ink md:text-[2.25rem] md:leading-tight md:tracking-normal">
             En IQ Kids creemos que la nutrición también se aprende, por eso nuestros productos son un paso simple y rico
             para que tus hijos desarrollen su Inteligencia Nutricional 🧠✨
           </p>

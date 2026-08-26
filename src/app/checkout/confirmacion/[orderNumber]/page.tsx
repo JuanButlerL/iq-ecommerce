@@ -6,9 +6,11 @@ import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { formatArs } from "@/lib/utils/currency";
+import { getProductsValue } from "@/lib/meta-commerce";
 
 export default async function ConfirmationPage({
   params,
@@ -23,7 +25,15 @@ export default async function ConfirmationPage({
   }
 
   const isMercadoPago = order.paymentMethod === "MERCADO_PAGO";
-  const shouldTrackPurchase = order.paymentStatus === "PAID";
+  const shouldTrackAnalyticsPurchase = order.paymentStatus === "PAID";
+  const shouldTrackMetaPurchase = shouldTrackAnalyticsPurchase || order.paymentMethod === "BANK_TRANSFER";
+  const productsValue = getProductsValue(order.totalArs, order.shippingArs);
+  const purchaseItems = order.items.map((item) => ({
+    id: item.productId ?? item.id,
+    name: item.productNameSnapshot,
+    quantity: item.quantity,
+    itemPrice: item.unitPriceArs,
+  }));
   const paymentCopy = isMercadoPago
     ? order.paymentStatus === "PAID"
       ? "Mercado Pago confirmo el pago y el pedido ya quedo registrado."
@@ -37,15 +47,14 @@ export default async function ConfirmationPage({
   return (
     <Container className="py-16">
       <Card className="mx-auto max-w-3xl space-y-6 p-8 text-center">
-        {shouldTrackPurchase ? (
-          <>
+        {shouldTrackAnalyticsPurchase ? (
             <TrackEventOnView
               eventName="purchase"
               dedupeKey={`purchase:${order.publicOrderNumber}`}
               params={{
                 transaction_id: order.publicOrderNumber,
                 currency: order.currency,
-                value: order.totalArs,
+                value: productsValue,
                 shipping: order.shippingArs,
                 coupon: order.couponCode ?? undefined,
                 payment_type: order.paymentMethod,
@@ -58,21 +67,21 @@ export default async function ConfirmationPage({
                 })),
               }}
             />
+        ) : null}
+        {shouldTrackMetaPurchase ? (
             <MetaPixelPurchase
               orderNumber={order.publicOrderNumber}
-              total={order.totalArs}
-              productIds={order.items.map((item) => item.productId ?? item.id)}
-              itemCount={order.items.reduce((totalItems, item) => totalItems + item.quantity, 0)}
+              totalArs={order.totalArs}
+              shippingArs={order.shippingArs}
+              items={purchaseItems}
             />
-          </>
         ) : null}
-        <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Compra confirmada</p>
-        <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
+<p className="text-sm font-extrabold uppercase tracking-[0.18em] text-emerald-600">Compra confirmada</p>        <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
         <p className="text-brand-ink/70">{successCopy}</p>
         <div className="rounded-[2rem] bg-brand-peach p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
           <p className="mt-2 text-2xl font-extrabold text-brand-ink">{order.publicOrderNumber}</p>
-          <p className="mt-4 font-display text-4xl text-brand-pink">{formatArs(order.totalArs)}</p>
+          <p className="mt-4 text-4xl font-extrabold text-brand-pink">{formatArs(order.totalArs)}</p>
           <div className="mt-4 space-y-2 text-left text-sm text-brand-ink/70">
             <div className="flex items-center justify-between">
               <span>Subtotal</span>
@@ -81,7 +90,14 @@ export default async function ConfirmationPage({
             {order.discountArs > 0 ? (
               <div className="flex items-center justify-between">
                 <span>
-                  Cupon {order.couponCode} ({Number(order.discountPercentage ?? 0)}%)
+                  Cupon {order.couponCode}{" "}
+                  {order.coupon
+                    ? `(${getCouponDiscountLabel({
+                        discountType: order.coupon.discountType,
+                        discountPercentage: order.discountPercentage == null ? null : Number(order.discountPercentage),
+                        fixedDiscountArs: order.coupon.fixedDiscountArs,
+                      })})`
+                    : ""}
                 </span>
                 <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
               </div>

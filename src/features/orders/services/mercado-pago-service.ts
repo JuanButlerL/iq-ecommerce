@@ -17,7 +17,9 @@ import {
 import { getMercadoPagoStatusLabel, mapMercadoPagoStatusToInternal } from "@/lib/integrations/mercadopago/status";
 import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
+import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { syncOrder } from "@/features/orders/services/sync-service";
+import { markCartRecoveryConverted } from "@/features/cart-recovery/services";
 
 type MercadoPagoOrderRecord = Prisma.OrderGetPayload<{
   include: {
@@ -389,6 +391,12 @@ async function upsertMercadoPagoPayment(
   }
 
   if (nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID") {
+    await markCartRecoveryConverted({
+      id: order.id,
+      publicOrderNumber: order.publicOrderNumber,
+      customerEmail: order.customerEmail,
+    });
+
     await sendMetaConversionsApiEvent({
       eventName: "Purchase",
       eventId: buildMetaPurchaseEventId(order.publicOrderNumber),
@@ -403,19 +411,17 @@ async function upsertMercadoPagoPayment(
         zip: order.postalCode,
         country: "ar",
       },
-      customData: {
-        currency: order.currency,
-        value: order.totalArs,
-        order_id: order.publicOrderNumber,
-        content_type: "product",
-        content_ids: order.items.map((item) => item.productId),
-        contents: order.items.map((item) => ({
-          id: item.productId,
+      customData: buildMetaPurchaseData({
+        orderNumber: order.publicOrderNumber,
+        totalArs: order.totalArs,
+        shippingArs: order.shippingArs,
+        items: order.items.map((item) => ({
+          id: item.productId ?? item.id,
+          name: item.productNameSnapshot,
           quantity: item.quantity,
-          item_price: item.unitPriceArs,
+          itemPrice: item.unitPriceArs,
         })),
-        num_items: order.items.reduce((totalItems, item) => totalItems + item.quantity, 0),
-      },
+      }),
     }).catch((error) => {
       console.error("Meta Conversions API Mercado Pago purchase event failed", error);
     });

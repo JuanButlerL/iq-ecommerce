@@ -3,7 +3,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
+import { verifyPassword } from "@/lib/auth/password";
 
 export const ADMIN_SESSION_COOKIE = "iqkids_admin_session";
 const ADMIN_SESSION_MAX_AGE = 60 * 60 * 24 * 7;
@@ -54,7 +56,7 @@ export function verifyLocalAdminSessionValue(sessionValue?: string | null) {
     if (
       providedBuffer.length !== expectedBuffer.length ||
       !timingSafeEqual(providedBuffer, expectedBuffer) ||
-      email !== env.ADMIN_LOCAL_EMAIL
+      !email
     ) {
       return null;
     }
@@ -70,12 +72,31 @@ export async function getLocalAdminSession() {
   return verifyLocalAdminSessionValue(cookieStore.get(ADMIN_SESSION_COOKIE)?.value);
 }
 
-export function verifyLocalAdminCredentials(email?: string, password?: string) {
-  if (!env.ADMIN_LOCAL_EMAIL || !env.ADMIN_LOCAL_PASSWORD) {
+export async function verifyLocalAdminCredentials(email?: string, password?: string) {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail || !password) {
     return false;
   }
 
-  return secureCompare(email, env.ADMIN_LOCAL_EMAIL) && secureCompare(password, env.ADMIN_LOCAL_PASSWORD);
+  if (
+    env.ADMIN_LOCAL_EMAIL &&
+    env.ADMIN_LOCAL_PASSWORD &&
+    secureCompare(normalizedEmail, env.ADMIN_LOCAL_EMAIL.toLowerCase()) &&
+    secureCompare(password, env.ADMIN_LOCAL_PASSWORD)
+  ) {
+    return true;
+  }
+
+  const adminUser = await prisma.adminUser.findUnique({
+    where: { email: normalizedEmail },
+  });
+
+  if (!adminUser?.active || !adminUser.passwordHash) {
+    return false;
+  }
+
+  return verifyPassword(password, adminUser.passwordHash);
 }
 
 export function setLocalAdminSessionCookie(response: NextResponse, email: string) {

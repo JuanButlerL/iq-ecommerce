@@ -1,0 +1,9 @@
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'CouponUsageType') THEN
+    CREATE TYPE "CouponUsageType" AS ENUM ('UNLIMITED', 'SINGLE_USE', 'SINGLE_USE_PER_CUSTOMER');
+  END IF;
+END $$;
+
+ALTER TABLE "coupons"
+  ADD COLUMN IF NOT EXISTS "usage_type" "CouponUsageType" NOT NULL DEFAULT 'UNLIMITED';

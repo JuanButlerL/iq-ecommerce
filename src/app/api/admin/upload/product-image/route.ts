@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth/admin";
+import { assertAdminSection } from "@/lib/auth/admin";
 import { AppError } from "@/lib/errors/app-error";
 import { routeError, routeOk } from "@/lib/http/route";
 import { uploadProductImage } from "@/lib/storage/product-images";
@@ -8,7 +8,7 @@ const maxImageSize = 8 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    await assertAdminSection("products");
     const formData = await request.formData();
     const file = formData.get("file");
     const slug = formData.get("slug");

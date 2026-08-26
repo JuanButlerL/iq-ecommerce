@@ -88,12 +88,37 @@ enum PaymentWebhookProcessingStatus {
   FAILED
 }
 
+enum EmailAutomationTrigger {
+  CART_ABANDONED
+  ORDER_CREATED
+  POST_PURCHASE
+}
+
+enum EmailSendStatus {
+  SENT
+  SKIPPED
+  ERROR
+}
+
+enum CouponUsageType {
+  UNLIMITED
+  SINGLE_USE
+  SINGLE_USE_PER_CUSTOMER
+}
+
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
 model AdminUser {
   id             String    @id @default(uuid()) @db.Uuid
   supabaseUserId String?   @unique @map("supabase_user_id") @db.Uuid
   email          String    @unique
   fullName       String    @map("full_name")
+  passwordHash   String?   @map("password_hash")
   role           AdminRole @default(OPERATIONS)
+  allowedSections String[] @default([]) @map("allowed_sections")
   active         Boolean   @default(true)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -108,7 +133,11 @@ model Product {
   shortDescription String            @map("short_description")
   longDescription  String            @map("long_description")
   priceArs         Int               @map("price_ars")
+  homeVarietyLabel String?           @map("home_variety_label")
   colorTheme       ProductColorTheme @map("color_theme")
+  visualAccentHex  String?           @map("visual_accent_hex")
+  visualSurfaceHex String?           @map("visual_surface_hex")
+  visualTextHex    String?           @map("visual_text_hex")
   active           Boolean           @default(true)
   visible          Boolean           @default(true)
   manualSoldOut    Boolean           @default(false) @map("manual_sold_out")
@@ -116,6 +145,7 @@ model Product {
   sortOrder        Int               @default(0) @map("sort_order")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
+  homeFeaturedSlots HomeFeaturedProductSlot[]
   images           ProductImage[]
   orderItems       OrderItem[]
 
@@ -145,6 +175,8 @@ model ShippingRule {
   description           String?
   mode                  ShippingMode
   flatPrice             Int?                   @map("flat_price")
+  discountThresholdArs  Int?                   @map("discount_threshold_ars")
+  discountPercentage    Int?                   @map("discount_percentage")
   active                Boolean                @default(true)
   isDefault             Boolean                @default(false) @map("is_default")
   createdAt             DateTime               @default(now()) @map("created_at")
@@ -196,6 +228,16 @@ model StoreSettings {
   bankTransferDiscountPercentage Decimal @default(0) @map("bank_transfer_discount_percentage") @db.Decimal(5, 2)
   orderReservationHours  Int?          @map("order_reservation_hours")
   institutionalBanner    String?       @map("institutional_banner")
+  announcementBarEnabled Boolean       @default(false) @map("announcement_bar_enabled")
+  announcementBarText    String?       @map("announcement_bar_text")
+  heroCtaLabel           String?       @map("hero_cta_label")
+  heroCtaUrl             String?       @map("hero_cta_url")
+  subscriptionSectionEnabled Boolean   @default(false) @map("subscription_section_enabled")
+  subscriptionCtaUrl     String?       @map("subscription_cta_url")
+  subscriptionHeroNote   String?       @map("subscription_hero_note")
+  subscriptionItemOne    String?       @map("subscription_item_one")
+  subscriptionItemTwo    String?       @map("subscription_item_two")
+  subscriptionItemThree  String?       @map("subscription_item_three")
   purchaseSuccessMessage String?       @map("purchase_success_message")
   requireTaxId           Boolean       @default(false) @map("require_tax_id")
   showFloatingWhatsapp   Boolean       @default(true) @map("show_floating_whatsapp")
@@ -211,14 +253,155 @@ model Coupon {
   id                 String   @id @default(uuid()) @db.Uuid
   code               String   @unique
   description        String?
-  discountPercentage Decimal  @map("discount_percentage") @db.Decimal(5, 2)
+  discountType       CouponDiscountType @default(PERCENTAGE) @map("discount_type")
+  discountPercentage Decimal? @map("discount_percentage") @db.Decimal(5, 2)
+  fixedDiscountArs   Int?     @map("fixed_discount_ars")
+  usageType          CouponUsageType @default(UNLIMITED) @map("usage_type")
   active             Boolean  @default(true)
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
   orders             Order[]
+  emailAutomations   EmailAutomation[]
 
   @@index([active, code], map: "coupons_active_code_idx")
   @@map("coupons")
+}
+
+model Testimonial {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  roleLabel   String?  @map("role_label")
+  quote       String
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder], map: "testimonials_active_sort_idx")
+  @@map("testimonials")
+}
+
+model HomeFeaturedProductSlot {
+  id          String   @id @default(uuid()) @db.Uuid
+  slotOrder   Int      @unique @map("slot_order")
+  productId   String   @map("product_id") @db.Uuid
+  eyebrow     String
+  title       String
+  description String
+  quote       String?  @db.Text
+  buttonLabel String   @map("button_label")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([slotOrder], map: "home_featured_product_slots_order_idx")
+  @@index([productId], map: "home_featured_product_slots_product_idx")
+  @@map("home_featured_product_slots")
+}
+
+model CartRecoveryLead {
+  id                   String    @id @default(uuid()) @db.Uuid
+  email                String
+  recoveryToken        String    @unique @map("recovery_token")
+  items                Json
+  subtotalArs          Int       @default(0) @map("subtotal_ars")
+  currency             String    @default("ARS")
+  province             String?
+  status               String    @default("CAPTURED")
+  checkoutOrderId      String?   @map("checkout_order_id") @db.Uuid
+  checkoutOrderNumber  String?   @map("checkout_order_number")
+  checkoutStartedAt    DateTime? @map("checkout_started_at")
+  convertedOrderId     String?   @map("converted_order_id") @db.Uuid
+  convertedOrderNumber String?   @map("converted_order_number")
+  convertedAt          DateTime? @map("converted_at")
+  userAgent            String?   @map("user_agent")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  emailLogs            EmailSendLog[]
+
+  @@index([email], map: "cart_recovery_leads_email_idx")
+  @@index([status], map: "cart_recovery_leads_status_idx")
+  @@index([updatedAt], map: "cart_recovery_leads_updated_at_idx")
+  @@map("cart_recovery_leads")
+}
+
+model EmailAutomation {
+  id             String                 @id @default(uuid()) @db.Uuid
+  name           String
+  trigger        EmailAutomationTrigger
+  active         Boolean                @default(false)
+  delayHours     Int                    @default(24) @map("delay_hours")
+  subject        String
+  previewText    String?                @map("preview_text")
+  bodyText       String                 @map("body_text") @db.Text
+  ctaLabel       String?                @map("cta_label")
+  ctaUrlTemplate String?                @map("cta_url_template")
+  senderName     String                 @default("IQ Kids") @map("sender_name")
+  fromEmail      String                 @default("no-reply@iqkids.com.ar") @map("from_email")
+  replyToEmail   String?                @map("reply_to_email")
+  bccEmail       String?                @map("bcc_email")
+  couponId       String?                @map("coupon_id") @db.Uuid
+  couponHeadline String?                @map("coupon_headline")
+  couponMessage  String?                @map("coupon_message") @db.Text
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  coupon         Coupon?                @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  logs           EmailSendLog[]
+
+  @@index([active, trigger], map: "email_automations_active_trigger_idx")
+  @@index([couponId], map: "email_automations_coupon_idx")
+  @@map("email_automations")
+}
+
+model EmailSendLog {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  automationId       String                 @map("automation_id") @db.Uuid
+  trigger            EmailAutomationTrigger
+  status             EmailSendStatus
+  recipientEmail     String                 @map("recipient_email")
+  subject            String
+  targetType         String                 @map("target_type")
+  targetId           String                 @map("target_id")
+  orderId            String?                @map("order_id") @db.Uuid
+  cartRecoveryLeadId String?                @map("cart_recovery_lead_id") @db.Uuid
+  providerMessageId  String?                @map("provider_message_id")
+  ctaUrl             String?                @map("cta_url")
+  clickToken         String?                @unique @map("click_token")
+  clickCount         Int                    @default(0) @map("click_count")
+  firstClickedAt     DateTime?              @map("first_clicked_at")
+  lastClickedAt      DateTime?              @map("last_clicked_at")
+  convertedOrderId   String?                @map("converted_order_id") @db.Uuid
+  convertedOrderNumber String?              @map("converted_order_number")
+  convertedAt        DateTime?              @map("converted_at")
+  errorMessage       String?                @map("error_message")
+  sentAt             DateTime?              @map("sent_at")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  automation         EmailAutomation        @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  order              Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  convertedOrder     Order?                 @relation("EmailLogConvertedOrder", fields: [convertedOrderId], references: [id], onDelete: SetNull)
+  cartRecoveryLead   CartRecoveryLead?      @relation(fields: [cartRecoveryLeadId], references: [id], onDelete: SetNull)
+
+  @@unique([automationId, targetType, targetId], map: "email_send_logs_automation_target_key")
+  @@index([recipientEmail, createdAt], map: "email_send_logs_recipient_created_idx")
+  @@index([status, createdAt], map: "email_send_logs_status_created_idx")
+  @@index([convertedAt], map: "email_send_logs_converted_at_idx")
+  @@map("email_send_logs")
+}
+
+model ShortLink {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  targetUrl   String   @map("target_url") @db.Text
+  title       String?
+  description String?
+  active      Boolean  @default(true)
+  clickCount  Int      @default(0) @map("click_count")
+  lastClickedAt DateTime? @map("last_clicked_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([active, slug], map: "short_links_active_slug_idx")
+  @@map("short_links")
 }
 
 model Order {
@@ -270,6 +453,8 @@ model Order {
   mercadoPagoPayments   MercadoPagoPayment[]
   paymentWebhookEvents  PaymentWebhookEvent[]
   syncJobs              SyncJob[]
+  emailLogs             EmailSendLog[]
+  convertedEmailLogs    EmailSendLog[]      @relation("EmailLogConvertedOrder")
 
   @@index([couponId], map: "orders_coupon_idx")
   @@index([createdAt], map: "orders_created_at_idx")

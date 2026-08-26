@@ -21,12 +21,12 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as { email?: string; password?: string };
 
-    if (!verifyLocalAdminCredentials(body.email, body.password)) {
+    if (!(await verifyLocalAdminCredentials(body.email, body.password))) {
       throw new AppError("Usuario o contrasena invalidos.", 401, true);
     }
 
     const response = NextResponse.json({ data: { ok: true } });
-    setLocalAdminSessionCookie(response, body.email ?? "");
+    setLocalAdminSessionCookie(response, body.email?.trim().toLowerCase() ?? "");
     return response;
   } catch (error) {
     return routeError(error);

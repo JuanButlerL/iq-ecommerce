@@ -5,17 +5,22 @@ import { CheckCircle2, Clock3, FileText, RefreshCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { RetrySyncButton } from "@/features/admin/components/retry-sync-button";
 import { OrderStatusForm } from "@/features/admin/components/order-status-form";
+import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getOrderDetail } from "@/features/orders/queries";
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdminSection } from "@/lib/auth/admin";
+import { canAccessAdminSection } from "@/lib/auth/admin-permissions";
+import { env } from "@/lib/env";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArs } from "@/lib/utils/currency";
+import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 
 export default async function AdminOrderDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  const session = await requireAdminSection("orders");
+  const canRetrySync = canAccessAdminSection(session.adminUser, "sync", env.ADMIN_LOCAL_EMAIL);
   const { id } = await params;
   const order = await getOrderDetail(id);
 
@@ -101,7 +106,14 @@ export default async function AdminOrderDetailPage({
             {order.discountArs > 0 ? (
               <div className="flex items-center justify-between">
                 <span>
-                  Cupon {order.couponCode} ({Number(order.discountPercentage ?? 0)}%)
+                  Cupon {order.couponCode}{" "}
+                  {order.coupon
+                    ? `(${getCouponDiscountLabel({
+                        discountType: order.coupon.discountType,
+                        discountPercentage: order.discountPercentage == null ? null : Number(order.discountPercentage),
+                        fixedDiscountArs: order.coupon.fixedDiscountArs,
+                      })})`
+                    : ""}
                 </span>
                 <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
               </div>
@@ -172,7 +184,7 @@ export default async function AdminOrderDetailPage({
                   <div className="rounded-[1.5rem] bg-background p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Fecha informada</p>
                     <p className="mt-2 font-bold text-brand-ink">
-                      {latestProof.transferDate ? latestProof.transferDate.toLocaleString("es-AR") : "No informada"}
+                      {latestProof.transferDate ? formatArgentinaDateTime(latestProof.transferDate) : "No informada"}
                     </p>
                   </div>
                   <div className="rounded-[1.5rem] bg-background p-4">
@@ -219,7 +231,7 @@ export default async function AdminOrderDetailPage({
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Ultimo webhook</p>
                   <p className="mt-2 text-sm font-bold text-brand-ink">
                     {order.paymentWebhookEvents[0]
-                      ? `${order.paymentWebhookEvents[0].processingStatus} · ${order.paymentWebhookEvents[0].createdAt.toLocaleString("es-AR")}`
+                      ? `${order.paymentWebhookEvents[0].processingStatus} · ${formatArgentinaDateTime(order.paymentWebhookEvents[0].createdAt)}`
                       : "Sin eventos"}
                   </p>
                 </div>
@@ -243,7 +255,7 @@ export default async function AdminOrderDetailPage({
               </div>
             </div>
             <OrderStatusForm orderId={order.id} currentStatus={order.orderStatus} />
-            <RetrySyncButton orderNumber={order.publicOrderNumber} />
+            {canRetrySync ? <RetrySyncButton orderNumber={order.publicOrderNumber} /> : null}
           </Card>
           <Card className="space-y-3 p-6">
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Historial</p>
@@ -251,7 +263,7 @@ export default async function AdminOrderDetailPage({
               <div key={event.id} className="rounded-[1.5rem] bg-background p-4 text-sm text-brand-ink/70">
                 <p className="font-bold text-brand-ink">{event.status}</p>
                 <p>{event.note ?? "Sin nota"}</p>
-                <p>{event.createdAt.toLocaleString("es-AR")}</p>
+                <p>{formatArgentinaDateTime(event.createdAt)}</p>
               </div>
             ))}
           </Card>

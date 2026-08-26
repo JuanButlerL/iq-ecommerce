@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { FloatingWhatsapp } from "@/components/layout/floating-whatsapp";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { TabTitleNudge } from "@/components/layout/tab-title-nudge";
 
 type AppChromeProps = {
   children: ReactNode;
@@ -13,6 +14,9 @@ type AppChromeProps = {
   contactEmail?: string | null;
   whatsappNumber?: string | null;
   showFloatingWhatsapp?: boolean;
+  announcementBarEnabled?: boolean | null;
+  announcementBarText?: string | null;
+  subscriptionSectionEnabled?: boolean | null;
 };
 
 export function AppChrome({
@@ -21,6 +25,9 @@ export function AppChrome({
   contactEmail,
   whatsappNumber,
   showFloatingWhatsapp,
+  announcementBarEnabled,
+  announcementBarText,
+  subscriptionSectionEnabled,
 }: AppChromeProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
@@ -31,7 +38,16 @@ export function AppChrome({
 
   return (
     <>
-      {hideHeader ? null : <SiteHeader />}
+      <TabTitleNudge />
+      {hideHeader ? (
+        null
+      ) : (
+        <SiteHeader
+          announcementBarEnabled={announcementBarEnabled}
+          announcementBarText={announcementBarText}
+          subscriptionSectionEnabled={subscriptionSectionEnabled}
+        />
+      )}
       <main>{children}</main>
       {hideFooter ? null : (
         <>

@@ -1,13 +1,16 @@
 import { OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 
+import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
+import { markCartRecoveryCheckoutStarted, markCartRecoveryConverted } from "@/features/cart-recovery/services";
 import { getStoreSettings } from "@/features/settings/queries";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
+import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
@@ -88,10 +91,11 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
 
   const shippingQuote = calculateShippingQuote(subtotalArs, input.province, settings);
   const coupon = input.couponCode?.trim()
-    ? await getCouponPreview({
-        code: input.couponCode,
-        subtotalArs,
-      })
+      ? await getCouponPreview({
+          code: input.couponCode,
+          subtotalArs,
+          taxId: input.taxId,
+        })
     : null;
   const pricing = calculateCheckoutPricing({
     paymentMethod: input.paymentMethod,
@@ -189,8 +193,16 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             status: OrderStatus.PENDING_PAYMENT,
             note: coupon
               ? pricing.paymentMethodDiscountArs > 0
-                ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento) y descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
-                : `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${coupon.discountPercentage}% de descuento).`
+                ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${getCouponDiscountLabel({
+                    discountType: coupon.discountType,
+                    discountPercentage: coupon.discountPercentage,
+                    fixedDiscountArs: coupon.fixedDiscountArs,
+                  })}) y descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
+                : `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${getCouponDiscountLabel({
+                    discountType: coupon.discountType,
+                    discountPercentage: coupon.discountPercentage,
+                    fixedDiscountArs: coupon.fixedDiscountArs,
+                  })}).`
               : pricing.paymentMethodDiscountArs > 0
                 ? `Pedido generado desde checkout web con descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
                 : "Pedido generado desde checkout web.",
@@ -239,6 +251,12 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   if (!createdOrder) {
     throw new AppError("No pudimos generar el numero de pedido.", 500, false);
   }
+
+  await markCartRecoveryCheckoutStarted({
+    id: createdOrder.id,
+    publicOrderNumber: createdOrder.publicOrderNumber,
+    customerEmail: input.email,
+  });
 
   await syncOrder(createdOrder.id).catch(async (syncError) => {
     const message = syncError instanceof Error ? syncError.message : "Sync error";
@@ -375,6 +393,12 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     return null;
   });
 
+  await markCartRecoveryConverted({
+    id: order.id,
+    publicOrderNumber: order.publicOrderNumber,
+    customerEmail: order.customerEmail,
+  });
+
   await sendMetaConversionsApiEvent({
     eventName: "Purchase",
     eventId: buildMetaPurchaseEventId(order.publicOrderNumber),
@@ -391,19 +415,17 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
       zip: order.postalCode,
       country: "ar",
     },
-    customData: {
-      currency: order.currency,
-      value: order.totalArs,
-      order_id: order.publicOrderNumber,
-      content_type: "product",
-      content_ids: order.items.map((item) => item.productId),
-      contents: order.items.map((item) => ({
-        id: item.productId,
+    customData: buildMetaPurchaseData({
+      orderNumber: order.publicOrderNumber,
+      totalArs: order.totalArs,
+      shippingArs: order.shippingArs,
+      items: order.items.map((item) => ({
+        id: item.productId ?? item.id,
+        name: item.productNameSnapshot,
         quantity: item.quantity,
-        item_price: item.unitPriceArs,
+        itemPrice: item.unitPriceArs,
       })),
-      num_items: order.items.reduce((totalItems, item) => totalItems + item.quantity, 0),
-    },
+    }),
   }).catch((error) => {
     console.error("Meta Conversions API transfer purchase event failed", error);
   });

@@ -24,6 +24,16 @@ export const storeSettingsSchema = z.object({
   bankTransferDiscountPercentage: z.coerce.number().min(0).max(100).default(0),
   orderReservationHours: z.coerce.number().int().min(1).max(168).optional(),
   institutionalBanner: z.string().max(160).optional().or(z.literal("")),
+  announcementBarEnabled: z.boolean().default(false),
+  announcementBarText: z.string().max(240).optional().or(z.literal("")),
+  heroCtaLabel: z.string().max(120).optional().or(z.literal("")),
+  heroCtaUrl: z.string().max(500).optional().or(z.literal("")),
+  subscriptionSectionEnabled: z.boolean().default(false),
+  subscriptionCtaUrl: z.string().url().optional().or(z.literal("")),
+  subscriptionHeroNote: z.string().max(180).optional().or(z.literal("")),
+  subscriptionItemOne: z.string().max(120).optional().or(z.literal("")),
+  subscriptionItemTwo: z.string().max(120).optional().or(z.literal("")),
+  subscriptionItemThree: z.string().max(120).optional().or(z.literal("")),
   purchaseSuccessMessage: z.string().max(500).optional().or(z.literal("")),
   requireTaxId: z.boolean().default(false),
   showFloatingWhatsapp: z.boolean().default(true),
@@ -50,6 +60,46 @@ export const storeSettingsSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "Ingresa un porcentaje mayor a 0.",
       path: ["bankTransferDiscountPercentage"],
+    });
+  }
+
+  if (data.announcementBarEnabled && !data.announcementBarText?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Ingresa el texto del ticker superior.",
+      path: ["announcementBarText"],
+    });
+  }
+
+  if (data.heroCtaUrl && !data.heroCtaUrl.startsWith("/") && !z.string().url().safeParse(data.heroCtaUrl).success) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Ingresa una ruta interna o una URL completa.",
+      path: ["heroCtaUrl"],
+    });
+  }
+
+  if (data.subscriptionSectionEnabled && !data.subscriptionItemOne?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Completa la primera caja de la sección de suscripción.",
+      path: ["subscriptionItemOne"],
+    });
+  }
+
+  if (data.subscriptionSectionEnabled && !data.subscriptionItemTwo?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Completa la segunda caja de la sección de suscripción.",
+      path: ["subscriptionItemTwo"],
+    });
+  }
+
+  if (data.subscriptionSectionEnabled && !data.subscriptionItemThree?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Completa la tercera caja de la sección de suscripción.",
+      path: ["subscriptionItemThree"],
     });
   }
 });

@@ -2,10 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Watermelon Regular";
+  src:
+    url("/fonts/watermelon-regular.woff2") format("woff2"),
+    local("Watermelon Regular"),
+    local("Watermelon");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
 :root {
   color-scheme: light;
-  --font-baloo: "Arial Rounded MT Bold", "Trebuchet MS", "Avenir Next Rounded", "Segoe UI", sans-serif;
-  --font-nunito: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-baloo: "Watermelon Regular", "Arial Rounded MT Bold", "Trebuchet MS", "Avenir Next Rounded", "Segoe UI", sans-serif;
+  --font-nunito: "DM Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
@@ -19,4 +30,46 @@ a {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(244, 137, 145, 0.35) transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-33.333%, 0, 0);
+  }
+}
+
+@keyframes testimonials-marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes cart-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.18) rotate(-7deg);
+  }
+
+  65% {
+    transform: scale(0.96) rotate(3deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
 }

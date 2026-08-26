@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getOrderSyncProvider } from "@/lib/integrations/sheets/factory";
 import type { OrderItemSheetRow, OrderSheetRow, OrderSyncPayload } from "@/lib/integrations/sheets/types";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
+import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 
 async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload> {
   const provider = getOrderSyncProvider();
@@ -34,7 +35,7 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
   const orderRow: OrderSheetRow = {
     order_id: order.id,
     public_order_number: order.publicOrderNumber,
-    fecha_hora: order.createdAt.toISOString(),
+    fecha_hora: formatArgentinaDateTime(order.createdAt),
     estado: order.orderStatus,
     payment_status: order.paymentStatus,
     customer_first_name: order.customerFirstName,
@@ -57,7 +58,7 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     medio_pago: order.paymentMethod,
     comprobante_url: proofUrl ?? "",
     fuente: order.source,
-    created_at: order.createdAt.toISOString(),
+    created_at: formatArgentinaDateTime(order.createdAt),
   };
 
   const itemRows: OrderItemSheetRow[] = order.items.map((item) => ({
