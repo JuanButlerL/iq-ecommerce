@@ -250,7 +250,7 @@ export function WelcomePopup() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder={welcomePopupCopy.emailPlaceholder}
-              className="mt-0 block h-[42px] w-full rounded-[10px] border-[1.5px] border-[#ede8e2] px-3 text-[11px] text-brand-ink outline-none transition placeholder:text-[#ccc] focus:border-[#e78080] sm:mt-5 sm:h-[54px] sm:rounded-[12px] sm:border-2 sm:px-4 sm:text-[14px]"
+              className="mt-0 block h-[42px] w-full rounded-[10px] border-[1.5px] border-[#ede8e2] px-3 text-[16px] text-brand-ink outline-none transition placeholder:text-[#ccc] focus:border-[#e78080] sm:mt-5 sm:h-[54px] sm:rounded-[12px] sm:border-2 sm:px-4 sm:text-[14px]"
             />
 
             <button
