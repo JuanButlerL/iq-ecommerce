@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { EmailAutomationTrigger, EmailSendStatus } from "@prisma/client";
@@ -683,19 +683,19 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
               <div className="rounded-3xl border border-brand-ink/10 bg-white p-4 md:p-5">
                 <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
                   <div>
-                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-pink">CupÃƒÂ³n opcional</p>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-pink">Cupón opcional</p>
                     <p className="mt-2 text-sm leading-6 text-brand-ink/55">
-                      Si elegÃƒÂ­s uno, aparece como bloque destacado dentro del mail.
+                      Si elegís uno, aparece como bloque destacado dentro del mail.
                     </p>
                   </div>
                   <div className="grid gap-4">
-                    <Field label="CupÃƒÂ³n">
+                    <Field label="Cupón">
                       <select
                         value={form.couponId}
                         onChange={(event) => setForm((current) => ({ ...current, couponId: event.target.value }))}
                         className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
                       >
-                        <option value="">Sin cupÃƒÂ³n</option>
+                        <option value="">Sin cupón</option>
                         {coupons.map((coupon) => (
                           <option key={coupon.id} value={coupon.id}>
                             {coupon.code} -{" "}
@@ -711,14 +711,14 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                     </Field>
                     {form.couponId ? (
                       <div className="grid gap-4 lg:grid-cols-2">
-                        <Field label="TÃƒÂ­tulo del regalo">
+                        <Field label="Título del regalo">
                           <Input
                             placeholder="Un mimo para volver a resolver la semana"
                             value={form.couponHeadline}
                             onChange={(event) => setForm((current) => ({ ...current, couponHeadline: event.target.value }))}
                           />
                         </Field>
-                        <Field label="Mensaje del cupÃƒÂ³n">
+                        <Field label="Mensaje del cupón">
                           <Input
                             placeholder="Usalo en tu compra antes de finalizar."
                             value={form.couponMessage}
@@ -894,7 +894,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                             )}
                           >
                             <p>
-                              {lead.latestLog.status === "ERROR" ? "Ultimo intento con error" : "Ultimo envio registrado"} Ã‚Â·{" "}
+                              {lead.latestLog.status === "ERROR" ? "Ultimo intento con error" : "Ultimo envio registrado"} ·{" "}
                               {formatArgentinaDateTime(new Date(lead.latestLog.sentAt ?? lead.latestLog.createdAt))}
                             </p>
                             <p className="mt-1">{lead.latestLog.automationName}</p>
@@ -976,10 +976,10 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                           {log.errorMessage ? <p className="mt-1 max-w-[280px] text-xs font-bold text-red-700">{log.errorMessage}</p> : null}
                           {log.cartRecoveryLead ? (
                             <p className="mt-1 text-xs">
-                              Carrito {formatArs(log.cartRecoveryLead.subtotalArs)} Ã‚Â· {log.cartRecoveryLead.status}
+                              Carrito {formatArs(log.cartRecoveryLead.subtotalArs)} · {log.cartRecoveryLead.status}
                             </p>
                           ) : null}
-                          {log.order ? <p className="mt-1 text-xs">Pedido {formatArs(log.order.totalArs)} Ã‚Â· {log.order.paymentStatus}</p> : null}
+                          {log.order ? <p className="mt-1 text-xs">Pedido {formatArs(log.order.totalArs)} · {log.order.paymentStatus}</p> : null}
                         </td>
                       </tr>
                     ))

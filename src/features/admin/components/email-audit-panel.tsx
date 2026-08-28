@@ -180,10 +180,10 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                       {log.errorMessage ? <p className="mt-1 max-w-[280px] text-xs font-bold text-red-700">{log.errorMessage}</p> : null}
                       {log.cartRecoveryLead ? (
                         <p className="mt-1 text-xs">
-                          Carrito {formatArs(log.cartRecoveryLead.subtotalArs)} Â· {log.cartRecoveryLead.status}
+                          Carrito {formatArs(log.cartRecoveryLead.subtotalArs)} · {log.cartRecoveryLead.status}
                         </p>
                       ) : null}
-                      {log.order ? <p className="mt-1 text-xs">Pedido {formatArs(log.order.totalArs)} Â· {log.order.paymentStatus}</p> : null}
+                      {log.order ? <p className="mt-1 text-xs">Pedido {formatArs(log.order.totalArs)} · {log.order.paymentStatus}</p> : null}
                     </td>
                   </tr>
                 ))
@@ -260,7 +260,7 @@ function renderFinalStatus(log: LogItem, latestLogByCase: Map<string, LogItem>) 
   return (
     <p className="mt-2 text-[11px] font-bold leading-4 text-brand-ink/55">
       Estado final: <span className={latestLog.status === "SENT" ? "text-emerald-700" : latestLog.status === "ERROR" ? "text-red-700" : "text-brand-ink/60"}>{statusLabels[latestLog.status]}</span>
-      {" Â· "}
+      {" · "}
       {formatArgentinaDateTime(new Date(latestLog.sentAt ?? latestLog.createdAt))}
     </p>
   );
