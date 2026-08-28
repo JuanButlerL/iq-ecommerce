@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { routeError, routeOk } from "@/lib/http/route";
 
 const ACTIVE_LEAD_WINDOW_HOURS = 24;
+const WELCOME_LEAD_WINDOW_DAYS = 30;
 
 const cartRecoveryItemSchema = z.object({
   productId: z.string().uuid(),
@@ -68,10 +69,20 @@ export async function POST(request: Request) {
     const existingLead = await prisma.cartRecoveryLead.findFirst({
       where: {
         email,
-        status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
-        updatedAt: {
-          gte: new Date(Date.now() - ACTIVE_LEAD_WINDOW_HOURS * 60 * 60 * 1000),
-        },
+        OR: [
+          {
+            status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
+            updatedAt: {
+              gte: new Date(Date.now() - ACTIVE_LEAD_WINDOW_HOURS * 60 * 60 * 1000),
+            },
+          },
+          {
+            status: "WELCOME_CAPTURED",
+            updatedAt: {
+              gte: new Date(Date.now() - WELCOME_LEAD_WINDOW_DAYS * 24 * 60 * 60 * 1000),
+            },
+          },
+        ],
       },
       orderBy: {
         updatedAt: "desc",

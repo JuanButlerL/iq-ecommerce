@@ -7,6 +7,7 @@ import { FloatingWhatsapp } from "@/components/layout/floating-whatsapp";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { TabTitleNudge } from "@/components/layout/tab-title-nudge";
+import { WelcomePopup } from "@/features/marketing/components/welcome-popup";
 
 type AppChromeProps = {
   children: ReactNode;
@@ -39,9 +40,8 @@ export function AppChrome({
   return (
     <>
       <TabTitleNudge />
-      {hideHeader ? (
-        null
-      ) : (
+      <WelcomePopup />
+      {hideHeader ? null : (
         <SiteHeader
           announcementBarEnabled={announcementBarEnabled}
           announcementBarText={announcementBarText}

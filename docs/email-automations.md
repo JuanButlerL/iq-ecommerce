@@ -82,3 +82,27 @@ https://iqkids.com.ar/carrito?recuperar=<token>
 ```
 
 Cuando el cliente abre ese link, el carrito se reconstruye con los mismos productos y cantidades guardadas.
+
+## Actualizacion 2026-08-28 - Trigger WELCOME_LEAD
+
+Se agrego soporte operativo para una etapa anterior al carrito:
+
+- `WELCOME_LEAD`
+  nace cuando una persona deja su email en el popup del home
+
+Variables utiles para este trigger:
+
+- `{{siteUrl}}`
+- `{{email}}`
+
+Este trigger convive con:
+
+- `CART_ABANDONED`
+- `ORDER_CREATED`
+- `POST_PURCHASE`
+
+Importante:
+
+- el email inmediato del popup puede salir sin esperar cron
+- `WELCOME_LEAD` queda disponible para automatizaciones futuras o recordatorios tempranos desde admin
+- cuando ese mismo email luego deja carrito, el caso puede pasar al ciclo normal de recuperacion

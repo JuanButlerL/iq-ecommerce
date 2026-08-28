@@ -1,8 +1,9 @@
-import { randomUUID } from "crypto";
+﻿import { randomUUID } from "crypto";
 import { EmailAutomationTrigger, EmailSendStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
 import { renderMarketingEmail, renderTemplate } from "@/features/email/render";
+import { WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID } from "@/features/email/system-automations";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { formatArs } from "@/lib/utils/currency";
@@ -43,7 +44,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
   const automations = await prisma.emailAutomation.findMany({
     where: {
       active: true,
-      ...(options.automationId ? { id: options.automationId } : {}),
+      id: options.automationId ?? { not: WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID },
     },
     include: {
       coupon: true,
@@ -67,10 +68,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
         where: {
           automationId: automation.id,
           targetType: candidate.targetType,
-          OR: [
-            { targetId: candidate.targetId },
-            { targetId: { startsWith: `${candidate.targetId}:retry:` } },
-          ],
+          OR: [{ targetId: candidate.targetId }, { targetId: { startsWith: `${candidate.targetId}:retry:` } }],
         },
         orderBy: { createdAt: "desc" },
       });
@@ -104,8 +102,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
           ? {
               code: automation.coupon.code,
               discountType: automation.coupon.discountType,
-              discountPercentage:
-                automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
+              discountPercentage: automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
               fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
               headline: automation.couponHeadline,
               message: automation.couponMessage,
@@ -177,8 +174,12 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
           },
         }
       : {};
+
   const [automations, recentLogs, cartLeads, coupons] = await Promise.all([
     prisma.emailAutomation.findMany({
+      where: {
+        id: { not: WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID },
+      },
       orderBy: [{ active: "desc" }, { trigger: "asc" }, { name: "asc" }],
       include: {
         coupon: true,
@@ -234,7 +235,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
     prisma.cartRecoveryLead.findMany({
       take: 20,
       where: {
-        status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
+        status: { in: ["WELCOME_CAPTURED", "CAPTURED", "CHECKOUT_STARTED"] },
       },
       orderBy: [{ checkoutStartedAt: "desc" }, { createdAt: "desc" }],
     }),
@@ -261,7 +262,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
   const leadLogs = leadIds.length
     ? await prisma.emailSendLog.findMany({
         where: {
-          trigger: EmailAutomationTrigger.CART_ABANDONED,
+          trigger: { in: [EmailAutomationTrigger.WELCOME_LEAD, EmailAutomationTrigger.CART_ABANDONED] },
           OR: [
             { cartRecoveryLeadId: { in: leadIds } },
             {
@@ -284,7 +285,10 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
     : [];
 
   return {
-    automations,
+    automations: automations.map((automation) => ({
+      ...automation,
+      coupon: serializeCouponPreview(automation.coupon),
+    })),
     recentLogs,
     cartLeads: cartLeads.map((lead) =>
       buildCartRecoveryLeadPreview(
@@ -294,9 +298,13 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
           lead.id,
           leadLogs,
         ),
+        getCartRecoveryLeadTrigger(lead),
       ),
     ),
-    coupons,
+    coupons: coupons.map((coupon) => ({
+      ...coupon,
+      discountPercentage: coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
+    })),
     trackingSummary: {
       clicked: logsWithClicks,
       converted: logsWithConversions,
@@ -320,6 +328,95 @@ async function getCandidatesForAutomation(
   limit: number,
 ): Promise<Candidate[]> {
   const readyAt = new Date(Date.now() - Math.max(automation.delayHours, 0) * 60 * 60 * 1000);
+
+  if (automation.trigger === EmailAutomationTrigger.WELCOME_LEAD) {
+    const leads = await prisma.cartRecoveryLead.findMany({
+      take: limit,
+      where: {
+        status: "WELCOME_CAPTURED",
+        updatedAt: { lte: readyAt },
+      },
+      orderBy: { updatedAt: "asc" },
+      include: {
+        emailLogs: {
+          where: {
+            trigger: EmailAutomationTrigger.WELCOME_LEAD,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    const candidates: Candidate[] = [];
+
+    for (const lead of leads) {
+      const cycleDate = lead.updatedAt;
+      const cycleTargetId = buildCartRecoveryTargetId(lead.id, cycleDate);
+      const latestLog = getCartRecoveryCycleLog(cycleTargetId, lead.id, lead.emailLogs);
+
+      const convertedLater = await prisma.order.findFirst({
+        where: {
+          customerEmail: {
+            equals: lead.email,
+            mode: "insensitive",
+          },
+          createdAt: {
+            gte: cycleDate,
+          },
+          orderStatus: {
+            notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED],
+          },
+          paymentStatus: {
+            in: [PaymentStatus.PROOF_UPLOADED, PaymentStatus.PAID],
+          },
+        },
+        select: { id: true, publicOrderNumber: true },
+      });
+
+      if (convertedLater) {
+        await prisma.cartRecoveryLead.update({
+          where: { id: lead.id },
+          data: {
+            status: "CONVERTED",
+            convertedOrderId: convertedLater.id,
+            convertedOrderNumber: convertedLater.publicOrderNumber,
+            convertedAt: new Date(),
+          },
+        });
+
+        await createEmailLog({
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.SKIPPED,
+          recipientEmail: lead.email,
+          subject: "Skipped: customer converted",
+          targetType: "cart_recovery_lead",
+          targetId: cycleTargetId,
+          cartRecoveryLeadId: lead.id,
+          errorMessage: "Omitido: el email ya tiene una compra posterior confirmada.",
+        });
+        continue;
+      }
+
+      if (latestLog?.status === EmailSendStatus.SENT && latestLog.createdAt >= cycleDate) {
+        continue;
+      }
+
+      candidates.push({
+        targetType: "cart_recovery_lead",
+        targetId: cycleTargetId,
+        recipientEmail: lead.email,
+        cartRecoveryLeadId: lead.id,
+        variables: {
+          email: lead.email,
+          siteUrl: env.NEXT_PUBLIC_SITE_URL,
+        },
+      });
+    }
+
+    return candidates;
+  }
 
   if (automation.trigger === EmailAutomationTrigger.CART_ABANDONED) {
     const leads = await prisma.cartRecoveryLead.findMany({
@@ -462,6 +559,41 @@ function getCartRecoveryLeadCycleDate(lead: CartRecoveryLeadTriggerSnapshot) {
   return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.updatedAt;
 }
 
+function getCartRecoveryLeadTrigger(lead: { status: string }) {
+  return lead.status === "WELCOME_CAPTURED" ? EmailAutomationTrigger.WELCOME_LEAD : EmailAutomationTrigger.CART_ABANDONED;
+}
+
+type SerializableCouponPreview = {
+  id: string;
+  code: string;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountPercentage: number | null;
+  fixedDiscountArs: number | null;
+  description: string | null;
+};
+
+function serializeCouponPreview(
+  coupon:
+    | {
+        id: string;
+        code: string;
+        discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+        discountPercentage: Prisma.Decimal | number | string | null;
+        fixedDiscountArs: number | null;
+        description: string | null;
+      }
+    | null,
+): SerializableCouponPreview | null {
+  if (!coupon) {
+    return null;
+  }
+
+  return {
+    ...coupon,
+    discountPercentage: coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
+  };
+}
+
 function buildCartRecoveryLeadPreview(
   lead: CartRecoveryLeadPreviewSnapshot,
   latestLog: {
@@ -474,10 +606,12 @@ function buildCartRecoveryLeadPreview(
       name: string;
     };
   } | null,
+  trigger: EmailAutomationTrigger,
 ) {
   return {
     id: lead.id,
     email: lead.email,
+    trigger,
     status: lead.status,
     subtotalArs: lead.subtotalArs,
     triggerAt: getCartRecoveryLeadCycleDate(lead),
@@ -586,3 +720,5 @@ async function createEmailLog(input: Prisma.EmailSendLogUncheckedCreateInput) {
     throw error;
   }
 }
+
+

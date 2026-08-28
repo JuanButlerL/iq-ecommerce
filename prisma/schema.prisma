@@ -89,6 +89,7 @@ enum PaymentWebhookProcessingStatus {
 }
 
 enum EmailAutomationTrigger {
+  WELCOME_LEAD
   CART_ABANDONED
   ORDER_CREATED
   POST_PURCHASE

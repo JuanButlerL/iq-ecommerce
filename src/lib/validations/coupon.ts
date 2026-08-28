@@ -19,6 +19,7 @@ export const couponFormSchema = z
     codes: z.array(couponCodeSchema).max(200).optional(),
     entries: z.array(couponBulkEntrySchema).max(200).optional(),
     description: z.string().max(160).optional().or(z.literal("")),
+    welcomePopupEnabled: z.coerce.boolean().default(false),
     discountType: z.enum(["PERCENTAGE", "FIXED_AMOUNT"]).default("PERCENTAGE"),
     discountPercentage: z.coerce.number().min(0.01).max(100).optional(),
     fixedDiscountArs: z.coerce.number().int().min(1).optional(),
