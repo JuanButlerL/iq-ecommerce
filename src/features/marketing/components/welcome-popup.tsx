@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -147,7 +147,7 @@ export function WelcomePopup() {
     const normalizedEmail = email.trim().toLowerCase();
 
     if (!EMAIL_PATTERN.test(normalizedEmail)) {
-      setError("IngresÃ¡ un email vÃ¡lido para recibir el beneficio.");
+      setError("Ingresá un email válido para recibir el beneficio.");
       return;
     }
 
@@ -163,7 +163,7 @@ export function WelcomePopup() {
       const payload = (await response.json()) as { data?: PopupCaptureResponse; error?: string };
 
       if (!response.ok || !payload.data) {
-        setError(payload.error ?? "No pudimos guardar tu email. ProbÃ¡ de nuevo.");
+        setError(payload.error ?? "No pudimos guardar tu email. Probá de nuevo.");
         return;
       }
 
@@ -171,7 +171,7 @@ export function WelcomePopup() {
       window.localStorage.setItem(WELCOME_POPUP_EMAIL_STORAGE_KEY, normalizedEmail);
       setSuccess(payload.data);
     } catch {
-      setError("No pudimos guardar tu email. ProbÃ¡ de nuevo.");
+      setError("No pudimos guardar tu email. Probá de nuevo.");
     } finally {
       setSubmitting(false);
     }
@@ -196,10 +196,10 @@ export function WelcomePopup() {
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="absolute right-[18px] top-[16px] z-20 inline-flex h-7 w-7 items-center justify-center text-[16px] leading-none text-[#c9c1bc] transition hover:text-[#b1a7a0]"
+          className="absolute right-[18px] top-[16px] z-20 inline-flex h-7 w-7 items-center justify-center text-[#c9c1bc] transition hover:text-[#b1a7a0]"
           aria-label="Cerrar popup"
         >
-          âœ•
+          <X className="h-4 w-4 stroke-[2.2]" />
         </button>
 
         {success ? (
@@ -219,9 +219,10 @@ export function WelcomePopup() {
               <Link
                 href="/#productos"
                 onClick={() => setOpen(false)}
-                className="inline-flex h-[50px] items-center justify-center rounded-[12px] bg-[#e78080] px-9 font-display text-[14px] font-black text-white transition hover:bg-[#d46a6a]"
+                className="inline-flex h-[50px] items-center justify-center gap-2 rounded-[12px] bg-[#e78080] px-9 font-display text-[14px] font-black text-white transition hover:bg-[#d46a6a]"
               >
-                {welcomePopupCopy.successPrimaryAction} â†’
+                <span>{welcomePopupCopy.successPrimaryAction}</span>
+                <ArrowRight className="h-4 w-4 stroke-[2.4]" />
               </Link>
             </div>
           </div>
@@ -235,11 +236,10 @@ export function WelcomePopup() {
 
             <p className="mt-3 text-center text-[11.5px] leading-[1.65] text-[#5a5048] sm:hidden">{welcomePopupCopy.mobileBody}</p>
             <p className="mt-[14px] hidden text-center text-[14px] leading-[1.7] text-[#5a5048] sm:block">
-              IngresÃ¡ tu email, recibÃ­ el descuento y <strong className="font-bold text-brand-ink">sÃ© la primera en enterarte</strong> de novedades, lanzamientos y contenido para tu familia.
+              Ingresá tu email, recibí el descuento y <strong className="font-bold text-brand-ink">sé la primera en enterarte</strong> de novedades, lanzamientos y contenido para tu familia.
             </p>
 
             <div className="mb-[14px] mt-4 h-px bg-[#ede8e2] sm:mb-5 sm:mt-[22px]" />
-
 
             {error ? <p className="mt-3 text-center text-sm font-bold text-red-600">{error}</p> : null}
 
@@ -257,9 +257,10 @@ export function WelcomePopup() {
               type="button"
               disabled={submitting}
               onClick={() => void submitEmail()}
-              className="mt-2 inline-flex h-[48px] w-full items-center justify-center rounded-[10px] bg-[#e78080] px-5 font-display text-[13px] font-black tracking-[0.03em] text-white transition hover:bg-[#d46a6a] disabled:cursor-not-allowed disabled:opacity-70 sm:mt-[10px] sm:h-[56px] sm:rounded-[12px] sm:text-[16px]"
+              className="mt-2 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#e78080] px-5 font-display text-[13px] font-black tracking-[0.03em] text-white transition hover:bg-[#d46a6a] disabled:cursor-not-allowed disabled:opacity-70 sm:mt-[10px] sm:h-[56px] sm:rounded-[12px] sm:text-[16px]"
             >
-              {submitting ? "Enviando..." : `${welcomePopupCopy.submitLabel} â†’`}
+              <span>{submitting ? "Enviando..." : welcomePopupCopy.submitLabel}</span>
+              {!submitting ? <ArrowRight className="h-4 w-4 stroke-[2.4]" /> : null}
             </button>
 
             <button
