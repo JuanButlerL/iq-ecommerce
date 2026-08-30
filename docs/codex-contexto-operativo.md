@@ -743,3 +743,37 @@ Impacto:
 Validación local:
 
 - `npx tsc --noEmit`: OK
+
+### 2026-08-29 - Popup de bienvenida visible una vez por sesion hasta capturar email
+
+Pedido:
+
+- cambiar la persistencia visual del popup para que se muestre una vez por sesion mientras la persona no deje su email
+- si navega dentro de la misma sesion, no volver a abrirlo
+- si vuelve en una sesion nueva sin haber dejado email, volver a mostrarlo
+- si ya dejo su email, no volver a mostrarlo en sesiones futuras
+
+Implementacion:
+
+- se elimino la logica anterior de reshow a 30 dias para la apertura visual del popup
+- el estado de visualizacion ahora se guarda en `sessionStorage` con una clave exclusiva de sesion
+- el email capturado se sigue guardando en `localStorage`, y pasa a ser la condicion persistente que desactiva el popup en visitas futuras
+- el popup solo consulta configuracion remota si no hay email guardado y si todavia no fue mostrado en la sesion actual
+- se mantuvo intacta la logica de API, captura de lead, cupon editable desde admin, envio de email y success state
+
+Archivos tocados:
+
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/lib/marketing/welcome-popup-copy.ts`
+- `docs/codex-contexto-operativo.md`
+
+Impacto:
+
+- cambio de frontend y persistencia cliente
+- sin cambios de schema
+- sin impacto estructural de DB
+- requiere redeploy de app para produccion
+
+Validacion local:
+
+- `npx tsc --noEmit`: OK

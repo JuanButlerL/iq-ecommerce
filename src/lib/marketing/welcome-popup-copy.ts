@@ -1,14 +1,13 @@
-export const WELCOME_POPUP_STORAGE_KEY = "iqkids-welcome-popup-seen-at";
+export const WELCOME_POPUP_SESSION_KEY = "iqkids-welcome-popup-seen-session";
 export const WELCOME_POPUP_EMAIL_STORAGE_KEY = "iqkids-welcome-popup-email";
-export const WELCOME_POPUP_RESHOW_DAYS = 30;
 export const WELCOME_POPUP_DELAY_MS = 800;
 
 export const welcomePopupCopy = {
   titleLineOne: "¡Tenemos un regalo para vos!",
   titleHighlight: "10% off en tu primera caja.",
   body:
-    "Ingresá tu email, recibí el descuento y sé la primera en enterarte de novedades, lanzamientos y contenido para tu familia.",
-  mobileBody: "Ingresá tu email, recibí el descuento y sé la primera en enterarte de novedades y lanzamientos.",
+    "Ingresá tu email, recibí el descuento y enterate de novedades, lanzamientos y contenido para tu familia.",
+  mobileBody: "Ingresá tu email, recibí el descuento y enterate de novedades y lanzamientos.",
   supportingText: "",
   emailPlaceholder: "tu@email.com",
   submitLabel: "QUIERO MI 10%",

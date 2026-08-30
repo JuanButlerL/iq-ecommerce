@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Check, X } from "lucide-react";
+import { ArrowRight, Check, Copy, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
   WELCOME_POPUP_DELAY_MS,
   WELCOME_POPUP_EMAIL_STORAGE_KEY,
-  WELCOME_POPUP_RESHOW_DAYS,
-  WELCOME_POPUP_STORAGE_KEY,
+  WELCOME_POPUP_SESSION_KEY,
   welcomePopupCopy,
 } from "@/lib/marketing/welcome-popup-copy";
 
@@ -34,7 +33,6 @@ type PopupCaptureResponse = {
   coupon: PopupCoupon;
 };
 
-const RESHOW_MS = WELCOME_POPUP_RESHOW_DAYS * 24 * 60 * 60 * 1000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function formatBenefitHeadline(coupon: PopupCoupon) {
@@ -52,6 +50,7 @@ export function WelcomePopup() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [config, setConfig] = useState<PopupConfigResponse | null>(null);
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +60,6 @@ export function WelcomePopup() {
   useEffect(() => {
     if (!isHome) {
       setOpen(false);
-      setSuccess(null);
       return;
     }
 
@@ -70,17 +68,16 @@ export function WelcomePopup() {
 
     async function load() {
       try {
-        const seenAtRaw = window.localStorage.getItem(WELCOME_POPUP_STORAGE_KEY);
-        const seenAt = seenAtRaw ? Number(seenAtRaw) : null;
-
-        if (seenAt && Number.isFinite(seenAt) && Date.now() - seenAt < RESHOW_MS) {
+        const storedEmail = window.localStorage.getItem(WELCOME_POPUP_EMAIL_STORAGE_KEY)?.trim().toLowerCase() ?? "";
+        if (storedEmail) {
+          setEmail(storedEmail);
           setLoading(false);
           return;
         }
 
-        const storedEmail = window.localStorage.getItem(WELCOME_POPUP_EMAIL_STORAGE_KEY)?.trim() ?? "";
-        if (storedEmail) {
-          setEmail(storedEmail);
+        if (window.sessionStorage.getItem(WELCOME_POPUP_SESSION_KEY)) {
+          setLoading(false);
+          return;
         }
 
         const response = await fetch("/api/welcome-popup", { cache: "no-store" });
@@ -97,7 +94,7 @@ export function WelcomePopup() {
 
         setConfig(payload.data);
         timer = window.setTimeout(() => {
-          window.localStorage.setItem(WELCOME_POPUP_STORAGE_KEY, String(Date.now()));
+          window.sessionStorage.setItem(WELCOME_POPUP_SESSION_KEY, "1");
           setOpen(true);
         }, WELCOME_POPUP_DELAY_MS);
       } catch {
@@ -139,6 +136,15 @@ export function WelcomePopup() {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!success || copied) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setCopied(false), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [copied, success]);
+
   if (!isHome || loading || !config?.coupon) {
     return null;
   }
@@ -167,9 +173,10 @@ export function WelcomePopup() {
         return;
       }
 
-      window.localStorage.setItem(WELCOME_POPUP_STORAGE_KEY, String(Date.now()));
       window.localStorage.setItem(WELCOME_POPUP_EMAIL_STORAGE_KEY, normalizedEmail);
+      window.sessionStorage.setItem(WELCOME_POPUP_SESSION_KEY, "1");
       setSuccess(payload.data);
+      setCopied(false);
     } catch {
       setError("No pudimos guardar tu email. Probá de nuevo.");
     } finally {
@@ -177,7 +184,21 @@ export function WelcomePopup() {
     }
   }
 
-  const benefitHeadline = formatBenefitHeadline(success?.coupon ?? config.coupon);
+  async function handleCopyCoupon() {
+    if (!success?.coupon.code) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(success.coupon.code);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  const activeCoupon = success?.coupon ?? config.coupon;
+  const benefitHeadline = formatBenefitHeadline(activeCoupon);
 
   return (
     <div
@@ -215,6 +236,16 @@ export function WelcomePopup() {
               <span className="font-display text-[26px] tracking-[0.2em] text-brand-cyan">{success.coupon.code}</span>
             </div>
             <p className="mt-[10px] text-[11px] text-[#9a8a7a]">{welcomePopupCopy.successNote}</p>
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => void handleCopyCoupon()}
+                className="inline-flex h-[42px] items-center justify-center gap-2 rounded-[12px] border border-brand-cyan/30 bg-white px-5 text-[13px] font-bold text-brand-cyan transition hover:bg-[#eef9fb]"
+              >
+                <Copy className="h-4 w-4 stroke-[2.2]" />
+                <span>{copied ? welcomePopupCopy.successCopyDone : welcomePopupCopy.successCopyCta}</span>
+              </button>
+            </div>
             <div className="mt-[22px] flex justify-center">
               <Link
                 href="/#productos"
@@ -236,7 +267,7 @@ export function WelcomePopup() {
 
             <p className="mt-3 text-center text-[11.5px] leading-[1.65] text-[#5a5048] sm:hidden">{welcomePopupCopy.mobileBody}</p>
             <p className="mt-[14px] hidden text-center text-[14px] leading-[1.7] text-[#5a5048] sm:block">
-              Ingresá tu email, recibí el descuento y <strong className="font-bold text-brand-ink">sé la primera en enterarte</strong> de novedades, lanzamientos y contenido para tu familia.
+              Ingresá tu mail, recibí el descuento y enterate de novedades y lanzamientos para tu familia.
             </p>
 
             <div className="mb-[14px] mt-4 h-px bg-[#ede8e2] sm:mb-5 sm:mt-[22px]" />
