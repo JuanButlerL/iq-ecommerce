@@ -69,7 +69,7 @@ function normalizeCheckoutMessage(message: string | null | undefined) {
   }
 
   if (message === LEGACY_CHECKOUT_MESSAGE) {
-    return "PodÃ©s comprar por debajo del mÃ­nimo, pero en ese caso se agrega envÃ­o segÃºn la configuraciÃ³n vigente.";
+    return "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.";
   }
 
   return message;
@@ -79,7 +79,7 @@ function formatCheckoutProductLabel(label: string) {
   const normalizedLabel = label.trim();
 
   if (normalizedLabel.toUpperCase() === "MANI") {
-    return "ManÃ­";
+    return "Maní";
   }
 
   return normalizedLabel;
@@ -193,12 +193,12 @@ export function CheckoutPage({
     ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
     : 0;
   const checkoutShippingNudge = shippingQuote.freeShippingReached
-    ? "Ya tenÃ©s envÃ­o gratis. SumÃ¡ otro sabor y deja mÃ¡s dÃ­as de la semana resueltos."
+    ? "Ya tenés envío gratis. Sumá otro sabor y dejá más días de la semana resueltos."
     : shippingQuote.shippingDiscountReached
-      ? `TenÃ©s ${shippingQuote.shippingDiscountPercentage}% off en el envÃ­o. Si llegÃ¡s a ${formatArs(settings.freeShippingThreshold)}, el envÃ­o es gratis.`
+      ? `Tenés ${shippingQuote.shippingDiscountPercentage}% off en el envío. Si llegás a ${formatArs(settings.freeShippingThreshold)}, el envío es gratis.`
       : amountToShippingDiscount > 0 && shippingQuote.shippingDiscountPercentage > 0
-        ? `SumÃ¡ un producto mÃ¡s y activa ${shippingQuote.shippingDiscountPercentage}% off en el envÃ­o.`
-        : `SumÃ¡ un segundo sabor para llegar al envÃ­o gratis. Te faltan ${formatArs(amountToFreeShipping)}.`;
+        ? `Sumá un producto más y activa ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
+        : `Sumá un segundo sabor para llegar al envío gratis. Te faltan ${formatArs(amountToFreeShipping)}.`;
   const addressPreview = useMemo(() => {
     const addressParts = [
       watchedAddressLine?.trim(),
@@ -303,7 +303,7 @@ export function CheckoutPage({
 
     if (!response.ok) {
       setAppliedCoupon(null);
-      setCouponError(payload.error ?? "No pudimos validar el cupÃ³n.");
+      setCouponError(payload.error ?? "No pudimos validar el cupón.");
       form.setValue("couponCode", "");
       return;
     }
@@ -401,7 +401,7 @@ export function CheckoutPage({
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Paso 1 de 2</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Completa tu compra</h1>
           <p className="mt-2 text-sm leading-6 text-brand-ink/70 md:text-base">
-            CargÃ¡ tus datos, elegÃ­ el medio de pago y generamos tu pedido.
+            Cargá tus datos, elegí el medio de pago y generamos tu pedido.
           </p>
         </div>
 
@@ -447,7 +447,7 @@ export function CheckoutPage({
               {...form.register("email")}
             />
           </FieldShell>
-          <FieldShell label="TelÃ©fono" error={errors.phone?.message}>
+          <FieldShell label="Teléfono" error={errors.phone?.message}>
             <Input
               placeholder="Ej: 11 4567 8901"
               autoComplete="tel"
@@ -471,13 +471,13 @@ export function CheckoutPage({
           </FieldShell>
           <FieldShell label="Localidad" error={errors.locality?.message}>
             <Input
-              placeholder="Ej: Vicente LÃ³pez"
+              placeholder="Ej: Vicente López"
               autoComplete="address-level2"
               aria-invalid={errors.locality ? "true" : "false"}
               {...form.register("locality")}
             />
           </FieldShell>
-          <FieldShell label="CÃ³digo postal" error={errors.postalCode?.message}>
+          <FieldShell label="Código postal" error={errors.postalCode?.message}>
             <Input
               placeholder="Ej: 1425"
               autoComplete="postal-code"
@@ -486,9 +486,9 @@ export function CheckoutPage({
               {...form.register("postalCode")}
             />
           </FieldShell>
-          <FieldShell label="DirecciÃ³n" error={errors.addressLine?.message}>
+          <FieldShell label="Dirección" error={errors.addressLine?.message}>
             <Input
-              placeholder="Ej: AmenÃ¡bar 2451"
+              placeholder="Ej: Amenábar 2451"
               autoComplete="street-address"
               aria-invalid={errors.addressLine ? "true" : "false"}
               {...form.register("addressLine")}
@@ -512,14 +512,14 @@ export function CheckoutPage({
                       <MapPinned className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/46">UbicaciÃ³n</p>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/46">Ubicación</p>
                       <p className="mt-1 text-sm font-semibold leading-6 text-brand-ink/78">{addressPreview.query}</p>
                     </div>
                   </div>
                   <p className="text-sm leading-6 text-brand-ink/62">
                     {addressPreview.hasAddressErrors
-                      ? "Revisa calle, nÃºmero, localidad o cÃ³digo postal para ubicar mejor el destino."
-                      : "Si no coincide, modifica la direcciÃ³n o dÃ©janos una aclaraciÃ³n en observaciones."}
+                      ? "Revisá calle, número, localidad o código postal para ubicar mejor el destino."
+                      : "Si no coincide, modificá la dirección o dejanos una aclaración en observaciones."}
                   </p>
                 </div>
                 <div className="border-t border-brand-ink/10 bg-[#f8f6f4] p-2">
@@ -541,7 +541,7 @@ export function CheckoutPage({
           <div className="md:col-span-2">
             <FieldShell label="Observaciones" error={errors.notes?.message}>
               <Textarea
-                placeholder="Ej: Timbre roto. Tocar porterÃ­a. Recibe LucÃ­a por la tarde."
+                placeholder="Ej: Timbre roto. Tocar portería. Recibe Lucía por la tarde."
                 aria-invalid={errors.notes ? "true" : "false"}
                 {...form.register("notes")}
               />
@@ -589,8 +589,8 @@ export function CheckoutPage({
               <TicketPercent className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-brand-ink">CÃ³digo de descuento</p>
-              <p className="mt-1 text-sm text-brand-ink/60">AplÃ­calo antes de confirmar tu pedido.</p>
+              <p className="font-bold text-brand-ink">Código de descuento</p>
+              <p className="mt-1 text-sm text-brand-ink/60">Aplicalo antes de confirmar tu pedido.</p>
             </div>
           </div>
 
@@ -635,7 +635,7 @@ export function CheckoutPage({
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                   <div>
-                    <p className="font-bold">CupÃ³n {appliedCoupon.couponCode} aplicado</p>
+                    <p className="font-bold">Cupón {appliedCoupon.couponCode} aplicado</p>
                     <p className="mt-1">
                       Descuento:{" "}
                       {getCouponDiscountLabel({
@@ -685,7 +685,7 @@ export function CheckoutPage({
             </div>
           ) : null}
           <div className="flex items-center justify-between">
-            <span>EnvÃ­o</span>
+            <span>Envío</span>
             {shippingQuote.freeShippingReached ? (
               <span className="font-bold text-emerald-700">Gratis</span>
             ) : shippingQuote.shippingDiscountReached ? (
@@ -765,7 +765,7 @@ export function CheckoutPage({
 
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
           <p>{checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
-          <p className="mt-2">EnvÃ­o gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
+          <p className="mt-2">Envío gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
       </Card>
     </form>

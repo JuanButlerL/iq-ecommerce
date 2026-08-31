@@ -1,11 +1,11 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
 import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
 
 const nameRegex = /^[\p{L}' -]+$/u;
 const localityRegex = /^[\p{L}0-9'.,()\/ -]+$/u;
-const addressRegex = /^[\p{L}0-9'.,()/#Â° -]+$/u;
+const addressRegex = /^[\p{L}0-9'.,()/#° -]+$/u;
 const taxIdRegex = /^\d{7,11}$/;
 
 function normalizeWhitespace(value: string) {
