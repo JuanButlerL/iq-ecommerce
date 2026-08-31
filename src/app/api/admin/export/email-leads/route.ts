@@ -1,4 +1,4 @@
-﻿import { EmailAutomationTrigger, EmailSendStatus } from "@prisma/client";
+import { EmailAutomationTrigger, EmailSendStatus, MarketingEventType } from "@prisma/client";
 
 import { assertAdminSection } from "@/lib/auth/admin";
 import { prisma } from "@/lib/db/prisma";
@@ -31,11 +31,23 @@ function escapeHtml(value: string | number | null | undefined) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/\"/g, "&quot;");
 }
 
 function getLeadLifecycleLabel(status: string) {
   return leadStatusLabels[status] ?? status;
+}
+
+function getCaptureStage(hasPopupCapture: boolean, hasCartCapture: boolean, convertedAt: Date | null) {
+  if (hasPopupCapture) {
+    return convertedAt ? "HOME > COMPRA" : "HOME > SIN COMPRA";
+  }
+
+  if (hasCartCapture) {
+    return convertedAt ? "CARRITO > COMPRA" : "CARRITO > SIN COMPRA";
+  }
+
+  return convertedAt ? "COMPRA SIN CAPTURA" : "SIN CAPTURA";
 }
 
 export async function GET() {
@@ -53,11 +65,27 @@ export async function GET() {
           },
         },
       },
+      marketingEvents: {
+        where: {
+          eventType: {
+            in: [MarketingEventType.POPUP_CAPTURED, MarketingEventType.CART_CAPTURED],
+          },
+        },
+        orderBy: { occurredAt: "asc" },
+        select: {
+          eventType: true,
+          occurredAt: true,
+        },
+      },
     },
   });
 
   const columns = [
     "Email",
+    "Captado en home",
+    "Estado de captura",
+    "Fecha captura home",
+    "Fecha captura carrito",
     "Estado operativo",
     "Fecha de alta",
     "Ultima actualizacion",
@@ -79,9 +107,17 @@ export async function GET() {
 
   const rows = leads.map((lead) => {
     const latestLog = lead.emailLogs[0] ?? null;
+    const popupCapturedAt = lead.marketingEvents.find((event) => event.eventType === MarketingEventType.POPUP_CAPTURED)?.occurredAt ?? null;
+    const cartCapturedAt = lead.marketingEvents.find((event) => event.eventType === MarketingEventType.CART_CAPTURED)?.occurredAt ?? null;
+    const hasPopupCapture = Boolean(popupCapturedAt || lead.status === "WELCOME_CAPTURED");
+    const hasCartCapture = Boolean(cartCapturedAt || ["CAPTURED", "CHECKOUT_STARTED", "CONVERTED"].includes(lead.status));
 
     return [
       lead.email,
+      hasPopupCapture ? "SI" : "NO",
+      getCaptureStage(hasPopupCapture, hasCartCapture, lead.convertedAt ?? null),
+      popupCapturedAt ? formatArgentinaDateTime(popupCapturedAt) : "",
+      cartCapturedAt ? formatArgentinaDateTime(cartCapturedAt) : "",
       getLeadLifecycleLabel(lead.status),
       formatArgentinaDateTime(lead.createdAt),
       formatArgentinaDateTime(lead.updatedAt),

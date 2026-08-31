@@ -33,6 +33,8 @@ export async function GET(request: Request) {
     "Canal inicial",
     "Origen inicial",
     "Campana inicial",
+    "Contenido inicial",
+    "Termino inicial",
     "Referrer inicial",
     "Captado en home",
     "Estado de captura",
@@ -49,6 +51,8 @@ export async function GET(request: Request) {
     "Canal final",
     "Origen final",
     "Campana final",
+    "Contenido final",
+    "Termino final",
     "Timeline",
   ];
 
@@ -62,6 +66,8 @@ export async function GET(request: Request) {
       row.firstChannel,
       row.firstLabel,
       row.firstCampaign,
+      row.firstContent,
+      row.firstTerm,
       row.firstReferrer,
       row.popupCapturedHome,
       row.leadStage,
@@ -78,6 +84,8 @@ export async function GET(request: Request) {
       row.lastChannel,
       row.lastLabel,
       row.lastCampaign,
+      row.lastContent,
+      row.lastTerm,
       row.timeline,
     ])
     .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)

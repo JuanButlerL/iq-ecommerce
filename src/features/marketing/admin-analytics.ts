@@ -228,7 +228,7 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
 
   for (const session of filteredSessions) {
     const key = `${session.sourceCategory}:${session.sourcePlatform}`;
-    const current = categoryMap.get(key) ?? emptyCategoryRow(key, `${session.sourceCategory} · ${session.sourcePlatform}`);
+    const current = categoryMap.get(key) ?? emptyCategoryRow(key, `${session.sourceCategory} Â· ${session.sourcePlatform}`);
     current.sessions += 1;
     categoryMap.set(key, current);
   }
@@ -237,7 +237,7 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
     const session = event.marketingSession;
     if (!session) continue;
     const key = `${session.sourceCategory}:${session.sourcePlatform}`;
-    const current = categoryMap.get(key) ?? emptyCategoryRow(key, `${session.sourceCategory} · ${session.sourcePlatform}`);
+    const current = categoryMap.get(key) ?? emptyCategoryRow(key, `${session.sourceCategory} Â· ${session.sourcePlatform}`);
     if (event.eventType === MarketingEventType.POPUP_CAPTURED) current.popupLeads += 1;
     if (event.eventType === MarketingEventType.CART_CAPTURED) current.cartLeads += 1;
     if (event.eventType === MarketingEventType.ORDER_CREATED) current.ordersCreated += 1;
@@ -249,7 +249,7 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
     const anchorSession = order.marketingSession ?? touchSnapshot.lastTouch ?? touchSnapshot.firstTouch;
     if (!anchorSession) continue;
     const key = `${anchorSession.sourceCategory}:${anchorSession.sourcePlatform}`;
-    const current = categoryMap.get(key) ?? emptyCategoryRow(key, `${anchorSession.sourceCategory} · ${anchorSession.sourcePlatform}`);
+    const current = categoryMap.get(key) ?? emptyCategoryRow(key, `${anchorSession.sourceCategory} Â· ${anchorSession.sourcePlatform}`);
     current.confirmedOrders += 1;
     current.confirmedRevenue += order.totalArs;
     if ((confirmedOrdersByEmail.get(normalizeEmail(order.customerEmail))?.length ?? 0) > 1) {
@@ -369,12 +369,16 @@ export function buildMarketingExportRows(data: MarketingDashboardData) {
     firstChannel: contact.firstTouch?.sourceChannel ?? "",
     firstLabel: contact.firstTouch?.sourceLabel ?? "",
     firstCampaign: contact.firstTouch?.utmCampaign ?? "",
+    firstContent: contact.firstTouch?.utmContent ?? "",
+    firstTerm: contact.firstTouch?.utmTerm ?? "",
     firstReferrer: contact.firstTouch?.referrerHost ?? "",
     lastCategory: contact.lastTouch?.sourceCategory ?? "",
     lastPlatform: contact.lastTouch?.sourcePlatform ?? "",
     lastChannel: contact.lastTouch?.sourceChannel ?? "",
     lastLabel: contact.lastTouch?.sourceLabel ?? "",
     lastCampaign: contact.lastTouch?.utmCampaign ?? "",
+    lastContent: contact.lastTouch?.utmContent ?? "",
+    lastTerm: contact.lastTouch?.utmTerm ?? "",
     firstPaidLabel: contact.firstPaidTouch?.sourceLabel ?? "",
     firstPaidCampaign: contact.firstPaidTouch?.utmCampaign ?? "",
     lastPaidLabel: contact.lastPaidTouch?.sourceLabel ?? "",
