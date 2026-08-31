@@ -18,6 +18,7 @@ import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { formatArs } from "@/lib/utils/currency";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
+import { getBrowserMarketingContext } from "@/lib/marketing/client";
 import { WELCOME_POPUP_EMAIL_STORAGE_KEY } from "@/lib/marketing/welcome-popup-copy";
 
 type ProductWithImages = Product & { images: ProductImage[] };
@@ -164,17 +165,17 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     });
   const freeShippingNudge =
     amountToFreeShipping <= 0
-      ? "Ya tenés envío gratis."
+      ? "Ya tenÃ©s envÃ­o gratis."
       : oneMoreUnitReachesFreeShipping
-        ? "Sumá una unidad más para llegar al envío gratis y tener la semana resuelta."
-        : `El pedido todavía no alcanza el envío gratis. Envío gratis desde: ${formatArs(settings.freeShippingThreshold)}.`;
+        ? "SumÃ¡ una unidad mÃ¡s para llegar al envÃ­o gratis y tener la semana resuelta."
+        : `El pedido todavÃ­a no alcanza el envÃ­o gratis. EnvÃ­o gratis desde: ${formatArs(settings.freeShippingThreshold)}.`;
 
   const shippingNudge = shippingQuote.freeShippingReached
-    ? "Ya tenés envío gratis."
+    ? "Ya tenÃ©s envÃ­o gratis."
     : shippingQuote.shippingDiscountReached
-      ? `Tenés ${shippingQuote.shippingDiscountPercentage}% off en el envío. Si llegás a ${formatArs(settings.freeShippingThreshold)}, el envío es gratis.`
+      ? `TenÃ©s ${shippingQuote.shippingDiscountPercentage}% off en el envÃ­o. Si llegÃ¡s a ${formatArs(settings.freeShippingThreshold)}, el envÃ­o es gratis.`
       : amountToShippingDiscount > 0 && shippingQuote.shippingDiscountPercentage > 0
-        ? `Sumá un producto más y activá ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
+        ? `SumÃ¡ un producto mÃ¡s y activÃ¡ ${shippingQuote.shippingDiscountPercentage}% off en el envÃ­o.`
         : freeShippingNudge;
 
   async function captureCartRecovery(emailToCapture: string, options: { silent?: boolean } = {}) {
@@ -198,6 +199,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
         body: JSON.stringify({
           email: trimmedEmail,
           province,
+          marketing: getBrowserMarketingContext() ?? undefined,
           items: detailedItems.map(({ cart }) => ({
             productId: cart.productId,
             quantity: cart.quantity,
@@ -230,7 +232,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setCaptureError("Ingresá un email válido para continuar con la compra.");
+      setCaptureError("IngresÃ¡ un email vÃ¡lido para continuar con la compra.");
       emailInputRef.current?.focus();
       return;
     }
@@ -261,7 +263,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     return (
       <EmptyState
         title="Estamos recuperando tu carrito"
-        description="En unos segundos vas a ver los productos que habías seleccionado."
+        description="En unos segundos vas a ver los productos que habÃ­as seleccionado."
         actionHref="/#productos"
         actionLabel="Ver productos"
       />
@@ -271,8 +273,8 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
   if (detailedItems.length === 0) {
     return (
       <EmptyState
-        title="Tu carrito está vacío"
-        description="Elegí una de nuestras barritas y avanzá con un checkout rápido por transferencia."
+        title="Tu carrito estÃ¡ vacÃ­o"
+        description="ElegÃ­ una de nuestras barritas y avanzÃ¡ con un checkout rÃ¡pido por transferencia."
         actionHref="/#productos"
         actionLabel="Ver productos"
       />
@@ -315,7 +317,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
                 <h2 className="text-[0.95rem] font-medium leading-[1.16] text-brand-ink md:text-lg md:font-extrabold md:leading-6">
                   {product.name}
                 </h2>
-                <p className="mt-1 text-xs font-extrabold leading-5 text-emerald-700 md:text-sm">✓ Seleccionado por nutricionistas · Sin sellos</p>
+                <p className="mt-1 text-xs font-extrabold leading-5 text-emerald-700 md:text-sm">âœ“ Seleccionado por nutricionistas Â· Sin sellos</p>
                 <p className="mt-2 text-[0.95rem] leading-none text-brand-ink md:mt-1 md:text-sm md:text-brand-ink/60">
                   {formatArs(product.priceArs * cart.quantity)}
                 </p>
@@ -450,7 +452,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
             <Link
               href="/#productos"
               className="inline-flex w-full items-center justify-center rounded-full border border-brand-pink/28 bg-white px-4 py-2.5 text-sm font-extrabold text-brand-pink transition hover:border-brand-pink hover:bg-brand-pink/6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/30"
-            >Ver más productos</Link>
+            >Ver mÃ¡s productos</Link>
         )}
       </div>
 
@@ -463,7 +465,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
               <span className="font-bold text-brand-ink">{formatArs(subtotal)}</span>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-bold text-brand-ink">Seleccionar provincia para el envío</label>
+              <label className="mb-2 block text-sm font-bold text-brand-ink">Seleccionar provincia para el envÃ­o</label>
               <Select value={province} onChange={(event) => setProvince(event.target.value)}>
                 {ARGENTINA_PROVINCES.map((item) => (
                   <option key={item.code} value={item.name}>
@@ -473,7 +475,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
               </Select>
             </div>
             <div className="flex items-center justify-between">
-              <span>Envío estimado</span>
+              <span>EnvÃ­o estimado</span>
               {shippingQuote.freeShippingReached ? (
                 <span className="font-bold text-emerald-700">Gratis</span>
               ) : shippingQuote.shippingDiscountReached ? (

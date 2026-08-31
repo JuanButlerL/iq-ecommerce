@@ -1,4 +1,5 @@
 import { OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
+import { MarketingEventType } from "@prisma/client";
 
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getCouponPreview } from "@/features/coupons/queries";
@@ -16,6 +17,7 @@ import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
 import { buildNextOrderNumber, buildOrderNumberPrefix } from "@/lib/utils/order-number";
 import { ensureMercadoPagoPreference } from "@/features/orders/services/mercado-pago-service";
+import { ensureMarketingSession, logMarketingEvent, logOrderConfirmedFromStoredAttribution } from "@/features/marketing/attribution-service";
 
 type CreatedCheckoutOrder = {
   id: string;
@@ -42,6 +44,8 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
       paymentMethod: existingOrder.paymentMethod,
     });
   }
+
+  const marketingSession = await ensureMarketingSession(input.marketing, input.email);
 
   const settings = await getStoreSettings();
 
@@ -165,6 +169,8 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
               input.paymentMethod === PaymentMethod.MERCADO_PAGO ? "waiting_checkout" : null,
             syncStatus: SyncStatus.PENDING,
             reservationExpiresAt,
+            marketingSessionId: marketingSession?.id ?? null,
+            marketingVisitorId: marketingSession?.visitorId ?? null,
           },
         });
 
@@ -251,6 +257,15 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   if (!createdOrder) {
     throw new AppError("No pudimos generar el numero de pedido.", 500, false);
   }
+
+  await logMarketingEvent({
+    marketingContext: input.marketing,
+    eventType: MarketingEventType.ORDER_CREATED,
+    email: input.email,
+    path: input.marketing?.pagePath ?? "/checkout",
+    orderId: createdOrder.id,
+    metadata: { paymentMethod: input.paymentMethod, subtotalArs, totalArs: pricing.totalArs, couponCode: coupon?.couponCode ?? null },
+  });
 
   await markCartRecoveryCheckoutStarted({
     id: createdOrder.id,
@@ -373,7 +388,7 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
       data: {
         orderId: order.id,
         status: OrderStatus.PROOF_UPLOADED,
-        note: `Comprobante subido por el cliente${transferSenderName ? ` · DNI: ${transferSenderName}` : ""}${details.transferReference ? ` · Ref: ${details.transferReference}` : ""}.`,
+        note: `Comprobante subido por el cliente${transferSenderName ? ` - DNI: ${transferSenderName}` : ""}${details.transferReference ? ` - Ref: ${details.transferReference}` : ""}.`,
         changedBy: "customer",
       },
     });
@@ -398,6 +413,8 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     publicOrderNumber: order.publicOrderNumber,
     customerEmail: order.customerEmail,
   });
+
+  await logOrderConfirmedFromStoredAttribution(order.id);
 
   await sendMetaConversionsApiEvent({
     eventName: "Purchase",
@@ -466,7 +483,11 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, no
       },
     });
   });
+  if (status === OrderStatus.PAID || status === OrderStatus.PROOF_UPLOADED) {
+    await logOrderConfirmedFromStoredAttribution(orderId);
+  }
 }
+
 
 async function buildCheckoutResponse(order: CreatedCheckoutOrder) {
   if (order.paymentMethod === PaymentMethod.MERCADO_PAGO) {

@@ -777,3 +777,131 @@ Impacto:
 Validacion local:
 
 - `npx tsc --noEmit`: OK
+
+### 2026-08-30 - Trazabilidad completa de marketing, recompra y panel admin de atribucion
+
+Pedido:
+
+- registrar como llega cada usuario desde su primera sesion hasta la compra
+- guardar categoria macro de origen, plataforma, campana y datos UTM o click ids cuando existan
+- conectar popup, captura temprana de email, carrito, checkout y compra confirmada dentro de una misma historia comercial
+- medir clientes con recompra y facturacion asociada
+- crear una seccion nueva en admin con lectura clara para marketing y exportacion a Excel con filtros base
+
+Implementacion:
+
+- se agrego un modelo nuevo de atribucion compuesto por `marketing_sessions` y `marketing_events`
+- `marketing_sessions` guarda primera entrada, referrer, UTM, click ids (`gclid`, `fbclid`, `ttclid`, `msclkid`), clasificacion de categoria/plataforma/canal y vinculacion opcional con email
+- `marketing_events` registra hitos operativos del funnel: `SESSION_STARTED`, `POPUP_CAPTURED`, `CART_CAPTURED`, `ORDER_CREATED` y `ORDER_CONFIRMED`
+- `orders` y `cart_recovery_leads` ahora referencian `marketingSessionId` y `marketingVisitorId` para no perder continuidad entre home, carrito y compra
+- se agrego un tracker cliente global que registra una sesion por browser-session y publica el contexto a `POST /api/marketing/session`
+- el popup de bienvenida, la captura de carrito y el checkout ahora mandan tambien el contexto de atribucion al backend
+- al crear pedido o confirmar pago, el backend persiste y completa la trazabilidad para poder medir conversion y recompra sin depender solo de herramientas externas
+- se agrego `/admin/marketing` con filtros por fecha, categoria, plataforma, busqueda libre y modo solo recompra
+- la nueva vista muestra resumen ejecutivo, rendimiento por origen, top de campanas, base accionable de contactos y ultimos pedidos filtrados
+- se agrego `/api/admin/export/marketing-attribution` para descargar la base filtrada en formato Excel compatible
+- la nueva seccion `marketing` quedo incorporada a permisos y navegacion del panel admin
+
+Archivos tocados:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/202608301015_add_marketing_attribution/migration.sql`
+- `src/lib/marketing/attribution.ts`
+- `src/lib/marketing/client.ts`
+- `src/features/marketing/attribution-service.ts`
+- `src/features/marketing/admin-analytics.ts`
+- `src/app/api/marketing/session/route.ts`
+- `src/components/analytics/marketing-session-tracker.tsx`
+- `src/components/layout/app-chrome.tsx`
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/features/marketing/welcome-popup.ts`
+- `src/app/api/cart-recovery/route.ts`
+- `src/features/cart/components/cart-page.tsx`
+- `src/lib/validations/checkout.ts`
+- `src/features/checkout/components/checkout-page.tsx`
+- `src/features/orders/services/order-service.ts`
+- `src/features/orders/services/mercado-pago-service.ts`
+- `src/lib/auth/admin-permissions.ts`
+- `src/app/admin/layout.tsx`
+- `src/app/admin/marketing/page.tsx`
+- `src/app/api/admin/export/marketing-attribution/route.ts`
+
+Impacto:
+
+- requiere deploy de app y migracion en DB
+- la migracion es aditiva: crea tablas, enums, indices y foreign keys nuevas, y agrega columnas nuevas en `orders` y `cart_recovery_leads`
+- no elimina tablas, no elimina columnas y no reescribe registros existentes
+- igual debe tratarse como cambio con riesgo de DB y seguir backup previo obligatorio antes de `prisma migrate deploy`
+- no cambia la logica base de confirmacion de pagos de Mercado Pago ni de transferencia, pero si amplia la informacion persistida alrededor del funnel
+
+Validacion local:
+
+- `npx prisma validate`: OK
+- `npx prisma generate`: OK
+- `npx tsc --noEmit`: OK
+- `npm run build`: OK
+
+Comandos seguros recomendados para publicarlo:
+
+```bash
+cd /opt/iqkids/web
+git status --short
+docker compose ps
+git branch --show-current
+git fetch origin
+git log --oneline --decorate --max-count=8 HEAD origin/<rama>
+git diff --stat HEAD..origin/<rama>
+cp .env.production .env.production.backup-2026-08-30
+PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc > /root/iqkids-backup-2026-08-30-marketing.dump
+git pull origin <rama>
+docker compose build app
+docker compose run --rm app npx prisma migrate deploy
+docker compose up -d app
+docker compose ps
+docker compose logs --tail=150 app
+curl -fsS https://iqkids.com.ar/admin/marketing >/dev/null
+```
+
+## 2026-08-31 - Iteracion extra de atribucion multi-touch y export operativa
+
+Objetivo:
+
+- ir mas alla del pedido base de marketing sobre UTM persistente y dejar trazabilidad comercial mas rica para lectura en admin y export de pedidos
+- conservar el historial previo a la captura de email para no perder la primera visita anonima cuando el lead se identifica despues
+- dar a marketing una lectura util de primer touch, ultimo touch, asistencias y secuencia de impactos sin cambiar la logica comercial ni de checkout
+
+Implementacion:
+
+- se tomo como referencia el enfoque de persistencia first seen / last seen del archivo `UTM PERSIST SNIPPET.docx`, pero se adapto al modelo actual con sesiones y eventos propios
+- `ensureMarketingSession` ahora retrovincula al email todas las sesiones anonimas previas del mismo `marketingVisitorId`, preservando la historia completa desde la primera entrada
+- el armado de analitica en `admin-analytics` ahora calcula por contacto y por pedido:
+  - primer touch y ultimo touch
+  - primer touch pago y ultimo touch pago
+  - campanas, plataformas y origenes asistidos
+  - cantidad de touchpoints y resumen del journey
+- el export de pedidos suma columnas de trazabilidad comercial para cruce externo:
+  - ultimo origen y ultima UTM
+  - primer touch y ultimo touch
+  - primer y ultimo touch pago
+  - campanas/plataformas/origenes asistidos
+  - touchpoints, primer ingreso, ultimo ingreso y journey completo
+- la vista `/admin/marketing` ahora expone mejor esta lectura para el equipo de marketing sin depender solo del Excel
+- `ordersInclude` y `getOrderDetail` quedaron alineados para soportar estos datos sin romper el admin de pedidos
+
+Archivos ajustados en esta iteracion:
+
+- `src/features/marketing/attribution-service.ts`
+- `src/features/marketing/admin-analytics.ts`
+- `src/app/api/admin/export/orders/route.ts`
+- `src/features/orders/queries.ts`
+- `src/app/admin/marketing/page.tsx`
+
+Validacion local:
+
+- `npx tsc --noEmit`: OK
+- `npm run build`: OK
+
+Notas operativas:
+
+- el modelo sigue siendo aditivo y no elimina informacion existente
+- el valor extra de esta iteracion es que una compra ya no queda atribuida solo a la ultima visita identificada, sino que puede reconstruirse la cadena de impactos anterior si el usuario navego anonimo antes de dejar su email

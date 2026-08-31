@@ -20,6 +20,7 @@ import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { markCartRecoveryConverted } from "@/features/cart-recovery/services";
+import { logOrderConfirmedFromStoredAttribution } from "@/features/marketing/attribution-service";
 
 type MercadoPagoOrderRecord = Prisma.OrderGetPayload<{
   include: {
@@ -397,6 +398,8 @@ async function upsertMercadoPagoPayment(
       customerEmail: order.customerEmail,
     });
 
+    await logOrderConfirmedFromStoredAttribution(order.id);
+
     await sendMetaConversionsApiEvent({
       eventName: "Purchase",
       eventId: buildMetaPurchaseEventId(order.publicOrderNumber),
@@ -526,7 +529,7 @@ function buildOrderDescription(order: { items: Array<{ productNameSnapshot: stri
   return order.items
     .slice(0, 3)
     .map((item) => `${item.productNameSnapshot} x${item.quantity}`)
-    .join(" · ");
+    .join(" - ");
 }
 
 function resolveInitPoint(initPoint: string, sandboxInitPoint?: string | null) {

@@ -1,5 +1,5 @@
 ﻿import { randomUUID } from "crypto";
-import { EmailAutomationTrigger, EmailSendStatus, OrderStatus, PaymentStatus, Prisma, type CouponDiscountType } from "@prisma/client";
+import { EmailAutomationTrigger, EmailSendStatus, MarketingEventType, OrderStatus, PaymentStatus, Prisma, type CouponDiscountType } from "@prisma/client";
 import { z } from "zod";
 
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
@@ -10,9 +10,11 @@ import {
   WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID,
   WELCOME_POPUP_IMMEDIATE_AUTOMATION_NAME,
 } from "@/features/email/system-automations";
+import { ensureMarketingSession, logMarketingEvent } from "@/features/marketing/attribution-service";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors/app-error";
+import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
 import { welcomePopupCopy } from "@/lib/marketing/welcome-popup-copy";
 
 const WELCOME_POPUP_LEAD_WINDOW_DAYS = 30;
@@ -20,6 +22,7 @@ const POPUP_CTA_URL = `${env.NEXT_PUBLIC_SITE_URL}/#productos`;
 
 const welcomePopupSchema = z.object({
   email: z.string().trim().email().max(180),
+  marketing: marketingSessionContextSchema.optional(),
 });
 
 const confirmedCouponPaymentStatuses = [PaymentStatus.PAID, PaymentStatus.PROOF_UPLOADED];
@@ -108,6 +111,7 @@ export async function captureWelcomePopupLead(payload: unknown, userAgent?: stri
   }
 
   const email = parsed.data.email.toLowerCase();
+  const marketingSession = await ensureMarketingSession(parsed.data.marketing, email);
   const latestLead = await prisma.cartRecoveryLead.findFirst({
     where: {
       email,
@@ -131,6 +135,8 @@ export async function captureWelcomePopupLead(payload: unknown, userAgent?: stri
         subtotalArs: 0,
         status: "WELCOME_CAPTURED",
         userAgent: userAgent ?? null,
+        marketingSessionId: marketingSession?.id ?? null,
+        marketingVisitorId: marketingSession?.visitorId ?? null,
       },
       select: {
         id: true,
@@ -143,6 +149,8 @@ export async function captureWelcomePopupLead(payload: unknown, userAgent?: stri
       where: { id: latestLead.id },
       data: {
         userAgent: userAgent ?? latestLead.userAgent,
+        marketingSessionId: marketingSession?.id ?? latestLead.marketingSessionId ?? null,
+        marketingVisitorId: marketingSession?.visitorId ?? latestLead.marketingVisitorId ?? null,
       },
       select: {
         id: true,
@@ -155,6 +163,17 @@ export async function captureWelcomePopupLead(payload: unknown, userAgent?: stri
   if (!leadId) {
     throw new AppError("No pudimos registrar el email para seguimiento.", 500);
   }
+
+  await logMarketingEvent({
+    marketingContext: parsed.data.marketing,
+    eventType: MarketingEventType.POPUP_CAPTURED,
+    email,
+    path: parsed.data.marketing?.pagePath ?? "/",
+    cartRecoveryLeadId: leadId,
+    metadata: {
+      couponCode: config.coupon.code,
+    },
+  });
 
   const hasConfirmedOrder = await prisma.order.findFirst({
     where: {

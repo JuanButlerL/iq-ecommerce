@@ -1,10 +1,11 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
+import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
 
 const nameRegex = /^[\p{L}' -]+$/u;
 const localityRegex = /^[\p{L}0-9'.,()\/ -]+$/u;
-const addressRegex = /^[\p{L}0-9'.,()/#° -]+$/u;
+const addressRegex = /^[\p{L}0-9'.,()/#Â° -]+$/u;
 const taxIdRegex = /^\d{7,11}$/;
 
 function normalizeWhitespace(value: string) {
@@ -131,6 +132,7 @@ export const checkoutSchema = z.object({
     .pipe(z.string().max(500, "Las observaciones no pueden superar los 500 caracteres."))
     .optional()
     .or(z.literal("")),
+  marketing: marketingSessionContextSchema.optional(),
   items: z.array(checkoutItemSchema).min(1),
 });
 

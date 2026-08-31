@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
+import { MarketingSessionTracker } from "@/components/analytics/marketing-session-tracker";
 import { FloatingWhatsapp } from "@/components/layout/floating-whatsapp";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -39,6 +40,7 @@ export function AppChrome({
 
   return (
     <>
+      <MarketingSessionTracker />
       <TabTitleNudge />
       <WelcomePopup />
       {hideHeader ? null : (

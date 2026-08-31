@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { ArrowRight, Check, Copy, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { getBrowserMarketingContext } from "@/lib/marketing/client";
 import {
   WELCOME_POPUP_DELAY_MS,
   WELCOME_POPUP_EMAIL_STORAGE_KEY,
@@ -164,7 +165,7 @@ export function WelcomePopup() {
       const response = await fetch("/api/welcome-popup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail }),
+        body: JSON.stringify({ email: normalizedEmail, marketing: getBrowserMarketingContext() ?? undefined }),
       });
       const payload = (await response.json()) as { data?: PopupCaptureResponse; error?: string };
 
