@@ -62,7 +62,7 @@ Principio operativo mas importante:
 
 ### Front publico
 
-- Home custom rediseÃ±ada
+- Home custom rediseÃƒÆ’Ã‚Â±ada
 - Catalogo de productos
 - Detalle de producto
 - Carrito persistido en `localStorage` con Zustand
@@ -267,7 +267,7 @@ Decision UX posterior del 20 de agosto de 2026:
 - el unico boton visible restante pertenece al propio embed de Google y no es controlable desde el codigo del sitio
 - la accion sugerida al usuario cuando el pin cae mal es modificar la direccion o dejar una aclaracion breve en observaciones
 - la direccion interpretada paso a mostrarse en formato mas compacto para no contaminar visualmente el checkout
-- se normalizaron tildes y textos del checkout para mantener un espaÃ±ol correcto y consistente en Argentina
+- se normalizaron tildes y textos del checkout para mantener un espaÃƒÆ’Ã‚Â±ol correcto y consistente en Argentina
 
 Archivos tocados:
 
@@ -310,13 +310,13 @@ Chequeos sugeridos:
 
 Pedido:
 
-- mostrar mensajes cortos en la pestaÃ±a del navegador cuando el usuario deja la web en segundo plano
+- mostrar mensajes cortos en la pestaÃƒÆ’Ã‚Â±a del navegador cuando el usuario deja la web en segundo plano
 - variar el mensaje segun donde quedo el usuario, por ejemplo home, productos, carrito y checkout
 - dejar los textos faciles de editar desde codigo
 
 Implementacion:
 
-- se agrego un componente global cliente que escucha `document.visibilityState` y rota mensajes en la pestaÃ±a mientras la web queda en background
+- se agrego un componente global cliente que escucha `document.visibilityState` y rota mensajes en la pestaÃƒÆ’Ã‚Â±a mientras la web queda en background
 - los mensajes se resuelven segun la ruta actual y tambien contemplan el estado del carrito para empujar mejor el regreso
 - la configuracion editable de los copies quedo centralizada en un unico archivo para poder ajustar textos sin tocar la logica
 - se excluyo el panel admin para no meter este comportamiento en la operacion interna
@@ -353,16 +353,16 @@ Abrir:
 
 Chequeos sugeridos:
 
-- entrar a home y cambiar de pestaÃ±a para confirmar rotacion de mensajes
+- entrar a home y cambiar de pestaÃƒÆ’Ã‚Â±a para confirmar rotacion de mensajes
 - repetir prueba en productos, carrito y checkout
 - probar carrito vacio y carrito con productos para validar copy dinamico
-- volver a la pestaÃ±a y confirmar que el titulo original se restaura
+- volver a la pestaÃƒÆ’Ã‚Â±a y confirmar que el titulo original se restaura
 
 Decision UX posterior del 20 de agosto de 2026:
 
 - se elimino la ruta publica `\/politicas` porque no formaba parte de la navegacion real ni del flujo comercial
 - se limpiaron referencias documentales y tecnicas a esa seccion para no dejar superficie muerta publicada
-- para mobile se agrego un chip sutil de reenganche que aparece al volver a la pestaÃ±a despues de varios segundos fuera
+- para mobile se agrego un chip sutil de reenganche que aparece al volver a la pestaÃƒÆ’Ã‚Â±a despues de varios segundos fuera
 - ese chip muestra un mensaje corto segun la etapa del usuario y un CTA `Seguir` que lo devuelve suavemente al contenido principal
 - ese comportamiento mobile se limito solo a `carrito`, `checkout` y `checkout/transfer` para no meter recordatorios decorativos en paginas de baja intencion
 
@@ -374,11 +374,11 @@ Archivos adicionales tocados en esta iteracion:
 Nota posterior de cierre del 20 de agosto de 2026:
 
 - luego de probarlo en produccion, se retiro el nudge mobile de reenganche porque no resulto confiable al volver desde Safari
-- el comportamiento definitivo quedo solo para desktop mediante cambio dinamico del titulo de la pestaÃ±a
-- en checkout tambien se ajusto el copy principal del formulario a: `CargÃ¡ tus datos, elegÃ­ el medio de pago y generamos tu pedido.`
+- el comportamiento definitivo quedo solo para desktop mediante cambio dinamico del titulo de la pestaÃƒÆ’Ã‚Â±a
+- en checkout tambien se ajusto el copy principal del formulario a: `CargÃƒÆ’Ã‚Â¡ tus datos, elegÃƒÆ’Ã‚Â­ el medio de pago y generamos tu pedido.`
 - para Safari/iPhone se corrigio el icono del sitio para que use el logo real de IQ Kids en lugar del viejo `iQ` simplificado
 - se declararon iconos explicitos en `metadata` para favicon y Apple touch icon, usando assets de `public/brand`
-- hotfix posterior de desktop: se reforzo la restauracion del titulo con `visibilitychange`, `focus` y `pageshow`, mas una reaplicacion corta del `document.title` para evitar pestaÃ±as que quedaban mostrando `VolvÃ©`
+- hotfix posterior de desktop: se reforzo la restauracion del titulo con `visibilitychange`, `focus` y `pageshow`, mas una reaplicacion corta del `document.title` para evitar pestaÃƒÆ’Ã‚Â±as que quedaban mostrando `VolvÃƒÆ’Ã‚Â©`
 
 Nota posterior de cierre del 20 de agosto de 2026 - Ajustes finales pre prod:
 
@@ -426,16 +426,16 @@ docker compose ps
 git branch --show-current
 git rev-parse HEAD
 git fetch origin
-git log --oneline --decorate --max-count=8 HEAD origin/feature/resideÃ±o-front
-git diff --stat HEAD..origin/feature/resideÃ±o-front
-git diff HEAD..origin/feature/resideÃ±o-front -- src/app/layout.tsx
+git log --oneline --decorate --max-count=8 HEAD origin/feature/resideÃƒÆ’Ã‚Â±o-front
+git diff --stat HEAD..origin/feature/resideÃƒÆ’Ã‚Â±o-front
+git diff HEAD..origin/feature/resideÃƒÆ’Ã‚Â±o-front -- src/app/layout.tsx
 ```
 
 Comandos seguros recomendados para publicar este tipo de cambio:
 
 ```bash
 cd /opt/iqkids/web
-git pull origin feature/resideÃ±o-front
+git pull origin feature/resideÃƒÆ’Ã‚Â±o-front
 docker compose build app
 docker compose up -d app
 docker compose ps
@@ -461,27 +461,27 @@ Cuando se arranque una conversacion nueva y se vaya a trabajar sobre este proyec
 5. despues de cada ajuste relevante, agregar una nueva entrada al historial de este documento
 
 
-- se revirtio el favicon desktop para usar `public/brand/iq-kids-favicon.svg`, que rendia mejor en tamaÃ±o de pestaÃ±a
+- se revirtio el favicon desktop para usar `public/brand/iq-kids-favicon.svg`, que rendia mejor en tamaÃƒÆ’Ã‚Â±o de pestaÃƒÆ’Ã‚Â±a
 - se neutralizo temporalmente el favicon para evitar inconsistencias visuales y de cache entre navegadores
 
-### 2026-08-28 - Popup de bienvenida en home con captura temprana de email y cupón editable desde admin
+### 2026-08-28 - Popup de bienvenida en home con captura temprana de email y cupÃƒÂ³n editable desde admin
 
 Pedido:
 
 - adelantar la captura del email al primer ingreso al home
 - mostrar un popup de bienvenida solo la primera vez y volver a habilitarlo a los 30 dias
 - reutilizar el HTML base `docs/IQ_Kids_Popup_2.html` respetando desktop, mobile, colores y success state
-- mostrar el cupón al enviar el email y disparar tambien un email con ese beneficio
-- permitir que marketing gestione el cupón desde `/admin/cupones`
+- mostrar el cupÃƒÂ³n al enviar el email y disparar tambien un email con ese beneficio
+- permitir que marketing gestione el cupÃƒÂ³n desde `/admin/cupones`
 - no abrir una migracion nueva si podia resolverse reutilizando la estructura operativa actual
 
 Implementacion:
 
 - se agrego un popup global montado desde `AppChrome` pero visible solo en `/`
 - el popup espera 800 ms antes de abrir, se cierra por overlay o `Escape` y se vuelve a mostrar recien despues de 30 dias usando `localStorage`
-- el cupón del popup ahora se marca desde `/admin/cupones` con una opcion explicita `Usar este cupón en el popup de bienvenida`
-- internamente esa marca reutiliza `description` del cupón con un marcador tecnico controlado para evitar una migracion nueva
-- el backend garantiza que solo exista un cupón activo marcado para el popup a la vez
+- el cupÃƒÂ³n del popup ahora se marca desde `/admin/cupones` con una opcion explicita `Usar este cupÃƒÂ³n en el popup de bienvenida`
+- internamente esa marca reutiliza `description` del cupÃƒÂ³n con un marcador tecnico controlado para evitar una migracion nueva
+- el backend garantiza que solo exista un cupÃƒÂ³n activo marcado para el popup a la vez
 - se agrego `GET/POST /api/welcome-popup` para resolver configuracion del popup y capturar el email apenas entra el usuario
 - esa captura temprana crea o reaprovecha registros en `cart_recovery_leads` usando el estado operativo `WELCOME_CAPTURED`, sin tocar schema
 - cuando mas tarde ese mismo email deja carrito, la API de recuperacion reutiliza el lead temprano y lo lleva al ciclo existente `CAPTURED -> CHECKOUT_STARTED -> CONVERTED`
@@ -522,7 +522,7 @@ Validacion local:
 Como probar localmente:
 
 1. entrar a `/admin/cupones`
-2. crear o editar un cupón activo y marcar `Usar este cupón en el popup de bienvenida`
+2. crear o editar un cupÃƒÂ³n activo y marcar `Usar este cupÃƒÂ³n en el popup de bienvenida`
 3. abrir `http://localhost:3000/` en modo incognito o limpiando `localStorage`
 4. confirmar que el popup aparece luego de ~800 ms y que respeta desktop o mobile segun viewport
 5. cerrar el popup y verificar que no reaparece dentro de los siguientes 30 dias en ese navegador
@@ -536,7 +536,7 @@ Pedido:
 
 - ocultar el codigo de cupon hasta que la persona deje su email
 - corregir proporcion del popup en desktop para que no quede tan angosto y alto
-- sumar el saludo visual en el titulo `Bienvenida a IQ Kids 👋`
+- sumar el saludo visual en el titulo `Bienvenida a IQ Kids Ã°Å¸â€˜â€¹`
 - rehacer la composicion mobile para que respete mejor la maqueta de `docs/IQ_Kids_Popup_2.html`, con menos altura visual y copy mas liviano
 
 Implementacion:
@@ -572,7 +572,7 @@ Implementacion:
 
 - el badge visual del popup paso a mostrar `OFF` tanto en desktop como en mobile
 - en mobile se recupero el claim corto del bloque rosa y el cuerpo reducido de una sola idea principal antes del input
-- el estado exito ahora usa el texto `Te mandamos el código a tu email. Usalo en tu primera caja IQ Kids:` y la leyenda `Válido para tu primera caja · Sin mínimo de compra`
+- el estado exito ahora usa el texto `Te mandamos el cÃƒÂ³digo a tu email. Usalo en tu primera caja IQ Kids:` y la leyenda `VÃƒÂ¡lido para tu primera caja Ã‚Â· Sin mÃƒÂ­nimo de compra`
 - el cierre inferior se centro y se estilizo como accion liviana en lugar de texto suelto
 
 Archivos tocados:
@@ -682,19 +682,19 @@ Validacion local:
 
 - `npx tsc --noEmit`: OK
 
-### 2026-08-28 - Rediseño visual del popup de bienvenida según IQ_Kids_Popup_4.html
+### 2026-08-28 - RediseÃƒÂ±o visual del popup de bienvenida segÃƒÂºn IQ_Kids_Popup_4.html
 
 Pedido:
 
-- reemplazar el diseño visual del popup por la nueva maqueta `docs/IQ_Kids_Popup_4.html`
-- mantener sin cambios la lógica existente de apertura, captura, localStorage, API, success state y email
+- reemplazar el diseÃƒÂ±o visual del popup por la nueva maqueta `docs/IQ_Kids_Popup_4.html`
+- mantener sin cambios la lÃƒÂ³gica existente de apertura, captura, localStorage, API, success state y email
 
 Implementacion:
 
-- se rehizo la composición visual completa del popup para replicar la nueva maqueta en desktop, mobile y estado de éxito
-- el popup volvió a una versión más compacta, centrada y sin columna lateral decorativa
-- se alinearon tipografías, espaciados, divider, CTA principal, CTA de cierre y success state con la referencia nueva
-- no se tocó la lógica de trigger, submit, persistencia a 30 días, ni el reemplazo interno del contenido al entrar en éxito
+- se rehizo la composiciÃƒÂ³n visual completa del popup para replicar la nueva maqueta en desktop, mobile y estado de ÃƒÂ©xito
+- el popup volviÃƒÂ³ a una versiÃƒÂ³n mÃƒÂ¡s compacta, centrada y sin columna lateral decorativa
+- se alinearon tipografÃƒÂ­as, espaciados, divider, CTA principal, CTA de cierre y success state con la referencia nueva
+- no se tocÃƒÂ³ la lÃƒÂ³gica de trigger, submit, persistencia a 30 dÃƒÂ­as, ni el reemplazo interno del contenido al entrar en ÃƒÂ©xito
 
 Archivos tocados:
 
@@ -707,26 +707,26 @@ Impacto:
 - cambio solo de frontend y copy visual
 - sin cambios de schema
 - sin impacto adicional de DB
-- requiere redeploy de app para producción
+- requiere redeploy de app para producciÃƒÂ³n
 
-Validación local:
+ValidaciÃƒÂ³n local:
 
 - `npx tsc --noEmit`: OK
 
-### 2026-08-28 - Agrupación operativa del listado de cupones para cargas masivas
+### 2026-08-28 - AgrupaciÃƒÂ³n operativa del listado de cupones para cargas masivas
 
 Pedido:
 
-- resolver que el listado de cupones en admin no quede eterno e inmanejable después de cargas masivas
-- mejorar revisión y edición sin cambiar la lógica de cupones ni de carga masiva
+- resolver que el listado de cupones en admin no quede eterno e inmanejable despuÃƒÂ©s de cargas masivas
+- mejorar revisiÃƒÂ³n y ediciÃƒÂ³n sin cambiar la lÃƒÂ³gica de cupones ni de carga masiva
 
-Implementación:
+ImplementaciÃƒÂ³n:
 
-- el listado de `/admin/cupones` ahora agrupa cupones por descripción interna + beneficio + tipo de uso + estado, que es la forma operativa más útil para campañas masivas
-- cada grupo muestra cantidad de cupones, usos confirmados, preview de códigos y estado del grupo
-- se agregó búsqueda por código, descripción o beneficio para encontrar campañas o cupones puntuales rápido
-- la edición y eliminación individual siguen disponibles dentro de cada grupo expandido
-- no se tocó la lógica de creación, validación, usos, popup de bienvenida ni carga masiva de cupones
+- el listado de `/admin/cupones` ahora agrupa cupones por descripciÃƒÂ³n interna + beneficio + tipo de uso + estado, que es la forma operativa mÃƒÂ¡s ÃƒÂºtil para campaÃƒÂ±as masivas
+- cada grupo muestra cantidad de cupones, usos confirmados, preview de cÃƒÂ³digos y estado del grupo
+- se agregÃƒÂ³ bÃƒÂºsqueda por cÃƒÂ³digo, descripciÃƒÂ³n o beneficio para encontrar campaÃƒÂ±as o cupones puntuales rÃƒÂ¡pido
+- la ediciÃƒÂ³n y eliminaciÃƒÂ³n individual siguen disponibles dentro de cada grupo expandido
+- no se tocÃƒÂ³ la lÃƒÂ³gica de creaciÃƒÂ³n, validaciÃƒÂ³n, usos, popup de bienvenida ni carga masiva de cupones
 
 Archivos tocados:
 
@@ -738,9 +738,9 @@ Impacto:
 - cambio solo de UX admin
 - sin cambios de schema
 - sin impacto adicional de DB
-- requiere redeploy de app para producción
+- requiere redeploy de app para producciÃƒÂ³n
 
-Validación local:
+ValidaciÃƒÂ³n local:
 
 - `npx tsc --noEmit`: OK
 
@@ -905,3 +905,40 @@ Notas operativas:
 
 - el modelo sigue siendo aditivo y no elimina informacion existente
 - el valor extra de esta iteracion es que una compra ya no queda atribuida solo a la ultima visita identificada, sino que puede reconstruirse la cadena de impactos anterior si el usuario navego anonimo antes de dejar su email
+
+## 2026-08-31 - Documento operativo para equipo de marketing sobre atribucion
+
+Pedido:
+
+- dejar una documentacion breve, clara y compartible con el equipo sobre como funciona la capa de marketing y trazabilidad
+
+Implementacion:
+
+- se agrego `docs/marketing-atribucion.md`
+- el documento explica que se guarda, como se clasifica el origen, como se conectan sesiones anonimas con email, como se interpretan first touch, last touch, assisted campaigns, journey y recompra
+- tambien aclara que puede leer el equipo desde `/admin/marketing` y desde los exports
+
+Impacto:
+
+- cambio solo documental
+- sin cambios de schema
+- sin impacto de DB
+- sin deploy obligatorio
+## 2026-08-31 - Bandera explicita de captura en home para export de marketing
+
+Pedido:
+
+- que el Excel de marketing distinga claramente quienes pasaron por el estado de email captado en home, mas alla de si despues compraron o no
+
+Implementacion:
+
+- el export de `/api/admin/export/marketing-attribution` ahora suma la columna `Captado en home` con valor `SI/NO`
+- tambien suma una columna `Estado de captura` para lectura rapida con estados como `HOME > COMPRA`, `HOME > SIN COMPRA`, `CARRITO > COMPRA`, `CARRITO > SIN COMPRA`, `COMPRA SIN CAPTURA` o `SIN CAPTURA`
+- no cambia la logica de atribucion ni de persistencia, solo mejora la lectura operativa para marketing en Excel
+
+Impacto:
+
+- cambio de backend admin y export
+- sin cambios de schema
+- sin impacto de DB
+- requiere redeploy de app si se quiere llevar a produccion

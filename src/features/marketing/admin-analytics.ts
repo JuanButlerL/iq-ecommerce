@@ -1,4 +1,4 @@
-﻿import { MarketingEventType, MarketingSourceCategory, MarketingSourcePlatform, OrderStatus, PaymentStatus } from "@prisma/client";
+import { MarketingEventType, MarketingSourceCategory, MarketingSourcePlatform, OrderStatus, PaymentStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { parseArgentinaDateParam } from "@/lib/utils/datetime";
@@ -384,6 +384,8 @@ export function buildMarketingExportRows(data: MarketingDashboardData) {
     assistedCampaigns: contact.assistedCampaigns.join(" | "),
     touchpoints: contact.touchpoints,
     journeySummary: contact.journeySummary,
+    popupCapturedHome: contact.popupCapturedAt ? "SI" : "NO",
+    leadStage: contact.popupCapturedAt ? (contact.confirmedOrders > 0 ? "HOME > COMPRA" : "HOME > SIN COMPRA") : (contact.cartCapturedAt ? (contact.confirmedOrders > 0 ? "CARRITO > COMPRA" : "CARRITO > SIN COMPRA") : (contact.confirmedOrders > 0 ? "COMPRA SIN CAPTURA" : "SIN CAPTURA")),
     popupCapturedAt: contact.popupCapturedAt,
     cartCapturedAt: contact.cartCapturedAt,
     firstOrderAt: contact.firstOrderAt,
