@@ -147,6 +147,8 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             locality: input.locality,
             postalCode: input.postalCode,
             addressLine: input.addressLine,
+            addressNumber: input.addressWithoutNumber ? null : input.addressNumber || null,
+            addressWithoutNumber: input.addressWithoutNumber,
             addressExtra: input.addressExtra || null,
             notes: input.notes || null,
             couponId: coupon?.couponId,

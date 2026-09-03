@@ -520,6 +520,8 @@ model Order {
   locality              String
   postalCode            String               @map("postal_code")
   addressLine           String               @map("address_line")
+  addressNumber         String?              @map("address_number")
+  addressWithoutNumber  Boolean?             @map("address_without_number")
   addressExtra          String?              @map("address_extra")
   notes                 String?
   couponId              String?              @map("coupon_id") @db.Uuid

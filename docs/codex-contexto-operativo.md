@@ -239,6 +239,46 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-09-03 - Direccion separada en calle y altura para logistica
+
+Pedido:
+
+- separar la direccion de checkout en calle y altura para una integracion logistica
+- permitir calles sin altura solo mediante una confirmacion explicita
+- preservar pedidos e integraciones existentes
+
+Implementacion:
+
+- `orders.address_line` conserva la calle; no se renombro ni se modificaron registros existentes
+- se agregaron las columnas nullable `address_number` y `address_without_number`; los pedidos historicos quedan intactos y sin datos inventados
+- checkout valida calle y altura por separado; altura es obligatoria salvo que se marque "La calle no tiene altura"
+- al marcar una calle sin altura, el campo se oculta, la calle ocupa la fila completa y el control usa el lenguaje visual del checkout
+- el formulario se ordeno en bloques de datos personales y entrega, con una grilla responsiva y sin ocultar campos obligatorios
+- en desktop, la grilla se ajusto a tres columnas para eliminar celdas vacias y compactar la altura del checkout; mobile conserva una columna
+- los errores de validacion se agrupan en un resumen compacto por bloque, mientras el campo afectado se marca en rojo sin alterar la altura de la grilla
+- cada campo reserva una linea para un mensaje breve y accionable en español argentino; el resumen solo indica revisar los campos rojos
+- el mapa usa la calle y altura separadas, o `s/n` cuando corresponde
+- sync mantiene `direccion` combinado por compatibilidad y suma `calle`, `altura` y `sin_altura` para consumidores nuevos
+- export y detalle admin muestran los campos separados
+
+Archivos tocados:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/202609030900_add_order_address_number/migration.sql`
+- `src/lib/validations/checkout.ts`
+- `src/features/checkout/components/checkout-page.tsx`
+- `src/features/orders/services/order-service.ts`
+- `src/features/orders/services/sync-service.ts`
+- `src/lib/integrations/sheets/types.ts`
+- `src/app/api/admin/export/orders/route.ts`
+- `src/app/admin/pedidos/[id]/page.tsx`
+
+Impacto:
+
+- requiere deploy en DigitalOcean con migracion aditiva
+- riesgo de DB controlado: no hay borrados, renombres ni backfill de pedidos existentes
+- antes del deploy: backup PostgreSQL, build de la nueva imagen y `prisma migrate deploy` segun `docs/deploy-produccion-digitalocean.md`
+
 ### 2026-08-20 - Validacion avanzada de direccion y vista previa del destino en checkout
 
 Pedido:
