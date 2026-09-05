@@ -6,6 +6,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
   NEXT_PUBLIC_GTM_ID: z.string().regex(/^GTM-[A-Z0-9]+$/).optional().or(z.literal("")),
   NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
+  GA_MEASUREMENT_PROTOCOL_API_SECRET: z.string().min(8).optional().or(z.literal("")),
   NEXT_PUBLIC_MICROSOFT_CLARITY_ID: z.string().optional(),
   NEXT_PUBLIC_FB_PIXEL_ID: z.string().optional(),
   META_CONVERSIONS_API_ACCESS_TOKEN: z.string().optional(),
@@ -54,6 +55,7 @@ const parsedEnv = envSchema.parse({
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_GTM_ID: process.env.NEXT_PUBLIC_GTM_ID,
   NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+  GA_MEASUREMENT_PROTOCOL_API_SECRET: process.env.GA_MEASUREMENT_PROTOCOL_API_SECRET,
   NEXT_PUBLIC_MICROSOFT_CLARITY_ID: process.env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID,
   NEXT_PUBLIC_FB_PIXEL_ID: process.env.NEXT_PUBLIC_FB_PIXEL_ID,
   META_CONVERSIONS_API_ACCESS_TOKEN: process.env.META_CONVERSIONS_API_ACCESS_TOKEN,
@@ -171,6 +173,7 @@ export const env = {
       (parsedEnv.ADMIN_LOCAL_PASSWORD !== "Cambiame123!" &&
         parsedEnv.ADMIN_SESSION_SECRET !== "iqkids-local-admin-secret")),
   hasGoogleAnalytics: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID),
+  hasGoogleMeasurementProtocol: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID && parsedEnv.GA_MEASUREMENT_PROTOCOL_API_SECRET),
   hasGoogleTagManager: Boolean(parsedEnv.NEXT_PUBLIC_GTM_ID),
   hasMicrosoftClarity: Boolean(parsedEnv.NEXT_PUBLIC_MICROSOFT_CLARITY_ID),
   hasFacebookPixel: isRealFacebookPixelId(parsedEnv.NEXT_PUBLIC_FB_PIXEL_ID),

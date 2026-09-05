@@ -9,6 +9,7 @@ export const ADMIN_SECTIONS = [
   { id: "testimonials", label: "Testimonios", href: "/admin/testimonios" },
   { id: "shipping", label: "Envios", href: "/admin/envios" },
   { id: "orders", label: "Pedidos", href: "/admin/pedidos" },
+  { id: "marketing", label: "Marketing", href: "/admin/marketing" },
   { id: "emails", label: "Emails", href: "/admin/emails" },
   { id: "links", label: "Links", href: "/admin/links" },
   { id: "sync", label: "Sync", href: "/admin/sync" },

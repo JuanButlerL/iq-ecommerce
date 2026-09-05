@@ -39,6 +39,7 @@ export function renderMarketingEmail({
   bodyText,
   ctaLabel,
   ctaUrl,
+  openTrackingUrl,
   coupon,
 }: {
   subject: string;
@@ -46,6 +47,7 @@ export function renderMarketingEmail({
   bodyText: string;
   ctaLabel?: string | null;
   ctaUrl?: string | null;
+  openTrackingUrl?: string | null;
   coupon?: {
     code: string;
     discountType: "PERCENTAGE" | "FIXED_AMOUNT";
@@ -86,6 +88,9 @@ export function renderMarketingEmail({
   const hiddenPreview = safePreviewText
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">${safePreviewText}</div><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1px;font-size:1px;">&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>`
     : "";
+  const openTrackingPixel = openTrackingUrl
+    ? `<img src="${escapeHtml(openTrackingUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;outline:none;text-decoration:none;" />`
+    : "";
 
   return `<!doctype html>
 <html>
@@ -118,6 +123,7 @@ export function renderMarketingEmail({
         </td>
       </tr>
     </table>
+    ${openTrackingPixel}
   </body>
 </html>`;
 }

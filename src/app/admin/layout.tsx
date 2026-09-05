@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageSquareQuote, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageSquareQuote, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -7,15 +7,16 @@ import { getAdminSession } from "@/lib/auth/admin";
 import { env } from "@/lib/env";
 
 const navigation = [
-  { section: "dashboard", href: "/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+  { section: "dashboard", href: "/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, prefetch: false },
   { section: "products", href: "/admin/productos", label: "Productos", icon: <Package className="h-4 w-4" /> },
   { section: "home-products", href: "/admin/home-productos", label: "Home productos", icon: <LayoutTemplate className="h-4 w-4" /> },
   { section: "settings", href: "/admin/configuracion", label: "Configuracion", icon: <Settings className="h-4 w-4" /> },
   { section: "coupons", href: "/admin/cupones", label: "Cupones", icon: <BadgePercent className="h-4 w-4" /> },
   { section: "testimonials", href: "/admin/testimonios", label: "Testimonios", icon: <MessageSquareQuote className="h-4 w-4" /> },
   { section: "shipping", href: "/admin/envios", label: "Envios", icon: <Truck className="h-4 w-4" /> },
-  { section: "orders", href: "/admin/pedidos", label: "Pedidos", icon: <ShoppingBag className="h-4 w-4" /> },
-  { section: "emails", href: "/admin/emails", label: "Emails", icon: <Mail className="h-4 w-4" /> },
+  { section: "orders", href: "/admin/pedidos", label: "Pedidos", icon: <ShoppingBag className="h-4 w-4" />, prefetch: false },
+  { section: "marketing", href: "/admin/marketing", label: "Marketing", icon: <BarChart3 className="h-4 w-4" />, prefetch: false },
+  { section: "emails", href: "/admin/emails", label: "Emails", icon: <Mail className="h-4 w-4" />, prefetch: false },
   { section: "links", href: "/admin/links", label: "Links", icon: <Link2 className="h-4 w-4" /> },
   { section: "sync", href: "/admin/sync", label: "Sync", icon: <RefreshCcw className="h-4 w-4" /> },
   { section: "users", href: "/admin/usuarios", label: "Usuarios", icon: <Users className="h-4 w-4" /> },

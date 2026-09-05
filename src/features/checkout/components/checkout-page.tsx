@@ -27,6 +27,7 @@ import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
 import { event as trackMetaEvent } from "@/lib/pixel";
 import { checkoutCustomerSchema, type CheckoutCustomerInput } from "@/lib/validations/checkout";
 import { formatArs } from "@/lib/utils/currency";
+import { getBrowserMarketingContext } from "@/lib/marketing/client";
 
 type ProductWithImages = Product & { images: ProductImage[] };
 type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
@@ -40,6 +41,7 @@ type CheckoutPageProps = {
   mercadoPagoEnabled: boolean;
   initialProvince?: string;
   initialEmail?: string;
+  initialCartRecoveryFreeShippingToken?: string;
 };
 
 type CouponPreview = {
@@ -59,16 +61,23 @@ type FieldShellProps = {
   children: React.ReactNode;
 };
 
-const LEGACY_CHECKOUT_MESSAGE =
-  "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.";
+type ErrorSummaryProps = {
+  messages: Array<{ label: string; message?: string }>;
+  className?: string;
+};
+
+const REMOVED_CHECKOUT_MESSAGES = new Set([
+  "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.",
+  "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.",
+]);
 
 function normalizeCheckoutMessage(message: string | null | undefined) {
   if (!message) {
     return null;
   }
 
-  if (message === LEGACY_CHECKOUT_MESSAGE) {
-    return "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.";
+  if (REMOVED_CHECKOUT_MESSAGES.has(message)) {
+    return null;
   }
 
   return message;
@@ -86,19 +95,37 @@ function formatCheckoutProductLabel(label: string) {
 
 function FieldShell({ label, error, className, children }: FieldShellProps) {
   return (
-    <label className={`space-y-2 ${className ?? ""}`}>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/55">{label}</span>
-        {error ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600">
-            <AlertCircle className="h-3.5 w-3.5" />
-            Revisar
-          </span>
-        ) : null}
-      </div>
+    <label
+      className={`block space-y-2 ${
+        error ? "[&_input]:border-red-400 [&_input]:bg-red-50/30 [&_select]:border-red-400 [&_select]:bg-red-50/30" : ""
+      } ${className ?? ""}`}
+    >
+      <span className={`text-xs font-extrabold uppercase tracking-[0.16em] ${error ? "text-red-600" : "text-brand-ink/55"}`}>
+        {label}
+      </span>
       {children}
-      {error ? <p className="text-xs font-bold leading-5 text-red-600">{error}</p> : null}
+      <p className={`min-h-4 text-[11px] font-semibold leading-4 ${error ? "text-red-600" : "text-transparent"}`}>
+        {error}
+      </p>
     </label>
+  );
+}
+
+function ErrorSummary({ messages, className }: ErrorSummaryProps) {
+  const invalidMessages = messages.filter((entry): entry is { label: string; message: string } => Boolean(entry.message));
+
+  if (invalidMessages.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 ${className ?? ""}`}
+      role="alert"
+    >
+      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <p>Revisá los campos marcados en rojo.</p>
+    </div>
   );
 }
 
@@ -108,6 +135,7 @@ export function CheckoutPage({
   mercadoPagoEnabled,
   initialProvince: requestedProvince,
   initialEmail = "",
+  initialCartRecoveryFreeShippingToken,
 }: CheckoutPageProps) {
   const router = useRouter();
   const [checkoutRequestKey] = useState(() => crypto.randomUUID());
@@ -115,6 +143,7 @@ export function CheckoutPage({
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponPreview | null>(null);
+  const [recoveryFreeShippingActive, setRecoveryFreeShippingActive] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isApplyingCoupon, startApplyingCoupon] = useTransition();
   const hasTrackedCheckoutRef = useRef(false);
@@ -161,11 +190,14 @@ export function CheckoutPage({
       locality: "",
       postalCode: "",
       addressLine: "",
+      addressNumber: "",
+      addressWithoutNumber: false,
       addressExtra: "",
       couponCode: "",
       checkoutRequestKey,
       paymentMethod: "BANK_TRANSFER",
       notes: "",
+      newsletterOptIn: true,
     },
   });
 
@@ -173,17 +205,22 @@ export function CheckoutPage({
   const province = form.watch("province");
   const paymentMethod = form.watch("paymentMethod");
   const watchedAddressLine = form.watch("addressLine");
+  const watchedAddressNumber = form.watch("addressNumber");
+  const watchedAddressWithoutNumber = form.watch("addressWithoutNumber");
   const watchedAddressExtra = form.watch("addressExtra");
+  const watchedNewsletterOptIn = form.watch("newsletterOptIn");
+  const watchedEmail = form.watch("email");
   const watchedLocality = form.watch("locality");
   const watchedPostalCode = form.watch("postalCode");
   const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
+  const displayedShippingArs = recoveryFreeShippingActive ? 0 : shippingQuote.shippingArs;
   const couponDiscountArs = appliedCoupon?.discountArs ?? 0;
   const pricing = calculateCheckoutPricing({
     paymentMethod,
     subtotalArs: subtotal,
     couponDiscountArs,
-    shippingArs: shippingQuote.shippingArs,
+    shippingArs: displayedShippingArs,
     enableBankTransferDiscount: settings.enableBankTransferDiscount,
     bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
   });
@@ -192,15 +229,21 @@ export function CheckoutPage({
     ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
     : 0;
   const checkoutShippingNudge = shippingQuote.freeShippingReached
-    ? "Ya tenés envío gratis. Sumá otro sabor y deja más días de la semana resueltos."
+    ? "Ya tenés envío gratis. Sumá otro sabor y dejá más días de la semana resueltos."
     : shippingQuote.shippingDiscountReached
       ? `Tenés ${shippingQuote.shippingDiscountPercentage}% off en el envío. Si llegás a ${formatArs(settings.freeShippingThreshold)}, el envío es gratis.`
       : amountToShippingDiscount > 0 && shippingQuote.shippingDiscountPercentage > 0
         ? `Sumá un producto más y activa ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
         : `Sumá un segundo sabor para llegar al envío gratis. Te faltan ${formatArs(amountToFreeShipping)}.`;
   const addressPreview = useMemo(() => {
-    const addressParts = [
+    const formattedStreet = [
       watchedAddressLine?.trim(),
+      watchedAddressWithoutNumber ? "s/n" : watchedAddressNumber?.trim(),
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const addressParts = [
+      formattedStreet,
       watchedAddressExtra?.trim(),
       watchedLocality?.trim(),
       province?.trim(),
@@ -208,9 +251,15 @@ export function CheckoutPage({
       "Argentina",
     ].filter(Boolean);
     const hasRequiredAddressFields = Boolean(
-      watchedAddressLine?.trim() && watchedLocality?.trim() && province?.trim() && watchedPostalCode?.trim(),
+      watchedAddressLine?.trim() &&
+        (watchedAddressWithoutNumber || watchedAddressNumber?.trim()) &&
+        watchedLocality?.trim() &&
+        province?.trim() &&
+        watchedPostalCode?.trim(),
     );
-    const hasAddressErrors = Boolean(errors.addressLine || errors.locality || errors.postalCode || errors.province);
+    const hasAddressErrors = Boolean(
+      errors.addressLine || errors.addressNumber || errors.locality || errors.postalCode || errors.province,
+    );
 
     if (!hasRequiredAddressFields) {
       return null;
@@ -226,12 +275,15 @@ export function CheckoutPage({
     };
   }, [
     errors.addressLine,
+    errors.addressNumber,
     errors.locality,
     errors.postalCode,
     errors.province,
     province,
     watchedAddressExtra,
     watchedAddressLine,
+    watchedAddressNumber,
+    watchedAddressWithoutNumber,
     watchedLocality,
     watchedPostalCode,
   ]);
@@ -245,6 +297,40 @@ export function CheckoutPage({
       form.setValue("paymentMethod", "MERCADO_PAGO");
     }
   }, [allowBankTransfer, allowMercadoPago, form, paymentMethod]);
+
+  useEffect(() => {
+    if (!initialCartRecoveryFreeShippingToken || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(watchedEmail)) {
+      setRecoveryFreeShippingActive(false);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function validateRecoveryBenefit() {
+      try {
+        const response = await fetch("/api/cart-recovery/free-shipping/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            token: initialCartRecoveryFreeShippingToken,
+            email: watchedEmail,
+            items: productItems.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          }),
+        });
+        const payload = await response.json();
+        setRecoveryFreeShippingActive(Boolean(response.ok && payload.data?.eligible));
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setRecoveryFreeShippingActive(false);
+        }
+      }
+    }
+
+    void validateRecoveryBenefit();
+
+    return () => controller.abort();
+  }, [initialCartRecoveryFreeShippingToken, productItems, watchedEmail]);
 
   useEffect(() => {
     if (!appliedCoupon) {
@@ -354,7 +440,9 @@ export function CheckoutPage({
             },
             body: JSON.stringify({
               ...values,
+              cartRecoveryFreeShippingToken: recoveryFreeShippingActive ? initialCartRecoveryFreeShippingToken : undefined,
               couponCode: appliedCoupon?.couponCode ?? "",
+              marketing: getBrowserMarketingContext() ?? undefined,
               items: productItems.map((item) => ({
                 productId: item.productId,
                 quantity: item.quantity,
@@ -403,7 +491,21 @@ export function CheckoutPage({
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
+          <div className="md:col-span-3">
+            <p className="text-sm font-extrabold text-brand-ink">Tus datos</p>
+            <p className="mt-1 text-sm text-brand-ink/60">Los usamos para confirmar y preparar tu pedido.</p>
+          </div>
+          <ErrorSummary
+            className="md:col-span-3"
+            messages={[
+              { label: "Nombre", message: errors.firstName?.message },
+              { label: "Apellido", message: errors.lastName?.message },
+              { label: "Documento", message: errors.taxId?.message },
+              { label: "Email", message: errors.email?.message },
+              { label: "Telefono", message: errors.phone?.message },
+            ]}
+          />
           <FieldShell label="Nombre" error={errors.firstName?.message}>
             <Input
               placeholder="Ej: Maria"
@@ -432,10 +534,7 @@ export function CheckoutPage({
               {...form.register("taxId")}
             />
           </FieldShell>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <FieldShell label="Email" error={errors.email?.message}>
+          <FieldShell label="Email" error={errors.email?.message} className="md:col-span-2">
             <Input
               placeholder="nombre@dominio.com"
               type="email"
@@ -454,6 +553,26 @@ export function CheckoutPage({
               {...form.register("phone")}
             />
           </FieldShell>
+        </div>
+
+        <section className="border-t border-brand-ink/10 pt-5">
+          <div className="mb-4">
+            <p className="text-sm font-extrabold text-brand-ink">Datos de entrega</p>
+            <p className="mt-1 text-sm text-brand-ink/60">Completalos tal como deben figurar en el envio.</p>
+          </div>
+          <ErrorSummary
+            className="mb-4"
+            messages={[
+              { label: "Provincia", message: errors.province?.message },
+              { label: "Localidad", message: errors.locality?.message },
+              { label: "Codigo postal", message: errors.postalCode?.message },
+              { label: "Calle", message: errors.addressLine?.message },
+              { label: "Altura", message: errors.addressNumber?.message },
+              { label: "Piso / Depto", message: errors.addressExtra?.message },
+              { label: "Observaciones", message: errors.notes?.message },
+            ]}
+          />
+          <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
           <FieldShell label="Provincia" error={errors.province?.message}>
             <Select
               autoComplete="address-level1"
@@ -484,15 +603,50 @@ export function CheckoutPage({
               {...form.register("postalCode")}
             />
           </FieldShell>
-          <FieldShell label="Dirección" error={errors.addressLine?.message}>
+          <FieldShell
+            label="Calle"
+            error={errors.addressLine?.message}
+            className={watchedAddressWithoutNumber ? "md:col-span-3" : "md:col-span-2"}
+          >
             <Input
-              placeholder="Ej: Amenábar 2451"
-              autoComplete="street-address"
+              placeholder="Ej: Amenabar"
+              autoComplete="address-line1"
               aria-invalid={errors.addressLine ? "true" : "false"}
               {...form.register("addressLine")}
             />
           </FieldShell>
-          <FieldShell label="Piso / Depto" error={errors.addressExtra?.message} className="md:col-span-2">
+          {!watchedAddressWithoutNumber ? (
+            <FieldShell label="Altura" error={errors.addressNumber?.message}>
+              <Input
+                placeholder="Ej: 2451"
+                autoComplete="off"
+                inputMode="numeric"
+                aria-invalid={errors.addressNumber ? "true" : "false"}
+                {...form.register("addressNumber")}
+              />
+            </FieldShell>
+          ) : null}
+          <label className="group md:col-span-3 -mt-1 inline-flex w-fit cursor-pointer items-center gap-2 text-left focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-pink focus-within:ring-offset-2">
+            <input
+              type="checkbox"
+              className="peer sr-only"
+              {...form.register("addressWithoutNumber", {
+                onChange: (event) => {
+                  if (event.target.checked) {
+                    form.setValue("addressNumber", "", { shouldDirty: true, shouldValidate: true });
+                    form.clearErrors("addressNumber");
+                  }
+                },
+              })}
+            />
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-brand-ink/30 bg-white text-white transition-colors peer-checked:border-brand-pink peer-checked:bg-brand-pink">
+              <CheckCircle2
+                className={`h-3 w-3 transition-opacity ${watchedAddressWithoutNumber ? "opacity-100" : "opacity-0"}`}
+              />
+            </span>
+            <span className="text-sm font-semibold text-brand-ink/70">La calle no tiene altura</span>
+          </label>
+          <FieldShell label="Piso / Depto" error={errors.addressExtra?.message} className="md:col-span-3">
             <Input
               placeholder="Ej: Piso 4 Depto B"
               autoComplete="address-line2"
@@ -502,7 +656,7 @@ export function CheckoutPage({
           </FieldShell>
 
           {addressPreview ? (
-            <div className="md:col-span-2">
+            <div className="md:col-span-3">
               <div className="overflow-hidden rounded-[1.75rem] border border-brand-ink/10 bg-white shadow-card">
                 <div className="flex flex-col gap-3 p-4">
                   <div className="flex items-start gap-3">
@@ -516,8 +670,8 @@ export function CheckoutPage({
                   </div>
                   <p className="text-sm leading-6 text-brand-ink/62">
                     {addressPreview.hasAddressErrors
-                      ? "Revisa calle, número, localidad o código postal para ubicar mejor el destino."
-                      : "Si no coincide, modifica la dirección o déjanos una aclaración en observaciones."}
+                      ? "Revisá calle, altura, localidad o código postal para ubicar mejor el destino."
+                      : "Si no coincide, modificá la calle, altura o dejanos una aclaración en observaciones."}
                   </p>
                 </div>
                 <div className="border-t border-brand-ink/10 bg-[#f8f6f4] p-2">
@@ -536,7 +690,7 @@ export function CheckoutPage({
             </div>
           ) : null}
 
-          <div className="md:col-span-2">
+          <div className="md:col-span-3">
             <FieldShell label="Observaciones" error={errors.notes?.message}>
               <Textarea
                 placeholder="Ej: Timbre roto. Tocar portería. Recibe Lucía por la tarde."
@@ -545,7 +699,8 @@ export function CheckoutPage({
               />
             </FieldShell>
           </div>
-        </div>
+          </div>
+        </section>
 
         <PaymentMethodSelector
           value={form.watch("paymentMethod")}
@@ -555,6 +710,15 @@ export function CheckoutPage({
           onChange={(nextPaymentMethod) => form.setValue("paymentMethod", nextPaymentMethod, { shouldDirty: true })}
         />
         {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
+        <label className="group flex cursor-pointer items-center gap-2.5 px-1 text-left focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-pink focus-within:ring-offset-2">
+          <input type="checkbox" className="peer sr-only" {...form.register("newsletterOptIn")} />
+          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-brand-pink/45 bg-white text-white transition-colors peer-checked:border-brand-pink peer-checked:bg-brand-pink">
+            <CheckCircle2 className={`h-3 w-3 transition-opacity ${watchedNewsletterOptIn ? "opacity-100" : "opacity-0"}`} />
+          </span>
+          <span className="text-sm font-bold text-brand-ink/75 transition-colors group-hover:text-brand-ink">
+            Quiero recibir novedades, beneficios y lanzamientos de IQ Kids.
+          </span>
+        </label>
         <Button type="submit" className="w-full" disabled={isPending}>
           {isPending
             ? paymentMethod === "MERCADO_PAGO"
@@ -588,7 +752,7 @@ export function CheckoutPage({
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-bold text-brand-ink">Código de descuento</p>
-              <p className="mt-1 text-sm text-brand-ink/60">Aplícalo antes de confirmar tu pedido.</p>
+              <p className="mt-1 text-sm text-brand-ink/60">Aplicalo antes de confirmar tu pedido.</p>
             </div>
           </div>
 
@@ -684,7 +848,9 @@ export function CheckoutPage({
           ) : null}
           <div className="flex items-center justify-between">
             <span>Envío</span>
-            {shippingQuote.freeShippingReached ? (
+            {recoveryFreeShippingActive ? (
+              <span className="font-bold text-emerald-700">Bonificado</span>
+            ) : shippingQuote.freeShippingReached ? (
               <span className="font-bold text-emerald-700">Gratis</span>
             ) : shippingQuote.shippingDiscountReached ? (
               <span className="flex items-center gap-2 font-bold">
@@ -708,6 +874,11 @@ export function CheckoutPage({
         </div>
 
         <div className="space-y-4 border-t border-brand-ink/10 pt-4">
+          {recoveryFreeShippingActive ? (
+            <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
+              Envío bonificado por recuperar este carrito. Se confirma al crear el pedido para este email y estos productos.
+            </p>
+          ) : null}
           <p className="text-sm font-bold leading-6 text-emerald-700">{checkoutShippingNudge}</p>
 
           {suggestedProducts.length > 0 ? (
@@ -762,7 +933,7 @@ export function CheckoutPage({
         </div>
 
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
-          <p>{checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
+          <p>{checkoutMessage || "Elegiste una opción rica para ellos y simple para vos."}</p>
           <p className="mt-2">Envío gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
       </Card>

@@ -20,6 +20,9 @@ type LogItem = {
   targetType: string;
   targetId: string;
   errorMessage: string | null;
+  openCount: number;
+  firstOpenedAt: Date | null;
+  lastOpenedAt: Date | null;
   clickCount: number;
   firstClickedAt: Date | null;
   lastClickedAt: Date | null;
@@ -63,6 +66,7 @@ type EmailAuditPanelProps = {
 };
 
 const triggerLabels: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD: "Bienvenida temprana",
   CART_ABANDONED: "Recuperacion sin compra",
   ORDER_CREATED: "Pedido recibido",
   POST_PURCHASE: "Post compra",
@@ -118,8 +122,9 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
       </Card>
 
       <Card className="p-5 md:p-6">
-        <div className="mb-5 grid gap-3 md:grid-cols-4">
+        <div className="mb-5 grid gap-3 md:grid-cols-5">
           <Metric label="Enviados" value={recentLogs.filter((log) => log.status === "SENT").length.toString()} />
+          <Metric label="Con apertura detectada" value={recentLogs.filter((log) => log.openCount > 0).length.toString()} />
           <Metric label="Con click" value={recentLogs.filter((log) => log.clickCount > 0).length.toString()} />
           <Metric label="Ventas atribuidas" value={recentLogs.filter((log) => log.convertedAt).length.toString()} />
           <Metric label="Errores" value={recentLogs.filter((log) => log.status === "ERROR").length.toString()} />
@@ -136,7 +141,7 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                 <th className="py-3 pr-4">Fecha inicio</th>
                 <th className="py-3 pr-4">Click</th>
                 <th className="py-3 pr-4">Venta atribuida</th>
-                <th className="py-3 pr-4">Objetivo</th>
+                <th className="py-3 pr-4">Aperturas y clicks</th>
                 <th className="py-3 pr-4">Detalle</th>
               </tr>
             </thead>
@@ -154,10 +159,12 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                     <td className="py-3 pr-4 text-brand-ink/70">{formatArgentinaDateTime(new Date(log.sentAt ?? log.createdAt))}</td>
                     <td className="py-3 pr-4 text-brand-ink/70">{getLogStartDate(log)}</td>
                     <td className="py-3 pr-4 text-brand-ink/70">
-                      {log.clickCount > 0 ? (
+                      {log.openCount > 0 || log.clickCount > 0 ? (
                         <div>
-                          <p className="font-bold text-brand-ink">{log.clickCount} click{log.clickCount === 1 ? "" : "s"}</p>
-                          <p className="text-xs text-brand-ink/55">{log.lastClickedAt ? formatArgentinaDateTime(new Date(log.lastClickedAt)) : "-"}</p>
+                          <p className="font-bold text-brand-ink">{log.openCount} apertura{log.openCount === 1 ? "" : "s"} detectada{log.openCount === 1 ? "" : "s"}</p>
+                          <p className="text-xs text-brand-ink/55">{log.lastOpenedAt ? formatArgentinaDateTime(new Date(log.lastOpenedAt)) : "Sin apertura detectada"}</p>
+                          <p className="mt-1 font-bold text-brand-ink">{log.clickCount} click{log.clickCount === 1 ? "" : "s"}</p>
+                          <p className="text-xs text-brand-ink/55">{log.lastClickedAt ? formatArgentinaDateTime(new Date(log.lastClickedAt)) : "Sin clicks"}</p>
                         </div>
                       ) : (
                         "-"
@@ -203,7 +210,9 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
 
 function getLogStartDate(log: LogItem) {
   const start =
-    log.trigger === "CART_ABANDONED"
+    log.trigger === "WELCOME_LEAD"
+      ? log.cartRecoveryLead?.createdAt
+      : log.trigger === "CART_ABANDONED"
       ? log.cartRecoveryLead?.createdAt
       : log.trigger === "POST_PURCHASE"
         ? log.order?.paidAt ?? log.order?.paymentProofs[0]?.uploadedAt ?? log.order?.createdAt
@@ -284,3 +293,4 @@ function StatusBadge({ status }: { status: EmailSendStatus }) {
     </span>
   );
 }
+

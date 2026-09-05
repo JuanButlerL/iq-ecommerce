@@ -53,6 +53,9 @@ type LogItem = {
   targetType: string;
   targetId: string;
   errorMessage: string | null;
+  openCount: number;
+  firstOpenedAt: Date | null;
+  lastOpenedAt: Date | null;
   clickCount: number;
   firstClickedAt: Date | null;
   lastClickedAt: Date | null;
@@ -90,6 +93,7 @@ type LogItem = {
 type CartLeadItem = {
   id: string;
   email: string;
+  trigger: EmailAutomationTrigger;
   status: string;
   subtotalArs: number;
   triggerAt: Date;
@@ -123,9 +127,11 @@ type EmailAutomationsPanelProps = {
   }>;
   trackingSummary: {
     sent: number;
+    opened: number;
     clicked: number;
     converted: number;
   };
+  newsletterSubscribers: number;
   emailEnabled: boolean;
 };
 
@@ -170,18 +176,22 @@ const defaultForm: FormState = {
 };
 
 const triggerLabels: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD: "Bienvenida temprana",
   CART_ABANDONED: "Recuperacion sin compra",
   ORDER_CREATED: "Pedido recibido",
   POST_PURCHASE: "Post compra",
 };
 
 const triggerShortHelp: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD: "Contacta el email captado en home antes de que exista un carrito.",
   CART_ABANDONED: "Recupera emails que quedaron sin pago ni comprobante.",
   ORDER_CREATED: "Confirma que el pedido entro correctamente.",
   POST_PURCHASE: "Vuelve a contactar despues de una compra confirmada.",
 };
 
 const triggerOperationalSummary: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD:
+    "Empieza cuando una persona deja su email en el popup del home. Sirve para un primer contacto o un recordatorio temprano antes de que exista carrito. Si esa persona ya termino comprando despues de ese alta, el envio se omite.",
   CART_ABANDONED:
     "Empieza cuando una persona deja email en carrito. Si avanza a checkout o genera pedido pero no paga ni sube comprobante, sigue entrando en esta recuperacion. Espera la demora configurada y antes de enviar revisa si ese email tuvo una compra confirmada posterior; si compro, lo omite.",
   ORDER_CREATED:
@@ -190,7 +200,9 @@ const triggerOperationalSummary: Record<EmailAutomationTrigger, string> = {
     "Empieza solo cuando hay compra real: pago aprobado por Mercado Pago o comprobante de transferencia subido. La demora corre desde ese momento.",
 };
 
+
 const triggerTimingLabel: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD: "despues de captar email",
   CART_ABANDONED: "despues de quedar sin compra",
   ORDER_CREATED: "despues de crear pedido",
   POST_PURCHASE: "despues de comprar",
@@ -203,6 +215,7 @@ const statusLabels: Record<EmailSendStatus, string> = {
 };
 
 const variablesByTrigger: Record<EmailAutomationTrigger, string[]> = {
+  WELCOME_LEAD: ["{{siteUrl}}", "{{email}}"],
   CART_ABANDONED: ["{{recoveryUrl}}", "{{subtotal}}", "{{siteUrl}}", "{{email}}"],
   ORDER_CREATED: ["{{firstName}}", "{{orderNumber}}", "{{orderUrl}}", "{{total}}", "{{siteUrl}}"],
   POST_PURCHASE: ["{{firstName}}", "{{orderNumber}}", "{{orderUrl}}", "{{total}}", "{{siteUrl}}"],
@@ -231,7 +244,7 @@ const variableDescriptions: Partial<Record<EmailAutomationTrigger, Record<string
   },
 };
 
-export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, emailEnabled }: EmailAutomationsPanelProps) {
+export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, newsletterSubscribers, emailEnabled }: EmailAutomationsPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(automations[0]?.id ?? null);
   const [form, setForm] = useState<FormState>(() => automationToForm(automations[0] ?? null));
   const [testEmail, setTestEmail] = useState("");
@@ -271,6 +284,18 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
     () => Array.from(latestLogByCase.values()).filter((log) => log.status === "ERROR").length,
     [latestLogByCase],
   );
+  const activeWelcomeDelayHours = useMemo(() => {
+    const welcomeAutomations = automations
+      .filter((automation) => automation.active && automation.trigger === "WELCOME_LEAD")
+      .map((automation) => automation.delayHours);
+
+    if (!welcomeAutomations.length) {
+      return null;
+    }
+
+    return Math.min(...welcomeAutomations);
+  }, [automations]);
+
   const activeRecoveryDelayHours = useMemo(() => {
     const recoveryAutomations = automations
       .filter((automation) => automation.active && automation.trigger === "CART_ABANDONED")
@@ -405,6 +430,18 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <Link
+            href="/api/admin/export/email-leads"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 transition hover:bg-brand-peach"
+          >
+            Descargar mails CRM
+          </Link>
+          <Link
+            href="/api/admin/export/newsletter-subscribers"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 transition hover:bg-brand-peach"
+          >
+            Descargar suscriptos
+          </Link>
           <Button type="button" variant="secondary" onClick={startNewAutomation}>
             Nueva automatizacion
           </Button>
@@ -414,10 +451,12 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <Metric label="Activas" value={activeCount.toString()} />
+        <Metric label="Newsletter" value={newsletterSubscribers.toString()} />
         <Metric label="Sin compra" value={cartLeads.length.toString()} />
         <Metric label="Enviados recientes" value={sentCount.toString()} />
+        <Metric label="Aperturas detectadas" value={trackingSummary.opened.toString()} />
         <Metric label="Clicks recientes" value={trackingSummary.clicked.toString()} />
         <Metric label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
       </div>
@@ -801,7 +840,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                     Muestra el inicio real del caso y cuando deberia salir el mail segun la demora activa.
                   </p>
                 </div>
-                {activeRecoveryDelayHours !== null ? (
+                {activeWelcomeDelayHours !== null || activeRecoveryDelayHours !== null ? (
                   <div className="rounded-2xl bg-background px-3 py-2 text-right text-xs leading-5 text-brand-ink/60">
                     <p className="font-extrabold uppercase tracking-[0.12em] text-brand-ink/45">Recuperacion activa</p>
                     <p className="font-bold text-brand-ink">{activeRecoveryDelayHours} hs de demora</p>
@@ -809,14 +848,15 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                   </div>
                 ) : (
                   <div className="rounded-2xl bg-amber-50 px-3 py-2 text-right text-xs font-bold leading-5 text-amber-800">
-                    No hay automatizacion activa de carrito abandonado.
+                    No hay automatizaciones activas para leads sin compra.
                   </div>
                 )}
               </div>
               <div className="mt-4 space-y-3">
                 {cartLeads.length ? (
                   cartLeads.slice(0, 8).map((lead) => {
-                    const timing = getRecoveryLeadTiming(lead.triggerAt, activeRecoveryDelayHours, lead.latestLog);
+                    const delayHours = lead.trigger === "WELCOME_LEAD" ? activeWelcomeDelayHours : activeRecoveryDelayHours;
+                    const timing = getRecoveryLeadTiming(lead.triggerAt, delayHours, lead.latestLog);
 
                     return (
                       <div key={lead.id} className="rounded-2xl bg-background px-4 py-3">
@@ -824,7 +864,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                           <div className="min-w-0">
                             <p className="truncate text-sm font-bold text-brand-ink">{lead.email}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <p className="text-xs font-bold uppercase tracking-[0.08em] text-brand-ink/45">{lead.status}</p>
+                              <p className="text-xs font-bold uppercase tracking-[0.08em] text-brand-ink/45">{triggerLabels[lead.trigger]} · {lead.status}</p>
                               <span
                                 className={cn(
                                   "rounded-full px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em]",
@@ -883,7 +923,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                     );
                   })
                 ) : (
-                  <p className="text-sm text-brand-ink/55">No hay emails pendientes de recuperacion.</p>
+                  <p className="text-sm text-brand-ink/55">No hay leads sin compra pendientes de seguimiento.</p>
                 )}
               </div>
             </Card>
@@ -892,6 +932,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
               <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Estado de envios</p>
               <div className="mt-4 space-y-3">
                 <MetricLine label="Enviados" value={sentCount.toString()} />
+                <MetricLine label="Aperturas detectadas" value={trackingSummary.opened.toString()} />
                 <MetricLine label="Clics" value={trackingSummary.clicked.toString()} />
                 <MetricLine label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
                 <MetricLine label="Omitidos" value={recentLogs.filter((log) => log.status === "SKIPPED").length.toString()} />
@@ -1124,3 +1165,12 @@ function getAutomationCaseKey(log: LogItem) {
 function normalizeAutomationTargetId(targetId: string) {
   return targetId.replace(/:retry:\d+$/, "");
 }
+
+
+
+
+
+
+
+
+

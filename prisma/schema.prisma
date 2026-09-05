@@ -89,6 +89,7 @@ enum PaymentWebhookProcessingStatus {
 }
 
 enum EmailAutomationTrigger {
+  WELCOME_LEAD
   CART_ABANDONED
   ORDER_CREATED
   POST_PURCHASE
@@ -100,6 +101,16 @@ enum EmailSendStatus {
   ERROR
 }
 
+enum NewsletterSubscriberStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+enum NewsletterConsentSource {
+  CHECKOUT
+  WELCOME_POPUP
+}
+
 enum CouponUsageType {
   UNLIMITED
   SINGLE_USE
@@ -109,6 +120,40 @@ enum CouponUsageType {
 enum CouponDiscountType {
   PERCENTAGE
   FIXED_AMOUNT
+}
+
+enum MarketingSourceCategory {
+  DIRECT
+  ORGANIC
+  META
+  GOOGLE
+  TIKTOK
+  EMAIL
+  WHATSAPP
+  REFERRAL
+  OTHER
+}
+
+enum MarketingSourcePlatform {
+  DIRECT
+  INSTAGRAM
+  FACEBOOK
+  THREADS
+  GOOGLE
+  YOUTUBE
+  TIKTOK
+  WHATSAPP
+  EMAIL
+  REFERRAL
+  OTHER
+}
+
+enum MarketingEventType {
+  SESSION_STARTED
+  POPUP_CAPTURED
+  CART_CAPTURED
+  ORDER_CREATED
+  ORDER_CONFIRMED
 }
 
 model AdminUser {
@@ -299,6 +344,46 @@ model HomeFeaturedProductSlot {
   @@map("home_featured_product_slots")
 }
 
+model MarketingSession {
+  id             String                  @id @default(uuid()) @db.Uuid
+  visitorId      String                  @map("visitor_id")
+  sessionKey     String                  @unique @map("session_key")
+  entryPath      String                  @map("entry_path")
+  entryUrl       String?                 @map("entry_url")
+  referrerUrl    String?                 @map("referrer_url")
+  referrerHost   String?                 @map("referrer_host")
+  sourceCategory MarketingSourceCategory @default(DIRECT) @map("source_category")
+  sourcePlatform MarketingSourcePlatform @default(DIRECT) @map("source_platform")
+  sourceChannel  String                  @default("Direct") @map("source_channel")
+  sourceLabel    String                  @default("Direct") @map("source_label")
+  isPaid         Boolean                 @default(false) @map("is_paid")
+  utmSource      String?                 @map("utm_source")
+  utmMedium      String?                 @map("utm_medium")
+  utmCampaign    String?                 @map("utm_campaign")
+  utmContent     String?                 @map("utm_content")
+  utmTerm        String?                 @map("utm_term")
+  gclid          String?
+  fbclid         String?
+  ttclid         String?
+  msclkid        String?
+  landingQuery   Json?                   @map("landing_query")
+  gaClientId     String?                 @map("ga_client_id")
+  email          String?
+  firstSeenAt    DateTime                @default(now()) @map("first_seen_at")
+  lastSeenAt     DateTime                @default(now()) @map("last_seen_at")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+  cartRecoveryLeads CartRecoveryLead[]
+  orders         Order[]
+  events         MarketingEvent[]
+
+  @@index([email, firstSeenAt], map: "marketing_sessions_email_first_seen_idx")
+  @@index([sourceCategory, sourcePlatform, firstSeenAt], map: "marketing_sessions_source_idx")
+  @@index([utmCampaign], map: "marketing_sessions_campaign_idx")
+  @@index([visitorId, firstSeenAt], map: "marketing_sessions_visitor_idx")
+  @@map("marketing_sessions")
+}
+
 model CartRecoveryLead {
   id                   String    @id @default(uuid()) @db.Uuid
   email                String
@@ -314,15 +399,41 @@ model CartRecoveryLead {
   convertedOrderId     String?   @map("converted_order_id") @db.Uuid
   convertedOrderNumber String?   @map("converted_order_number")
   convertedAt          DateTime? @map("converted_at")
+  freeShippingToken    String?   @unique @map("free_shipping_token")
+  freeShippingGrantedAt DateTime? @map("free_shipping_granted_at")
+  freeShippingExpiresAt DateTime? @map("free_shipping_expires_at")
+  freeShippingRedeemedAt DateTime? @map("free_shipping_redeemed_at")
+  freeShippingOrderId  String?   @map("free_shipping_order_id") @db.Uuid
   userAgent            String?   @map("user_agent")
+  marketingSessionId   String?   @map("marketing_session_id") @db.Uuid
+  marketingVisitorId   String?   @map("marketing_visitor_id")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
+  marketingSession     MarketingSession? @relation(fields: [marketingSessionId], references: [id], onDelete: SetNull)
+  marketingEvents      MarketingEvent[]
   emailLogs            EmailSendLog[]
 
   @@index([email], map: "cart_recovery_leads_email_idx")
   @@index([status], map: "cart_recovery_leads_status_idx")
+  @@index([marketingSessionId], map: "cart_recovery_leads_marketing_session_idx")
+  @@index([marketingVisitorId], map: "cart_recovery_leads_marketing_visitor_idx")
   @@index([updatedAt], map: "cart_recovery_leads_updated_at_idx")
   @@map("cart_recovery_leads")
+}
+
+model NewsletterSubscriber {
+  id             String                   @id @default(uuid()) @db.Uuid
+  email          String                   @unique
+  status         NewsletterSubscriberStatus @default(SUBSCRIBED)
+  consentSource  NewsletterConsentSource  @map("consent_source")
+  consentVersion String                   @map("consent_version")
+  consentedAt    DateTime                 @map("consented_at")
+  unsubscribedAt DateTime?                @map("unsubscribed_at")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  @@index([status, consentedAt], map: "newsletter_subscribers_status_consented_idx")
+  @@map("newsletter_subscribers")
 }
 
 model EmailAutomation {
@@ -367,6 +478,10 @@ model EmailSendLog {
   providerMessageId  String?                @map("provider_message_id")
   ctaUrl             String?                @map("cta_url")
   clickToken         String?                @unique @map("click_token")
+  openToken          String?                @unique @map("open_token")
+  openCount          Int                    @default(0) @map("open_count")
+  firstOpenedAt      DateTime?              @map("first_opened_at")
+  lastOpenedAt       DateTime?              @map("last_opened_at")
   clickCount         Int                    @default(0) @map("click_count")
   firstClickedAt     DateTime?              @map("first_clicked_at")
   lastClickedAt      DateTime?              @map("last_clicked_at")
@@ -384,8 +499,32 @@ model EmailSendLog {
   @@unique([automationId, targetType, targetId], map: "email_send_logs_automation_target_key")
   @@index([recipientEmail, createdAt], map: "email_send_logs_recipient_created_idx")
   @@index([status, createdAt], map: "email_send_logs_status_created_idx")
+  @@index([firstOpenedAt], map: "email_send_logs_first_opened_at_idx")
   @@index([convertedAt], map: "email_send_logs_converted_at_idx")
   @@map("email_send_logs")
+}
+
+model MarketingEvent {
+  id                 String             @id @default(uuid()) @db.Uuid
+  marketingSessionId String             @map("marketing_session_id") @db.Uuid
+  eventType          MarketingEventType @map("event_type")
+  path               String
+  email              String?
+  cartRecoveryLeadId String?            @map("cart_recovery_lead_id") @db.Uuid
+  orderId            String?            @map("order_id") @db.Uuid
+  metadata           Json?
+  occurredAt         DateTime           @default(now()) @map("occurred_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  marketingSession   MarketingSession   @relation(fields: [marketingSessionId], references: [id], onDelete: Cascade)
+  cartRecoveryLead   CartRecoveryLead?  @relation(fields: [cartRecoveryLeadId], references: [id], onDelete: SetNull)
+  order              Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([marketingSessionId, occurredAt], map: "marketing_events_session_occurred_idx")
+  @@index([eventType, occurredAt], map: "marketing_events_type_occurred_idx")
+  @@index([email, occurredAt], map: "marketing_events_email_occurred_idx")
+  @@index([orderId], map: "marketing_events_order_idx")
+  @@index([cartRecoveryLeadId], map: "marketing_events_lead_idx")
+  @@map("marketing_events")
 }
 
 model ShortLink {
@@ -417,8 +556,12 @@ model Order {
   locality              String
   postalCode            String               @map("postal_code")
   addressLine           String               @map("address_line")
+  addressNumber         String?              @map("address_number")
+  addressWithoutNumber  Boolean?             @map("address_without_number")
   addressExtra          String?              @map("address_extra")
   notes                 String?
+  newsletterOptIn       Boolean?             @map("newsletter_opt_in")
+  newsletterOptInAt     DateTime?            @map("newsletter_opt_in_at")
   couponId              String?              @map("coupon_id") @db.Uuid
   couponCode            String?              @map("coupon_code")
   discountPercentage    Decimal?             @map("discount_percentage") @db.Decimal(5, 2)
@@ -443,9 +586,12 @@ model Order {
   syncedAt              DateTime?            @map("synced_at")
   source                OrderSource          @default(WEB)
   reservationExpiresAt  DateTime?            @map("reservation_expires_at")
+  marketingSessionId    String?              @map("marketing_session_id") @db.Uuid
+  marketingVisitorId    String?              @map("marketing_visitor_id")
   createdAt             DateTime             @default(now()) @map("created_at")
   updatedAt             DateTime             @updatedAt @map("updated_at")
   coupon                Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  marketingSession      MarketingSession?    @relation(fields: [marketingSessionId], references: [id], onDelete: SetNull)
   items                 OrderItem[]
   statusHistory         OrderStatusHistory[]
   paymentProofs         PaymentProof[]
@@ -455,11 +601,14 @@ model Order {
   syncJobs              SyncJob[]
   emailLogs             EmailSendLog[]
   convertedEmailLogs    EmailSendLog[]      @relation("EmailLogConvertedOrder")
+  marketingEvents       MarketingEvent[]
 
   @@index([couponId], map: "orders_coupon_idx")
   @@index([createdAt], map: "orders_created_at_idx")
   @@index([orderStatus, paymentStatus], map: "orders_status_idx")
   @@index([paymentMethod, paymentStatus], map: "orders_payment_method_status_idx")
+  @@index([marketingSessionId], map: "orders_marketing_session_idx")
+  @@index([marketingVisitorId], map: "orders_marketing_visitor_idx")
   @@index([syncStatus], map: "orders_sync_status_idx")
   @@map("orders")
 }
