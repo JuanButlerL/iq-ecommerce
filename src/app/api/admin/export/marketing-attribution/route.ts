@@ -7,7 +7,9 @@ import {
 import { formatArgentinaDate, formatArgentinaDateTime } from "@/lib/utils/datetime";
 
 function escapeHtml(value: string | number | null | undefined) {
-  const stringValue = value == null ? "" : String(value);
+  const rawValue = value == null ? "" : String(value);
+  // Prevent user-controlled UTM values from being interpreted as spreadsheet formulas.
+  const stringValue = /^[=+\-@]/.test(rawValue) ? `'${rawValue}` : rawValue;
 
   return stringValue
     .replace(/&/g, "&amp;")
@@ -36,6 +38,14 @@ export async function GET(request: Request) {
     "Contenido inicial",
     "Termino inicial",
     "Referrer inicial",
+    "Primer canal pago",
+    "Primera campaña paga",
+    "Ultimo canal pago",
+    "Ultima campaña paga",
+    "Campañas asistidas",
+    "Plataformas asistidas",
+    "Puntos de contacto",
+    "Recorrido resumido",
     "Captado en home",
     "Estado de captura",
     "Popup captado",
@@ -53,7 +63,7 @@ export async function GET(request: Request) {
     "Campana final",
     "Contenido final",
     "Termino final",
-    "Timeline",
+    "Eventos relevantes",
   ];
 
   const tableRows = rows
@@ -69,6 +79,14 @@ export async function GET(request: Request) {
       row.firstContent,
       row.firstTerm,
       row.firstReferrer,
+      row.firstPaidLabel,
+      row.firstPaidCampaign,
+      row.lastPaidLabel,
+      row.lastPaidCampaign,
+      row.assistedCampaigns,
+      row.assistedPlatforms,
+      row.touchpoints,
+      row.journeySummary,
       row.popupCapturedHome,
       row.leadStage,
       row.popupCapturedAt ? formatArgentinaDateTime(row.popupCapturedAt) : "",

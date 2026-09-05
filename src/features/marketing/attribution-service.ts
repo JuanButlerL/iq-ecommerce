@@ -23,7 +23,10 @@ export async function registerMarketingSession(payload: unknown) {
   if (existing) {
     await prisma.marketingSession.update({
       where: { sessionKey: context.sessionKey },
-      data: { lastSeenAt: new Date() },
+      data: {
+        lastSeenAt: new Date(),
+        gaClientId: context.gaClientId ?? undefined,
+      },
     });
 
     return existing;
@@ -55,6 +58,7 @@ export async function registerMarketingSession(payload: unknown) {
         ttclid: attribution.ttclid,
         msclkid: attribution.msclkid,
         landingQuery: attribution.landingQuery ?? undefined,
+        gaClientId: context.gaClientId ?? null,
         lastSeenAt: new Date(),
       },
       select: { id: true },
@@ -89,6 +93,7 @@ export async function ensureMarketingSession(payload: unknown, email?: string | 
       visitorId: context.visitorId,
       lastSeenAt: new Date(),
       email: normalizedEmail ?? undefined,
+      gaClientId: context.gaClientId ?? undefined,
     },
     create: {
       visitorId: context.visitorId,
@@ -112,6 +117,7 @@ export async function ensureMarketingSession(payload: unknown, email?: string | 
       ttclid: attribution.ttclid,
       msclkid: attribution.msclkid,
       landingQuery: attribution.landingQuery ?? undefined,
+      gaClientId: context.gaClientId ?? null,
       email: normalizedEmail,
       lastSeenAt: new Date(),
     },

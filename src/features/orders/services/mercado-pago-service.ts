@@ -16,6 +16,7 @@ import {
 } from "@/lib/integrations/mercadopago/client";
 import { getMercadoPagoStatusLabel, mapMercadoPagoStatusToInternal } from "@/lib/integrations/mercadopago/status";
 import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
+import { sendGoogleAnalyticsPurchaseForOrder } from "@/lib/integrations/google-analytics/server";
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { syncOrder } from "@/features/orders/services/sync-service";
@@ -427,6 +428,10 @@ async function upsertMercadoPagoPayment(
       }),
     }).catch((error) => {
       console.error("Meta Conversions API Mercado Pago purchase event failed", error);
+    });
+
+    await sendGoogleAnalyticsPurchaseForOrder(order.id).catch((error) => {
+      console.error("Google Analytics Mercado Pago purchase event failed", error);
     });
   }
 

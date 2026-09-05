@@ -2,6 +2,18 @@
 
 La seccion `/admin/emails` permite configurar automatizaciones de email sin enviar nada por defecto.
 
+## Newsletter y consentimiento
+
+La lista de newsletter es independiente de los leads de carrito y de los pedidos. Solo incluye emails que marcaron de forma opcional el consentimiento explícito en checkout o en el popup de bienvenida.
+
+- los contactos históricos no se agregan automáticamente;
+- no marcar la casilla no modifica una suscripción existente;
+- el consentimiento guarda fecha, origen y versión del texto aceptado;
+- desde `/admin/emails` se puede descargar `suscriptos` para revisión operativa;
+- la lista no participa de `Procesar activos` ni dispara emails masivos todavía.
+
+Antes de habilitar una automatización de newsletter se debe implementar una baja accesible dentro de cada email y mantener la lista de envíos limitada a `newsletter_subscribers` con estado `SUBSCRIBED`.
+
 ## Variables de entorno
 
 Para habilitar envios reales en produccion hay dos opciones soportadas.
@@ -82,6 +94,25 @@ https://iqkids.com.ar/carrito?recuperar=<token>
 ```
 
 Cuando el cliente abre ese link, el carrito se reconstruye con los mismos productos y cantidades guardadas.
+
+## Actualizacion 2026-09-05 - Aperturas y envio bonificado de recuperacion
+
+### Aperturas detectadas
+
+- Cada email real enviado por una automatizacion o por el popup de bienvenida recibe un pixel individual de 1x1.
+- La ruta `/api/email/open/<token>` actualiza cantidad, primera y ultima apertura del envio y siempre responde una imagen transparente.
+- `/admin/emails` y la auditoria muestran `Aperturas detectadas` junto a clicks y ventas atribuidas.
+- Una apertura no equivale a lectura garantizada: algunos clientes bloquean imagenes y otros las precargan mediante proxy. Por eso no se usa para disparar descuentos, cobros ni cambios de estado.
+- Los envios historicos conservan sus datos: no tienen token de apertura y no se inventan aperturas retroactivamente.
+
+### Envio bonificado para recuperacion de carrito
+
+- Solo se otorga despues de enviar con exito una automatizacion `CART_ABANDONED` cuyo CTA sea exactamente `{{recoveryUrl}}`.
+- Aplica a un carrito guardado con una unica linea de producto y a un email sin compras confirmadas previas.
+- El beneficio dura 72 horas y se vincula a un token aleatorio distinto del link de recuperacion.
+- Antes de mostrarlo y nuevamente al crear el pedido, el servidor valida token, vencimiento, email, historial de compra y productos/cantidades exactos del carrito recuperado.
+- El token se consume dentro de la misma transaccion que crea el pedido. Si ya se uso, vencio o el carrito cambio, no se crea un pedido con envio bonificado.
+- No se modifica ninguna regla global de envio ni se confia en un descuento enviado por el navegador.
 
 ## Actualizacion 2026-08-28 - Trigger WELCOME_LEAD
 

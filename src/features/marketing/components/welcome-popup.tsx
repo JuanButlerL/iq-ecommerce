@@ -54,6 +54,7 @@ export function WelcomePopup() {
   const [copied, setCopied] = useState(false);
   const [config, setConfig] = useState<PopupConfigResponse | null>(null);
   const [email, setEmail] = useState("");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<PopupCaptureResponse | null>(null);
   const isHome = pathname === "/";
@@ -165,7 +166,11 @@ export function WelcomePopup() {
       const response = await fetch("/api/welcome-popup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail, marketing: getBrowserMarketingContext() ?? undefined }),
+        body: JSON.stringify({
+          email: normalizedEmail,
+          newsletterOptIn,
+          marketing: getBrowserMarketingContext() ?? undefined,
+        }),
       });
       const payload = (await response.json()) as { data?: PopupCaptureResponse; error?: string };
 
@@ -284,6 +289,16 @@ export function WelcomePopup() {
               placeholder={welcomePopupCopy.emailPlaceholder}
               className="mt-0 block h-[42px] w-full rounded-[10px] border-[1.5px] border-[#ede8e2] px-3 text-[16px] text-brand-ink outline-none transition placeholder:text-[#ccc] focus:border-[#e78080] sm:mt-5 sm:h-[54px] sm:rounded-[12px] sm:border-2 sm:px-4 sm:text-[14px]"
             />
+
+            <label className="mt-3 flex cursor-pointer items-start gap-2 text-left text-[10px] leading-[1.45] text-[#756b63] sm:text-[12px]">
+              <input
+                type="checkbox"
+                checked={newsletterOptIn}
+                onChange={(event) => setNewsletterOptIn(event.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[#e78080]"
+              />
+              <span>Quiero recibir novedades, beneficios y lanzamientos de IQ Kids. Es opcional y puedo darme de baja cuando quiera.</span>
+            </label>
 
             <button
               type="button"

@@ -10,6 +10,7 @@ export const marketingSessionContextSchema = z.object({
   pageUrl: z.string().trim().url().max(2000),
   referrer: z.string().trim().max(2000).optional().or(z.literal("")),
   landingQuery: z.record(z.string(), z.string().max(500)).optional().default({}),
+  gaClientId: z.string().regex(/^\d+\.\d+$/).optional(),
 });
 
 export type MarketingSessionContextInput = z.infer<typeof marketingSessionContextSchema>;
@@ -60,7 +61,9 @@ export function classifyMarketingAttribution(input: MarketingSessionContextInput
   const sourceHint = [utmSource, referrerHost].filter(Boolean).join(" ");
   const mediumHint = utmMedium ?? "";
   const isPaid = Boolean(
-    gclid || fbclid || ttclid || msclkid || /(^|[^a-z])(cpc|ppc|paid|ads|adset|remarketing|retargeting|display|social_paid|paid_social)([^a-z]|$)/i.test(mediumHint),
+    // fbclid is also appended to organic Meta visits, so it cannot prove that a visit was paid.
+    // Paid Meta traffic must carry a paid medium or an explicit paid/ads source.
+    gclid || ttclid || msclkid || /(^|[^a-z])(cpc|ppc|paid|ads|adset|remarketing|retargeting|display|social_paid|paid_social)([^a-z]|$)/i.test(mediumHint) || /(^|[^a-z])(paid|ads|adset|remarketing|retargeting)([^a-z]|$)/i.test(utmSource ?? ""),
   );
 
   if (matchesAny(sourceHint, ["instagram", "ig", "facebook", "fb", "meta", "threads", "m.me"])) {

@@ -144,6 +144,8 @@ const checkoutBaseSchema = z.object({
     .pipe(z.string().max(500, "Máximo 500 caracteres."))
     .optional()
     .or(z.literal("")),
+  newsletterOptIn: z.boolean().default(false),
+  cartRecoveryFreeShippingToken: z.string().uuid().optional(),
   marketing: marketingSessionContextSchema.optional(),
   items: z.array(checkoutItemSchema).min(1),
 });

@@ -129,8 +129,6 @@ async function main() {
       flatShippingPrice: 6500,
       shippingMode: ShippingMode.FLAT,
       activeShippingRuleId: shippingRule.id,
-      checkoutMessage:
-        "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.",
       transferInstructions:
         "Transferi el monto exacto dentro del plazo de reserva y subi el comprobante para confirmar tu pedido.",
       enableBankTransfer: true,
@@ -170,8 +168,6 @@ async function main() {
       flatShippingPrice: 6500,
       shippingMode: ShippingMode.FLAT,
       activeShippingRuleId: shippingRule.id,
-      checkoutMessage:
-        "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.",
       transferInstructions:
         "Transferi el monto exacto dentro del plazo de reserva y subi el comprobante para confirmar tu pedido.",
       enableBankTransfer: true,

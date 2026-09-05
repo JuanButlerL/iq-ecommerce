@@ -1002,3 +1002,147 @@ Impacto:
 - sin cambios de schema
 - sin impacto de DB estructural
 - requiere redeploy de app si se quiere llevar a produccion
+## 2026-09-05 - Export de marketing orientado a atribución de ventas
+
+Pedido:
+
+- que el equipo de marketing pueda entender en Excel a qué canal y campaña se atribuye cada venta, sin perder el recorrido anterior
+- revisar la clasificación de tráfico de Instagram y la legibilidad del historial
+
+Implementación:
+
+- `/admin/marketing` ahora ofrece dos exportaciones: `Ventas atribuidas` (una fila por compra confirmada) y `Contactos y embudo` (una fila por contacto)
+- el export de ventas muestra la atribución al crear cada pedido, primer y último touch previos, primer y último touch pago, campañas/plataformas asistidas, puntos de contacto, recorrido resumido, capturas y recompra
+- la atribución de cada venta ignora sesiones posteriores al pedido y no permite que un regreso directo reemplace un touch significativo previo
+- el export de contactos suma el recorrido resumido y elimina de los eventos la sesión inicial duplicada y los query params técnicos
+- `fbclid` ya no clasifica por sí solo una visita como pauta: Meta requiere UTM de medio/fuente pago explícito. La migración corrige los registros históricos de Meta sin señal paga explícita a tráfico orgánico
+- ambos Excel neutralizan valores que comiencen con caracteres de fórmula para evitar que una UTM controlada por terceros ejecute fórmulas en planillas
+
+Impacto:
+
+- migración de datos de marketing únicamente; no modifica pedidos, clientes, catálogo ni pagos
+- requiere `prisma migrate deploy` y redeploy de la app para producción
+## 2026-09-05 - Consola de marketing accionable y navegación admin liviana
+
+Pedido:
+
+- mejorar la lectura de marketing para que una agencia pueda detectar rápidamente canales y campañas a escalar o revisar
+- evitar tablas densas y roturas en móvil
+- impedir la precarga de módulos admin pesados
+
+Implementación:
+
+- `/admin/marketing` ahora abre por defecto en últimos 30 días y prioriza embudo, facturación atribuida, compras, conversión y recompra
+- se reemplazaron tablas horizontales por comparativa visual de canales, campañas que convierten, campañas con tráfico sin compra y tarjetas compactas de ventas recientes
+- cada campaña muestra sesiones, capturas, compras, conversión e ingreso; el detalle completo queda disponible al expandir el ranking y en los exports
+- se documentó la diferencia entre atribución propia y métricas que requieren gasto real, como CPA y ROAS
+- se desactivó el prefetch de Dashboard, Pedidos, Marketing y Emails desde la navegación admin
+- se agregaron estados de carga por ruta para Dashboard, Pedidos, Marketing y Emails
+
+Impacto:
+
+- sin cambios de schema ni de operación comercial
+- mejora lectura desktop/móvil y reduce consultas anticipadas de rutas pesadas
+## 2026-09-05 - Consentimiento explícito para newsletter
+
+Pedido:
+
+- permitir que una persona se suscriba opcionalmente a novedades y lanzamientos desde checkout
+- preparar una lista confiable para futuros newsletters sin asumir consentimiento de leads históricos
+
+Implementación:
+
+- se agregó una casilla opcional y discreta en checkout y popup de bienvenida
+- el consentimiento se guarda en `newsletter_subscribers` con email único, estado, origen, fecha y versión del texto
+- el pedido conserva un snapshot opcional de la decisión (`newsletter_opt_in` y fecha) sin modificar pedidos anteriores
+- marcar la casilla crea o reactiva la suscripción dentro de la transacción del checkout; dejarla sin marcar no suscribe ni da de baja a nadie
+- `/admin/emails` muestra la cantidad de suscriptos y permite descargar únicamente los contactos con consentimiento activo
+- la lista queda aislada de las automatizaciones existentes: `Procesar activos` no envía newsletters
+
+Impacto:
+
+- migración aditiva: crea `newsletter_subscribers` y agrega dos columnas opcionales a `orders`
+- sin envío masivo ni cambio sobre leads/pedidos históricos
+- antes de activar newsletters se debe implementar el flujo de baja en el email
+
+### 2026-09-05 - Aperturas de email y envio bonificado seguro en recuperacion de carrito
+
+Pedido:
+
+- medir aperturas de emails enviados
+- bonificar el envio solo para recuperaciones de carrito de una unica linea de producto y de clientes sin compras confirmadas previas
+
+Implementacion:
+
+- `email_send_logs` registra token individual, contador y primera/ultima apertura; un pixel transparente actualiza esas metricas sin exponer informacion del envio
+- el admin de Emails separa aperturas detectadas, clicks y ventas atribuidas; los datos antiguos quedan sin aperturas inventadas
+- el envio bonificado se crea solo despues de un email de carrito abandonado entregado con CTA `{{recoveryUrl}}`
+- el beneficio tiene token aleatorio propio, vencimiento de 72 horas y queda ligado al email y al snapshot exacto de productos/cantidades del carrito
+- checkout vuelve a validar el beneficio en servidor; al crear pedido se consume una unica vez en la misma transaccion
+- cambiar el carrito, usar otro email, tener una compra confirmada previa, vencer el token o reusarlo impide el envio bonificado sin afectar las reglas de envio normales
+- el uso queda auditado en `cart_recovery_leads.free_shipping_order_id` y en el historial del pedido
+
+Archivos principales:
+
+- `prisma/migrations/202609051600_add_email_open_tracking/migration.sql`
+- `prisma/migrations/202609051700_add_cart_recovery_free_shipping_benefit/migration.sql`
+- `src/app/api/email/open/[token]/route.ts`
+- `src/features/email/automation-service.ts`
+- `src/features/cart-recovery/free-shipping-service.ts`
+- `src/features/orders/services/order-service.ts`
+
+Impacto:
+
+- requiere deploy con dos migraciones estrictamente aditivas
+- no borra ni renombra tablas o columnas, no modifica pedidos historicos y no altera reglas globales de envio
+- antes de produccion: backup PostgreSQL, `prisma migrate deploy`, build y prueba manual de un carrito elegible y uno no elegible
+
+### 2026-09-05 - Ajuste de copy de checkout
+
+- se retiro el mensaje sobre compra por debajo del minimo y envio configurado
+- las instalaciones nuevas ya no lo cargan desde el seed; las bases existentes lo omiten visualmente y recuperan el copy anterior del checkout
+- sin cambios de schema, datos ni reglas de envio
+
+### 2026-09-05 - Suscripcion de newsletter preseleccionada en checkout
+
+- la casilla de novedades, beneficios y lanzamientos inicia marcada y la persona puede desmarcarla antes de crear el pedido
+- sin cambios de schema ni migraciones; el snapshot del pedido y la suscripcion resultante conservan el valor final enviado por el checkout
+
+### 2026-09-05 - Conciliacion de conversiones Google y ventas confirmadas
+
+Hallazgo:
+
+- el KPI total de compras confirmadas de la web no es equivalente a conversiones atribuidas por Google Ads; el primero contiene todas las fuentes y el segundo solo conversiones con atribucion de Google
+- habia una diferencia adicional: el evento web `purchase` solo se enviaba para `PAID`, aunque la operacion considera `PROOF_UPLOADED` una compra confirmada
+- los pagos Mercado Pago confirmados por webhook podian no llegar a GA4 si la persona no regresaba a la pagina de confirmacion
+
+Implementacion:
+
+- `purchase` de navegador ahora incluye `PAID` y `PROOF_UPLOADED`, siempre con `transaction_id` igual al numero publico del pedido
+- se captura el `client_id` de GA4 en la sesion de marketing y se agrego soporte opcional de Measurement Protocol para confirmar compras desde servidor despues de un comprobante o webhook
+- el envio servidor requiere `GA_MEASUREMENT_PROTOCOL_API_SECRET`; sin esa variable no se envia ningun evento extra ni se modifica el flujo comercial
+- browser y servidor usan el mismo `transaction_id` para deduplicacion de GA4
+- se documento como comparar el subtotal Google contra la fuente de verdad de IQ Kids
+
+Impacto:
+
+- migracion aditiva: agrega `marketing_sessions.ga_client_id`
+- no cambia pedidos, montos, pagos, estados ni reglas de envio
+- requiere agregar el secreto privado de Measurement Protocol en el droplet para cubrir confirmaciones sin retorno del navegador
+
+### 2026-09-05 - Revisión general previa a producción
+
+Revisión:
+
+- se revisaron checkout, consentimiento de newsletter, aperturas de email, recuperación de carrito, atribución y envío de conversiones a GA4
+- cuatro migraciones nuevas son sólo aditivas: no eliminan, renombran ni reescriben información histórica
+- la migración de corrección Meta reclasifica únicamente sesiones históricas mal atribuidas como pauta por `fbclid`; no modifica pedidos, montos, pagos ni estados
+- el beneficio de envío bonificado se vuelve a validar y se consume dentro de la transacción que crea el pedido; no puede afectar las reglas generales de envío
+- los eventos `purchase` de navegador y servidor usan el mismo `transaction_id` para evitar doble conteo en GA4
+- el total confirmado del panel se rotuló como total de todos los canales; la atribución por canal y campaña se consulta por separado
+
+Validación:
+
+- `npx prisma validate` correcto
+- `git diff --check` sin errores de espacios; los avisos LF/CRLF son de configuración local de Git y no cambian el contenido
+- falta regenerar Prisma Client y ejecutar TypeScript cuando se detenga el proceso local que mantiene bloqueado `query_engine-windows.dll.node`

@@ -101,6 +101,16 @@ enum EmailSendStatus {
   ERROR
 }
 
+enum NewsletterSubscriberStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+enum NewsletterConsentSource {
+  CHECKOUT
+  WELCOME_POPUP
+}
+
 enum CouponUsageType {
   UNLIMITED
   SINGLE_USE
@@ -357,6 +367,7 @@ model MarketingSession {
   ttclid         String?
   msclkid        String?
   landingQuery   Json?                   @map("landing_query")
+  gaClientId     String?                 @map("ga_client_id")
   email          String?
   firstSeenAt    DateTime                @default(now()) @map("first_seen_at")
   lastSeenAt     DateTime                @default(now()) @map("last_seen_at")
@@ -388,6 +399,11 @@ model CartRecoveryLead {
   convertedOrderId     String?   @map("converted_order_id") @db.Uuid
   convertedOrderNumber String?   @map("converted_order_number")
   convertedAt          DateTime? @map("converted_at")
+  freeShippingToken    String?   @unique @map("free_shipping_token")
+  freeShippingGrantedAt DateTime? @map("free_shipping_granted_at")
+  freeShippingExpiresAt DateTime? @map("free_shipping_expires_at")
+  freeShippingRedeemedAt DateTime? @map("free_shipping_redeemed_at")
+  freeShippingOrderId  String?   @map("free_shipping_order_id") @db.Uuid
   userAgent            String?   @map("user_agent")
   marketingSessionId   String?   @map("marketing_session_id") @db.Uuid
   marketingVisitorId   String?   @map("marketing_visitor_id")
@@ -403,6 +419,21 @@ model CartRecoveryLead {
   @@index([marketingVisitorId], map: "cart_recovery_leads_marketing_visitor_idx")
   @@index([updatedAt], map: "cart_recovery_leads_updated_at_idx")
   @@map("cart_recovery_leads")
+}
+
+model NewsletterSubscriber {
+  id             String                   @id @default(uuid()) @db.Uuid
+  email          String                   @unique
+  status         NewsletterSubscriberStatus @default(SUBSCRIBED)
+  consentSource  NewsletterConsentSource  @map("consent_source")
+  consentVersion String                   @map("consent_version")
+  consentedAt    DateTime                 @map("consented_at")
+  unsubscribedAt DateTime?                @map("unsubscribed_at")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  @@index([status, consentedAt], map: "newsletter_subscribers_status_consented_idx")
+  @@map("newsletter_subscribers")
 }
 
 model EmailAutomation {
@@ -447,6 +478,10 @@ model EmailSendLog {
   providerMessageId  String?                @map("provider_message_id")
   ctaUrl             String?                @map("cta_url")
   clickToken         String?                @unique @map("click_token")
+  openToken          String?                @unique @map("open_token")
+  openCount          Int                    @default(0) @map("open_count")
+  firstOpenedAt      DateTime?              @map("first_opened_at")
+  lastOpenedAt       DateTime?              @map("last_opened_at")
   clickCount         Int                    @default(0) @map("click_count")
   firstClickedAt     DateTime?              @map("first_clicked_at")
   lastClickedAt      DateTime?              @map("last_clicked_at")
@@ -464,6 +499,7 @@ model EmailSendLog {
   @@unique([automationId, targetType, targetId], map: "email_send_logs_automation_target_key")
   @@index([recipientEmail, createdAt], map: "email_send_logs_recipient_created_idx")
   @@index([status, createdAt], map: "email_send_logs_status_created_idx")
+  @@index([firstOpenedAt], map: "email_send_logs_first_opened_at_idx")
   @@index([convertedAt], map: "email_send_logs_converted_at_idx")
   @@map("email_send_logs")
 }
@@ -524,6 +560,8 @@ model Order {
   addressWithoutNumber  Boolean?             @map("address_without_number")
   addressExtra          String?              @map("address_extra")
   notes                 String?
+  newsletterOptIn       Boolean?             @map("newsletter_opt_in")
+  newsletterOptInAt     DateTime?            @map("newsletter_opt_in_at")
   couponId              String?              @map("coupon_id") @db.Uuid
   couponCode            String?              @map("coupon_code")
   discountPercentage    Decimal?             @map("discount_percentage") @db.Decimal(5, 2)

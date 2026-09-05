@@ -53,6 +53,9 @@ type LogItem = {
   targetType: string;
   targetId: string;
   errorMessage: string | null;
+  openCount: number;
+  firstOpenedAt: Date | null;
+  lastOpenedAt: Date | null;
   clickCount: number;
   firstClickedAt: Date | null;
   lastClickedAt: Date | null;
@@ -124,9 +127,11 @@ type EmailAutomationsPanelProps = {
   }>;
   trackingSummary: {
     sent: number;
+    opened: number;
     clicked: number;
     converted: number;
   };
+  newsletterSubscribers: number;
   emailEnabled: boolean;
 };
 
@@ -239,7 +244,7 @@ const variableDescriptions: Partial<Record<EmailAutomationTrigger, Record<string
   },
 };
 
-export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, emailEnabled }: EmailAutomationsPanelProps) {
+export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, newsletterSubscribers, emailEnabled }: EmailAutomationsPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(automations[0]?.id ?? null);
   const [form, setForm] = useState<FormState>(() => automationToForm(automations[0] ?? null));
   const [testEmail, setTestEmail] = useState("");
@@ -431,6 +436,12 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
           >
             Descargar mails CRM
           </Link>
+          <Link
+            href="/api/admin/export/newsletter-subscribers"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 transition hover:bg-brand-peach"
+          >
+            Descargar suscriptos
+          </Link>
           <Button type="button" variant="secondary" onClick={startNewAutomation}>
             Nueva automatizacion
           </Button>
@@ -440,10 +451,12 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <Metric label="Activas" value={activeCount.toString()} />
+        <Metric label="Newsletter" value={newsletterSubscribers.toString()} />
         <Metric label="Sin compra" value={cartLeads.length.toString()} />
         <Metric label="Enviados recientes" value={sentCount.toString()} />
+        <Metric label="Aperturas detectadas" value={trackingSummary.opened.toString()} />
         <Metric label="Clicks recientes" value={trackingSummary.clicked.toString()} />
         <Metric label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
       </div>
@@ -919,6 +932,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
               <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Estado de envios</p>
               <div className="mt-4 space-y-3">
                 <MetricLine label="Enviados" value={sentCount.toString()} />
+                <MetricLine label="Aperturas detectadas" value={trackingSummary.opened.toString()} />
                 <MetricLine label="Clics" value={trackingSummary.clicked.toString()} />
                 <MetricLine label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
                 <MetricLine label="Omitidos" value={recentLogs.filter((log) => log.status === "SKIPPED").length.toString()} />

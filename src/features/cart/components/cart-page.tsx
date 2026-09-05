@@ -39,6 +39,13 @@ const cartFallbackImageMap: Record<string, string> = {
   PEANUT: "/home/mani.webp",
 };
 
+function cartSignature(items: Array<{ productId: string; quantity: number }>) {
+  return [...items]
+    .sort((left, right) => left.productId.localeCompare(right.productId))
+    .map((item) => `${item.productId}:${item.quantity}`)
+    .join("|");
+}
+
 export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
   const router = useRouter();
   const emailInputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +60,8 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
   const [captureError, setCaptureError] = useState("");
   const [isCapturing, setIsCapturing] = useState(false);
   const [isRecoveringCart, setIsRecoveringCart] = useState(Boolean(recoveryToken));
+  const [freeShippingToken, setFreeShippingToken] = useState<string | null>(null);
+  const [recoveryCartSignature, setRecoveryCartSignature] = useState("");
 
   const detailedItems = useMemo(
     () =>
@@ -98,6 +107,8 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
         }
 
         replaceItems(payload.data.items);
+        setFreeShippingToken(payload.data.freeShippingToken ?? null);
+        setRecoveryCartSignature(cartSignature(payload.data.items));
         setEmail(payload.data.email);
         setCapturedEmail(payload.data.email);
         window.localStorage.setItem(WELCOME_POPUP_EMAIL_STORAGE_KEY, payload.data.email);
@@ -144,12 +155,17 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
 
   const subtotal = detailedItems.reduce((acc, item) => acc + item.product.priceArs * item.cart.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
-  const total = subtotal + shippingQuote.shippingArs;
+  const hasRecoveryFreeShipping = Boolean(freeShippingToken) && recoveryCartSignature === cartSignature(items);
+  const displayedShippingArs = hasRecoveryFreeShipping ? 0 : shippingQuote.shippingArs;
+  const total = subtotal + displayedShippingArs;
   const checkoutParams = new URLSearchParams({ province });
   const checkoutEmail = capturedEmail || email.trim();
 
   if (checkoutEmail) {
     checkoutParams.set("email", checkoutEmail);
+  }
+  if (hasRecoveryFreeShipping && freeShippingToken) {
+    checkoutParams.set("recoveryBenefit", freeShippingToken);
   }
 
   const checkoutHref = `/checkout?${checkoutParams.toString()}`;
@@ -476,7 +492,9 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
             </div>
             <div className="flex items-center justify-between">
               <span>Envío estimado</span>
-              {shippingQuote.freeShippingReached ? (
+              {hasRecoveryFreeShipping ? (
+                <span className="font-bold text-emerald-700">Bonificado</span>
+              ) : shippingQuote.freeShippingReached ? (
                 <span className="font-bold text-emerald-700">Gratis</span>
               ) : shippingQuote.shippingDiscountReached ? (
                 <span className="flex items-center gap-2 font-bold">
@@ -528,6 +546,11 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
           ) : null}
         </div>
         <p className="text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p>
+        {hasRecoveryFreeShipping ? (
+          <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
+            Recuperaste este carrito con envío bonificado. Se mantiene solo para este producto y este email al finalizar la compra.
+          </p>
+        ) : null}
         <div className="pt-2">
           <Button type="button" className="w-full" disabled={isCapturing} onClick={handleContinueCheckout}>
             {isCapturing ? "Continuando..." : "Continuar compra"}

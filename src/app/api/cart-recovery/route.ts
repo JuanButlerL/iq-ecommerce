@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ensureMarketingSession, logMarketingEvent } from "@/features/marketing/attribution-service";
+import { hasSameRecoveryCart } from "@/features/cart-recovery/free-shipping-service";
 import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
 import { prisma } from "@/lib/db/prisma";
 import { routeError, routeOk } from "@/lib/http/route";
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
       },
     });
     const recoveryToken = existingLead?.recoveryToken ?? randomUUID();
+    const cartChanged = existingLead ? !hasSameRecoveryCart(existingLead.items, items) : false;
     const data = {
       email,
       recoveryToken,
@@ -107,6 +109,15 @@ export async function POST(request: Request) {
       userAgent: request.headers.get("user-agent"),
       marketingSessionId: marketingSession?.id ?? existingLead?.marketingSessionId ?? null,
       marketingVisitorId: marketingSession?.visitorId ?? existingLead?.marketingVisitorId ?? null,
+      ...(cartChanged
+        ? {
+            freeShippingToken: null,
+            freeShippingGrantedAt: null,
+            freeShippingExpiresAt: null,
+            freeShippingRedeemedAt: null,
+            freeShippingOrderId: null,
+          }
+        : {}),
     };
 
     const lead = existingLead

@@ -41,7 +41,7 @@ Cuando una persona entra a la web, el sistema intenta guardar:
 
 La clasificacion sigue esta idea:
 
-1. si hay UTMs o click ids, se prioriza esa informacion
+1. si hay UTMs o click ids confiables, se prioriza esa informacion. `fbclid` solo no alcanza para asumir pauta Meta.
 2. si no hay UTMs, se analiza el referrer
 3. si no hay referrer util, queda como `DIRECT`
 
@@ -49,12 +49,12 @@ Ejemplos:
 
 - `utm_source=meta` con `utm_medium=paid_social`
   se clasifica como `META`
-- `utm_source=google` con `gclid`
+- `utm_source=google` con `utm_medium=cpc` o `gclid`
   se clasifica como `GOOGLE`
 - entrada desde resultados organicos de Google sin UTMs
   se clasifica como `ORGANIC`
-- entrada desde Instagram bio o link sin UTMs claros
-  puede quedar como `REFERRAL` o la categoria/plataforma detectada por referrer
+- entrada desde Instagram bio o link sin UTMs de pauta
+  se clasifica como tráfico orgánico de Instagram
 - entrada sin UTMs ni referrer
   queda como `DIRECT`
 
@@ -63,10 +63,10 @@ Ejemplos:
 ### Categorias macro de origen
 
 - `META`
-  agrupa trafico pago o etiquetado proveniente del ecosistema Meta.
-  Ejemplo: anuncio de Instagram Ads con `utm_source=meta`.
+  agrupa tráfico pago del ecosistema Meta con señal explícita de pauta.
+  Ejemplo: anuncio de Instagram Ads con `utm_source=meta&utm_medium=paid_social`.
 - `GOOGLE`
-  agrupa trafico pago o etiquetado proveniente de Google.
+  agrupa tráfico pago proveniente de Google con señal explícita de pauta.
   Ejemplo: campaña de Search o Performance Max con `utm_source=google` o `gclid`.
 - `ORGANIC`
   agrupa trafico no pago detectado desde buscadores o descubrimiento organico.
@@ -333,3 +333,54 @@ Ejemplo de Meta:
 `utm_source=meta&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}`
 
 Cuanto mejor salga etiquetado el trafico, mejor va a quedar la lectura en admin y export.
+
+## Reglas vigentes de lectura
+
+- `fbclid` por sí solo no prueba que una visita sea pauta: Meta también lo agrega a enlaces orgánicos. Para clasificar Meta como pago se exige un `utm_medium` pago, como `paid_social`, o una fuente explícitamente marcada como ads/paga.
+- el panel abre por defecto en los últimos 30 días para que la lectura sea ágil y comparable. El equipo puede ampliar el período desde los filtros.
+- cada compra se atribuye solo con las sesiones registradas hasta la creación de ese pedido. Una visita posterior no puede cambiar su atribución histórica.
+- una venta atribuida no equivale a ROAS o CPA. Para esos indicadores hay que cruzar este reporte con el gasto real de cada plataforma.
+
+## Lectura recomendada del panel
+
+La pantalla `/admin/marketing` prioriza cuatro decisiones:
+
+1. embudo: sesiones, emails captados, pedidos creados y compras confirmadas;
+2. canales: comparar Meta, Google y el resto por volumen, conversión e ingreso atribuido;
+3. campañas para escalar: campañas con compras e ingreso atribuido;
+4. campañas para revisar: campañas con al menos cinco sesiones y ninguna compra atribuida.
+
+Los detalles completos no se fuerzan en pantalla móvil. Se descargan desde:
+
+- `Ventas atribuidas`: una fila por compra confirmada con la atribución, first/last touch, canales pagos, asistencias y recorrido previo;
+- `Contactos y embudo`: una fila por email con su historia de captación, compras y eventos relevantes.
+
+## Convención UTM obligatoria para pauta
+
+Meta:
+
+`utm_source=meta&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}`
+
+Google:
+
+`utm_source=google&utm_medium=cpc&utm_campaign={{campaignname}}&utm_term={{keyword}}&utm_content={{creative}}`
+
+Sin esas etiquetas, el sistema conserva lo que detecta, pero no puede asegurar campaña, conjunto, anuncio ni separar con fiabilidad una visita orgánica de una paga sin señal explícita.
+
+## Conciliacion con Google Ads y GA4
+
+No se deben comparar directamente las compras confirmadas totales de IQ Kids con las conversiones atribuidas a Google Ads:
+
+- `Compras confirmadas` de la web incluye todas las fuentes: Google, Meta, organico, directo, email y referidos.
+- `Google Ads` solo debe mostrar conversiones a las que Google atribuye un contacto publicitario segun su propia ventana y modelo de atribucion.
+- Para contrastar correctamente, usar el mismo rango horario, zona horaria, definicion de conversion y moneda; luego comparar el subconjunto `GOOGLE / Google Ads` del export de ventas atribuidas contra Google Ads, no el total de la tienda.
+
+La web envia `purchase` de navegador para pagos `PAID` y transferencias con comprobante `PROOF_UPLOADED`, usando el numero publico del pedido como `transaction_id`.
+
+Para no perder pagos confirmados por webhook cuando la persona no vuelve a la pantalla final, existe soporte opcional para GA4 Measurement Protocol:
+
+- variable privada: `GA_MEASUREMENT_PROTOCOL_API_SECRET`
+- requiere que `NEXT_PUBLIC_GA_MEASUREMENT_ID` corresponda al mismo stream
+- se asocia al `client_id` real de GA4 capturado durante checkout
+- usa el mismo `transaction_id`, por lo que GA4 deduplica la version de navegador y la version servidor
+- no altera pedidos ni pagos si la variable no esta configurada; simplemente no envia el evento servidor

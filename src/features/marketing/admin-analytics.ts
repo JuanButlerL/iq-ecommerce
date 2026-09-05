@@ -1,7 +1,7 @@
 import { MarketingEventType, MarketingSourceCategory, MarketingSourcePlatform, OrderStatus, PaymentStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
-import { parseArgentinaDateParam } from "@/lib/utils/datetime";
+import { addArgentinaDays, getArgentinaDateKey, getArgentinaStartOfDay, parseArgentinaDateParam } from "@/lib/utils/datetime";
 
 const confirmedPaymentStatuses = new Set<PaymentStatus>([PaymentStatus.PAID, PaymentStatus.PROOF_UPLOADED]);
 const cancelledOrderStatuses = new Set<OrderStatus>([OrderStatus.CANCELLED, OrderStatus.EXPIRED]);
@@ -120,15 +120,18 @@ export type MarketingDashboardData = {
     confirmedOrders: number;
     confirmedRevenue: number;
     repeatOrders: number;
+    conversionRate: number;
   }>;
   campaignPerformance: Array<{
     key: string;
     category: string;
     platform: string;
     campaign: string;
+    sessions: number;
     confirmedOrders: number;
     confirmedRevenue: number;
     leadsCaptured: number;
+    conversionRate: number;
   }>;
   contacts: Array<{
     email: string;
@@ -177,6 +180,26 @@ export type MarketingDashboardData = {
     touchpoints: number;
     journeySummary: string;
   }>;
+  attributedSales: Array<{
+    orderNumber: string;
+    email: string;
+    createdAt: Date;
+    paidAt: Date | null;
+    totalArs: number;
+    paymentMethod: string;
+    attributionTouch: SessionRecord | null;
+    firstTouch: SessionRecord | null;
+    lastTouch: SessionRecord | null;
+    firstPaidTouch: SessionRecord | null;
+    lastPaidTouch: SessionRecord | null;
+    assistedCampaigns: string[];
+    assistedPlatforms: string[];
+    touchpoints: number;
+    journeySummary: string;
+    popupCapturedAt: Date | null;
+    cartCapturedAt: Date | null;
+    repeatCustomer: boolean;
+  }>;
 };
 
 export function parseMarketingDashboardFilters(values: MarketingDashboardFilterValues | URLSearchParams | undefined): MarketingDashboardFilters {
@@ -184,9 +207,12 @@ export function parseMarketingDashboardFilters(values: MarketingDashboardFilterV
   const category = read("sourceCategory");
   const platform = read("sourcePlatform");
 
+  const defaultDateFrom = addArgentinaDays(getArgentinaStartOfDay(), -29);
+  const defaultDateTo = parseArgentinaDateParam(getArgentinaDateKey(new Date()), true);
+
   return {
-    dateFrom: parseArgentinaDateParam(read("dateFrom") ?? null),
-    dateTo: parseArgentinaDateParam(read("dateTo") ?? null, true),
+    dateFrom: parseArgentinaDateParam(read("dateFrom") ?? null) ?? defaultDateFrom,
+    dateTo: parseArgentinaDateParam(read("dateTo") ?? null, true) ?? defaultDateTo,
     sourceCategory: Object.values(MarketingSourceCategory).includes(category as MarketingSourceCategory) ? (category as MarketingSourceCategory) : "ALL",
     sourcePlatform: Object.values(MarketingSourcePlatform).includes(platform as MarketingSourcePlatform) ? (platform as MarketingSourcePlatform) : "ALL",
     search: (read("search") ?? "").trim().toLowerCase(),
@@ -246,7 +272,7 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
 
   for (const order of filteredConfirmedOrders) {
     const touchSnapshot = getOrderJourneySnapshot(order, sessionsByEmail);
-    const anchorSession = order.marketingSession ?? touchSnapshot.lastTouch ?? touchSnapshot.firstTouch;
+    const anchorSession = getOrderAttributionTouch(order, touchSnapshot);
     if (!anchorSession) continue;
     const key = `${anchorSession.sourceCategory}:${anchorSession.sourcePlatform}`;
     const current = categoryMap.get(key) ?? emptyCategoryRow(key, `${anchorSession.sourceCategory} - ${anchorSession.sourcePlatform}`);
@@ -261,7 +287,7 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
   const campaignMap = new Map<string, MarketingDashboardData["campaignPerformance"][number]>();
   for (const order of filteredConfirmedOrders) {
     const touchSnapshot = getOrderJourneySnapshot(order, sessionsByEmail);
-    const campaignSession = order.marketingSession ?? touchSnapshot.lastPaidTouch ?? touchSnapshot.lastTouch;
+    const campaignSession = getOrderAttributionTouch(order, touchSnapshot) ?? touchSnapshot.lastPaidTouch;
     if (!campaignSession?.utmCampaign) continue;
     const key = `${campaignSession.sourceCategory}:${campaignSession.sourcePlatform}:${campaignSession.utmCampaign}`;
     const current = campaignMap.get(key) ?? {
@@ -269,12 +295,31 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
       category: campaignSession.sourceCategory,
       platform: campaignSession.sourcePlatform,
       campaign: campaignSession.utmCampaign,
+      sessions: 0,
       confirmedOrders: 0,
       confirmedRevenue: 0,
       leadsCaptured: 0,
+      conversionRate: 0,
     };
     current.confirmedOrders += 1;
     current.confirmedRevenue += order.totalArs;
+    campaignMap.set(key, current);
+  }
+  for (const session of filteredSessions) {
+    if (!session.utmCampaign) continue;
+    const key = `${session.sourceCategory}:${session.sourcePlatform}:${session.utmCampaign}`;
+    const current = campaignMap.get(key) ?? {
+      key,
+      category: session.sourceCategory,
+      platform: session.sourcePlatform,
+      campaign: session.utmCampaign,
+      sessions: 0,
+      confirmedOrders: 0,
+      confirmedRevenue: 0,
+      leadsCaptured: 0,
+      conversionRate: 0,
+    };
+    current.sessions += 1;
     campaignMap.set(key, current);
   }
   for (const event of filteredEvents) {
@@ -287,9 +332,11 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
       category: session.sourceCategory,
       platform: session.sourcePlatform,
       campaign: session.utmCampaign,
+      sessions: 0,
       confirmedOrders: 0,
       confirmedRevenue: 0,
       leadsCaptured: 0,
+      conversionRate: 0,
     };
     current.leadsCaptured += 1;
     campaignMap.set(key, current);
@@ -327,13 +374,17 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
       repeatCustomerRate: uniqueCustomers.size ? (repeatCustomers.length / uniqueCustomers.size) * 100 : 0,
       repeatRevenue,
     },
-    categoryPerformance: Array.from(categoryMap.values()).sort((left, right) => right.confirmedRevenue - left.confirmedRevenue || right.sessions - left.sessions),
-    campaignPerformance: Array.from(campaignMap.values()).sort((left, right) => right.confirmedRevenue - left.confirmedRevenue || right.leadsCaptured - left.leadsCaptured),
+    categoryPerformance: Array.from(categoryMap.values())
+      .map((row) => ({ ...row, conversionRate: row.sessions ? (row.confirmedOrders / row.sessions) * 100 : 0 }))
+      .sort((left, right) => right.confirmedRevenue - left.confirmedRevenue || right.sessions - left.sessions),
+    campaignPerformance: Array.from(campaignMap.values())
+      .map((row) => ({ ...row, conversionRate: row.sessions ? (row.confirmedOrders / row.sessions) * 100 : 0 }))
+      .sort((left, right) => right.confirmedRevenue - left.confirmedRevenue || right.confirmedOrders - left.confirmedOrders),
     contacts,
     recentOrders: filteredOrders
       .map((order) => {
         const touchSnapshot = getOrderJourneySnapshot(order, sessionsByEmail);
-        const anchorSession = order.marketingSession ?? touchSnapshot.lastTouch ?? touchSnapshot.firstTouch;
+        const anchorSession = getOrderAttributionTouch(order, touchSnapshot);
         return {
           orderNumber: order.publicOrderNumber,
           email: order.customerEmail,
@@ -356,6 +407,7 @@ export async function getMarketingDashboardData(filters: MarketingDashboardFilte
       })
       .filter((order) => !filters.onlyRepeat || order.repeatCustomer)
       .slice(0, 30),
+    attributedSales: filteredConfirmedOrders.map((order) => buildAttributedSale(order, sessionsByEmail, events, confirmedOrdersByEmail)),
   };
 }
 
@@ -398,7 +450,38 @@ export function buildMarketingExportRows(data: MarketingDashboardData) {
     totalRevenue: contact.totalRevenue,
     repeatCustomer: contact.repeatCustomer ? "SI" : "NO",
     lastOrderNumber: contact.lastOrderNumber ?? "",
-    timeline: contact.timeline.map((item) => `${item.type} ${item.path} ${item.detail}`).join(" | "),
+    timeline: contact.timeline.map((item) => [item.type, sanitizePath(item.path), item.detail].filter(Boolean).join(" · ")).join(" | "),
+  }));
+}
+
+export function buildMarketingSalesExportRows(data: MarketingDashboardData) {
+  return data.attributedSales.map((sale) => ({
+    orderNumber: sale.orderNumber,
+    email: sale.email,
+    createdAt: sale.createdAt,
+    paidAt: sale.paidAt,
+    totalArs: sale.totalArs,
+    paymentMethod: sale.paymentMethod,
+    attributedCategory: sale.attributionTouch?.sourceCategory ?? "",
+    attributedPlatform: sale.attributionTouch?.sourcePlatform ?? "",
+    attributedChannel: sale.attributionTouch?.sourceChannel ?? "",
+    attributedSource: sale.attributionTouch?.sourceLabel ?? "Sin atribución",
+    attributedCampaign: sale.attributionTouch?.utmCampaign ?? "",
+    firstSource: sale.firstTouch?.sourceLabel ?? "",
+    firstCampaign: sale.firstTouch?.utmCampaign ?? "",
+    lastSource: sale.lastTouch?.sourceLabel ?? "",
+    lastCampaign: sale.lastTouch?.utmCampaign ?? "",
+    firstPaidSource: sale.firstPaidTouch?.sourceLabel ?? "",
+    firstPaidCampaign: sale.firstPaidTouch?.utmCampaign ?? "",
+    lastPaidSource: sale.lastPaidTouch?.sourceLabel ?? "",
+    lastPaidCampaign: sale.lastPaidTouch?.utmCampaign ?? "",
+    assistedCampaigns: sale.assistedCampaigns.join(" | "),
+    assistedPlatforms: sale.assistedPlatforms.join(" | "),
+    touchpoints: sale.touchpoints,
+    journeySummary: sale.journeySummary,
+    popupCapturedAt: sale.popupCapturedAt,
+    cartCapturedAt: sale.cartCapturedAt,
+    repeatCustomer: sale.repeatCustomer ? "SI" : "NO",
   }));
 }
 
@@ -538,7 +621,8 @@ function buildContact(
       path: session.entryPath,
       detail: buildSessionDescriptor(session),
     })),
-    ...emailEvents.map((event) => ({
+    // SESSION_STARTED is already represented by the session entry above.
+    ...emailEvents.filter((event) => event.eventType !== MarketingEventType.SESSION_STARTED).map((event) => ({
       type: eventLabel(event.eventType),
       occurredAt: event.occurredAt,
       path: event.path,
@@ -587,7 +671,47 @@ function summarizeJourney(sessions: SessionRecord[]): JourneySnapshot {
     assistedPlatforms: uniqueStrings(meaningfulSessions.map((session) => session.sourcePlatform)),
     assistedCampaigns: uniqueStrings(meaningfulSessions.map((session) => session.utmCampaign)),
     touchpoints: orderedSessions.length,
-    journeySummary: orderedSessions.map((session) => buildSessionDescriptor(session)).join(" -> "),
+    journeySummary: uniqueConsecutiveStrings(orderedSessions.map((session) => buildSessionDescriptor(session))).join(" -> "),
+  };
+}
+
+function getOrderAttributionTouch(order: OrderRecord, journey: JourneySnapshot) {
+  return order.marketingSession && isMeaningfulSession(order.marketingSession)
+    ? order.marketingSession
+    : journey.lastTouch ?? journey.firstTouch;
+}
+
+function buildAttributedSale(
+  order: OrderRecord,
+  sessionsByEmail: Map<string, SessionRecord[]>,
+  events: EventRecord[],
+  confirmedOrdersByEmail: Map<string, OrderRecord[]>,
+) {
+  const email = normalizeEmail(order.customerEmail);
+  const journey = getOrderJourneySnapshot(order, sessionsByEmail);
+  const eventsBeforeOrder = events
+    .filter((event) => normalizeEmail(event.email ?? event.marketingSession?.email) === email && event.occurredAt <= order.createdAt)
+    .sort((left, right) => left.occurredAt.getTime() - right.occurredAt.getTime());
+
+  return {
+    orderNumber: order.publicOrderNumber,
+    email: order.customerEmail,
+    createdAt: order.createdAt,
+    paidAt: order.paidAt,
+    totalArs: order.totalArs,
+    paymentMethod: order.paymentMethod,
+    attributionTouch: getOrderAttributionTouch(order, journey),
+    firstTouch: journey.firstTouch,
+    lastTouch: journey.lastTouch,
+    firstPaidTouch: journey.firstPaidTouch,
+    lastPaidTouch: journey.lastPaidTouch,
+    assistedCampaigns: journey.assistedCampaigns,
+    assistedPlatforms: journey.assistedPlatforms,
+    touchpoints: journey.touchpoints,
+    journeySummary: journey.journeySummary,
+    popupCapturedAt: eventsBeforeOrder.find((event) => event.eventType === MarketingEventType.POPUP_CAPTURED)?.occurredAt ?? null,
+    cartCapturedAt: eventsBeforeOrder.find((event) => event.eventType === MarketingEventType.CART_CAPTURED)?.occurredAt ?? null,
+    repeatCustomer: (confirmedOrdersByEmail.get(email)?.length ?? 0) > 1,
   };
 }
 
@@ -625,6 +749,14 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value && value.trim()))));
 }
 
+function uniqueConsecutiveStrings(values: string[]) {
+  return values.filter((value, index) => index === 0 || value !== values[index - 1]);
+}
+
+function sanitizePath(path: string) {
+  return path.split("?")[0] || "/";
+}
+
 function emptyCategoryRow(key: string, label: string) {
   return {
     key,
@@ -636,6 +768,7 @@ function emptyCategoryRow(key: string, label: string) {
     confirmedOrders: 0,
     confirmedRevenue: 0,
     repeatOrders: 0,
+    conversionRate: 0,
   };
 }
 

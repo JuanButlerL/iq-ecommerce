@@ -1,10 +1,11 @@
 ﻿import { randomUUID } from "crypto";
-import { EmailAutomationTrigger, EmailSendStatus, MarketingEventType, OrderStatus, PaymentStatus, Prisma, type CouponDiscountType } from "@prisma/client";
+import { EmailAutomationTrigger, EmailSendStatus, MarketingEventType, NewsletterConsentSource, OrderStatus, PaymentStatus, Prisma, type CouponDiscountType } from "@prisma/client";
 import { z } from "zod";
 
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { isWelcomePopupCoupon, stripWelcomePopupCouponMarker } from "@/features/coupons/lib/welcome-popup-coupon";
 import { sendEmail } from "@/features/email/provider";
+import { subscribeToNewsletter } from "@/features/email/newsletter-service";
 import { renderMarketingEmail } from "@/features/email/render";
 import {
   WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID,
@@ -22,6 +23,7 @@ const POPUP_CTA_URL = `${env.NEXT_PUBLIC_SITE_URL}/#productos`;
 
 const welcomePopupSchema = z.object({
   email: z.string().trim().email().max(180),
+  newsletterOptIn: z.boolean().optional().default(false),
   marketing: marketingSessionContextSchema.optional(),
 });
 
@@ -164,6 +166,10 @@ export async function captureWelcomePopupLead(payload: unknown, userAgent?: stri
     throw new AppError("No pudimos registrar el email para seguimiento.", 500);
   }
 
+  if (parsed.data.newsletterOptIn) {
+    await subscribeToNewsletter(prisma, { email, source: NewsletterConsentSource.WELCOME_POPUP });
+  }
+
   await logMarketingEvent({
     marketingContext: parsed.data.marketing,
     eventType: MarketingEventType.POPUP_CAPTURED,
@@ -256,6 +262,7 @@ async function sendWelcomeCouponEmail(input: {
   });
 
   const clickToken = randomUUID();
+  const openToken = randomUUID();
   const trackedCtaUrl = `${env.NEXT_PUBLIC_SITE_URL}/api/email/click/${clickToken}`;
   const subject = welcomePopupCopy.emailSubject;
   const html = renderMarketingEmail({
@@ -264,6 +271,7 @@ async function sendWelcomeCouponEmail(input: {
     bodyText: welcomePopupCopy.emailBody,
     ctaLabel: welcomePopupCopy.successPrimaryAction,
     ctaUrl: trackedCtaUrl,
+    openTrackingUrl: `${env.NEXT_PUBLIC_SITE_URL}/api/email/open/${openToken}`,
     coupon: {
       code: input.coupon.code,
       discountType: input.coupon.discountType,
@@ -303,6 +311,7 @@ async function sendWelcomeCouponEmail(input: {
       subject,
       ctaUrl: POPUP_CTA_URL,
       clickToken,
+      openToken,
       providerMessageId: sent.providerMessageId,
     });
 
@@ -317,6 +326,7 @@ async function sendWelcomeCouponEmail(input: {
       subject,
       ctaUrl: POPUP_CTA_URL,
       clickToken,
+      openToken,
       errorMessage: error instanceof Error ? error.message : "Email error",
     });
     console.error("Welcome popup email error", error);
@@ -401,6 +411,7 @@ async function createWelcomePopupEmailLog(input: {
   providerMessageId?: string | null;
   ctaUrl?: string | null;
   clickToken?: string | null;
+  openToken?: string | null;
   errorMessage?: string | null;
 }) {
   try {
@@ -417,6 +428,7 @@ async function createWelcomePopupEmailLog(input: {
         providerMessageId: input.providerMessageId,
         ctaUrl: input.ctaUrl,
         clickToken: input.clickToken,
+        openToken: input.openToken,
         errorMessage: input.errorMessage,
         sentAt: input.status === EmailSendStatus.SENT ? new Date() : null,
       },

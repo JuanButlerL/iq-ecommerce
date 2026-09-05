@@ -41,6 +41,7 @@ type CheckoutPageProps = {
   mercadoPagoEnabled: boolean;
   initialProvince?: string;
   initialEmail?: string;
+  initialCartRecoveryFreeShippingToken?: string;
 };
 
 type CouponPreview = {
@@ -65,16 +66,18 @@ type ErrorSummaryProps = {
   className?: string;
 };
 
-const LEGACY_CHECKOUT_MESSAGE =
-  "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.";
+const REMOVED_CHECKOUT_MESSAGES = new Set([
+  "Podes comprar por debajo del minimo, pero en ese caso se agrega envio segun la configuracion vigente.",
+  "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.",
+]);
 
 function normalizeCheckoutMessage(message: string | null | undefined) {
   if (!message) {
     return null;
   }
 
-  if (message === LEGACY_CHECKOUT_MESSAGE) {
-    return "Podés comprar por debajo del mínimo, pero en ese caso se agrega envío según la configuración vigente.";
+  if (REMOVED_CHECKOUT_MESSAGES.has(message)) {
+    return null;
   }
 
   return message;
@@ -132,6 +135,7 @@ export function CheckoutPage({
   mercadoPagoEnabled,
   initialProvince: requestedProvince,
   initialEmail = "",
+  initialCartRecoveryFreeShippingToken,
 }: CheckoutPageProps) {
   const router = useRouter();
   const [checkoutRequestKey] = useState(() => crypto.randomUUID());
@@ -139,6 +143,7 @@ export function CheckoutPage({
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponPreview | null>(null);
+  const [recoveryFreeShippingActive, setRecoveryFreeShippingActive] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isApplyingCoupon, startApplyingCoupon] = useTransition();
   const hasTrackedCheckoutRef = useRef(false);
@@ -192,6 +197,7 @@ export function CheckoutPage({
       checkoutRequestKey,
       paymentMethod: "BANK_TRANSFER",
       notes: "",
+      newsletterOptIn: true,
     },
   });
 
@@ -202,16 +208,19 @@ export function CheckoutPage({
   const watchedAddressNumber = form.watch("addressNumber");
   const watchedAddressWithoutNumber = form.watch("addressWithoutNumber");
   const watchedAddressExtra = form.watch("addressExtra");
+  const watchedNewsletterOptIn = form.watch("newsletterOptIn");
+  const watchedEmail = form.watch("email");
   const watchedLocality = form.watch("locality");
   const watchedPostalCode = form.watch("postalCode");
   const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
+  const displayedShippingArs = recoveryFreeShippingActive ? 0 : shippingQuote.shippingArs;
   const couponDiscountArs = appliedCoupon?.discountArs ?? 0;
   const pricing = calculateCheckoutPricing({
     paymentMethod,
     subtotalArs: subtotal,
     couponDiscountArs,
-    shippingArs: shippingQuote.shippingArs,
+    shippingArs: displayedShippingArs,
     enableBankTransferDiscount: settings.enableBankTransferDiscount,
     bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
   });
@@ -288,6 +297,40 @@ export function CheckoutPage({
       form.setValue("paymentMethod", "MERCADO_PAGO");
     }
   }, [allowBankTransfer, allowMercadoPago, form, paymentMethod]);
+
+  useEffect(() => {
+    if (!initialCartRecoveryFreeShippingToken || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(watchedEmail)) {
+      setRecoveryFreeShippingActive(false);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function validateRecoveryBenefit() {
+      try {
+        const response = await fetch("/api/cart-recovery/free-shipping/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            token: initialCartRecoveryFreeShippingToken,
+            email: watchedEmail,
+            items: productItems.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+          }),
+        });
+        const payload = await response.json();
+        setRecoveryFreeShippingActive(Boolean(response.ok && payload.data?.eligible));
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          setRecoveryFreeShippingActive(false);
+        }
+      }
+    }
+
+    void validateRecoveryBenefit();
+
+    return () => controller.abort();
+  }, [initialCartRecoveryFreeShippingToken, productItems, watchedEmail]);
 
   useEffect(() => {
     if (!appliedCoupon) {
@@ -397,6 +440,7 @@ export function CheckoutPage({
             },
             body: JSON.stringify({
               ...values,
+              cartRecoveryFreeShippingToken: recoveryFreeShippingActive ? initialCartRecoveryFreeShippingToken : undefined,
               couponCode: appliedCoupon?.couponCode ?? "",
               marketing: getBrowserMarketingContext() ?? undefined,
               items: productItems.map((item) => ({
@@ -666,6 +710,15 @@ export function CheckoutPage({
           onChange={(nextPaymentMethod) => form.setValue("paymentMethod", nextPaymentMethod, { shouldDirty: true })}
         />
         {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
+        <label className="group flex cursor-pointer items-center gap-2.5 px-1 text-left focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-pink focus-within:ring-offset-2">
+          <input type="checkbox" className="peer sr-only" {...form.register("newsletterOptIn")} />
+          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-brand-pink/45 bg-white text-white transition-colors peer-checked:border-brand-pink peer-checked:bg-brand-pink">
+            <CheckCircle2 className={`h-3 w-3 transition-opacity ${watchedNewsletterOptIn ? "opacity-100" : "opacity-0"}`} />
+          </span>
+          <span className="text-sm font-bold text-brand-ink/75 transition-colors group-hover:text-brand-ink">
+            Quiero recibir novedades, beneficios y lanzamientos de IQ Kids.
+          </span>
+        </label>
         <Button type="submit" className="w-full" disabled={isPending}>
           {isPending
             ? paymentMethod === "MERCADO_PAGO"
@@ -795,7 +848,9 @@ export function CheckoutPage({
           ) : null}
           <div className="flex items-center justify-between">
             <span>Envío</span>
-            {shippingQuote.freeShippingReached ? (
+            {recoveryFreeShippingActive ? (
+              <span className="font-bold text-emerald-700">Bonificado</span>
+            ) : shippingQuote.freeShippingReached ? (
               <span className="font-bold text-emerald-700">Gratis</span>
             ) : shippingQuote.shippingDiscountReached ? (
               <span className="flex items-center gap-2 font-bold">
@@ -819,6 +874,11 @@ export function CheckoutPage({
         </div>
 
         <div className="space-y-4 border-t border-brand-ink/10 pt-4">
+          {recoveryFreeShippingActive ? (
+            <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
+              Envío bonificado por recuperar este carrito. Se confirma al crear el pedido para este email y estos productos.
+            </p>
+          ) : null}
           <p className="text-sm font-bold leading-6 text-emerald-700">{checkoutShippingNudge}</p>
 
           {suggestedProducts.length > 0 ? (
@@ -873,7 +933,7 @@ export function CheckoutPage({
         </div>
 
         <div className="rounded-[1.5rem] bg-brand-peach p-4 text-sm text-brand-ink/70">
-          <p>{checkoutMessage || "Completas tus datos ahora y el pago se hace en el siguiente paso."}</p>
+          <p>{checkoutMessage || "Elegiste una opción rica para ellos y simple para vos."}</p>
           <p className="mt-2">Envío gratis desde {formatArs(settings.freeShippingThreshold)}.</p>
         </div>
       </Card>

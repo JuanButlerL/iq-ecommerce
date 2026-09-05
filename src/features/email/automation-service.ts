@@ -1,8 +1,9 @@
 ﻿import { randomUUID } from "crypto";
-import { EmailAutomationTrigger, EmailSendStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
+import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
 import { renderMarketingEmail, renderTemplate } from "@/features/email/render";
+import { grantCartRecoveryFreeShippingBenefit } from "@/features/cart-recovery/free-shipping-service";
 import { WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID } from "@/features/email/system-automations";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
@@ -90,6 +91,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
       const ctaLabel = automation.ctaLabel ? renderTemplate(automation.ctaLabel, candidate.variables) : null;
       const ctaUrl = automation.ctaUrlTemplate ? renderTemplate(automation.ctaUrlTemplate, candidate.variables) : null;
       const logId = randomUUID();
+      const openToken = randomUUID();
       const clickToken = ctaUrl ? randomUUID() : null;
       const trackedCtaUrl = clickToken ? `${env.NEXT_PUBLIC_SITE_URL}/api/email/click/${clickToken}` : null;
       const html = renderMarketingEmail({
@@ -98,6 +100,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
         bodyText,
         ctaLabel,
         ctaUrl: trackedCtaUrl ?? ctaUrl,
+        openTrackingUrl: `${env.NEXT_PUBLIC_SITE_URL}/api/email/open/${openToken}`,
         coupon: automation.coupon
           ? {
               code: automation.coupon.code,
@@ -136,7 +139,15 @@ export async function processEmailAutomations(options: { automationId?: string; 
           providerMessageId: sent.providerMessageId,
           ctaUrl,
           clickToken,
+          openToken,
         });
+        if (
+          automation.trigger === EmailAutomationTrigger.CART_ABANDONED &&
+          candidate.cartRecoveryLeadId &&
+          ctaUrl === candidate.variables.recoveryUrl
+        ) {
+          await grantCartRecoveryFreeShippingBenefit(candidate.cartRecoveryLeadId);
+        }
         result.sent += 1;
       } catch (error) {
         await createEmailLog({
@@ -152,6 +163,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
           cartRecoveryLeadId: candidate.cartRecoveryLeadId,
           ctaUrl,
           clickToken,
+          openToken,
           errorMessage: error instanceof Error ? error.message : "Email error",
         });
         result.errors += 1;
@@ -175,7 +187,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         }
       : {};
 
-  const [automations, recentLogs, cartLeads, coupons] = await Promise.all([
+  const [automations, recentLogs, cartLeads, coupons, newsletterSubscribers] = await Promise.all([
     prisma.emailAutomation.findMany({
       where: {
         id: { not: WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID },
@@ -251,8 +263,12 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         description: true,
       },
     }),
+    prisma.newsletterSubscriber.count({
+      where: { status: NewsletterSubscriberStatus.SUBSCRIBED },
+    }),
   ]);
 
+  const logsWithOpens = recentLogs.filter((log) => log.openCount > 0).length;
   const logsWithClicks = recentLogs.filter((log) => log.clickCount > 0).length;
   const logsWithConversions = recentLogs.filter((log) => log.convertedAt).length;
   const leadIds = cartLeads.map((lead) => lead.id);
@@ -306,10 +322,12 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       discountPercentage: coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
     })),
     trackingSummary: {
+      opened: logsWithOpens,
       clicked: logsWithClicks,
       converted: logsWithConversions,
       sent: recentLogs.filter((log) => log.status === EmailSendStatus.SENT).length,
     },
+    newsletterSubscribers,
     emailEnabled: env.canSendEmail,
   };
 }

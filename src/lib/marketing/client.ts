@@ -9,6 +9,7 @@ export type BrowserMarketingContext = {
   pageUrl: string;
   referrer: string;
   landingQuery: Record<string, string>;
+  gaClientId?: string;
 };
 
 export function getBrowserMarketingContext(): BrowserMarketingContext | null {
@@ -26,7 +27,24 @@ export function getBrowserMarketingContext(): BrowserMarketingContext | null {
     pageUrl: window.location.href,
     referrer: document.referrer || "",
     landingQuery: Object.fromEntries(new URLSearchParams(window.location.search).entries()),
+    gaClientId: getGoogleAnalyticsClientId() ?? undefined,
   };
+}
+
+function getGoogleAnalyticsClientId() {
+  const gaCookie = document.cookie
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith("_ga="));
+
+  if (!gaCookie) {
+    return null;
+  }
+
+  const value = gaCookie.slice("_ga=".length);
+  const match = value.match(/^GA\d+\.\d+\.(\d+\.\d+)$/);
+
+  return match?.[1] ?? null;
 }
 
 export function hasTrackedMarketingSession() {
