@@ -1146,3 +1146,14 @@ Validación:
 - `npx prisma validate` correcto
 - `git diff --check` sin errores de espacios; los avisos LF/CRLF son de configuración local de Git y no cambian el contenido
 - falta regenerar Prisma Client y ejecutar TypeScript cuando se detenga el proceso local que mantiene bloqueado `query_engine-windows.dll.node`
+
+### 2026-09-05 - Claridad de estados en Emails
+
+- un email capturado en el popup se registra como `WELCOME_CAPTURED`; no es el mismo ciclo que el carrito abandonado
+- si no existe una automatización demorada de bienvenida, el panel ahora muestra `Capturado en popup` y `No aplica: popup inmediato` en lugar de `Sin automatización`
+- el bloque del admin pasó a llamarse `Capturas y recuperaciones` para separar visualmente la captura inmediata del popup y la demora de los carritos
+- al procesar una automatización de carrito antes de la demora configurada, el panel informa los casos todavía en espera y la próxima hora de salida; no los presenta como ausencia de pendientes
+- al dejar email en carrito se crea o renueva un ciclo `CAPTURED`; la automatización de carrito calcula su demora desde esa captura
+- la demora de un carrito `CAPTURED` queda anclada a `createdAt`, no a `updatedAt`: abrir nuevamente el carrito, cambiar provincia o actualizar productos conserva el horario programado y no vuelve a patear el envío
+- para los ciclos existentes, los logs anteriores siguen reconociéndose aunque hayan usado el ancla histórica basada en `updatedAt`; no se reenvían emails ya enviados
+- un ciclo histórico y un envío previo no bloquean una nueva captura de carrito realizada después de la ventana activa de 24 horas

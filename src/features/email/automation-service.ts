@@ -574,7 +574,8 @@ async function getCandidatesForAutomation(
 }
 
 function getCartRecoveryLeadCycleDate(lead: CartRecoveryLeadTriggerSnapshot) {
-  return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.updatedAt;
+  // Saving a changed cart refreshes updatedAt, but must never postpone an already scheduled recovery.
+  return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.createdAt;
 }
 
 function getCartRecoveryLeadTrigger(lead: { status: string }) {
@@ -659,16 +660,14 @@ function getCartRecoveryCycleLog<T extends { targetId: string; createdAt: Date; 
   leadId: string,
   logs: T[],
 ) {
+  const leadLogs = logs.filter((log) => (log.cartRecoveryLeadId ?? extractLeadIdFromTargetId(log.targetId)) === leadId);
+
   return (
-    logs.find((log) => {
-      const logLeadId = log.cartRecoveryLeadId ?? extractLeadIdFromTargetId(log.targetId);
-
-      if (logLeadId !== leadId) {
-        return false;
-      }
-
-      return log.targetId === cycleTargetId || log.targetId.startsWith(`${cycleTargetId}:retry:`);
-    }) ?? null
+    leadLogs.find((log) => log.targetId === cycleTargetId || log.targetId.startsWith(`${cycleTargetId}:retry:`)) ??
+    // Recoveries sent before the stable cycle anchor used updatedAt in their target id.
+    // A lead is unique per active 24-hour window, so its latest log remains the same cycle.
+    leadLogs[0] ??
+    null
   );
 }
 

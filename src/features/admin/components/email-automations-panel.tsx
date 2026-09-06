@@ -372,6 +372,27 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
       (acc, item) => ({ sent: acc.sent + item.sent, skipped: acc.skipped + item.skipped, errors: acc.errors + item.errors }),
       { sent: 0, skipped: 0, errors: 0 },
     );
+
+    const waitingCartRecoveries =
+      selectedAutomation?.trigger === "CART_ABANDONED" && activeRecoveryDelayHours !== null
+        ? cartLeads
+            .filter((lead) => {
+              if (lead.trigger !== "CART_ABANDONED" || lead.latestLog) return false;
+              const scheduledAt = new Date(lead.triggerAt).getTime() + activeRecoveryDelayHours * 60 * 60 * 1000;
+              return scheduledAt > Date.now();
+            })
+            .map((lead) => new Date(new Date(lead.triggerAt).getTime() + activeRecoveryDelayHours * 60 * 60 * 1000))
+            .sort((left, right) => left.getTime() - right.getTime())
+        : [];
+
+    if (totals.sent === 0 && totals.skipped === 0 && totals.errors === 0 && waitingCartRecoveries.length) {
+      const nextScheduledAt = waitingCartRecoveries[0];
+      setMessage(
+        `Todavía no hay emails listos: ${waitingCartRecoveries.length} carrito(s) siguen en espera. El próximo queda listo ${formatArgentinaDateTime(nextScheduledAt)}.`,
+      );
+      return;
+    }
+
     setMessage(`Proceso listo: ${totals.sent} enviados, ${totals.skipped} omitidos, ${totals.errors} errores.`);
   };
 
@@ -835,9 +856,9 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
             <Card className="p-5 md:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Proximos mails a enviar</p>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Capturas y recuperaciones</p>
                   <p className="mt-1 text-sm leading-6 text-brand-ink/55">
-                    Muestra el inicio real del caso y cuando deberia salir el mail segun la demora activa.
+                    El popup se registra al instante; los carritos muestran cuando se enviara la recuperacion segun la demora activa.
                   </p>
                 </div>
                 {activeWelcomeDelayHours !== null || activeRecoveryDelayHours !== null ? (
@@ -856,7 +877,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                 {cartLeads.length ? (
                   cartLeads.slice(0, 8).map((lead) => {
                     const delayHours = lead.trigger === "WELCOME_LEAD" ? activeWelcomeDelayHours : activeRecoveryDelayHours;
-                    const timing = getRecoveryLeadTiming(lead.triggerAt, delayHours, lead.latestLog);
+                    const timing = getRecoveryLeadTiming(lead.triggerAt, delayHours, lead.latestLog, lead.trigger);
 
                     return (
                       <div key={lead.id} className="rounded-2xl bg-background px-4 py-3">
@@ -893,7 +914,11 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                           <div>
                             <p className="font-extrabold uppercase tracking-[0.12em] text-brand-ink/40">Programado</p>
                             <p className="mt-1 font-semibold text-brand-ink/70">
-                              {timing.scheduledAt ? formatArgentinaDateTime(timing.scheduledAt) : "Sin automatizacion activa"}
+                              {timing.scheduledAt
+                                ? formatArgentinaDateTime(timing.scheduledAt)
+                                : lead.trigger === "WELCOME_LEAD"
+                                  ? "No aplica: email inmediato del popup"
+                                  : "Sin automatización activa"}
                             </p>
                           </div>
                         </div>
@@ -1087,6 +1112,7 @@ function getRecoveryLeadTiming(
   triggerAt: Date,
   delayHours: number | null,
   latestLog: CartLeadItem["latestLog"],
+  trigger: EmailAutomationTrigger,
 ): RecoveryLeadTiming & { label: string; visualState: "waiting" | "ready" | "overdue" | "sent" | "error" } {
   if (latestLog?.status === "SENT") {
     return {
@@ -1113,7 +1139,7 @@ function getRecoveryLeadTiming(
       scheduledAt: null,
       isReady: false,
       isOverdue: false,
-      label: "Sin automatizacion",
+      label: trigger === "WELCOME_LEAD" ? "Capturado en popup" : "Sin automatización",
       visualState: "waiting",
     };
   }
