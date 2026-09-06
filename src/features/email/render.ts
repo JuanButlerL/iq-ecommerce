@@ -40,6 +40,7 @@ export function renderMarketingEmail({
   ctaLabel,
   ctaUrl,
   openTrackingUrl,
+  freeShippingMessage,
   coupon,
 }: {
   subject: string;
@@ -48,6 +49,7 @@ export function renderMarketingEmail({
   ctaLabel?: string | null;
   ctaUrl?: string | null;
   openTrackingUrl?: string | null;
+  freeShippingMessage?: string | null;
   coupon?: {
     code: string;
     discountType: "PERCENTAGE" | "FIXED_AMOUNT";
@@ -73,6 +75,12 @@ export function renderMarketingEmail({
       : "";
 
   const safePreviewText = previewText?.trim() ? escapeHtml(previewText.trim()) : "";
+  const freeShippingBlock = freeShippingMessage?.trim()
+    ? `<div style="margin:22px 0 20px;border:1px solid #99d9bd;background:#effbf4;border-radius:22px;padding:18px;">
+        <p style="margin:0 0 7px;color:#278460;font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;">Envío bonificado</p>
+        <p style="margin:0;color:${brandInk};font-size:15px;line-height:1.55;">${escapeHtml(freeShippingMessage.trim()).replace(/\n/g, "<br />")}</p>
+      </div>`
+    : "";
   const couponBlock = coupon
     ? `<div style="margin:22px 0 20px;border:1px dashed ${brandPink};background:#fff7f8;border-radius:22px;padding:18px 18px 16px;">
         <p style="margin:0 0 7px;color:${brandPink};font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;">${escapeHtml(coupon.headline?.trim() || "Regalo IQ Kids")}</p>
@@ -113,6 +121,7 @@ export function renderMarketingEmail({
                 <h1 style="margin:0 0 18px;color:${brandInk};font-size:30px;line-height:1.12;">${escapeHtml(subject)}</h1>
                 ${safePreviewText ? `<p style="margin:0 0 18px;color:rgba(45,33,66,.72);font-size:15px;line-height:1.6;">${safePreviewText}</p>` : ""}
                 ${paragraphs}
+                ${freeShippingBlock}
                 ${couponBlock}
                 ${cta ? `<div style="padding-top:10px;">${cta}</div>` : ""}
                 <p style="margin:28px 0 0;color:rgba(45,33,66,.55);font-size:12px;line-height:1.5;">Snacks simples y naturales para todos los dias.</p>

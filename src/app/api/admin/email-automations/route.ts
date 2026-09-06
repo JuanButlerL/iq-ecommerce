@@ -20,6 +20,7 @@ export async function POST(request: Request) {
         couponId: parsed.couponId || null,
         couponHeadline: parsed.couponHeadline || null,
         couponMessage: parsed.couponMessage || null,
+        cartRecoveryFreeShippingMessage: parsed.cartRecoveryFreeShippingMessage || null,
       },
     });
 

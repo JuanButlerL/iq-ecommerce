@@ -25,6 +25,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         couponId: parsed.couponId || null,
         couponHeadline: parsed.couponHeadline || null,
         couponMessage: parsed.couponMessage || null,
+        cartRecoveryFreeShippingMessage: parsed.cartRecoveryFreeShippingMessage || null,
       },
     });
 

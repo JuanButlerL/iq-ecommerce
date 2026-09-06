@@ -1156,4 +1156,12 @@ Validación:
 - al dejar email en carrito se crea o renueva un ciclo `CAPTURED`; la automatización de carrito calcula su demora desde esa captura
 - la demora de un carrito `CAPTURED` queda anclada a `createdAt`, no a `updatedAt`: abrir nuevamente el carrito, cambiar provincia o actualizar productos conserva el horario programado y no vuelve a patear el envío
 - para los ciclos existentes, los logs anteriores siguen reconociéndose aunque hayan usado el ancla histórica basada en `updatedAt`; no se reenvían emails ya enviados
+
+### 2026-09-05 - Oferta configurable de envío bonificado
+
+- el envío bonificado deja de otorgarse automáticamente por usar el CTA de recuperación; cada automatización de carrito lo habilita o deshabilita de forma explícita
+- cuando está habilitado, el admin define el mensaje que se ve destacado en el email y el CTA debe ser `{{recoveryUrl}}`
+- sólo los carritos elegibles reciben envío bonificado y, para evitar doble incentivo, ese email no incluye el cupón configurado; los no elegibles conservan el email normal con cupón
+- si el proveedor de email falla antes de aceptar el envío, se revoca el beneficio recién creado; los beneficios usados jamás se modifican
+- la migración de transición invalida sólo beneficios pendientes emitidos silenciosamente por la versión previa, preservando los canjeados para auditoría
 - un ciclo histórico y un envío previo no bloquean una nueva captura de carrito realizada después de la ventana activa de 24 horas

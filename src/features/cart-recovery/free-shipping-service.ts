@@ -98,7 +98,7 @@ export async function grantCartRecoveryFreeShippingBenefit(leadId: string) {
   const now = new Date();
 
   if (lead.freeShippingToken && lead.freeShippingExpiresAt && lead.freeShippingExpiresAt > now) {
-    return lead.freeShippingToken;
+    return { token: lead.freeShippingToken, created: false };
   }
 
   const token = randomUUID();
@@ -115,7 +115,23 @@ export async function grantCartRecoveryFreeShippingBenefit(leadId: string) {
     },
   });
 
-  return token;
+  return { token, created: true };
+}
+
+export async function revokeUnsentCartRecoveryFreeShippingBenefit(input: { leadId: string; token: string }) {
+  await prisma.cartRecoveryLead.updateMany({
+    where: {
+      id: input.leadId,
+      freeShippingToken: input.token,
+      freeShippingRedeemedAt: null,
+    },
+    data: {
+      freeShippingToken: null,
+      freeShippingGrantedAt: null,
+      freeShippingExpiresAt: null,
+      freeShippingOrderId: null,
+    },
+  });
 }
 
 export async function canUseCartRecoveryFreeShippingBenefit(input: {

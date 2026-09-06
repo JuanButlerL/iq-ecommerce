@@ -3,7 +3,10 @@ import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, Or
 
 import { sendEmail } from "@/features/email/provider";
 import { renderMarketingEmail, renderTemplate } from "@/features/email/render";
-import { grantCartRecoveryFreeShippingBenefit } from "@/features/cart-recovery/free-shipping-service";
+import {
+  grantCartRecoveryFreeShippingBenefit,
+  revokeUnsentCartRecoveryFreeShippingBenefit,
+} from "@/features/cart-recovery/free-shipping-service";
 import { WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID } from "@/features/email/system-automations";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
@@ -94,26 +97,46 @@ export async function processEmailAutomations(options: { automationId?: string; 
       const openToken = randomUUID();
       const clickToken = ctaUrl ? randomUUID() : null;
       const trackedCtaUrl = clickToken ? `${env.NEXT_PUBLIC_SITE_URL}/api/email/click/${clickToken}` : null;
-      const html = renderMarketingEmail({
-        subject,
-        previewText,
-        bodyText,
-        ctaLabel,
-        ctaUrl: trackedCtaUrl ?? ctaUrl,
-        openTrackingUrl: `${env.NEXT_PUBLIC_SITE_URL}/api/email/open/${openToken}`,
-        coupon: automation.coupon
-          ? {
-              code: automation.coupon.code,
-              discountType: automation.coupon.discountType,
-              discountPercentage: automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
-              fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
-              headline: automation.couponHeadline,
-              message: automation.couponMessage,
-            }
-          : null,
-      });
+      let createdFreeShippingBenefit: { leadId: string; token: string } | null = null;
+      let providerAccepted = false;
 
       try {
+        const freeShippingBenefit =
+          automation.trigger === EmailAutomationTrigger.CART_ABANDONED &&
+          automation.cartRecoveryFreeShippingEnabled &&
+          candidate.cartRecoveryLeadId &&
+          ctaUrl === candidate.variables.recoveryUrl
+            ? await grantCartRecoveryFreeShippingBenefit(candidate.cartRecoveryLeadId)
+            : null;
+
+        if (freeShippingBenefit?.created && candidate.cartRecoveryLeadId) {
+          createdFreeShippingBenefit = { leadId: candidate.cartRecoveryLeadId, token: freeShippingBenefit.token };
+        }
+
+        const freeShippingMessage = freeShippingBenefit
+          ? renderTemplate(automation.cartRecoveryFreeShippingMessage || "", candidate.variables)
+          : null;
+        const html = renderMarketingEmail({
+          subject,
+          previewText,
+          bodyText,
+          ctaLabel,
+          ctaUrl: trackedCtaUrl ?? ctaUrl,
+          openTrackingUrl: `${env.NEXT_PUBLIC_SITE_URL}/api/email/open/${openToken}`,
+          freeShippingMessage,
+          coupon: freeShippingBenefit
+            ? null
+            : automation.coupon
+              ? {
+                  code: automation.coupon.code,
+                  discountType: automation.coupon.discountType,
+                  discountPercentage: automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
+                  fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
+                  headline: automation.couponHeadline,
+                  message: automation.couponMessage,
+                }
+              : null,
+        });
         const sent = await sendEmail({
           fromEmail: automation.fromEmail || env.EMAIL_FROM_DEFAULT,
           senderName: automation.senderName || "IQ Kids",
@@ -121,9 +144,10 @@ export async function processEmailAutomations(options: { automationId?: string; 
           to: candidate.recipientEmail,
           subject,
           html,
-          text: [subject, bodyText, ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : ""].filter(Boolean).join("\n\n"),
+          text: [subject, bodyText, freeShippingMessage, ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : ""].filter(Boolean).join("\n\n"),
           bccEmail: automation.bccEmail,
         });
+        providerAccepted = true;
 
         await createEmailLog({
           id: logId,
@@ -141,15 +165,13 @@ export async function processEmailAutomations(options: { automationId?: string; 
           clickToken,
           openToken,
         });
-        if (
-          automation.trigger === EmailAutomationTrigger.CART_ABANDONED &&
-          candidate.cartRecoveryLeadId &&
-          ctaUrl === candidate.variables.recoveryUrl
-        ) {
-          await grantCartRecoveryFreeShippingBenefit(candidate.cartRecoveryLeadId);
-        }
         result.sent += 1;
       } catch (error) {
+        if (createdFreeShippingBenefit && !providerAccepted) {
+          await revokeUnsentCartRecoveryFreeShippingBenefit(createdFreeShippingBenefit).catch((revokeError) => {
+            console.error("Could not revoke unsent cart recovery free shipping benefit", revokeError);
+          });
+        }
         await createEmailLog({
           id: logId,
           automationId: automation.id,

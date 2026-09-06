@@ -31,6 +31,8 @@ type AutomationItem = {
   couponId: string | null;
   couponHeadline: string | null;
   couponMessage: string | null;
+  cartRecoveryFreeShippingEnabled: boolean;
+  cartRecoveryFreeShippingMessage: string | null;
   coupon: {
     id: string;
     code: string;
@@ -153,6 +155,8 @@ type FormState = {
   couponId: string;
   couponHeadline: string;
   couponMessage: string;
+  cartRecoveryFreeShippingEnabled: boolean;
+  cartRecoveryFreeShippingMessage: string;
 };
 
 const defaultForm: FormState = {
@@ -173,6 +177,8 @@ const defaultForm: FormState = {
   couponId: "",
   couponHeadline: "",
   couponMessage: "",
+  cartRecoveryFreeShippingEnabled: false,
+  cartRecoveryFreeShippingMessage: "Tu envío está bonificado para este carrito. Aprovechá el beneficio dentro de las próximas 72 horas.",
 };
 
 const triggerLabels: Record<EmailAutomationTrigger, string> = {
@@ -765,6 +771,43 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                 </div>
               </div>
 
+              {form.trigger === "CART_ABANDONED" ? (
+                <div className="rounded-3xl border border-emerald-200 bg-emerald-50/60 p-4 md:p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-800">Beneficio de recuperación</p>
+                      <p className="mt-2 text-sm leading-6 text-brand-ink/65">
+                        Sólo para carritos elegibles de un producto y clientes sin compras previas. Cuando aplica, el mail muestra envío bonificado y no incluye cupón.
+                      </p>
+                    </div>
+                    <label className="flex shrink-0 items-center gap-2 text-sm font-extrabold text-brand-ink">
+                      <input
+                        type="checkbox"
+                        checked={form.cartRecoveryFreeShippingEnabled}
+                        onChange={(event) => setForm((current) => ({ ...current, cartRecoveryFreeShippingEnabled: event.target.checked }))}
+                        className="h-4 w-4 accent-[#278460]"
+                      />
+                      Ofrecer envío bonificado
+                    </label>
+                  </div>
+                  {form.cartRecoveryFreeShippingEnabled ? (
+                    <div className="mt-4">
+                      <Field label="Mensaje del envío bonificado">
+                        <Textarea
+                          value={form.cartRecoveryFreeShippingMessage}
+                          onChange={(event) => setForm((current) => ({ ...current, cartRecoveryFreeShippingMessage: event.target.value }))}
+                          rows={3}
+                          required
+                        />
+                      </Field>
+                      <p className="mt-2 text-xs leading-5 text-emerald-800">
+                        Requiere que el CTA use <span className="font-extrabold">{"{{recoveryUrl}}"}</span>. Para quienes no califiquen, se mantiene el cupón configurado arriba.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <details className="rounded-3xl border border-brand-ink/10 bg-white p-4">
                 <summary className="cursor-pointer text-sm font-extrabold uppercase tracking-[0.14em] text-brand-ink/55">
                   Remitente avanzado
@@ -1062,6 +1105,9 @@ function automationToForm(automation: AutomationItem | null): FormState {
     couponId: automation.couponId ?? "",
     couponHeadline: automation.couponHeadline ?? "",
     couponMessage: automation.couponMessage ?? "",
+    cartRecoveryFreeShippingEnabled: automation.cartRecoveryFreeShippingEnabled,
+    cartRecoveryFreeShippingMessage:
+      automation.cartRecoveryFreeShippingMessage ?? "Tu envío está bonificado para este carrito. Aprovechá el beneficio dentro de las próximas 72 horas.",
   };
 }
 

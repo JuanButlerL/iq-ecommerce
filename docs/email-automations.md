@@ -107,12 +107,15 @@ Cuando el cliente abre ese link, el carrito se reconstruye con los mismos produc
 
 ### Envio bonificado para recuperacion de carrito
 
-- Solo se otorga despues de enviar con exito una automatizacion `CART_ABANDONED` cuyo CTA sea exactamente `{{recoveryUrl}}`.
+- Se activa desde la automatizacion `CART_ABANDONED` con la opcion `Ofrecer envío bonificado`; inicia apagada para no cambiar emails existentes.
+- Al activarla, se configura un mensaje propio que se muestra destacado en el email y requiere que el CTA sea exactamente `{{recoveryUrl}}`.
+- Para una persona elegible el email ofrece envio bonificado y no muestra cupon. Si no califica, recibe el email normal con el cupon configurado.
 - Aplica a un carrito guardado con una unica linea de producto y a un email sin compras confirmadas previas.
 - El beneficio dura 72 horas y se vincula a un token aleatorio distinto del link de recuperacion.
 - Antes de mostrarlo y nuevamente al crear el pedido, el servidor valida token, vencimiento, email, historial de compra y productos/cantidades exactos del carrito recuperado.
 - El token se consume dentro de la misma transaccion que crea el pedido. Si ya se uso, vencio o el carrito cambio, no se crea un pedido con envio bonificado.
 - No se modifica ninguna regla global de envio ni se confia en un descuento enviado por el navegador.
+- Al publicar esta configuracion se invalidan unicamente beneficios no usados de la version anterior, que se otorgaban sin ser comunicados en el email. Los canjeados se conservan como auditoria.
 
 ## Actualizacion 2026-08-28 - Trigger WELCOME_LEAD
 
