@@ -1164,4 +1164,9 @@ Validación:
 - sólo los carritos elegibles reciben envío bonificado y, para evitar doble incentivo, ese email no incluye el cupón configurado; los no elegibles conservan el email normal con cupón
 - si el proveedor de email falla antes de aceptar el envío, se revoca el beneficio recién creado; los beneficios usados jamás se modifican
 - la migración de transición invalida sólo beneficios pendientes emitidos silenciosamente por la versión previa, preservando los canjeados para auditoría
+
+### 2026-09-07 - Correcciones de checkout y carrito móvil
+
+- quitar un cupón invalida cualquier validación asíncrona todavía en curso, evitando que una respuesta tardía lo vuelva a aplicar
+- en móvil, los controles de cantidad y borrar pasan a una fila propia debajo del detalle del producto para que el texto de beneficios no se superponga ni se corte
 - un ciclo histórico y un envío previo no bloquean una nueva captura de carrito realizada después de la ventana activa de 24 horas
