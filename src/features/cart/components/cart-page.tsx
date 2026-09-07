@@ -316,7 +316,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
       <div className="space-y-4">
         {detailedItems.map(({ cart, product }) => (
           <Card key={product.id} className="p-4 md:p-5">
-            <div className="grid grid-cols-[56px_minmax(0,1fr)_88px] items-start gap-x-4 gap-y-2 md:grid-cols-[80px_minmax(0,1fr)_120px] md:items-center md:gap-5">
+            <div className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-4 gap-y-2 md:grid-cols-[80px_minmax(0,1fr)_120px] md:items-center md:gap-5">
               <div className="relative mt-1 h-14 w-14 shrink-0 overflow-hidden bg-white md:h-20 md:w-20 md:rounded-[1.25rem]">
                 <img
                   src={product.images[0]?.publicUrl ?? cartFallbackImageMap[product.colorTheme]}
@@ -333,13 +333,13 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
                 <h2 className="text-[0.95rem] font-medium leading-[1.16] text-brand-ink md:text-lg md:font-extrabold md:leading-6">
                   {product.name}
                 </h2>
-                <p className="mt-1 text-xs font-extrabold leading-5 text-emerald-700 md:text-sm">Seleccionado por nutricionistas - Sin sellos</p>
+                <p className="mt-1 break-words text-xs font-extrabold leading-4 text-emerald-700 md:leading-5 md:text-sm">Seleccionado por nutricionistas - Sin sellos</p>
                 <p className="mt-2 text-[0.95rem] leading-none text-brand-ink md:mt-1 md:text-sm md:text-brand-ink/60">
                   {formatArs(product.priceArs * cart.quantity)}
                 </p>
               </div>
 
-              <div className="flex flex-col items-end gap-3 md:justify-self-end">
+              <div className="col-span-2 mt-1 flex flex-row-reverse items-center justify-between gap-3 border-t border-brand-ink/8 pt-3 md:col-span-1 md:mt-0 md:flex-col md:items-end md:justify-self-end md:border-0 md:pt-0">
                 <button
                   type="button"
                   className="text-[0.95rem] font-normal leading-none text-brand-ink/70 underline underline-offset-2 hover:text-brand-pink"

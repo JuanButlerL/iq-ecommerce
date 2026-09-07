@@ -147,6 +147,7 @@ export function CheckoutPage({
   const [isPending, startTransition] = useTransition();
   const [isApplyingCoupon, startApplyingCoupon] = useTransition();
   const hasTrackedCheckoutRef = useRef(false);
+  const couponRequestVersionRef = useRef(0);
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const allowBankTransfer = settings.enableBankTransfer;
@@ -372,6 +373,7 @@ export function CheckoutPage({
   }, [checkoutRequestKey, items, pricing.totalArs]);
 
   async function refreshCoupon(code: string, updateInput = true) {
+    const requestVersion = ++couponRequestVersionRef.current;
     const response = await fetch("/api/coupons/validate", {
       method: "POST",
       headers: {
@@ -385,6 +387,10 @@ export function CheckoutPage({
     });
 
     const payload = await response.json();
+
+    if (requestVersion !== couponRequestVersionRef.current) {
+      return;
+    }
 
     if (!response.ok) {
       setAppliedCoupon(null);
@@ -770,6 +776,7 @@ export function CheckoutPage({
                 setCouponError(null);
 
                 if (appliedCoupon && nextValue.trim() !== appliedCoupon.couponCode) {
+                  couponRequestVersionRef.current += 1;
                   setAppliedCoupon(null);
                   form.setValue("couponCode", "");
                 }
@@ -813,6 +820,7 @@ export function CheckoutPage({
                   type="button"
                   className="text-left font-bold text-green-800 underline underline-offset-2 sm:text-right"
                   onClick={() => {
+                    couponRequestVersionRef.current += 1;
                     setAppliedCoupon(null);
                     setCouponInput("");
                     setCouponError(null);
