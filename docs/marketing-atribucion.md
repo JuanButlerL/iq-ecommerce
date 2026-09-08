@@ -1,5 +1,7 @@
 # Atribucion y trazabilidad de marketing
 
+> Esta es la fuente de la guía visible para el equipo en `/admin/marketing/guia`. Toda mejora funcional de Marketing debe actualizar este documento en el mismo cambio para que la ayuda publicada siga siendo exacta.
+
 ## Objetivo
 
 Esta capa existe para responder tres preguntas de negocio:

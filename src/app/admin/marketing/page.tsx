@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowDownRight, ArrowUpRight, Download, Filter, MousePointerClick, ShoppingBag, UsersRound } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BookOpen, Download, Filter, MousePointerClick, ShoppingBag, UsersRound } from "lucide-react";
 import { MarketingSourceCategory, MarketingSourcePlatform } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,7 @@ export default async function AdminMarketingPage({ searchParams }: { searchParam
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-brand-pink">Performance de marketing</p><h1 className="mt-2 font-display text-4xl leading-none md:text-6xl">Qué está generando ventas</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/70 md:text-base">Lectura de atribución propia de IQ Kids. Usá el período y los canales para decidir qué escalar, qué optimizar y qué investigar.</p></div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <Link href="/admin/marketing/guia" className="contents"><Button variant="secondary" className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 sm:w-auto"><BookOpen className="mr-2 h-4 w-4" />Guía</Button></Link>
             <Link href={`/api/admin/export/marketing-sales?${exportQuery}`} className="contents"><Button className="w-full bg-brand-pink text-white hover:bg-brand-pink/90 sm:w-auto"><Download className="mr-2 h-4 w-4" />Ventas atribuidas</Button></Link>
             <Link href={`/api/admin/export/marketing-attribution?${exportQuery}`} className="contents"><Button variant="secondary" className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 sm:w-auto"><UsersRound className="mr-2 h-4 w-4" />Contactos y embudo</Button></Link>
           </div>

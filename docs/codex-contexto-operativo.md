@@ -1170,3 +1170,11 @@ Validación:
 - quitar un cupón invalida cualquier validación asíncrona todavía en curso, evitando que una respuesta tardía lo vuelva a aplicar
 - en móvil, los controles de cantidad y borrar pasan a una fila propia debajo del detalle del producto para que el texto de beneficios no se superponga ni se corte
 - un ciclo histórico y un envío previo no bloquean una nueva captura de carrito realizada después de la ventana activa de 24 horas
+
+### 2026-09-08 - Calles numéricas y guía de Marketing
+
+- el checkout acepta calles exclusivamente numéricas o con numeración como `Calle 11`, `11` o `Avenida 9 de Julio`; se conserva la altura como dato separado y no se transforma automáticamente ningún valor ingresado
+- si una calle termina en una numeración larga y la altura está vacía, se muestra una sugerencia no bloqueante para que la persona revise el campo Altura; `Calle 11` no dispara esa sugerencia
+- se agregó `/admin/marketing/guia`, protegido por el mismo permiso de Marketing y enlazado desde el panel
+- la guía se renderiza directamente desde `docs/marketing-atribucion.md`; ese archivo es la fuente única y debe actualizarse dentro de cada cambio funcional de Marketing
+- no hay migraciones ni cambios de datos: los pedidos históricos y el contrato de `direccion`/calle y altura se mantienen intactos

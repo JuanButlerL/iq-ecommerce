@@ -213,6 +213,11 @@ export function CheckoutPage({
   const watchedEmail = form.watch("email");
   const watchedLocality = form.watch("locality");
   const watchedPostalCode = form.watch("postalCode");
+  const streetMayContainHeight = Boolean(
+    !watchedAddressWithoutNumber &&
+      !watchedAddressNumber?.trim() &&
+      /(?:^|\s)\d{3,8}\s*(?:bis|[a-z])?\s*$/i.test(watchedAddressLine?.trim() ?? ""),
+  );
   const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
   const displayedShippingArs = recoveryFreeShippingActive ? 0 : shippingQuote.shippingArs;
@@ -615,11 +620,16 @@ export function CheckoutPage({
             className={watchedAddressWithoutNumber ? "md:col-span-3" : "md:col-span-2"}
           >
             <Input
-              placeholder="Ej: Amenabar"
+              placeholder="Ej: Calle 11 o Amenábar"
               autoComplete="address-line1"
               aria-invalid={errors.addressLine ? "true" : "false"}
               {...form.register("addressLine")}
             />
+            {streetMayContainHeight ? (
+              <p className="mt-1.5 text-xs font-medium leading-5 text-brand-ink/55">
+                Si ese número es la altura, cargalo en el campo de al lado. Las calles como &quot;Calle 11&quot; están permitidas.
+              </p>
+            ) : null}
           </FieldShell>
           {!watchedAddressWithoutNumber ? (
             <FieldShell label="Altura" error={errors.addressNumber?.message}>

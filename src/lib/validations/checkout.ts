@@ -107,12 +107,6 @@ const checkoutBaseSchema = z.object({
         });
       }
 
-      if (!/\p{L}/u.test(value)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Ingresá una calle válida.",
-        });
-      }
     }),
   addressNumber: z
     .string()
@@ -162,13 +156,6 @@ function validateCheckoutAddress(
     });
   }
 
-  if (/\d+\s*(?:bis|[a-z])?$/i.test(value.addressLine)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["addressLine"],
-      message: "Ingresá solo el nombre de la calle.",
-    });
-  }
 }
 
 export const checkoutSchema = checkoutBaseSchema.superRefine(validateCheckoutAddress);
