@@ -1176,5 +1176,5 @@ Validación:
 - el checkout acepta calles exclusivamente numéricas o con numeración como `Calle 11`, `11` o `Avenida 9 de Julio`; se conserva la altura como dato separado y no se transforma automáticamente ningún valor ingresado
 - si una calle termina en una numeración larga y la altura está vacía, se muestra una sugerencia no bloqueante para que la persona revise el campo Altura; `Calle 11` no dispara esa sugerencia
 - se agregó `/admin/marketing/guia`, protegido por el mismo permiso de Marketing y enlazado desde el panel
-- la guía se renderiza directamente desde `docs/marketing-atribucion.md`; ese archivo es la fuente única y debe actualizarse dentro de cada cambio funcional de Marketing
+- la guía se incluye en el bundle de la aplicación para que esté disponible en producción; `docs/marketing-atribucion.md` y el contenido de la guía deben actualizarse dentro de cada cambio funcional de Marketing
 - no hay migraciones ni cambios de datos: los pedidos históricos y el contrato de `direccion`/calle y altura se mantienen intactos

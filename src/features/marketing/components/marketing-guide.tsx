@@ -1,65 +1,69 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
 import { Card } from "@/components/ui/card";
 
-type GuideBlock =
-  | { type: "heading"; level: 1 | 2 | 3; text: string }
-  | { type: "paragraph"; text: string }
-  | { type: "bullets"; items: string[] }
-  | { type: "ordered"; items: string[] }
-  | { type: "code"; text: string };
+type GuideSection = {
+  title: string;
+  paragraphs: string[];
+  bullets?: string[];
+  code?: string;
+};
 
-function parseGuide(markdown: string): GuideBlock[] {
-  const blocks: GuideBlock[] = [];
-  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
-
-  for (let index = 0; index < lines.length; ) {
-    const line = lines[index].trim();
-    if (!line) {
-      index += 1;
-      continue;
-    }
-
-    const heading = /^(#{1,3})\s+(.+)$/.exec(line);
-    if (heading) {
-      blocks.push({ type: "heading", level: heading[1].length as 1 | 2 | 3, text: heading[2] });
-      index += 1;
-      continue;
-    }
-
-    const isBullet = /^-\s+/.test(line);
-    const isOrdered = /^\d+\.\s+/.test(line);
-    if (isBullet || isOrdered) {
-      const expression = isBullet ? /^-\s+(.+)$/ : /^\d+\.\s+(.+)$/;
-      const items: string[] = [];
-      while (index < lines.length) {
-        const item = expression.exec(lines[index].trim());
-        if (!item) break;
-        items.push(item[1]);
-        index += 1;
-      }
-      blocks.push({ type: isBullet ? "bullets" : "ordered", items });
-      continue;
-    }
-
-    if (/^`[^`]+`$/.test(line)) {
-      blocks.push({ type: "code", text: line.slice(1, -1) });
-      index += 1;
-      continue;
-    }
-
-    const paragraph: string[] = [line];
-    index += 1;
-    while (index < lines.length && lines[index].trim() && !/^(#{1,3})\s+|^-\s+|^\d+\.\s+/.test(lines[index].trim())) {
-      paragraph.push(lines[index].trim());
-      index += 1;
-    }
-    blocks.push({ type: "paragraph", text: paragraph.join(" ") });
-  }
-
-  return blocks;
-}
+// This is bundled with the application so the guide is available in production.
+// Keep it aligned with docs/marketing-atribucion.md whenever Marketing changes.
+const guideSections: GuideSection[] = [
+  {
+    title: "Qué responde este panel",
+    paragraphs: [
+      "Marketing muestra cómo llegó una persona, cuándo dejó su email o compró y qué impactos tuvo antes de convertir. Es la trazabilidad propia dentro de IQ Kids.",
+      "Complementa Google Analytics, Meta, Google Ads y Mercado Pago. No los reemplaza.",
+    ],
+  },
+  {
+    title: "Cómo leer el panel",
+    paragraphs: ["Usá el período y los filtros de canal, plataforma y búsqueda antes de tomar decisiones."],
+    bullets: [
+      "Embudo: sesiones, emails captados, pedidos creados y compras confirmadas.",
+      "Canales: compará volumen, conversión e ingreso atribuido de Meta, Google y el resto.",
+      "Campañas que convierten: campañas para proteger, escalar o replicar.",
+      "Tráfico sin compra: campañas con al menos cinco sesiones y sin compras atribuidas para investigar antes de pausar.",
+    ],
+  },
+  {
+    title: "Origen de una visita",
+    paragraphs: ["La web prioriza UTMs y click IDs confiables. Si no existen, analiza el referrer. Si tampoco hay una señal útil, clasifica la visita como Direct."],
+    bullets: [
+      "META y GOOGLE: tráfico pago con una señal explícita de pauta.",
+      "ORGANIC: búsquedas o descubrimiento no pago.",
+      "EMAIL, WHATSAPP y REFERRAL: tráfico identificado desde esos canales.",
+      "DIRECT: entradas sin UTM ni referrer útil; no siempre representa tráfico directo puro.",
+    ],
+  },
+  {
+    title: "First touch, last touch y asistencias",
+    paragraphs: ["First touch es la primera sesión conocida de un email. Last touch es la última sesión registrada antes de la compra. First paid y last paid aplican el mismo criterio sólo sobre visitas pagas."],
+    bullets: [
+      "Las campañas asistidas participaron del recorrido, pero no necesariamente cerraron la venta.",
+      "El journey resume la secuencia de sesiones conocida antes de cada pedido.",
+      "Una sesión posterior nunca modifica la atribución histórica de una compra anterior.",
+    ],
+  },
+  {
+    title: "UTMs obligatorias para pauta",
+    paragraphs: ["Sin UTMs consistentes se conserva el origen detectado, pero no se puede asegurar campaña, conjunto ni anuncio."],
+    code: "Meta: utm_source=meta&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}\nGoogle: utm_source=google&utm_medium=cpc&utm_campaign={{campaignname}}&utm_term={{keyword}}&utm_content={{creative}}",
+  },
+  {
+    title: "Exportaciones",
+    paragraphs: ["Ventas atribuidas descarga una fila por compra confirmada con first touch, last touch, asistencias y recorrido. Contactos y embudo descarga una fila por email con su historia de captación, eventos y compras."],
+  },
+  {
+    title: "Google Ads y ventas de la web",
+    paragraphs: ["Las compras confirmadas de IQ Kids incluyen todas las fuentes. Las conversiones de Google Ads sólo incluyen las compras que Google atribuye según su ventana y modelo. Compará Google Ads contra el subconjunto GOOGLE del export de ventas atribuidas, con mismo período, zona horaria, moneda y definición de conversión."],
+  },
+  {
+    title: "Límites a tener presentes",
+    paragraphs: ["La continuidad puede perderse si una persona cambia de navegador o dispositivo sin identificarse. La calidad de la lectura depende de que las campañas salgan correctamente etiquetadas."],
+  },
+];
 
 function InlineCode({ text }: { text: string }) {
   const parts = text.split(/(`[^`]+`)/g);
@@ -74,30 +78,23 @@ function InlineCode({ text }: { text: string }) {
   );
 }
 
-export async function MarketingGuide() {
-  const guidePath = path.join(process.cwd(), "docs", "marketing-atribucion.md");
-  const guide = await readFile(guidePath, "utf8");
-  const blocks = parseGuide(guide);
-
+export function MarketingGuide() {
   return (
-    <article className="space-y-5">
-      {blocks.map((block, index) => {
-        if (block.type === "heading") {
-          if (block.level === 1) return <h1 key={index} className="font-display text-4xl leading-none text-brand-ink md:text-5xl">{block.text}</h1>;
-          if (block.level === 2) return <h2 key={index} className="pt-5 font-display text-3xl text-brand-ink md:text-4xl">{block.text}</h2>;
-          return <h3 key={index} className="pt-2 text-base font-extrabold text-brand-ink">{block.text}</h3>;
-        }
-
-        if (block.type === "paragraph") return <p key={index} className="max-w-4xl text-sm leading-7 text-brand-ink/70 md:text-base"><InlineCode text={block.text} /></p>;
-        if (block.type === "code") return <pre key={index} className="overflow-x-auto rounded-2xl bg-brand-ink p-4 text-xs leading-6 text-white"><code>{block.text}</code></pre>;
-
-        const List = block.type === "ordered" ? "ol" : "ul";
-        return <List key={index} className={`${block.type === "ordered" ? "list-decimal" : "list-disc"} ml-5 space-y-2 text-sm leading-6 text-brand-ink/70 md:text-base`}>{block.items.map((item) => <li key={item}><InlineCode text={item} /></li>)}</List>;
-      })}
+    <article className="space-y-9">
+      {guideSections.map((section) => (
+        <section key={section.title} className="border-b border-brand-ink/10 pb-8 last:border-0 last:pb-0">
+          <h2 className="font-display text-3xl text-brand-ink md:text-4xl">{section.title}</h2>
+          <div className="mt-3 space-y-3">
+            {section.paragraphs.map((paragraph) => <p key={paragraph} className="max-w-4xl text-sm leading-7 text-brand-ink/70 md:text-base"><InlineCode text={paragraph} /></p>)}
+          </div>
+          {section.bullets ? <ul className="mt-4 ml-5 list-disc space-y-2 text-sm leading-6 text-brand-ink/70 md:text-base">{section.bullets.map((bullet) => <li key={bullet}><InlineCode text={bullet} /></li>)}</ul> : null}
+          {section.code ? <pre className="mt-4 overflow-x-auto rounded-2xl bg-brand-ink p-4 text-xs leading-6 text-white"><code>{section.code}</code></pre> : null}
+        </section>
+      ))}
     </article>
   );
 }
 
 export function MarketingGuideNotice() {
-  return <Card className="border-brand-pink/20 bg-[#fff7f5] p-4 text-sm leading-6 text-brand-ink/70">Esta guía se publica desde <code className="rounded bg-white px-1.5 py-0.5 text-xs text-brand-ink">docs/marketing-atribucion.md</code>. Al actualizar ese documento en una mejora de Marketing, esta página se actualiza con el mismo deploy.</Card>;
+  return <Card className="border-brand-pink/20 bg-[#fff7f5] p-4 text-sm leading-6 text-brand-ink/70">La guía se publica dentro de la aplicación y se mantiene alineada con <code className="rounded bg-white px-1.5 py-0.5 text-xs text-brand-ink">docs/marketing-atribucion.md</code>. Cada mejora funcional de Marketing actualiza ambos contenidos en el mismo cambio.</Card>;
 }

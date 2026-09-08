@@ -1,6 +1,6 @@
 # Atribucion y trazabilidad de marketing
 
-> Esta es la fuente de la guía visible para el equipo en `/admin/marketing/guia`. Toda mejora funcional de Marketing debe actualizar este documento en el mismo cambio para que la ayuda publicada siga siendo exacta.
+> Esta documentación y la guía visible para el equipo en `/admin/marketing/guia` se actualizan juntas. Toda mejora funcional de Marketing debe actualizar ambos contenidos en el mismo cambio para que la ayuda publicada siga siendo exacta.
 
 ## Objetivo
 
