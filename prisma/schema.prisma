@@ -482,6 +482,7 @@ model EmailSendLog {
   ctaUrl             String?                @map("cta_url")
   clickToken         String?                @unique @map("click_token")
   openToken          String?                @unique @map("open_token")
+  unsubscribeToken   String?                @unique @map("unsubscribe_token")
   openCount          Int                    @default(0) @map("open_count")
   firstOpenedAt      DateTime?              @map("first_opened_at")
   lastOpenedAt       DateTime?              @map("last_opened_at")

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { isWelcomePopupCoupon, stripWelcomePopupCouponMarker } from "@/features/coupons/lib/welcome-popup-coupon";
 import { sendEmail } from "@/features/email/provider";
-import { subscribeToNewsletter } from "@/features/email/newsletter-service";
+import { isEmailUnsubscribed, subscribeToNewsletter } from "@/features/email/newsletter-service";
 import { renderMarketingEmail } from "@/features/email/render";
 import {
   WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID,
@@ -225,6 +225,19 @@ async function sendWelcomeCouponEmail(input: {
   coupon: WelcomePopupCoupon;
 }) {
   const automationId = await ensureImmediateWelcomePopupAutomation(input.coupon);
+
+  if (await isEmailUnsubscribed(prisma, input.email)) {
+    await createWelcomePopupEmailLog({
+      automationId,
+      recipientEmail: input.email,
+      targetId: buildImmediateWelcomePopupTargetId(input.leadId),
+      leadId: input.leadId,
+      status: EmailSendStatus.SKIPPED,
+      subject: "Omitido por baja de email",
+      errorMessage: "Omitido: la persona solicitó no recibir más emails.",
+    });
+    return false;
+  }
   const existingLog = await prisma.emailSendLog.findFirst({
     where: {
       automationId,
@@ -263,7 +276,9 @@ async function sendWelcomeCouponEmail(input: {
 
   const clickToken = randomUUID();
   const openToken = randomUUID();
+  const unsubscribeToken = randomUUID();
   const trackedCtaUrl = `${env.NEXT_PUBLIC_SITE_URL}/api/email/click/${clickToken}`;
+  const unsubscribeUrl = `${env.NEXT_PUBLIC_SITE_URL}/api/email/unsubscribe/${unsubscribeToken}`;
   const subject = welcomePopupCopy.emailSubject;
   const html = renderMarketingEmail({
     subject,
@@ -272,6 +287,7 @@ async function sendWelcomeCouponEmail(input: {
     ctaLabel: welcomePopupCopy.successPrimaryAction,
     ctaUrl: trackedCtaUrl,
     openTrackingUrl: `${env.NEXT_PUBLIC_SITE_URL}/api/email/open/${openToken}`,
+    unsubscribeUrl,
     coupon: {
       code: input.coupon.code,
       discountType: input.coupon.discountType,
@@ -299,6 +315,7 @@ async function sendWelcomeCouponEmail(input: {
         welcomePopupCopy.emailBody,
         `Cupón: ${input.coupon.code}`,
         `Beneficio: ${input.coupon.discountLabel}`,
+        `Para dejar de recibir emails de IQ Kids: ${unsubscribeUrl}`,
       ].join("\n\n"),
     });
 
@@ -312,6 +329,7 @@ async function sendWelcomeCouponEmail(input: {
       ctaUrl: POPUP_CTA_URL,
       clickToken,
       openToken,
+      unsubscribeToken,
       providerMessageId: sent.providerMessageId,
     });
 
@@ -412,6 +430,7 @@ async function createWelcomePopupEmailLog(input: {
   ctaUrl?: string | null;
   clickToken?: string | null;
   openToken?: string | null;
+  unsubscribeToken?: string | null;
   errorMessage?: string | null;
 }) {
   try {
@@ -429,6 +448,7 @@ async function createWelcomePopupEmailLog(input: {
         ctaUrl: input.ctaUrl,
         clickToken: input.clickToken,
         openToken: input.openToken,
+        unsubscribeToken: input.unsubscribeToken,
         errorMessage: input.errorMessage,
         sentAt: input.status === EmailSendStatus.SENT ? new Date() : null,
       },

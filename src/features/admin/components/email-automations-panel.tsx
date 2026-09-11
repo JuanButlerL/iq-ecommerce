@@ -255,8 +255,10 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
   const [selectedId, setSelectedId] = useState<string | null>(automations[0]?.id ?? null);
   const [form, setForm] = useState<FormState>(() => automationToForm(automations[0] ?? null));
   const [testEmail, setTestEmail] = useState("");
+  const [suppressionEmail, setSuppressionEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isSuppressing, setIsSuppressing] = useState(false);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -447,6 +449,34 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
     );
   };
 
+  const suppressEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const email = suppressionEmail.trim().toLowerCase();
+
+    if (!email || !window.confirm(`¿Dar de baja todos los emails automáticos para ${email}?`)) {
+      return;
+    }
+
+    setIsSuppressing(true);
+    setMessage(null);
+    setError(null);
+    const response = await fetch("/api/admin/email-suppressions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const payload = (await response.json()) as { error?: string };
+    setIsSuppressing(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "No se pudo dar de baja este email.");
+      return;
+    }
+
+    setSuppressionEmail("");
+    setMessage(`${email} quedó dado de baja. Los próximos procesos lo omitirán.`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -507,6 +537,31 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
 
       {error ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
       {message ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{message}</p> : null}
+
+      <Card className="border-brand-pink/25 bg-brand-pinkSoft/25 p-5 md:p-6">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-pink">Baja manual</p>
+            <h2 className="mt-1 font-display text-2xl text-brand-ink">No quiere recibir más emails</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-brand-ink/65">
+              Bloquea las automatizaciones y el email inmediato del popup para esta dirección. No borra pedidos ni datos del cliente.
+            </p>
+          </div>
+          <form className="flex flex-col gap-2 sm:flex-row" onSubmit={suppressEmail}>
+            <Input
+              type="email"
+              required
+              placeholder="cliente@email.com"
+              value={suppressionEmail}
+              onChange={(event) => setSuppressionEmail(event.target.value)}
+              className="min-w-0 sm:w-64"
+            />
+            <Button type="submit" variant="secondary" disabled={isSuppressing}>
+              {isSuppressing ? "Guardando..." : "Dar de baja"}
+            </Button>
+          </form>
+        </div>
+      </Card>
 
       <Card className="p-5 md:p-6">
         <div className="mb-4">

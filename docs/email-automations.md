@@ -12,7 +12,9 @@ La lista de newsletter es independiente de los leads de carrito y de los pedidos
 - desde `/admin/emails` se puede descargar `suscriptos` para revisión operativa;
 - la lista no participa de `Procesar activos` ni dispara emails masivos todavía.
 
-Antes de habilitar una automatización de newsletter se debe implementar una baja accesible dentro de cada email y mantener la lista de envíos limitada a `newsletter_subscribers` con estado `SUBSCRIBED`.
+Cada email real incluye un enlace individual de baja. Al usarlo, la dirección queda bloqueada globalmente para las automatizaciones y para el email inmediato del popup. La baja no borra pedidos ni datos del cliente y se puede aplicar también desde el bloque `Baja manual` de `/admin/emails`.
+
+La baja se consulta antes de enviar al proveedor. En Auditoría queda un registro `OMITIDO` con el motivo, por lo que es verificable y no depende de pausar una automatización.
 
 ## Variables de entorno
 

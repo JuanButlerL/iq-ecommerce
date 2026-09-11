@@ -28,3 +28,33 @@ export async function subscribeToNewsletter(
     },
   });
 }
+
+export async function unsubscribeFromEmail(db: NewsletterDatabaseClient, emailInput: string) {
+  const email = emailInput.trim().toLowerCase();
+
+  return db.newsletterSubscriber.upsert({
+    where: { email },
+    update: {
+      status: NewsletterSubscriberStatus.UNSUBSCRIBED,
+      unsubscribedAt: new Date(),
+    },
+    create: {
+      email,
+      status: NewsletterSubscriberStatus.UNSUBSCRIBED,
+      consentSource: "CHECKOUT",
+      consentVersion: NEWSLETTER_CONSENT_VERSION,
+      consentedAt: new Date(),
+      unsubscribedAt: new Date(),
+    },
+  });
+}
+
+export async function isEmailUnsubscribed(db: NewsletterDatabaseClient, emailInput: string) {
+  const email = emailInput.trim().toLowerCase();
+  const subscriber = await db.newsletterSubscriber.findUnique({
+    where: { email },
+    select: { status: true },
+  });
+
+  return subscriber?.status === NewsletterSubscriberStatus.UNSUBSCRIBED;
+}

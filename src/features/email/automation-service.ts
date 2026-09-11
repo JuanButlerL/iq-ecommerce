@@ -3,6 +3,7 @@ import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, Or
 
 import { sendEmail } from "@/features/email/provider";
 import { renderMarketingEmail, renderTemplate } from "@/features/email/render";
+import { isEmailUnsubscribed } from "@/features/email/newsletter-service";
 import {
   grantCartRecoveryFreeShippingBenefit,
   revokeUnsentCartRecoveryFreeShippingBenefit,
@@ -88,6 +89,23 @@ export async function processEmailAutomations(options: { automationId?: string; 
         targetId = `${candidate.targetId}:retry:${Date.now()}`;
       }
 
+      if (await isEmailUnsubscribed(prisma, candidate.recipientEmail)) {
+        await createEmailLog({
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.SKIPPED,
+          recipientEmail: candidate.recipientEmail,
+          subject: "Omitido por baja de email",
+          targetType: candidate.targetType,
+          targetId,
+          orderId: candidate.orderId,
+          cartRecoveryLeadId: candidate.cartRecoveryLeadId,
+          errorMessage: "Omitido: la persona solicitó no recibir más emails.",
+        });
+        result.skipped += 1;
+        continue;
+      }
+
       const subject = renderTemplate(automation.subject, candidate.variables);
       const previewText = automation.previewText ? renderTemplate(automation.previewText, candidate.variables) : null;
       const bodyText = renderTemplate(automation.bodyText, candidate.variables);
@@ -95,8 +113,10 @@ export async function processEmailAutomations(options: { automationId?: string; 
       const ctaUrl = automation.ctaUrlTemplate ? renderTemplate(automation.ctaUrlTemplate, candidate.variables) : null;
       const logId = randomUUID();
       const openToken = randomUUID();
+      const unsubscribeToken = randomUUID();
       const clickToken = ctaUrl ? randomUUID() : null;
       const trackedCtaUrl = clickToken ? `${env.NEXT_PUBLIC_SITE_URL}/api/email/click/${clickToken}` : null;
+      const unsubscribeUrl = `${env.NEXT_PUBLIC_SITE_URL}/api/email/unsubscribe/${unsubscribeToken}`;
       let createdFreeShippingBenefit: { leadId: string; token: string } | null = null;
       let providerAccepted = false;
 
@@ -123,6 +143,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
           ctaLabel,
           ctaUrl: trackedCtaUrl ?? ctaUrl,
           openTrackingUrl: `${env.NEXT_PUBLIC_SITE_URL}/api/email/open/${openToken}`,
+          unsubscribeUrl,
           freeShippingMessage,
           coupon: freeShippingBenefit
             ? null
@@ -144,7 +165,15 @@ export async function processEmailAutomations(options: { automationId?: string; 
           to: candidate.recipientEmail,
           subject,
           html,
-          text: [subject, bodyText, freeShippingMessage, ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : ""].filter(Boolean).join("\n\n"),
+          text: [
+            subject,
+            bodyText,
+            freeShippingMessage,
+            ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : "",
+            `Para dejar de recibir emails de IQ Kids: ${unsubscribeUrl}`,
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
           bccEmail: automation.bccEmail,
         });
         providerAccepted = true;
@@ -164,6 +193,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
           ctaUrl,
           clickToken,
           openToken,
+          unsubscribeToken,
         });
         result.sent += 1;
       } catch (error) {

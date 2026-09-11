@@ -40,6 +40,7 @@ export function renderMarketingEmail({
   ctaLabel,
   ctaUrl,
   openTrackingUrl,
+  unsubscribeUrl,
   freeShippingMessage,
   coupon,
 }: {
@@ -49,6 +50,7 @@ export function renderMarketingEmail({
   ctaLabel?: string | null;
   ctaUrl?: string | null;
   openTrackingUrl?: string | null;
+  unsubscribeUrl?: string | null;
   freeShippingMessage?: string | null;
   coupon?: {
     code: string;
@@ -99,6 +101,9 @@ export function renderMarketingEmail({
   const openTrackingPixel = openTrackingUrl
     ? `<img src="${escapeHtml(openTrackingUrl)}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;outline:none;text-decoration:none;" />`
     : "";
+  const unsubscribeLink = unsubscribeUrl
+    ? `<p style="margin:14px 0 0;color:rgba(45,33,66,.48);font-size:11px;line-height:1.5;">Si no queres recibir mas emails de IQ Kids, <a href="${escapeHtml(unsubscribeUrl)}" style="color:${brandInk};">darte de baja aca</a>.</p>`
+    : "";
 
   return `<!doctype html>
 <html>
@@ -129,6 +134,7 @@ export function renderMarketingEmail({
             </tr>
           </table>
           <p style="margin:16px 0 0;color:rgba(45,33,66,.45);font-size:11px;">${escapeHtml(env.NEXT_PUBLIC_SITE_URL)}</p>
+          ${unsubscribeLink}
         </td>
       </tr>
     </table>
