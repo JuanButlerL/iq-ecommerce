@@ -256,9 +256,11 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
   const [form, setForm] = useState<FormState>(() => automationToForm(automations[0] ?? null));
   const [testEmail, setTestEmail] = useState("");
   const [suppressionEmail, setSuppressionEmail] = useState("");
+  const [suppressedEmails, setSuppressedEmails] = useState<Array<{ id: string; email: string; unsubscribedAt: string | null }> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isSuppressing, setIsSuppressing] = useState(false);
+  const [isLoadingSuppressions, setIsLoadingSuppressions] = useState(false);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -475,6 +477,26 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
 
     setSuppressionEmail("");
     setMessage(`${email} quedó dado de baja. Los próximos procesos lo omitirán.`);
+    setSuppressedEmails((current) =>
+      current ? [{ id: `manual-${email}`, email, unsubscribedAt: new Date().toISOString() }, ...current.filter((item) => item.email !== email)] : current,
+    );
+  };
+
+  const loadSuppressions = async () => {
+    setIsLoadingSuppressions(true);
+    const response = await fetch("/api/admin/email-suppressions");
+    const payload = (await response.json()) as {
+      error?: string;
+      data?: { suppressions?: Array<{ id: string; email: string; unsubscribedAt: string | null }> };
+    };
+    setIsLoadingSuppressions(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "No se pudieron cargar las bajas.");
+      return;
+    }
+
+    setSuppressedEmails(payload.data?.suppressions ?? []);
   };
 
   return (
@@ -559,8 +581,30 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
             <Button type="submit" variant="secondary" disabled={isSuppressing}>
               {isSuppressing ? "Guardando..." : "Dar de baja"}
             </Button>
+            <Button type="button" variant="ghost" onClick={loadSuppressions} disabled={isLoadingSuppressions}>
+              {isLoadingSuppressions ? "Cargando..." : "Ver bajas"}
+            </Button>
           </form>
         </div>
+        {suppressedEmails ? (
+          <div className="mt-5 border-t border-brand-ink/10 pt-4">
+            <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/50">Últimas 100 bajas</p>
+            {suppressedEmails.length ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {suppressedEmails.map((suppression) => (
+                  <div key={suppression.id} className="rounded-2xl bg-white/80 px-3 py-2 text-sm text-brand-ink">
+                    <p className="truncate font-bold">{suppression.email}</p>
+                    <p className="mt-1 text-xs text-brand-ink/55">
+                      {suppression.unsubscribedAt ? formatArgentinaDateTime(new Date(suppression.unsubscribedAt)) : "Fecha no disponible"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-brand-ink/60">Todavía no hay bajas registradas.</p>
+            )}
+          </div>
+        ) : null}
       </Card>
 
       <Card className="p-5 md:p-6">
