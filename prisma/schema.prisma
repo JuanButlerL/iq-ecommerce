@@ -441,6 +441,7 @@ model EmailAutomation {
   name           String
   trigger        EmailAutomationTrigger
   active         Boolean                @default(false)
+  activatedAt    DateTime?              @map("activated_at")
   delayHours     Int                    @default(24) @map("delay_hours")
   subject        String
   previewText    String?                @map("preview_text")

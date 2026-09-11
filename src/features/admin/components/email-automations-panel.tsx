@@ -18,6 +18,7 @@ type AutomationItem = {
   name: string;
   trigger: EmailAutomationTrigger;
   active: boolean;
+  activatedAt: Date | null;
   delayHours: number;
   subject: string;
   previewText: string | null;
@@ -577,6 +578,13 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                     {form.name || triggerLabels[form.trigger]}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-brand-ink/60">{triggerShortHelp[form.trigger]}</p>
+                  {form.active ? (
+                    <p className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
+                      {selectedAutomation?.active && selectedAutomation.activatedAt
+                        ? `Activa desde ${formatArgentinaDateTime(new Date(selectedAutomation.activatedAt))}. Solo procesa eventos posteriores a ese momento.`
+                        : "Al guardarla activa, empezará a contar desde ese momento. No enviará eventos históricos."}
+                    </p>
+                  ) : null}
                 </div>
                 <label className="flex items-center justify-between gap-3 rounded-2xl border border-brand-ink/10 bg-background px-4 py-3 text-sm font-bold text-brand-ink">
                   Activa

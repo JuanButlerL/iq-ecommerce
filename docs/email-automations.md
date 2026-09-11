@@ -73,6 +73,12 @@ La migracion crea tres plantillas pausadas:
 
 El sistema evita duplicados por automatizacion y objetivo.
 
+## Corte de activacion
+
+Al activar una automatizacion, el sistema guarda su fecha y hora de activacion. Solo procesa eventos ocurridos desde ese momento: nunca recorre pedidos, compras, carritos o capturas historicas al encender una plantilla.
+
+Pausar y volver a activar una automatizacion crea un corte nuevo. Editar una automatizacion que ya esta activa conserva su corte actual.
+
 ## Como funciona cada disparador
 
 - Recuperacion sin compra: empieza cuando una persona deja su email en el carrito. Si avanza a checkout o genera pedido pero no paga ni sube comprobante, sigue entrando en esta recuperacion. Espera la demora configurada y antes de enviar revisa si ese mismo email tuvo una compra confirmada posterior; si compro, omite el email.

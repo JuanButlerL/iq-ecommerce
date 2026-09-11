@@ -364,16 +364,18 @@ export async function getEmailAuditPreview(options: { logFrom?: Date; logTo?: Da
 }
 
 async function getCandidatesForAutomation(
-  automation: { id: string; trigger: EmailAutomationTrigger; delayHours: number },
+  automation: { id: string; trigger: EmailAutomationTrigger; delayHours: number; activatedAt: Date | null },
   limit: number,
 ): Promise<Candidate[]> {
   const readyAt = new Date(Date.now() - Math.max(automation.delayHours, 0) * 60 * 60 * 1000);
+  const activatedAt = automation.activatedAt ?? new Date();
 
   if (automation.trigger === EmailAutomationTrigger.WELCOME_LEAD) {
     const leads = await prisma.cartRecoveryLead.findMany({
       take: limit,
       where: {
         status: "WELCOME_CAPTURED",
+        createdAt: { gte: activatedAt },
         updatedAt: { lte: readyAt },
       },
       orderBy: { updatedAt: "asc" },
@@ -472,6 +474,14 @@ async function getCandidatesForAutomation(
             checkoutStartedAt: { lte: readyAt },
           },
         ],
+        AND: [
+          {
+            OR: [
+              { status: "CAPTURED", createdAt: { gte: activatedAt } },
+              { status: "CHECKOUT_STARTED", checkoutStartedAt: { gte: activatedAt } },
+            ],
+          },
+        ],
       },
       orderBy: [{ checkoutStartedAt: "asc" }, { createdAt: "asc" }],
       include: {
@@ -564,7 +574,7 @@ async function getCandidatesForAutomation(
     const orders = await prisma.order.findMany({
       take: limit,
       where: {
-        createdAt: { lte: readyAt },
+        createdAt: { gte: activatedAt, lte: readyAt },
         orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
       },
       orderBy: { createdAt: "asc" },
@@ -578,6 +588,11 @@ async function getCandidatesForAutomation(
     where: {
       paymentStatus: { in: [PaymentStatus.PROOF_UPLOADED, PaymentStatus.PAID] },
       orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
+      AND: [
+        {
+          OR: [{ paidAt: { gte: activatedAt } }, { paymentProofs: { some: { uploadedAt: { gte: activatedAt } } } }],
+        },
+      ],
       OR: [{ paidAt: { lte: readyAt } }, { paymentProofs: { some: { uploadedAt: { lte: readyAt } } } }],
     },
     orderBy: { createdAt: "asc" },

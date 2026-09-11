@@ -9,9 +9,11 @@ export async function POST(request: Request) {
   try {
     await assertAdminSection("emails");
     const parsed = emailAutomationSchema.parse(await request.json());
+    const activatedAt = parsed.active ? new Date() : null;
     const automation = await prisma.emailAutomation.create({
       data: {
         ...parsed,
+        activatedAt,
         previewText: parsed.previewText || null,
         ctaLabel: parsed.ctaLabel || null,
         ctaUrlTemplate: parsed.ctaUrlTemplate || null,
