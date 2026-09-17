@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, BarChart3, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageSquareQuote, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, CircleHelp, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageSquareQuote, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -13,6 +13,7 @@ const navigation = [
   { section: "settings", href: "/admin/configuracion", label: "Configuracion", icon: <Settings className="h-4 w-4" /> },
   { section: "coupons", href: "/admin/cupones", label: "Cupones", icon: <BadgePercent className="h-4 w-4" /> },
   { section: "testimonials", href: "/admin/testimonios", label: "Testimonios", icon: <MessageSquareQuote className="h-4 w-4" /> },
+  { section: "faq", href: "/admin/preguntas-frecuentes", label: "Preguntas frecuentes", icon: <CircleHelp className="h-4 w-4" /> },
   { section: "shipping", href: "/admin/envios", label: "Envios", icon: <Truck className="h-4 w-4" /> },
   { section: "orders", href: "/admin/pedidos", label: "Pedidos", icon: <ShoppingBag className="h-4 w-4" />, prefetch: false },
   { section: "marketing", href: "/admin/marketing", label: "Marketing", icon: <BarChart3 className="h-4 w-4" />, prefetch: false },

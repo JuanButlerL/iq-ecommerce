@@ -19,6 +19,7 @@ type AppChromeProps = {
   announcementBarEnabled?: boolean | null;
   announcementBarText?: string | null;
   subscriptionSectionEnabled?: boolean | null;
+  faqSectionEnabled?: boolean | null;
 };
 
 export function AppChrome({
@@ -30,6 +31,7 @@ export function AppChrome({
   announcementBarEnabled,
   announcementBarText,
   subscriptionSectionEnabled,
+  faqSectionEnabled,
 }: AppChromeProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
@@ -48,6 +50,7 @@ export function AppChrome({
           announcementBarEnabled={announcementBarEnabled}
           announcementBarText={announcementBarText}
           subscriptionSectionEnabled={subscriptionSectionEnabled}
+          faqSectionEnabled={faqSectionEnabled}
         />
       )}
       <main>{children}</main>

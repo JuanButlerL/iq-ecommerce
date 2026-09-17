@@ -20,6 +20,8 @@ Las migraciones nuevas agregan controles de contenido del home, testimonios, slo
 - preferencias, pagos y webhooks de Mercado Pago
 - trabajos y logs de sincronizacion
 
+Las migraciones de FAQ son aditivas: `202609151200_add_frequently_asked_questions` crea la tabla y agrega el booleano apagado por defecto; `202609161000_add_faq_page_content` agrega seis textos opcionales a `store_settings`. La segunda usa `ADD COLUMN IF NOT EXISTS` para tolerar entornos locales que hubieran aplicado una versión intermedia. No modifican pedidos, pagos, productos, envíos, clientes ni integraciones.
+
 La suscripcion queda desactivada por defecto cuando no tiene contenido configurado. La seccion de testimonios no se muestra si todavia no hay testimonios activos.
 
 ## Variables que deben existir en produccion
@@ -178,6 +180,8 @@ Repetir la consulta de cantidades y compararla con el preflight. Los conteos de 
 6. Crear un pedido de prueba por Mercado Pago y confirmar preferencia, retorno y webhook `PAID`.
 7. Entrar al admin y probar lectura/guardado de productos, configuracion, testimonios, suscripcion, envios y pedidos.
 8. Confirmar que las imagenes existentes de Supabase sigan accesibles.
+9. En Preguntas frecuentes, crear una pregunta de prueba, verificar edición y orden, activar la sección y abrir `/preguntas-frecuentes` en desktop y mobile.
+10. Desactivar la sección y confirmar que desaparezca del menú y que la ruta pública responda 404; volver a dejar el estado comercial acordado.
 
 ### Smoke test de medicion
 
@@ -194,6 +198,7 @@ Repetir la consulta de cantidades y compararla con el preflight. Los conteos de 
 - Productos: revisar etiqueta corta del home, colores y orden de imagenes; la primera imagen es la que se usa en el home.
 - Suscripcion: completar link, nota del hero y tres beneficios antes de activarla.
 - Barra de anuncio: revisar texto, estado y umbral de envio gratis.
+- Preguntas frecuentes: cargar y ordenar contenido; activarla solo cuando exista al menos una pregunta activa revisada.
 
 ## Rollback
 

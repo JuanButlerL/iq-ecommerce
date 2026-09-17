@@ -275,6 +275,13 @@ model StoreSettings {
   institutionalBanner    String?       @map("institutional_banner")
   announcementBarEnabled Boolean       @default(false) @map("announcement_bar_enabled")
   announcementBarText    String?       @map("announcement_bar_text")
+  faqSectionEnabled      Boolean       @default(false) @map("faq_section_enabled")
+  faqEyebrow             String?       @map("faq_eyebrow")
+  faqTitle               String?       @map("faq_title")
+  faqTitleAccent         String?       @map("faq_title_accent")
+  faqDescription         String?       @map("faq_description")
+  faqSupportTitle        String?       @map("faq_support_title")
+  faqSupportText         String?       @map("faq_support_text")
   heroCtaLabel           String?       @map("hero_cta_label")
   heroCtaUrl             String?       @map("hero_cta_url")
   subscriptionSectionEnabled Boolean   @default(false) @map("subscription_section_enabled")
@@ -324,6 +331,19 @@ model Testimonial {
 
   @@index([active, sortOrder], map: "testimonials_active_sort_idx")
   @@map("testimonials")
+}
+
+model FrequentlyAskedQuestion {
+  id        String   @id @default(uuid()) @db.Uuid
+  question  String
+  answer    String   @db.Text
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder], map: "frequently_asked_questions_active_sort_idx")
+  @@map("frequently_asked_questions")
 }
 
 model HomeFeaturedProductSlot {

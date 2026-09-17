@@ -1178,3 +1178,94 @@ Validación:
 - se agregó `/admin/marketing/guia`, protegido por el mismo permiso de Marketing y enlazado desde el panel
 - la guía se incluye en el bundle de la aplicación para que esté disponible en producción; `docs/marketing-atribucion.md` y el contenido de la guía deben actualizarse dentro de cada cambio funcional de Marketing
 - no hay migraciones ni cambios de datos: los pedidos históricos y el contrato de `direccion`/calle y altura se mantienen intactos
+
+### 2026-09-09 - Robustecimiento de eventos Meta
+
+- `ViewContent` suma `contents` y `num_items`; `InitiateCheckout` suma `content_ids`, `content_name`, `content_type` y el detalle de cada producto, además de valor, moneda y cantidad
+- una transferencia deja de emitir `Purchase` en navegador al crear el pedido: se emite recién con comprobante cargado (`PROOF_UPLOADED`) o pago Mercado Pago confirmado; CAPI conserva el evento servidor de la confirmación real
+- se debe auditar el contenedor `GTM-NGKTHTNF`: el sitio carga Pixel Meta directo y GTM, por lo que no puede haber una segunda etiqueta Meta con el mismo Pixel dentro de GTM
+- sin migraciones ni cambios de datos; se requiere verificar cada evento en Meta Test Events después del deploy
+
+### 2026-09-11 - Corte seguro al activar automatizaciones de email
+
+- cada automatizacion registra `activatedAt`; al encenderla solo puede procesar eventos creados desde ese instante
+- pausar y volver a activar reinicia el corte; editar una automatizacion ya activa lo conserva
+- la migracion fija el corte en el momento del deploy para todas las automatizaciones activas, evitando que cualquier backlog historico pendiente vuelva a enviarse
+- no se eliminan pedidos, leads ni logs; el cambio solo excluye eventos anteriores al corte de futuras ejecuciones
+
+### 2026-09-11 - Baja global de emails
+
+- cada email real enviado por automatización o por el popup incluye un enlace individual para dejar de recibir emails
+- la baja se guarda por dirección y el proceso la verifica antes de enviar: bloquea carrito abandonado, bienvenida, pedido recibido y post compra
+- `/admin/emails` permite cargar una dirección en `Baja manual`; no borra pedidos, leads ni historial comercial
+- los casos bloqueados quedan como `SKIPPED` con motivo visible en Auditoría, para poder comprobar que no se llamó al proveedor de correo
+- migración estrictamente aditiva: agrega solamente `email_send_logs.unsubscribe_token`; las bajas nuevas usan la tabla existente `newsletter_subscribers`
+
+### 2026-09-15 - Estado de handoff
+
+Release de bajas de email:
+
+- `f2ce55f` (`Add global email unsubscribe controls`) está en `feature/resideño-front` y `origin/feature/resideño-front`
+- incluye la migración `202609111000_add_email_unsubscribe_tokens`, que solo agrega `email_send_logs.unsubscribe_token` e índice único; no borra ni reescribe datos existentes
+- los emails reales de automatizaciones y popup tienen un enlace individual de baja; los emails de prueba no lo incluyen porque no generan un log ni token real y no deben poder desuscribir por accidente
+- `/admin/emails` permite `Baja manual` y `Ver bajas`; este último carga bajo demanda las últimas 100 direcciones con fecha, por lo que no agrega carga al abrir el panel
+- una baja bloquea todos los emails automatizados antes de llamar al proveedor y queda auditada como `SKIPPED`; no bloquea envíos de prueba del administrador
+
+Activación segura de automatizaciones:
+
+- crear activa o activar una automatización fija `activatedAt` en ese instante; solo procesa eventos posteriores a ese corte
+- una compra realizada antes del corte no recibirá un `POST_PURCHASE` aunque falte menos que la demora configurada; esto evita reenvíos históricos
+- pausar y reactivar crea un corte nuevo; editar una automatización que continúa activa preserva su corte
+
+Trabajo local pendiente, no incluido en `f2ce55f` ni listo para deploy junto a bajas de email:
+
+- `src/app/productos/[slug]/page.tsx`: completa parámetros de `ViewContent` de Meta
+- `src/features/checkout/components/checkout-page.tsx`: completa parámetros de `InitiateCheckout` de Meta usando subtotal de productos y no el total con envío
+- `src/app/checkout/confirmacion/[orderNumber]/page.tsx`: evita `Purchase` de navegador al crear una transferencia; espera comprobante o pago confirmado
+- no hay migraciones en este conjunto Meta; requiere build, prueba en Meta Test Events y commit separado antes de publicar
+
+### 2026-09-15 - Preguntas frecuentes administrables
+
+Pedido:
+
+- sumar una página pública `/preguntas-frecuentes` alineada con el diseño de IQ Kids y optimizada para mobile y desktop
+- permitir crear, editar, pausar, ordenar y eliminar preguntas desde `/admin/preguntas-frecuentes`
+- permitir activar o desactivar toda la sección y mostrar su enlace antes de Contacto solamente cuando esté publicada
+
+Implementación:
+
+- se agregó la tabla `frequently_asked_questions` con pregunta, respuesta, estado, orden y timestamps
+- `store_settings.faq_section_enabled` controla la publicación global e inicia en `false`, por lo que el deploy no cambia la navegación pública hasta que el equipo lo decida
+- el admin exige al menos una pregunta activa para publicar; si se pausa o elimina la última pregunta activa, la sección se oculta automáticamente
+- la página pública usa un acordeón controlado accesible por teclado, con animación breve y una sola respuesta abierta por vez
+- el enlace aparece antes de Contacto tanto en desktop como en el menú mobile; con la sección apagada la ruta devuelve 404
+- se agregó el permiso admin independiente `faq`
+- el encabezado público se compactó para dar protagonismo inmediato a las preguntas
+- el cierre visual eliminó anillos, grandes degradados y la línea divisoria del encabezado; toda la página usa una superficie blanca continua con acentos mínimos de marca y el buscador queda visible antes
+- se retiraron también las líneas decorativas rosa y amarilla del antetítulo porque podían interpretarse como un indicador; quedó únicamente el texto superior en rosa
+- para listas extensas se muestran ocho preguntas inicialmente, con búsqueda sobre pregunta y respuesta, contador, carga progresiva y un solo acordeón abierto por vez
+- desde el mismo admin se editan el antetítulo, los dos tramos negro/rosa del título, la descripción y los textos de la tarjeta de ayuda
+
+Archivos principales:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/202609151200_add_frequently_asked_questions/migration.sql`
+- `src/app/preguntas-frecuentes/page.tsx`
+- `src/app/admin/preguntas-frecuentes/page.tsx`
+- `src/features/admin/components/faq-admin-panel.tsx`
+- `src/features/faq/*`
+- `src/app/api/admin/faq/*`
+- `src/components/layout/site-header.tsx`
+
+Impacto:
+
+- requiere deploy con una migración estrictamente aditiva: tabla nueva, booleano apagado por defecto y seis campos de texto opcionales
+- no toca tablas ni lógica de pedidos, pagos, Mercado Pago, comprobantes, emails, tracking o sincronización
+- requiere backup, build de la imagen nueva, `prisma migrate deploy` antes de reemplazar el servicio y smoke test según `docs/deploy-produccion-digitalocean.md`
+
+Corrección local del 16 de septiembre de 2026:
+
+- los seis textos configurables se separaron en `202609161000_add_faq_page_content` para no modificar la migración base después de que ya hubiera sido aplicada localmente
+- la migración de textos usa `ADD COLUMN IF NOT EXISTS`; en producción limpia agrega las columnas y en entornos locales adelantados evita colisiones
+- activar la sección y guardar textos ahora informan explícitamente si falta el singleton `store_settings.default`, en lugar de devolver un error genérico de Prisma
+- el panel usa estados de carga independientes para publicación, textos, formulario de preguntas y eliminación; una operación ya no cambia simultáneamente la etiqueta de otros botones

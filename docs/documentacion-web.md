@@ -94,6 +94,8 @@ Ademas tiene una tercera capa transversal:
 - `/checkout/confirmacion/[orderNumber]`
   confirmacion final
 - `/contacto`
+- `/preguntas-frecuentes`
+  preguntas y respuestas públicas administrables; devuelve 404 y se oculta del menú cuando la sección está desactivada
 
 ### Layout global
 
@@ -287,6 +289,8 @@ El panel admin es una parte central del sistema. Desde ahi el cliente opera la t
   pedidos
 - `/admin/sync`
   sincronizacion externa
+- `/admin/preguntas-frecuentes`
+  publicación y CRUD de preguntas frecuentes
 
 ### Acceso admin
 
@@ -499,6 +503,7 @@ Sirve para soporte operativo y debugging.
 - `mercado_pago_preferences`
 - `mercado_pago_payments`
 - `payment_webhook_events`
+- `frequently_asked_questions`
 
 ### Productos
 
@@ -754,6 +759,11 @@ Eventos relevantes:
 - la tienda puede cerrarse desde admin
 - el checkout depende de `store_settings`
 - el panel admin es el punto central de configuracion del negocio
+- preguntas frecuentes se publica con un control global en `store_settings`; requiere al menos una pregunta activa
+- desactivar o eliminar la última pregunta activa oculta automáticamente la sección para evitar una página pública vacía
+- el encabezado y la tarjeta de ayuda de preguntas frecuentes tienen textos editables desde su propio panel admin, incluido el título separado en tramo negro y tramo rosa
+- la página pública muestra ocho preguntas inicialmente, incorpora búsqueda sobre pregunta y respuesta, abre un acordeón por vez y permite cargar el resto por bloques
+- el encabezado de FAQ comparte el mismo fondo blanco del contenido, sin separadores ni decoraciones dominantes, para priorizar buscador y preguntas en mobile y desktop
 
 ## Limitaciones y observaciones actuales
 
