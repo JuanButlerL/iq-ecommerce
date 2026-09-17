@@ -25,7 +25,7 @@ export default async function ConfirmationPage({
   }
 
   const isMercadoPago = order.paymentMethod === "MERCADO_PAGO";
-  const shouldTrackAnalyticsPurchase = order.paymentStatus === "PAID";
+  const shouldTrackAnalyticsPurchase = order.paymentStatus === "PAID" || order.paymentStatus === "PROOF_UPLOADED";
   const shouldTrackMetaPurchase = shouldTrackAnalyticsPurchase || order.paymentMethod === "BANK_TRANSFER";
   const productsValue = getProductsValue(order.totalArs, order.shippingArs);
   const purchaseItems = order.items.map((item) => ({

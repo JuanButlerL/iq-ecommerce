@@ -62,7 +62,7 @@ Principio operativo mas importante:
 
 ### Front publico
 
-- Home custom rediseñada
+- Home custom rediseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±ada
 - Catalogo de productos
 - Detalle de producto
 - Carrito persistido en `localStorage` con Zustand
@@ -239,6 +239,46 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-09-03 - Direccion separada en calle y altura para logistica
+
+Pedido:
+
+- separar la direccion de checkout en calle y altura para una integracion logistica
+- permitir calles sin altura solo mediante una confirmacion explicita
+- preservar pedidos e integraciones existentes
+
+Implementacion:
+
+- `orders.address_line` conserva la calle; no se renombro ni se modificaron registros existentes
+- se agregaron las columnas nullable `address_number` y `address_without_number`; los pedidos historicos quedan intactos y sin datos inventados
+- checkout valida calle y altura por separado; altura es obligatoria salvo que se marque "La calle no tiene altura"
+- al marcar una calle sin altura, el campo se oculta, la calle ocupa la fila completa y el control usa el lenguaje visual del checkout
+- el formulario se ordeno en bloques de datos personales y entrega, con una grilla responsiva y sin ocultar campos obligatorios
+- en desktop, la grilla se ajusto a tres columnas para eliminar celdas vacias y compactar la altura del checkout; mobile conserva una columna
+- los errores de validacion se agrupan en un resumen compacto por bloque, mientras el campo afectado se marca en rojo sin alterar la altura de la grilla
+- cada campo reserva una linea para un mensaje breve y accionable en español argentino; el resumen solo indica revisar los campos rojos
+- el mapa usa la calle y altura separadas, o `s/n` cuando corresponde
+- sync mantiene `direccion` combinado por compatibilidad y suma `calle`, `altura` y `sin_altura` para consumidores nuevos
+- export y detalle admin muestran los campos separados
+
+Archivos tocados:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/202609030900_add_order_address_number/migration.sql`
+- `src/lib/validations/checkout.ts`
+- `src/features/checkout/components/checkout-page.tsx`
+- `src/features/orders/services/order-service.ts`
+- `src/features/orders/services/sync-service.ts`
+- `src/lib/integrations/sheets/types.ts`
+- `src/app/api/admin/export/orders/route.ts`
+- `src/app/admin/pedidos/[id]/page.tsx`
+
+Impacto:
+
+- requiere deploy en DigitalOcean con migracion aditiva
+- riesgo de DB controlado: no hay borrados, renombres ni backfill de pedidos existentes
+- antes del deploy: backup PostgreSQL, build de la nueva imagen y `prisma migrate deploy` segun `docs/deploy-produccion-digitalocean.md`
+
 ### 2026-08-20 - Validacion avanzada de direccion y vista previa del destino en checkout
 
 Pedido:
@@ -267,7 +307,7 @@ Decision UX posterior del 20 de agosto de 2026:
 - el unico boton visible restante pertenece al propio embed de Google y no es controlable desde el codigo del sitio
 - la accion sugerida al usuario cuando el pin cae mal es modificar la direccion o dejar una aclaracion breve en observaciones
 - la direccion interpretada paso a mostrarse en formato mas compacto para no contaminar visualmente el checkout
-- se normalizaron tildes y textos del checkout para mantener un español correcto y consistente en Argentina
+- se normalizaron tildes y textos del checkout para mantener un espaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±ol correcto y consistente en Argentina
 
 Archivos tocados:
 
@@ -310,13 +350,13 @@ Chequeos sugeridos:
 
 Pedido:
 
-- mostrar mensajes cortos en la pestaña del navegador cuando el usuario deja la web en segundo plano
+- mostrar mensajes cortos en la pestaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a del navegador cuando el usuario deja la web en segundo plano
 - variar el mensaje segun donde quedo el usuario, por ejemplo home, productos, carrito y checkout
 - dejar los textos faciles de editar desde codigo
 
 Implementacion:
 
-- se agrego un componente global cliente que escucha `document.visibilityState` y rota mensajes en la pestaña mientras la web queda en background
+- se agrego un componente global cliente que escucha `document.visibilityState` y rota mensajes en la pestaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a mientras la web queda en background
 - los mensajes se resuelven segun la ruta actual y tambien contemplan el estado del carrito para empujar mejor el regreso
 - la configuracion editable de los copies quedo centralizada en un unico archivo para poder ajustar textos sin tocar la logica
 - se excluyo el panel admin para no meter este comportamiento en la operacion interna
@@ -353,16 +393,16 @@ Abrir:
 
 Chequeos sugeridos:
 
-- entrar a home y cambiar de pestaña para confirmar rotacion de mensajes
+- entrar a home y cambiar de pestaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a para confirmar rotacion de mensajes
 - repetir prueba en productos, carrito y checkout
 - probar carrito vacio y carrito con productos para validar copy dinamico
-- volver a la pestaña y confirmar que el titulo original se restaura
+- volver a la pestaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a y confirmar que el titulo original se restaura
 
 Decision UX posterior del 20 de agosto de 2026:
 
 - se elimino la ruta publica `\/politicas` porque no formaba parte de la navegacion real ni del flujo comercial
 - se limpiaron referencias documentales y tecnicas a esa seccion para no dejar superficie muerta publicada
-- para mobile se agrego un chip sutil de reenganche que aparece al volver a la pestaña despues de varios segundos fuera
+- para mobile se agrego un chip sutil de reenganche que aparece al volver a la pestaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a despues de varios segundos fuera
 - ese chip muestra un mensaje corto segun la etapa del usuario y un CTA `Seguir` que lo devuelve suavemente al contenido principal
 - ese comportamiento mobile se limito solo a `carrito`, `checkout` y `checkout/transfer` para no meter recordatorios decorativos en paginas de baja intencion
 
@@ -374,11 +414,11 @@ Archivos adicionales tocados en esta iteracion:
 Nota posterior de cierre del 20 de agosto de 2026:
 
 - luego de probarlo en produccion, se retiro el nudge mobile de reenganche porque no resulto confiable al volver desde Safari
-- el comportamiento definitivo quedo solo para desktop mediante cambio dinamico del titulo de la pestaña
-- en checkout tambien se ajusto el copy principal del formulario a: `Cargá tus datos, elegí el medio de pago y generamos tu pedido.`
+- el comportamiento definitivo quedo solo para desktop mediante cambio dinamico del titulo de la pestaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a
+- en checkout tambien se ajusto el copy principal del formulario a: `CargÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ tus datos, elegÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ el medio de pago y generamos tu pedido.`
 - para Safari/iPhone se corrigio el icono del sitio para que use el logo real de IQ Kids en lugar del viejo `iQ` simplificado
 - se declararon iconos explicitos en `metadata` para favicon y Apple touch icon, usando assets de `public/brand`
-- hotfix posterior de desktop: se reforzo la restauracion del titulo con `visibilitychange`, `focus` y `pageshow`, mas una reaplicacion corta del `document.title` para evitar pestañas que quedaban mostrando `Volvé`
+- hotfix posterior de desktop: se reforzo la restauracion del titulo con `visibilitychange`, `focus` y `pageshow`, mas una reaplicacion corta del `document.title` para evitar pestaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±as que quedaban mostrando `VolvÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©`
 
 Nota posterior de cierre del 20 de agosto de 2026 - Ajustes finales pre prod:
 
@@ -426,16 +466,16 @@ docker compose ps
 git branch --show-current
 git rev-parse HEAD
 git fetch origin
-git log --oneline --decorate --max-count=8 HEAD origin/feature/resideño-front
-git diff --stat HEAD..origin/feature/resideño-front
-git diff HEAD..origin/feature/resideño-front -- src/app/layout.tsx
+git log --oneline --decorate --max-count=8 HEAD origin/feature/resideÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±o-front
+git diff --stat HEAD..origin/feature/resideÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±o-front
+git diff HEAD..origin/feature/resideÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±o-front -- src/app/layout.tsx
 ```
 
 Comandos seguros recomendados para publicar este tipo de cambio:
 
 ```bash
 cd /opt/iqkids/web
-git pull origin feature/resideño-front
+git pull origin feature/resideÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±o-front
 docker compose build app
 docker compose up -d app
 docker compose ps
@@ -461,5 +501,771 @@ Cuando se arranque una conversacion nueva y se vaya a trabajar sobre este proyec
 5. despues de cada ajuste relevante, agregar una nueva entrada al historial de este documento
 
 
-- se revirtio el favicon desktop para usar `public/brand/iq-kids-favicon.svg`, que rendia mejor en tamaño de pestaña
+- se revirtio el favicon desktop para usar `public/brand/iq-kids-favicon.svg`, que rendia mejor en tamaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±o de pestaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±a
 - se neutralizo temporalmente el favicon para evitar inconsistencias visuales y de cache entre navegadores
+
+### 2026-08-28 - Popup de bienvenida en home con captura temprana de email y cupÃƒÆ’Ã‚Â³n editable desde admin
+
+Pedido:
+
+- adelantar la captura del email al primer ingreso al home
+- mostrar un popup de bienvenida solo la primera vez y volver a habilitarlo a los 30 dias
+- reutilizar el HTML base `docs/IQ_Kids_Popup_2.html` respetando desktop, mobile, colores y success state
+- mostrar el cupÃƒÆ’Ã‚Â³n al enviar el email y disparar tambien un email con ese beneficio
+- permitir que marketing gestione el cupÃƒÆ’Ã‚Â³n desde `/admin/cupones`
+- no abrir una migracion nueva si podia resolverse reutilizando la estructura operativa actual
+
+Implementacion:
+
+- se agrego un popup global montado desde `AppChrome` pero visible solo en `/`
+- el popup espera 800 ms antes de abrir, se cierra por overlay o `Escape` y se vuelve a mostrar recien despues de 30 dias usando `localStorage`
+- el cupÃƒÆ’Ã‚Â³n del popup ahora se marca desde `/admin/cupones` con una opcion explicita `Usar este cupÃƒÆ’Ã‚Â³n en el popup de bienvenida`
+- internamente esa marca reutiliza `description` del cupÃƒÆ’Ã‚Â³n con un marcador tecnico controlado para evitar una migracion nueva
+- el backend garantiza que solo exista un cupÃƒÆ’Ã‚Â³n activo marcado para el popup a la vez
+- se agrego `GET/POST /api/welcome-popup` para resolver configuracion del popup y capturar el email apenas entra el usuario
+- esa captura temprana crea o reaprovecha registros en `cart_recovery_leads` usando el estado operativo `WELCOME_CAPTURED`, sin tocar schema
+- cuando mas tarde ese mismo email deja carrito, la API de recuperacion reutiliza el lead temprano y lo lleva al ciclo existente `CAPTURED -> CHECKOUT_STARTED -> CONVERTED`
+- despues de capturar el email se muestra el estado exito con el codigo visible en pantalla y ademas se intenta enviar el email del beneficio usando el proveedor actual de emails
+- si el proveedor de email no esta configurado o falla, el popup igual entrega el codigo en pantalla para no romper la conversion local
+- el email capturado se guarda tambien en `localStorage` y se precarga despues en carrito para no volver a pedirselo al usuario
+- se completaron los mapeos operativos del trigger `WELCOME_LEAD` dentro del modulo admin de emails y en el motor de automatizaciones para dejar consistente la etapa nueva previa al carrito
+
+Archivos tocados:
+
+- `src/components/layout/app-chrome.tsx`
+- `src/app/api/welcome-popup/route.ts`
+- `src/app/api/cart-recovery/route.ts`
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/features/marketing/welcome-popup.ts`
+- `src/lib/marketing/welcome-popup-copy.ts`
+- `src/features/cart/components/cart-page.tsx`
+- `src/features/coupons/lib/welcome-popup-coupon.ts`
+- `src/features/coupons/mutations.ts`
+- `src/lib/validations/coupon.ts`
+- `src/features/admin/components/coupons-admin-panel.tsx`
+- `src/features/admin/components/email-automations-panel.tsx`
+- `src/features/admin/components/email-audit-panel.tsx`
+- `src/features/email/automation-service.ts`
+
+Impacto:
+
+- requiere deploy de app para llegar a produccion
+- no agrega migraciones nuevas
+- no cambia `prisma/schema.prisma`
+- no implica riesgo estructural de DB, pero si cambia el uso operativo de `cart_recovery_leads` al incorporar la etapa `WELCOME_CAPTURED`
+- no toca pedidos, pagos, webhook de Mercado Pago ni upload de comprobantes
+
+Validacion local:
+
+- `npx tsc --noEmit`: OK
+
+Como probar localmente:
+
+1. entrar a `/admin/cupones`
+2. crear o editar un cupÃƒÆ’Ã‚Â³n activo y marcar `Usar este cupÃƒÆ’Ã‚Â³n en el popup de bienvenida`
+3. abrir `http://localhost:3000/` en modo incognito o limpiando `localStorage`
+4. confirmar que el popup aparece luego de ~800 ms y que respeta desktop o mobile segun viewport
+5. cerrar el popup y verificar que no reaparece dentro de los siguientes 30 dias en ese navegador
+6. volver a limpiar `localStorage`, cargar un email valido y confirmar el estado exito con codigo visible
+7. confirmar que el email queda precargado luego en `/carrito`
+8. agregar productos al carrito y avanzar para verificar que el lead temprano pase a recuperacion de carrito sin romper el flujo actual
+
+### 2026-08-28 - Ajuste visual del popup de bienvenida segun maqueta base
+
+Pedido:
+
+- ocultar el codigo de cupon hasta que la persona deje su email
+- corregir proporcion del popup en desktop para que no quede tan angosto y alto
+- sumar el saludo visual en el titulo `Bienvenida a IQ Kids ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ¢â‚¬Â¹`
+- rehacer la composicion mobile para que respete mejor la maqueta de `docs/IQ_Kids_Popup_2.html`, con menos altura visual y copy mas liviano
+
+Implementacion:
+
+- se retiro la caja visible del cupon en el estado inicial del popup y el beneficio queda sugerido solo desde el circulo lateral o superior
+- en desktop se rebalanceo el ancho general del modal y la proporcion entre columna rosa y bloque de formulario
+- el titulo principal ahora incluye el gesto de saludo
+- en mobile se simplifico la cabecera rosa con wave, se redujo la altura ocupada y se separo el copy para que quede mas cercano a la maqueta original
+- se mantuvo sin cambios la logica de captura, persistencia local a 30 dias y envio de email posterior al submit
+
+Archivos tocados:
+
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/lib/marketing/welcome-popup-copy.ts`
+
+Impacto:
+
+- cambio solo de frontend y copy
+- sin cambios de schema
+- sin impacto adicional de DB
+- requiere redeploy de app si se quiere llevar a produccion
+
+### 2026-08-28 - Correccion fina de copy y composicion del popup mobile
+
+Pedido:
+
+- usar `10% OFF` en el badge del popup en lugar de `10% beneficio`
+- corregir el copy mobile para que siga la maqueta base y no muestre la composicion desktop
+- dejar el estado exito con los textos exactos de la referencia visual entregada
+- mejorar el CTA de cierre `Ahora no, gracias` para que no quede como texto crudo plano
+
+Implementacion:
+
+- el badge visual del popup paso a mostrar `OFF` tanto en desktop como en mobile
+- en mobile se recupero el claim corto del bloque rosa y el cuerpo reducido de una sola idea principal antes del input
+- el estado exito ahora usa el texto `Te mandamos el cÃƒÆ’Ã‚Â³digo a tu email. Usalo en tu primera caja IQ Kids:` y la leyenda `VÃƒÆ’Ã‚Â¡lido para tu primera caja Ãƒâ€šÃ‚Â· Sin mÃƒÆ’Ã‚Â­nimo de compra`
+- el cierre inferior se centro y se estilizo como accion liviana en lugar de texto suelto
+
+Archivos tocados:
+
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/lib/marketing/welcome-popup-copy.ts`
+
+### 2026-08-28 - Hardening pre produccion del flujo WELCOME_LEAD
+
+Pedido:
+
+- revisar el flujo completo antes de publicar para evitar sorpresas en produccion
+- asegurar que el alta temprana desde popup quede conectada con carrito, compra y automatizaciones posteriores
+- resolver los riesgos detectados en la salida a prod
+
+Hallazgos y correcciones aplicadas:
+
+- se detecto que `WELCOME_LEAD` estaba en codigo pero faltaba la migracion del enum real de PostgreSQL; se agrego `prisma/migrations/202608281930_add_welcome_lead_trigger/migration.sql`
+- se endurecio el envio inmediato del popup para que deje auditoria en `email_send_logs` con trigger `WELCOME_LEAD`, sin bloquear los recordatorios automaticos posteriores del mismo lead
+- se agrego una automatizacion tecnica interna del sistema para registrar ese envio inmediato, oculta del listado normal de automatizaciones admin
+- el click del email inmediato ahora tambien queda trackeable mediante `click_token`, por lo que una compra posterior puede atribuirse igual que en las demas automatizaciones
+- la vista operativa de `/admin/emails` ahora contempla tambien leads `WELCOME_CAPTURED`, diferenciando bienvenida temprana de carrito abandonado y usando la demora correcta segun el trigger
+
+Archivos tocados:
+
+- `prisma/migrations/202608281930_add_welcome_lead_trigger/migration.sql`
+- `src/features/marketing/welcome-popup.ts`
+- `src/features/email/automation-service.ts`
+- `src/features/email/system-automations.ts`
+- `src/features/admin/components/email-automations-panel.tsx`
+
+Impacto:
+
+- si requiere migracion en DB para prod
+- requiere deploy de app
+- no altera tablas nuevas ni columnas nuevas
+- agrega trazabilidad operativa y reduce riesgo de comportamiento silencioso en emails
+
+Validacion local:
+
+- `npx prisma validate`: OK
+- `npx prisma db execute --schema prisma/schema.prisma --file prisma/migrations/202608281930_add_welcome_lead_trigger/migration.sql`: OK local
+- `npx prisma generate`: OK
+- `npx tsc --noEmit`: OK
+
+### 2026-08-28 - CTA de copiado rapido y limpieza del mail de bienvenida
+
+Pedido:
+
+- sumar un boton rapido para copiar el cupon desde el estado exito del popup
+- eliminar del email de bienvenida la frase que mencionaba guardar el email para retomar el carrito mas adelante
+
+Implementacion:
+
+- se agrego un CTA secundario `Copiar codigo` en el success state del popup con feedback inmediato `Codigo copiado`
+- se mantuvo el CTA principal `Ver productos` sin cambiar el flujo de conversion
+- se limpio el cuerpo del email de bienvenida para que quede enfocado solo en reservar el beneficio de primera compra, sin mezclar el mensaje con recuperacion de carrito
+- se verifico que la frase removida ya no quede referenciada en el codigo del proyecto
+
+Archivos tocados:
+
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/lib/marketing/welcome-popup-copy.ts`
+- `docs/codex-contexto-operativo.md`
+
+Impacto:
+
+- cambio de frontend y copy de email
+- sin cambios de schema
+- sin impacto adicional de DB
+- requiere redeploy de app para produccion
+
+Validacion local:
+
+- `npx tsc --noEmit`: OK
+
+### 2026-08-28 - Export operativo de mails CRM desde admin emails
+
+Pedido:
+
+- permitir que marketing descargue todos los mails registrados con su estado operativo para trabajar acciones por fuera del sistema
+- no romper ni mezclar esa necesidad con el flujo automatico ya existente de emails
+
+Implementacion:
+
+- se agrego un export directo desde `/admin/emails` con CTA `Descargar mails CRM`
+- el archivo descargable sale desde `/api/admin/export/email-leads` protegido con permisos de la seccion `emails`
+- el export toma `cart_recovery_leads` como fuente operativa y entrega por fila: email, estado operativo, fechas clave, pedido asociado si existe, subtotal, y ultimo contexto de email enviado
+- se incluyeron columnas de trigger, estado, automatizacion, asunto, fecha, clicks y venta atribuida del ultimo email para que marketing pueda segmentar afuera con mejor contexto
+- intencionalmente no se exportan tokens de recuperacion ni datos innecesariamente sensibles
+- no se toco la logica de captura, de conversion, ni de procesamiento automatico de emails
+
+Archivos tocados:
+
+- `src/app/api/admin/export/email-leads/route.ts`
+- `src/features/admin/components/email-automations-panel.tsx`
+- `docs/codex-contexto-operativo.md`
+
+Impacto:
+
+- cambio de backend admin + UI admin
+- sin cambios de schema
+- sin impacto de DB estructural
+- requiere redeploy de app para produccion
+
+Validacion local:
+
+- `npx tsc --noEmit`: OK
+
+### 2026-08-28 - RediseÃƒÆ’Ã‚Â±o visual del popup de bienvenida segÃƒÆ’Ã‚Âºn IQ_Kids_Popup_4.html
+
+Pedido:
+
+- reemplazar el diseÃƒÆ’Ã‚Â±o visual del popup por la nueva maqueta `docs/IQ_Kids_Popup_4.html`
+- mantener sin cambios la lÃƒÆ’Ã‚Â³gica existente de apertura, captura, localStorage, API, success state y email
+
+Implementacion:
+
+- se rehizo la composiciÃƒÆ’Ã‚Â³n visual completa del popup para replicar la nueva maqueta en desktop, mobile y estado de ÃƒÆ’Ã‚Â©xito
+- el popup volviÃƒÆ’Ã‚Â³ a una versiÃƒÆ’Ã‚Â³n mÃƒÆ’Ã‚Â¡s compacta, centrada y sin columna lateral decorativa
+- se alinearon tipografÃƒÆ’Ã‚Â­as, espaciados, divider, CTA principal, CTA de cierre y success state con la referencia nueva
+- no se tocÃƒÆ’Ã‚Â³ la lÃƒÆ’Ã‚Â³gica de trigger, submit, persistencia a 30 dÃƒÆ’Ã‚Â­as, ni el reemplazo interno del contenido al entrar en ÃƒÆ’Ã‚Â©xito
+
+Archivos tocados:
+
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/lib/marketing/welcome-popup-copy.ts`
+- `docs/codex-contexto-operativo.md`
+
+Impacto:
+
+- cambio solo de frontend y copy visual
+- sin cambios de schema
+- sin impacto adicional de DB
+- requiere redeploy de app para producciÃƒÆ’Ã‚Â³n
+
+ValidaciÃƒÆ’Ã‚Â³n local:
+
+- `npx tsc --noEmit`: OK
+
+### 2026-08-28 - AgrupaciÃƒÆ’Ã‚Â³n operativa del listado de cupones para cargas masivas
+
+Pedido:
+
+- resolver que el listado de cupones en admin no quede eterno e inmanejable despuÃƒÆ’Ã‚Â©s de cargas masivas
+- mejorar revisiÃƒÆ’Ã‚Â³n y ediciÃƒÆ’Ã‚Â³n sin cambiar la lÃƒÆ’Ã‚Â³gica de cupones ni de carga masiva
+
+ImplementaciÃƒÆ’Ã‚Â³n:
+
+- el listado de `/admin/cupones` ahora agrupa cupones por descripciÃƒÆ’Ã‚Â³n interna + beneficio + tipo de uso + estado, que es la forma operativa mÃƒÆ’Ã‚Â¡s ÃƒÆ’Ã‚Âºtil para campaÃƒÆ’Ã‚Â±as masivas
+- cada grupo muestra cantidad de cupones, usos confirmados, preview de cÃƒÆ’Ã‚Â³digos y estado del grupo
+- se agregÃƒÆ’Ã‚Â³ bÃƒÆ’Ã‚Âºsqueda por cÃƒÆ’Ã‚Â³digo, descripciÃƒÆ’Ã‚Â³n o beneficio para encontrar campaÃƒÆ’Ã‚Â±as o cupones puntuales rÃƒÆ’Ã‚Â¡pido
+- la ediciÃƒÆ’Ã‚Â³n y eliminaciÃƒÆ’Ã‚Â³n individual siguen disponibles dentro de cada grupo expandido
+- no se tocÃƒÆ’Ã‚Â³ la lÃƒÆ’Ã‚Â³gica de creaciÃƒÆ’Ã‚Â³n, validaciÃƒÆ’Ã‚Â³n, usos, popup de bienvenida ni carga masiva de cupones
+
+Archivos tocados:
+
+- `src/features/admin/components/coupons-admin-panel.tsx`
+- `docs/codex-contexto-operativo.md`
+
+Impacto:
+
+- cambio solo de UX admin
+- sin cambios de schema
+- sin impacto adicional de DB
+- requiere redeploy de app para producciÃƒÆ’Ã‚Â³n
+
+ValidaciÃƒÆ’Ã‚Â³n local:
+
+- `npx tsc --noEmit`: OK
+
+### 2026-08-29 - Popup de bienvenida visible una vez por sesion hasta capturar email
+
+Pedido:
+
+- cambiar la persistencia visual del popup para que se muestre una vez por sesion mientras la persona no deje su email
+- si navega dentro de la misma sesion, no volver a abrirlo
+- si vuelve en una sesion nueva sin haber dejado email, volver a mostrarlo
+- si ya dejo su email, no volver a mostrarlo en sesiones futuras
+
+Implementacion:
+
+- se elimino la logica anterior de reshow a 30 dias para la apertura visual del popup
+- el estado de visualizacion ahora se guarda en `sessionStorage` con una clave exclusiva de sesion
+- el email capturado se sigue guardando en `localStorage`, y pasa a ser la condicion persistente que desactiva el popup en visitas futuras
+- el popup solo consulta configuracion remota si no hay email guardado y si todavia no fue mostrado en la sesion actual
+- se mantuvo intacta la logica de API, captura de lead, cupon editable desde admin, envio de email y success state
+
+Archivos tocados:
+
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/lib/marketing/welcome-popup-copy.ts`
+- `docs/codex-contexto-operativo.md`
+
+Impacto:
+
+- cambio de frontend y persistencia cliente
+- sin cambios de schema
+- sin impacto estructural de DB
+- requiere redeploy de app para produccion
+
+Validacion local:
+
+- `npx tsc --noEmit`: OK
+
+### 2026-08-30 - Trazabilidad completa de marketing, recompra y panel admin de atribucion
+
+Pedido:
+
+- registrar como llega cada usuario desde su primera sesion hasta la compra
+- guardar categoria macro de origen, plataforma, campana y datos UTM o click ids cuando existan
+- conectar popup, captura temprana de email, carrito, checkout y compra confirmada dentro de una misma historia comercial
+- medir clientes con recompra y facturacion asociada
+- crear una seccion nueva en admin con lectura clara para marketing y exportacion a Excel con filtros base
+
+Implementacion:
+
+- se agrego un modelo nuevo de atribucion compuesto por `marketing_sessions` y `marketing_events`
+- `marketing_sessions` guarda primera entrada, referrer, UTM, click ids (`gclid`, `fbclid`, `ttclid`, `msclkid`), clasificacion de categoria/plataforma/canal y vinculacion opcional con email
+- `marketing_events` registra hitos operativos del funnel: `SESSION_STARTED`, `POPUP_CAPTURED`, `CART_CAPTURED`, `ORDER_CREATED` y `ORDER_CONFIRMED`
+- `orders` y `cart_recovery_leads` ahora referencian `marketingSessionId` y `marketingVisitorId` para no perder continuidad entre home, carrito y compra
+- se agrego un tracker cliente global que registra una sesion por browser-session y publica el contexto a `POST /api/marketing/session`
+- el popup de bienvenida, la captura de carrito y el checkout ahora mandan tambien el contexto de atribucion al backend
+- al crear pedido o confirmar pago, el backend persiste y completa la trazabilidad para poder medir conversion y recompra sin depender solo de herramientas externas
+- se agrego `/admin/marketing` con filtros por fecha, categoria, plataforma, busqueda libre y modo solo recompra
+- la nueva vista muestra resumen ejecutivo, rendimiento por origen, top de campanas, base accionable de contactos y ultimos pedidos filtrados
+- se agrego `/api/admin/export/marketing-attribution` para descargar la base filtrada en formato Excel compatible
+- la nueva seccion `marketing` quedo incorporada a permisos y navegacion del panel admin
+
+Archivos tocados:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/202608301015_add_marketing_attribution/migration.sql`
+- `src/lib/marketing/attribution.ts`
+- `src/lib/marketing/client.ts`
+- `src/features/marketing/attribution-service.ts`
+- `src/features/marketing/admin-analytics.ts`
+- `src/app/api/marketing/session/route.ts`
+- `src/components/analytics/marketing-session-tracker.tsx`
+- `src/components/layout/app-chrome.tsx`
+- `src/features/marketing/components/welcome-popup.tsx`
+- `src/features/marketing/welcome-popup.ts`
+- `src/app/api/cart-recovery/route.ts`
+- `src/features/cart/components/cart-page.tsx`
+- `src/lib/validations/checkout.ts`
+- `src/features/checkout/components/checkout-page.tsx`
+- `src/features/orders/services/order-service.ts`
+- `src/features/orders/services/mercado-pago-service.ts`
+- `src/lib/auth/admin-permissions.ts`
+- `src/app/admin/layout.tsx`
+- `src/app/admin/marketing/page.tsx`
+- `src/app/api/admin/export/marketing-attribution/route.ts`
+
+Impacto:
+
+- requiere deploy de app y migracion en DB
+- la migracion es aditiva: crea tablas, enums, indices y foreign keys nuevas, y agrega columnas nuevas en `orders` y `cart_recovery_leads`
+- no elimina tablas, no elimina columnas y no reescribe registros existentes
+- igual debe tratarse como cambio con riesgo de DB y seguir backup previo obligatorio antes de `prisma migrate deploy`
+- no cambia la logica base de confirmacion de pagos de Mercado Pago ni de transferencia, pero si amplia la informacion persistida alrededor del funnel
+
+Validacion local:
+
+- `npx prisma validate`: OK
+- `npx prisma generate`: OK
+- `npx tsc --noEmit`: OK
+- `npm run build`: OK
+
+Comandos seguros recomendados para publicarlo:
+
+```bash
+cd /opt/iqkids/web
+git status --short
+docker compose ps
+git branch --show-current
+git fetch origin
+git log --oneline --decorate --max-count=8 HEAD origin/<rama>
+git diff --stat HEAD..origin/<rama>
+cp .env.production .env.production.backup-2026-08-30
+PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc > /root/iqkids-backup-2026-08-30-marketing.dump
+git pull origin <rama>
+docker compose build app
+docker compose run --rm app npx prisma migrate deploy
+docker compose up -d app
+docker compose ps
+docker compose logs --tail=150 app
+curl -fsS https://iqkids.com.ar/admin/marketing >/dev/null
+```
+
+## 2026-08-31 - Iteracion extra de atribucion multi-touch y export operativa
+
+Objetivo:
+
+- ir mas alla del pedido base de marketing sobre UTM persistente y dejar trazabilidad comercial mas rica para lectura en admin y export de pedidos
+- conservar el historial previo a la captura de email para no perder la primera visita anonima cuando el lead se identifica despues
+- dar a marketing una lectura util de primer touch, ultimo touch, asistencias y secuencia de impactos sin cambiar la logica comercial ni de checkout
+
+Implementacion:
+
+- se tomo como referencia el enfoque de persistencia first seen / last seen del archivo `UTM PERSIST SNIPPET.docx`, pero se adapto al modelo actual con sesiones y eventos propios
+- `ensureMarketingSession` ahora retrovincula al email todas las sesiones anonimas previas del mismo `marketingVisitorId`, preservando la historia completa desde la primera entrada
+- el armado de analitica en `admin-analytics` ahora calcula por contacto y por pedido:
+  - primer touch y ultimo touch
+  - primer touch pago y ultimo touch pago
+  - campanas, plataformas y origenes asistidos
+  - cantidad de touchpoints y resumen del journey
+- el export de pedidos suma columnas de trazabilidad comercial para cruce externo:
+  - ultimo origen y ultima UTM
+  - primer touch y ultimo touch
+  - primer y ultimo touch pago
+  - campanas/plataformas/origenes asistidos
+  - touchpoints, primer ingreso, ultimo ingreso y journey completo
+- la vista `/admin/marketing` ahora expone mejor esta lectura para el equipo de marketing sin depender solo del Excel
+- `ordersInclude` y `getOrderDetail` quedaron alineados para soportar estos datos sin romper el admin de pedidos
+
+Archivos ajustados en esta iteracion:
+
+- `src/features/marketing/attribution-service.ts`
+- `src/features/marketing/admin-analytics.ts`
+- `src/app/api/admin/export/orders/route.ts`
+- `src/features/orders/queries.ts`
+- `src/app/admin/marketing/page.tsx`
+
+Validacion local:
+
+- `npx tsc --noEmit`: OK
+- `npm run build`: OK
+
+Notas operativas:
+
+- el modelo sigue siendo aditivo y no elimina informacion existente
+- el valor extra de esta iteracion es que una compra ya no queda atribuida solo a la ultima visita identificada, sino que puede reconstruirse la cadena de impactos anterior si el usuario navego anonimo antes de dejar su email
+
+## 2026-08-31 - Documento operativo para equipo de marketing sobre atribucion
+
+Pedido:
+
+- dejar una documentacion breve, clara y compartible con el equipo sobre como funciona la capa de marketing y trazabilidad
+
+Implementacion:
+
+- se agrego `docs/marketing-atribucion.md`
+- el documento explica que se guarda, como se clasifica el origen, como se conectan sesiones anonimas con email, como se interpretan first touch, last touch, assisted campaigns, journey y recompra
+- tambien aclara que puede leer el equipo desde `/admin/marketing` y desde los exports
+
+Impacto:
+
+- cambio solo documental
+- sin cambios de schema
+- sin impacto de DB
+- sin deploy obligatorio
+## 2026-08-31 - Bandera explicita de captura en home para export de marketing
+
+Pedido:
+
+- que el Excel de marketing distinga claramente quienes pasaron por el estado de email captado en home, mas alla de si despues compraron o no
+
+Implementacion:
+
+- el export de `/api/admin/export/marketing-attribution` ahora suma la columna `Captado en home` con valor `SI/NO`
+- tambien suma una columna `Estado de captura` para lectura rapida con estados como `HOME > COMPRA`, `HOME > SIN COMPRA`, `CARRITO > COMPRA`, `CARRITO > SIN COMPRA`, `COMPRA SIN CAPTURA` o `SIN CAPTURA`
+- no cambia la logica de atribucion ni de persistencia, solo mejora la lectura operativa para marketing en Excel
+
+Impacto:
+
+- cambio de backend admin y export
+- sin cambios de schema
+- sin impacto de DB
+- requiere redeploy de app si se quiere llevar a produccion
+## 2026-08-31 - Excel CRM con bandera persistente de captura en home y mas detalle UTM
+
+Pedido:
+
+- que el Excel de CRM permita ver todos los mails que pasaron por popup home aunque despues compren o cambien de estado
+- revisar por que algunos casos reales aparecian sin `Campana final`
+
+Implementacion:
+
+- el export de `/api/admin/export/email-leads` ahora incluye `Captado en home`, `Estado de captura`, `Fecha captura home` y `Fecha captura carrito`
+- esa bandera no depende del estado actual del lead: se calcula usando eventos de marketing `POPUP_CAPTURED` y `CART_CAPTURED`, por lo que sigue visible aunque el lead despues pase a checkout o compra
+- para el export de atribucion se agregaron `Contenido inicial/final` y `Termino inicial/final`
+- esto permite explicar los casos donde `Campana final` queda vacia porque la visita llego con `utm_content` o `utm_term`, pero sin `utm_campaign`
+
+Impacto:
+
+- cambio de backend admin y export
+- sin cambios de schema
+- sin impacto de DB estructural
+- requiere redeploy de app si se quiere llevar a produccion
+## 2026-09-05 - Export de marketing orientado a atribución de ventas
+
+Pedido:
+
+- que el equipo de marketing pueda entender en Excel a qué canal y campaña se atribuye cada venta, sin perder el recorrido anterior
+- revisar la clasificación de tráfico de Instagram y la legibilidad del historial
+
+Implementación:
+
+- `/admin/marketing` ahora ofrece dos exportaciones: `Ventas atribuidas` (una fila por compra confirmada) y `Contactos y embudo` (una fila por contacto)
+- el export de ventas muestra la atribución al crear cada pedido, primer y último touch previos, primer y último touch pago, campañas/plataformas asistidas, puntos de contacto, recorrido resumido, capturas y recompra
+- la atribución de cada venta ignora sesiones posteriores al pedido y no permite que un regreso directo reemplace un touch significativo previo
+- el export de contactos suma el recorrido resumido y elimina de los eventos la sesión inicial duplicada y los query params técnicos
+- `fbclid` ya no clasifica por sí solo una visita como pauta: Meta requiere UTM de medio/fuente pago explícito. La migración corrige los registros históricos de Meta sin señal paga explícita a tráfico orgánico
+- ambos Excel neutralizan valores que comiencen con caracteres de fórmula para evitar que una UTM controlada por terceros ejecute fórmulas en planillas
+
+Impacto:
+
+- migración de datos de marketing únicamente; no modifica pedidos, clientes, catálogo ni pagos
+- requiere `prisma migrate deploy` y redeploy de la app para producción
+## 2026-09-05 - Consola de marketing accionable y navegación admin liviana
+
+Pedido:
+
+- mejorar la lectura de marketing para que una agencia pueda detectar rápidamente canales y campañas a escalar o revisar
+- evitar tablas densas y roturas en móvil
+- impedir la precarga de módulos admin pesados
+
+Implementación:
+
+- `/admin/marketing` ahora abre por defecto en últimos 30 días y prioriza embudo, facturación atribuida, compras, conversión y recompra
+- se reemplazaron tablas horizontales por comparativa visual de canales, campañas que convierten, campañas con tráfico sin compra y tarjetas compactas de ventas recientes
+- cada campaña muestra sesiones, capturas, compras, conversión e ingreso; el detalle completo queda disponible al expandir el ranking y en los exports
+- se documentó la diferencia entre atribución propia y métricas que requieren gasto real, como CPA y ROAS
+- se desactivó el prefetch de Dashboard, Pedidos, Marketing y Emails desde la navegación admin
+- se agregaron estados de carga por ruta para Dashboard, Pedidos, Marketing y Emails
+
+Impacto:
+
+- sin cambios de schema ni de operación comercial
+- mejora lectura desktop/móvil y reduce consultas anticipadas de rutas pesadas
+## 2026-09-05 - Consentimiento explícito para newsletter
+
+Pedido:
+
+- permitir que una persona se suscriba opcionalmente a novedades y lanzamientos desde checkout
+- preparar una lista confiable para futuros newsletters sin asumir consentimiento de leads históricos
+
+Implementación:
+
+- se agregó una casilla opcional y discreta en checkout y popup de bienvenida
+- el consentimiento se guarda en `newsletter_subscribers` con email único, estado, origen, fecha y versión del texto
+- el pedido conserva un snapshot opcional de la decisión (`newsletter_opt_in` y fecha) sin modificar pedidos anteriores
+- marcar la casilla crea o reactiva la suscripción dentro de la transacción del checkout; dejarla sin marcar no suscribe ni da de baja a nadie
+- `/admin/emails` muestra la cantidad de suscriptos y permite descargar únicamente los contactos con consentimiento activo
+- la lista queda aislada de las automatizaciones existentes: `Procesar activos` no envía newsletters
+
+Impacto:
+
+- migración aditiva: crea `newsletter_subscribers` y agrega dos columnas opcionales a `orders`
+- sin envío masivo ni cambio sobre leads/pedidos históricos
+- antes de activar newsletters se debe implementar el flujo de baja en el email
+
+### 2026-09-05 - Aperturas de email y envio bonificado seguro en recuperacion de carrito
+
+Pedido:
+
+- medir aperturas de emails enviados
+- bonificar el envio solo para recuperaciones de carrito de una unica linea de producto y de clientes sin compras confirmadas previas
+
+Implementacion:
+
+- `email_send_logs` registra token individual, contador y primera/ultima apertura; un pixel transparente actualiza esas metricas sin exponer informacion del envio
+- el admin de Emails separa aperturas detectadas, clicks y ventas atribuidas; los datos antiguos quedan sin aperturas inventadas
+- el envio bonificado se crea solo despues de un email de carrito abandonado entregado con CTA `{{recoveryUrl}}`
+- el beneficio tiene token aleatorio propio, vencimiento de 72 horas y queda ligado al email y al snapshot exacto de productos/cantidades del carrito
+- checkout vuelve a validar el beneficio en servidor; al crear pedido se consume una unica vez en la misma transaccion
+- cambiar el carrito, usar otro email, tener una compra confirmada previa, vencer el token o reusarlo impide el envio bonificado sin afectar las reglas de envio normales
+- el uso queda auditado en `cart_recovery_leads.free_shipping_order_id` y en el historial del pedido
+
+Archivos principales:
+
+- `prisma/migrations/202609051600_add_email_open_tracking/migration.sql`
+- `prisma/migrations/202609051700_add_cart_recovery_free_shipping_benefit/migration.sql`
+- `src/app/api/email/open/[token]/route.ts`
+- `src/features/email/automation-service.ts`
+- `src/features/cart-recovery/free-shipping-service.ts`
+- `src/features/orders/services/order-service.ts`
+
+Impacto:
+
+- requiere deploy con dos migraciones estrictamente aditivas
+- no borra ni renombra tablas o columnas, no modifica pedidos historicos y no altera reglas globales de envio
+- antes de produccion: backup PostgreSQL, `prisma migrate deploy`, build y prueba manual de un carrito elegible y uno no elegible
+
+### 2026-09-05 - Ajuste de copy de checkout
+
+- se retiro el mensaje sobre compra por debajo del minimo y envio configurado
+- las instalaciones nuevas ya no lo cargan desde el seed; las bases existentes lo omiten visualmente y recuperan el copy anterior del checkout
+- sin cambios de schema, datos ni reglas de envio
+
+### 2026-09-05 - Suscripcion de newsletter preseleccionada en checkout
+
+- la casilla de novedades, beneficios y lanzamientos inicia marcada y la persona puede desmarcarla antes de crear el pedido
+- sin cambios de schema ni migraciones; el snapshot del pedido y la suscripcion resultante conservan el valor final enviado por el checkout
+
+### 2026-09-05 - Conciliacion de conversiones Google y ventas confirmadas
+
+Hallazgo:
+
+- el KPI total de compras confirmadas de la web no es equivalente a conversiones atribuidas por Google Ads; el primero contiene todas las fuentes y el segundo solo conversiones con atribucion de Google
+- habia una diferencia adicional: el evento web `purchase` solo se enviaba para `PAID`, aunque la operacion considera `PROOF_UPLOADED` una compra confirmada
+- los pagos Mercado Pago confirmados por webhook podian no llegar a GA4 si la persona no regresaba a la pagina de confirmacion
+
+Implementacion:
+
+- `purchase` de navegador ahora incluye `PAID` y `PROOF_UPLOADED`, siempre con `transaction_id` igual al numero publico del pedido
+- se captura el `client_id` de GA4 en la sesion de marketing y se agrego soporte opcional de Measurement Protocol para confirmar compras desde servidor despues de un comprobante o webhook
+- el envio servidor requiere `GA_MEASUREMENT_PROTOCOL_API_SECRET`; sin esa variable no se envia ningun evento extra ni se modifica el flujo comercial
+- browser y servidor usan el mismo `transaction_id` para deduplicacion de GA4
+- se documento como comparar el subtotal Google contra la fuente de verdad de IQ Kids
+
+Impacto:
+
+- migracion aditiva: agrega `marketing_sessions.ga_client_id`
+- no cambia pedidos, montos, pagos, estados ni reglas de envio
+- requiere agregar el secreto privado de Measurement Protocol en el droplet para cubrir confirmaciones sin retorno del navegador
+
+### 2026-09-05 - Revisión general previa a producción
+
+Revisión:
+
+- se revisaron checkout, consentimiento de newsletter, aperturas de email, recuperación de carrito, atribución y envío de conversiones a GA4
+- cuatro migraciones nuevas son sólo aditivas: no eliminan, renombran ni reescriben información histórica
+- la migración de corrección Meta reclasifica únicamente sesiones históricas mal atribuidas como pauta por `fbclid`; no modifica pedidos, montos, pagos ni estados
+- el beneficio de envío bonificado se vuelve a validar y se consume dentro de la transacción que crea el pedido; no puede afectar las reglas generales de envío
+- los eventos `purchase` de navegador y servidor usan el mismo `transaction_id` para evitar doble conteo en GA4
+- el total confirmado del panel se rotuló como total de todos los canales; la atribución por canal y campaña se consulta por separado
+
+Validación:
+
+- `npx prisma validate` correcto
+- `git diff --check` sin errores de espacios; los avisos LF/CRLF son de configuración local de Git y no cambian el contenido
+- falta regenerar Prisma Client y ejecutar TypeScript cuando se detenga el proceso local que mantiene bloqueado `query_engine-windows.dll.node`
+
+### 2026-09-05 - Claridad de estados en Emails
+
+- un email capturado en el popup se registra como `WELCOME_CAPTURED`; no es el mismo ciclo que el carrito abandonado
+- si no existe una automatización demorada de bienvenida, el panel ahora muestra `Capturado en popup` y `No aplica: popup inmediato` en lugar de `Sin automatización`
+- el bloque del admin pasó a llamarse `Capturas y recuperaciones` para separar visualmente la captura inmediata del popup y la demora de los carritos
+- al procesar una automatización de carrito antes de la demora configurada, el panel informa los casos todavía en espera y la próxima hora de salida; no los presenta como ausencia de pendientes
+- al dejar email en carrito se crea o renueva un ciclo `CAPTURED`; la automatización de carrito calcula su demora desde esa captura
+- la demora de un carrito `CAPTURED` queda anclada a `createdAt`, no a `updatedAt`: abrir nuevamente el carrito, cambiar provincia o actualizar productos conserva el horario programado y no vuelve a patear el envío
+- para los ciclos existentes, los logs anteriores siguen reconociéndose aunque hayan usado el ancla histórica basada en `updatedAt`; no se reenvían emails ya enviados
+
+### 2026-09-05 - Oferta configurable de envío bonificado
+
+- el envío bonificado deja de otorgarse automáticamente por usar el CTA de recuperación; cada automatización de carrito lo habilita o deshabilita de forma explícita
+- cuando está habilitado, el admin define el mensaje que se ve destacado en el email y el CTA debe ser `{{recoveryUrl}}`
+- sólo los carritos elegibles reciben envío bonificado y, para evitar doble incentivo, ese email no incluye el cupón configurado; los no elegibles conservan el email normal con cupón
+- si el proveedor de email falla antes de aceptar el envío, se revoca el beneficio recién creado; los beneficios usados jamás se modifican
+- la migración de transición invalida sólo beneficios pendientes emitidos silenciosamente por la versión previa, preservando los canjeados para auditoría
+
+### 2026-09-07 - Correcciones de checkout y carrito móvil
+
+- quitar un cupón invalida cualquier validación asíncrona todavía en curso, evitando que una respuesta tardía lo vuelva a aplicar
+- en móvil, los controles de cantidad y borrar pasan a una fila propia debajo del detalle del producto para que el texto de beneficios no se superponga ni se corte
+- un ciclo histórico y un envío previo no bloquean una nueva captura de carrito realizada después de la ventana activa de 24 horas
+
+### 2026-09-08 - Calles numéricas y guía de Marketing
+
+- el checkout acepta calles exclusivamente numéricas o con numeración como `Calle 11`, `11` o `Avenida 9 de Julio`; se conserva la altura como dato separado y no se transforma automáticamente ningún valor ingresado
+- si una calle termina en una numeración larga y la altura está vacía, se muestra una sugerencia no bloqueante para que la persona revise el campo Altura; `Calle 11` no dispara esa sugerencia
+- se agregó `/admin/marketing/guia`, protegido por el mismo permiso de Marketing y enlazado desde el panel
+- la guía se incluye en el bundle de la aplicación para que esté disponible en producción; `docs/marketing-atribucion.md` y el contenido de la guía deben actualizarse dentro de cada cambio funcional de Marketing
+- no hay migraciones ni cambios de datos: los pedidos históricos y el contrato de `direccion`/calle y altura se mantienen intactos
+
+### 2026-09-09 - Robustecimiento de eventos Meta
+
+- `ViewContent` suma `contents` y `num_items`; `InitiateCheckout` suma `content_ids`, `content_name`, `content_type` y el detalle de cada producto, además de valor, moneda y cantidad
+- una transferencia deja de emitir `Purchase` en navegador al crear el pedido: se emite recién con comprobante cargado (`PROOF_UPLOADED`) o pago Mercado Pago confirmado; CAPI conserva el evento servidor de la confirmación real
+- se debe auditar el contenedor `GTM-NGKTHTNF`: el sitio carga Pixel Meta directo y GTM, por lo que no puede haber una segunda etiqueta Meta con el mismo Pixel dentro de GTM
+- sin migraciones ni cambios de datos; se requiere verificar cada evento en Meta Test Events después del deploy
+
+### 2026-09-11 - Corte seguro al activar automatizaciones de email
+
+- cada automatizacion registra `activatedAt`; al encenderla solo puede procesar eventos creados desde ese instante
+- pausar y volver a activar reinicia el corte; editar una automatizacion ya activa lo conserva
+- la migracion fija el corte en el momento del deploy para todas las automatizaciones activas, evitando que cualquier backlog historico pendiente vuelva a enviarse
+- no se eliminan pedidos, leads ni logs; el cambio solo excluye eventos anteriores al corte de futuras ejecuciones
+
+### 2026-09-11 - Baja global de emails
+
+- cada email real enviado por automatización o por el popup incluye un enlace individual para dejar de recibir emails
+- la baja se guarda por dirección y el proceso la verifica antes de enviar: bloquea carrito abandonado, bienvenida, pedido recibido y post compra
+- `/admin/emails` permite cargar una dirección en `Baja manual`; no borra pedidos, leads ni historial comercial
+- los casos bloqueados quedan como `SKIPPED` con motivo visible en Auditoría, para poder comprobar que no se llamó al proveedor de correo
+- migración estrictamente aditiva: agrega solamente `email_send_logs.unsubscribe_token`; las bajas nuevas usan la tabla existente `newsletter_subscribers`
+
+### 2026-09-15 - Estado de handoff
+
+Release de bajas de email:
+
+- `f2ce55f` (`Add global email unsubscribe controls`) está en `feature/resideño-front` y `origin/feature/resideño-front`
+- incluye la migración `202609111000_add_email_unsubscribe_tokens`, que solo agrega `email_send_logs.unsubscribe_token` e índice único; no borra ni reescribe datos existentes
+- los emails reales de automatizaciones y popup tienen un enlace individual de baja; los emails de prueba no lo incluyen porque no generan un log ni token real y no deben poder desuscribir por accidente
+- `/admin/emails` permite `Baja manual` y `Ver bajas`; este último carga bajo demanda las últimas 100 direcciones con fecha, por lo que no agrega carga al abrir el panel
+- una baja bloquea todos los emails automatizados antes de llamar al proveedor y queda auditada como `SKIPPED`; no bloquea envíos de prueba del administrador
+
+Activación segura de automatizaciones:
+
+- crear activa o activar una automatización fija `activatedAt` en ese instante; solo procesa eventos posteriores a ese corte
+- una compra realizada antes del corte no recibirá un `POST_PURCHASE` aunque falte menos que la demora configurada; esto evita reenvíos históricos
+- pausar y reactivar crea un corte nuevo; editar una automatización que continúa activa preserva su corte
+
+Trabajo local pendiente, no incluido en `f2ce55f` ni listo para deploy junto a bajas de email:
+
+- `src/app/productos/[slug]/page.tsx`: completa parámetros de `ViewContent` de Meta
+- `src/features/checkout/components/checkout-page.tsx`: completa parámetros de `InitiateCheckout` de Meta usando subtotal de productos y no el total con envío
+- `src/app/checkout/confirmacion/[orderNumber]/page.tsx`: evita `Purchase` de navegador al crear una transferencia; espera comprobante o pago confirmado
+- no hay migraciones en este conjunto Meta; requiere build, prueba en Meta Test Events y commit separado antes de publicar
+
+### 2026-09-15 - Preguntas frecuentes administrables
+
+Pedido:
+
+- sumar una página pública `/preguntas-frecuentes` alineada con el diseño de IQ Kids y optimizada para mobile y desktop
+- permitir crear, editar, pausar, ordenar y eliminar preguntas desde `/admin/preguntas-frecuentes`
+- permitir activar o desactivar toda la sección y mostrar su enlace antes de Contacto solamente cuando esté publicada
+
+Implementación:
+
+- se agregó la tabla `frequently_asked_questions` con pregunta, respuesta, estado, orden y timestamps
+- `store_settings.faq_section_enabled` controla la publicación global e inicia en `false`, por lo que el deploy no cambia la navegación pública hasta que el equipo lo decida
+- el admin exige al menos una pregunta activa para publicar; si se pausa o elimina la última pregunta activa, la sección se oculta automáticamente
+- la página pública usa un acordeón controlado accesible por teclado, con animación breve y una sola respuesta abierta por vez
+- el enlace aparece antes de Contacto tanto en desktop como en el menú mobile; con la sección apagada la ruta devuelve 404
+- se agregó el permiso admin independiente `faq`
+- el encabezado público se compactó para dar protagonismo inmediato a las preguntas
+- el cierre visual eliminó anillos, grandes degradados y la línea divisoria del encabezado; toda la página usa una superficie blanca continua con acentos mínimos de marca y el buscador queda visible antes
+- se retiraron también las líneas decorativas rosa y amarilla del antetítulo porque podían interpretarse como un indicador; quedó únicamente el texto superior en rosa
+- para listas extensas se muestran ocho preguntas inicialmente, con búsqueda sobre pregunta y respuesta, contador, carga progresiva y un solo acordeón abierto por vez
+- desde el mismo admin se editan el antetítulo, los dos tramos negro/rosa del título, la descripción y los textos de la tarjeta de ayuda
+
+Archivos principales:
+
+- `prisma/schema.prisma`
+- `prisma/migrations/202609151200_add_frequently_asked_questions/migration.sql`
+- `src/app/preguntas-frecuentes/page.tsx`
+- `src/app/admin/preguntas-frecuentes/page.tsx`
+- `src/features/admin/components/faq-admin-panel.tsx`
+- `src/features/faq/*`
+- `src/app/api/admin/faq/*`
+- `src/components/layout/site-header.tsx`
+
+Impacto:
+
+- requiere deploy con una migración estrictamente aditiva: tabla nueva, booleano apagado por defecto y seis campos de texto opcionales
+- no toca tablas ni lógica de pedidos, pagos, Mercado Pago, comprobantes, emails, tracking o sincronización
+- requiere backup, build de la imagen nueva, `prisma migrate deploy` antes de reemplazar el servicio y smoke test según `docs/deploy-produccion-digitalocean.md`
+
+Corrección local del 16 de septiembre de 2026:
+
+- los seis textos configurables se separaron en `202609161000_add_faq_page_content` para no modificar la migración base después de que ya hubiera sido aplicada localmente
+- la migración de textos usa `ADD COLUMN IF NOT EXISTS`; en producción limpia agrega las columnas y en entornos locales adelantados evita colisiones
+- activar la sección y guardar textos ahora informan explícitamente si falta el singleton `store_settings.default`, en lugar de devolver un error genérico de Prisma
+- el panel usa estados de carga independientes para publicación, textos, formulario de preguntas y eliminación; una operación ya no cambia simultáneamente la etiqueta de otros botones

@@ -1,12 +1,14 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
+import { MarketingSessionTracker } from "@/components/analytics/marketing-session-tracker";
 import { FloatingWhatsapp } from "@/components/layout/floating-whatsapp";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { TabTitleNudge } from "@/components/layout/tab-title-nudge";
+import { WelcomePopup } from "@/features/marketing/components/welcome-popup";
 
 type AppChromeProps = {
   children: ReactNode;
@@ -17,6 +19,7 @@ type AppChromeProps = {
   announcementBarEnabled?: boolean | null;
   announcementBarText?: string | null;
   subscriptionSectionEnabled?: boolean | null;
+  faqSectionEnabled?: boolean | null;
 };
 
 export function AppChrome({
@@ -28,6 +31,7 @@ export function AppChrome({
   announcementBarEnabled,
   announcementBarText,
   subscriptionSectionEnabled,
+  faqSectionEnabled,
 }: AppChromeProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
@@ -38,14 +42,15 @@ export function AppChrome({
 
   return (
     <>
+      <MarketingSessionTracker />
       <TabTitleNudge />
-      {hideHeader ? (
-        null
-      ) : (
+      <WelcomePopup />
+      {hideHeader ? null : (
         <SiteHeader
           announcementBarEnabled={announcementBarEnabled}
           announcementBarText={announcementBarText}
           subscriptionSectionEnabled={subscriptionSectionEnabled}
+          faqSectionEnabled={faqSectionEnabled}
         />
       )}
       <main>{children}</main>

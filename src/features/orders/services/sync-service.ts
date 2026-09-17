@@ -46,7 +46,11 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     provincia: order.province,
     localidad: order.locality,
     codigo_postal: order.postalCode,
-    direccion: order.addressLine,
+    // Preserve the legacy combined field for existing sync consumers.
+    direccion: [order.addressLine, order.addressNumber].filter(Boolean).join(" "),
+    calle: order.addressLine,
+    altura: order.addressNumber ?? "",
+    sin_altura: order.addressWithoutNumber === true,
     direccion_extra: order.addressExtra ?? "",
     observaciones: order.notes ?? "",
     cupon: order.couponCode ?? "",

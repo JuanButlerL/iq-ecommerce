@@ -69,6 +69,7 @@ export default async function RootLayout({
           announcementBarEnabled={settings?.announcementBarEnabled}
           announcementBarText={settings?.announcementBarText}
           subscriptionSectionEnabled={settings?.subscriptionSectionEnabled}
+          faqSectionEnabled={settings?.faqSectionEnabled}
         >
           {children}
         </AppChrome>

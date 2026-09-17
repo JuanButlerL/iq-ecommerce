@@ -1,4 +1,4 @@
-import { cache } from "react";
+﻿import { cache } from "react";
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
@@ -214,7 +214,7 @@ function getProductFlavor(item: {
   const label = rawLabel.toLowerCase();
 
   if (label.includes("mix")) return "Mix";
-  if (label.includes("mani") || label.includes("maní")) return "Mani";
+  if (label.includes("mani") || label.includes("manÃ­")) return "Mani";
   if (label.includes("cacao") || label.includes("chocolate")) return "Cacao";
   if (label.includes("banana")) return "Banana";
 
@@ -551,6 +551,23 @@ function buildOrdersWhere(filters: OrderFilters = {}): Prisma.OrderWhereInput {
 const ordersInclude = {
   items: true,
   coupon: true,
+  marketingSession: {
+    select: {
+      email: true,
+      sourceCategory: true,
+      sourcePlatform: true,
+      sourceChannel: true,
+      sourceLabel: true,
+      utmCampaign: true,
+      utmSource: true,
+      utmMedium: true,
+      utmContent: true,
+      utmTerm: true,
+      referrerHost: true,
+      firstSeenAt: true,
+      lastSeenAt: true,
+    },
+  },
   paymentProofs: {
     orderBy: {
       uploadedAt: "desc",
@@ -622,12 +639,30 @@ export async function getOrderDetail(orderId: string) {
           },
         },
       },
+      marketingSession: {
+        select: {
+          email: true,
+          sourceCategory: true,
+          sourcePlatform: true,
+          sourceChannel: true,
+          sourceLabel: true,
+          utmCampaign: true,
+          utmSource: true,
+          utmMedium: true,
+          utmContent: true,
+          utmTerm: true,
+          referrerHost: true,
+          firstSeenAt: true,
+          lastSeenAt: true,
+        },
+      },
       paymentProofs: {
         orderBy: {
           uploadedAt: "desc",
         },
       },
       mercadoPagoPreference: true,
+
       mercadoPagoPayments: {
         orderBy: {
           createdAt: "desc",
@@ -659,3 +694,5 @@ export async function getOrderDetail(orderId: string) {
     },
   });
 }
+
+

@@ -13,6 +13,7 @@ type NavigationItem = {
   href: string;
   label: string;
   icon: ReactNode;
+  prefetch?: boolean;
 };
 
 type AdminShellProps = {
@@ -89,6 +90,7 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={item.prefetch}
                     className={cn(
                       "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition",
                       isActive ? "bg-brand-pink text-white shadow-soft" : "bg-brand-pink/6 text-brand-ink hover:bg-brand-pink/12",
@@ -142,6 +144,7 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={item.prefetch}
                     className={cn(
                       "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition",
                       isActive ? "bg-brand-pink text-white shadow-soft" : "text-brand-ink hover:bg-brand-pink/8",

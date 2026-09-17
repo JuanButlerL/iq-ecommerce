@@ -94,6 +94,8 @@ Ademas tiene una tercera capa transversal:
 - `/checkout/confirmacion/[orderNumber]`
   confirmacion final
 - `/contacto`
+- `/preguntas-frecuentes`
+  preguntas y respuestas públicas administrables; devuelve 404 y se oculta del menú cuando la sección está desactivada
 
 ### Layout global
 
@@ -287,6 +289,8 @@ El panel admin es una parte central del sistema. Desde ahi el cliente opera la t
   pedidos
 - `/admin/sync`
   sincronizacion externa
+- `/admin/preguntas-frecuentes`
+  publicación y CRUD de preguntas frecuentes
 
 ### Acceso admin
 
@@ -499,6 +503,7 @@ Sirve para soporte operativo y debugging.
 - `mercado_pago_preferences`
 - `mercado_pago_payments`
 - `payment_webhook_events`
+- `frequently_asked_questions`
 
 ### Productos
 
@@ -754,6 +759,11 @@ Eventos relevantes:
 - la tienda puede cerrarse desde admin
 - el checkout depende de `store_settings`
 - el panel admin es el punto central de configuracion del negocio
+- preguntas frecuentes se publica con un control global en `store_settings`; requiere al menos una pregunta activa
+- desactivar o eliminar la última pregunta activa oculta automáticamente la sección para evitar una página pública vacía
+- el encabezado y la tarjeta de ayuda de preguntas frecuentes tienen textos editables desde su propio panel admin, incluido el título separado en tramo negro y tramo rosa
+- la página pública muestra ocho preguntas inicialmente, incorpora búsqueda sobre pregunta y respuesta, abre un acordeón por vez y permite cargar el resto por bloques
+- el encabezado de FAQ comparte el mismo fondo blanco del contenido, sin separadores ni decoraciones dominantes, para priorizar buscador y preguntas en mobile y desktop
 
 ## Limitaciones y observaciones actuales
 
@@ -765,7 +775,7 @@ Eventos relevantes:
 
 ## Impacto para futuros ajustes de front
 
-Si se hace un rediseño grande, hay que pensar al menos en tres bloques separados:
+Si se hace un rediseÃ±o grande, hay que pensar al menos en tres bloques separados:
 
 1. storefront publico
 2. checkout y post-checkout
@@ -792,3 +802,30 @@ Los puntos mas sensibles para no romper operacion son:
 - [src/app/admin/pedidos/[id]/page.tsx](/abs/path/c:/dev/WebCodigo/src/app/admin/pedidos/[id]/page.tsx)
 - [src/features/admin/components/settings-form.tsx](/abs/path/c:/dev/WebCodigo/src/features/admin/components/settings-form.tsx)
 - [src/features/admin/components/product-form.tsx](/abs/path/c:/dev/WebCodigo/src/features/admin/components/product-form.tsx)
+
+## Actualizacion 2026-08-28 - Popup de bienvenida y captura temprana de email
+
+### Home y captacion temprana
+
+- el home ahora puede mostrar un popup de bienvenida con delay de 800 ms
+- el popup se muestra solo en `/`
+- si la persona ya lo vio o ya dejo su email, no vuelve a mostrarse por 30 dias en ese navegador
+- el estado del popup y el email capturado se guardan en `localStorage`
+
+### Cupón de bienvenida
+
+- el cupón del popup se administra desde `/admin/cupones`
+- solo un cupón activo puede quedar marcado para el popup de bienvenida a la vez
+- esa marca se resuelve sin migracion nueva, reutilizando la descripcion interna del cupón con un marcador tecnico controlado desde la UI admin
+
+### Lead previo al carrito
+
+- cuando una persona deja su email en el popup, se crea o reaprovecha un `cart_recovery_lead` con estado `WELCOME_CAPTURED`
+- ese estado representa una etapa anterior al carrito
+- si luego la misma persona deja email en carrito, el lead temprano puede evolucionar al flujo existente `CAPTURED`, `CHECKOUT_STARTED` y `CONVERTED`
+
+### Email inmediato y automatizaciones
+
+- al capturar el email desde home se intenta enviar de inmediato un email con el cupón usando el proveedor actual configurado
+- si el proveedor no esta listo, el popup igual muestra el codigo en pantalla para no cortar la UX
+- el modulo de emails admin y el motor de automatizaciones contemplan tambien el trigger `WELCOME_LEAD`

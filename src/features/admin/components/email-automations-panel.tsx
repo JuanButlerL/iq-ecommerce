@@ -18,6 +18,7 @@ type AutomationItem = {
   name: string;
   trigger: EmailAutomationTrigger;
   active: boolean;
+  activatedAt: Date | null;
   delayHours: number;
   subject: string;
   previewText: string | null;
@@ -31,6 +32,8 @@ type AutomationItem = {
   couponId: string | null;
   couponHeadline: string | null;
   couponMessage: string | null;
+  cartRecoveryFreeShippingEnabled: boolean;
+  cartRecoveryFreeShippingMessage: string | null;
   coupon: {
     id: string;
     code: string;
@@ -53,6 +56,9 @@ type LogItem = {
   targetType: string;
   targetId: string;
   errorMessage: string | null;
+  openCount: number;
+  firstOpenedAt: Date | null;
+  lastOpenedAt: Date | null;
   clickCount: number;
   firstClickedAt: Date | null;
   lastClickedAt: Date | null;
@@ -90,6 +96,7 @@ type LogItem = {
 type CartLeadItem = {
   id: string;
   email: string;
+  trigger: EmailAutomationTrigger;
   status: string;
   subtotalArs: number;
   triggerAt: Date;
@@ -123,9 +130,11 @@ type EmailAutomationsPanelProps = {
   }>;
   trackingSummary: {
     sent: number;
+    opened: number;
     clicked: number;
     converted: number;
   };
+  newsletterSubscribers: number;
   emailEnabled: boolean;
 };
 
@@ -147,6 +156,8 @@ type FormState = {
   couponId: string;
   couponHeadline: string;
   couponMessage: string;
+  cartRecoveryFreeShippingEnabled: boolean;
+  cartRecoveryFreeShippingMessage: string;
 };
 
 const defaultForm: FormState = {
@@ -167,21 +178,27 @@ const defaultForm: FormState = {
   couponId: "",
   couponHeadline: "",
   couponMessage: "",
+  cartRecoveryFreeShippingEnabled: false,
+  cartRecoveryFreeShippingMessage: "Tu envío está bonificado para este carrito. Aprovechá el beneficio dentro de las próximas 72 horas.",
 };
 
 const triggerLabels: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD: "Bienvenida temprana",
   CART_ABANDONED: "Recuperacion sin compra",
   ORDER_CREATED: "Pedido recibido",
   POST_PURCHASE: "Post compra",
 };
 
 const triggerShortHelp: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD: "Contacta el email captado en home antes de que exista un carrito.",
   CART_ABANDONED: "Recupera emails que quedaron sin pago ni comprobante.",
   ORDER_CREATED: "Confirma que el pedido entro correctamente.",
   POST_PURCHASE: "Vuelve a contactar despues de una compra confirmada.",
 };
 
 const triggerOperationalSummary: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD:
+    "Empieza cuando una persona deja su email en el popup del home. Sirve para un primer contacto o un recordatorio temprano antes de que exista carrito. Si esa persona ya termino comprando despues de ese alta, el envio se omite.",
   CART_ABANDONED:
     "Empieza cuando una persona deja email en carrito. Si avanza a checkout o genera pedido pero no paga ni sube comprobante, sigue entrando en esta recuperacion. Espera la demora configurada y antes de enviar revisa si ese email tuvo una compra confirmada posterior; si compro, lo omite.",
   ORDER_CREATED:
@@ -190,7 +207,9 @@ const triggerOperationalSummary: Record<EmailAutomationTrigger, string> = {
     "Empieza solo cuando hay compra real: pago aprobado por Mercado Pago o comprobante de transferencia subido. La demora corre desde ese momento.",
 };
 
+
 const triggerTimingLabel: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD: "despues de captar email",
   CART_ABANDONED: "despues de quedar sin compra",
   ORDER_CREATED: "despues de crear pedido",
   POST_PURCHASE: "despues de comprar",
@@ -203,6 +222,7 @@ const statusLabels: Record<EmailSendStatus, string> = {
 };
 
 const variablesByTrigger: Record<EmailAutomationTrigger, string[]> = {
+  WELCOME_LEAD: ["{{siteUrl}}", "{{email}}"],
   CART_ABANDONED: ["{{recoveryUrl}}", "{{subtotal}}", "{{siteUrl}}", "{{email}}"],
   ORDER_CREATED: ["{{firstName}}", "{{orderNumber}}", "{{orderUrl}}", "{{total}}", "{{siteUrl}}"],
   POST_PURCHASE: ["{{firstName}}", "{{orderNumber}}", "{{orderUrl}}", "{{total}}", "{{siteUrl}}"],
@@ -231,12 +251,16 @@ const variableDescriptions: Partial<Record<EmailAutomationTrigger, Record<string
   },
 };
 
-export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, emailEnabled }: EmailAutomationsPanelProps) {
+export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, newsletterSubscribers, emailEnabled }: EmailAutomationsPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(automations[0]?.id ?? null);
   const [form, setForm] = useState<FormState>(() => automationToForm(automations[0] ?? null));
   const [testEmail, setTestEmail] = useState("");
+  const [suppressionEmail, setSuppressionEmail] = useState("");
+  const [suppressedEmails, setSuppressedEmails] = useState<Array<{ id: string; email: string; unsubscribedAt: string | null }> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isSuppressing, setIsSuppressing] = useState(false);
+  const [isLoadingSuppressions, setIsLoadingSuppressions] = useState(false);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -271,6 +295,18 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
     () => Array.from(latestLogByCase.values()).filter((log) => log.status === "ERROR").length,
     [latestLogByCase],
   );
+  const activeWelcomeDelayHours = useMemo(() => {
+    const welcomeAutomations = automations
+      .filter((automation) => automation.active && automation.trigger === "WELCOME_LEAD")
+      .map((automation) => automation.delayHours);
+
+    if (!welcomeAutomations.length) {
+      return null;
+    }
+
+    return Math.min(...welcomeAutomations);
+  }, [automations]);
+
   const activeRecoveryDelayHours = useMemo(() => {
     const recoveryAutomations = automations
       .filter((automation) => automation.active && automation.trigger === "CART_ABANDONED")
@@ -347,6 +383,27 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
       (acc, item) => ({ sent: acc.sent + item.sent, skipped: acc.skipped + item.skipped, errors: acc.errors + item.errors }),
       { sent: 0, skipped: 0, errors: 0 },
     );
+
+    const waitingCartRecoveries =
+      selectedAutomation?.trigger === "CART_ABANDONED" && activeRecoveryDelayHours !== null
+        ? cartLeads
+            .filter((lead) => {
+              if (lead.trigger !== "CART_ABANDONED" || lead.latestLog) return false;
+              const scheduledAt = new Date(lead.triggerAt).getTime() + activeRecoveryDelayHours * 60 * 60 * 1000;
+              return scheduledAt > Date.now();
+            })
+            .map((lead) => new Date(new Date(lead.triggerAt).getTime() + activeRecoveryDelayHours * 60 * 60 * 1000))
+            .sort((left, right) => left.getTime() - right.getTime())
+        : [];
+
+    if (totals.sent === 0 && totals.skipped === 0 && totals.errors === 0 && waitingCartRecoveries.length) {
+      const nextScheduledAt = waitingCartRecoveries[0];
+      setMessage(
+        `Todavía no hay emails listos: ${waitingCartRecoveries.length} carrito(s) siguen en espera. El próximo queda listo ${formatArgentinaDateTime(nextScheduledAt)}.`,
+      );
+      return;
+    }
+
     setMessage(`Proceso listo: ${totals.sent} enviados, ${totals.skipped} omitidos, ${totals.errors} errores.`);
   };
 
@@ -394,6 +451,54 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
     );
   };
 
+  const suppressEmail = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const email = suppressionEmail.trim().toLowerCase();
+
+    if (!email || !window.confirm(`¿Dar de baja todos los emails automáticos para ${email}?`)) {
+      return;
+    }
+
+    setIsSuppressing(true);
+    setMessage(null);
+    setError(null);
+    const response = await fetch("/api/admin/email-suppressions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const payload = (await response.json()) as { error?: string };
+    setIsSuppressing(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "No se pudo dar de baja este email.");
+      return;
+    }
+
+    setSuppressionEmail("");
+    setMessage(`${email} quedó dado de baja. Los próximos procesos lo omitirán.`);
+    setSuppressedEmails((current) =>
+      current ? [{ id: `manual-${email}`, email, unsubscribedAt: new Date().toISOString() }, ...current.filter((item) => item.email !== email)] : current,
+    );
+  };
+
+  const loadSuppressions = async () => {
+    setIsLoadingSuppressions(true);
+    const response = await fetch("/api/admin/email-suppressions");
+    const payload = (await response.json()) as {
+      error?: string;
+      data?: { suppressions?: Array<{ id: string; email: string; unsubscribedAt: string | null }> };
+    };
+    setIsLoadingSuppressions(false);
+
+    if (!response.ok) {
+      setError(payload.error ?? "No se pudieron cargar las bajas.");
+      return;
+    }
+
+    setSuppressedEmails(payload.data?.suppressions ?? []);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -405,6 +510,18 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <Link
+            href="/api/admin/export/email-leads"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 transition hover:bg-brand-peach"
+          >
+            Descargar mails CRM
+          </Link>
+          <Link
+            href="/api/admin/export/newsletter-subscribers"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 transition hover:bg-brand-peach"
+          >
+            Descargar suscriptos
+          </Link>
           <Button type="button" variant="secondary" onClick={startNewAutomation}>
             Nueva automatizacion
           </Button>
@@ -414,10 +531,12 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <Metric label="Activas" value={activeCount.toString()} />
+        <Metric label="Newsletter" value={newsletterSubscribers.toString()} />
         <Metric label="Sin compra" value={cartLeads.length.toString()} />
         <Metric label="Enviados recientes" value={sentCount.toString()} />
+        <Metric label="Aperturas detectadas" value={trackingSummary.opened.toString()} />
         <Metric label="Clicks recientes" value={trackingSummary.clicked.toString()} />
         <Metric label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
       </div>
@@ -440,6 +559,53 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
 
       {error ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</p> : null}
       {message ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{message}</p> : null}
+
+      <Card className="border-brand-pink/25 bg-brand-pinkSoft/25 p-5 md:p-6">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-pink">Baja manual</p>
+            <h2 className="mt-1 font-display text-2xl text-brand-ink">No quiere recibir más emails</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-brand-ink/65">
+              Bloquea las automatizaciones y el email inmediato del popup para esta dirección. No borra pedidos ni datos del cliente.
+            </p>
+          </div>
+          <form className="flex flex-col gap-2 sm:flex-row" onSubmit={suppressEmail}>
+            <Input
+              type="email"
+              required
+              placeholder="cliente@email.com"
+              value={suppressionEmail}
+              onChange={(event) => setSuppressionEmail(event.target.value)}
+              className="min-w-0 sm:w-64"
+            />
+            <Button type="submit" variant="secondary" disabled={isSuppressing}>
+              {isSuppressing ? "Guardando..." : "Dar de baja"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={loadSuppressions} disabled={isLoadingSuppressions}>
+              {isLoadingSuppressions ? "Cargando..." : "Ver bajas"}
+            </Button>
+          </form>
+        </div>
+        {suppressedEmails ? (
+          <div className="mt-5 border-t border-brand-ink/10 pt-4">
+            <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/50">Últimas 100 bajas</p>
+            {suppressedEmails.length ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {suppressedEmails.map((suppression) => (
+                  <div key={suppression.id} className="rounded-2xl bg-white/80 px-3 py-2 text-sm text-brand-ink">
+                    <p className="truncate font-bold">{suppression.email}</p>
+                    <p className="mt-1 text-xs text-brand-ink/55">
+                      {suppression.unsubscribedAt ? formatArgentinaDateTime(new Date(suppression.unsubscribedAt)) : "Fecha no disponible"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-brand-ink/60">Todavía no hay bajas registradas.</p>
+            )}
+          </div>
+        ) : null}
+      </Card>
 
       <Card className="p-5 md:p-6">
         <div className="mb-4">
@@ -511,6 +677,13 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                     {form.name || triggerLabels[form.trigger]}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-brand-ink/60">{triggerShortHelp[form.trigger]}</p>
+                  {form.active ? (
+                    <p className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
+                      {selectedAutomation?.active && selectedAutomation.activatedAt
+                        ? `Activa desde ${formatArgentinaDateTime(new Date(selectedAutomation.activatedAt))}. Solo procesa eventos posteriores a ese momento.`
+                        : "Al guardarla activa, empezará a contar desde ese momento. No enviará eventos históricos."}
+                    </p>
+                  ) : null}
                 </div>
                 <label className="flex items-center justify-between gap-3 rounded-2xl border border-brand-ink/10 bg-background px-4 py-3 text-sm font-bold text-brand-ink">
                   Activa
@@ -705,6 +878,43 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                 </div>
               </div>
 
+              {form.trigger === "CART_ABANDONED" ? (
+                <div className="rounded-3xl border border-emerald-200 bg-emerald-50/60 p-4 md:p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-800">Beneficio de recuperación</p>
+                      <p className="mt-2 text-sm leading-6 text-brand-ink/65">
+                        Sólo para carritos elegibles de un producto y clientes sin compras previas. Cuando aplica, el mail muestra envío bonificado y no incluye cupón.
+                      </p>
+                    </div>
+                    <label className="flex shrink-0 items-center gap-2 text-sm font-extrabold text-brand-ink">
+                      <input
+                        type="checkbox"
+                        checked={form.cartRecoveryFreeShippingEnabled}
+                        onChange={(event) => setForm((current) => ({ ...current, cartRecoveryFreeShippingEnabled: event.target.checked }))}
+                        className="h-4 w-4 accent-[#278460]"
+                      />
+                      Ofrecer envío bonificado
+                    </label>
+                  </div>
+                  {form.cartRecoveryFreeShippingEnabled ? (
+                    <div className="mt-4">
+                      <Field label="Mensaje del envío bonificado">
+                        <Textarea
+                          value={form.cartRecoveryFreeShippingMessage}
+                          onChange={(event) => setForm((current) => ({ ...current, cartRecoveryFreeShippingMessage: event.target.value }))}
+                          rows={3}
+                          required
+                        />
+                      </Field>
+                      <p className="mt-2 text-xs leading-5 text-emerald-800">
+                        Requiere que el CTA use <span className="font-extrabold">{"{{recoveryUrl}}"}</span>. Para quienes no califiquen, se mantiene el cupón configurado arriba.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <details className="rounded-3xl border border-brand-ink/10 bg-white p-4">
                 <summary className="cursor-pointer text-sm font-extrabold uppercase tracking-[0.14em] text-brand-ink/55">
                   Remitente avanzado
@@ -796,12 +1006,12 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
             <Card className="p-5 md:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Proximos mails a enviar</p>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Capturas y recuperaciones</p>
                   <p className="mt-1 text-sm leading-6 text-brand-ink/55">
-                    Muestra el inicio real del caso y cuando deberia salir el mail segun la demora activa.
+                    El popup se registra al instante; los carritos muestran cuando se enviara la recuperacion segun la demora activa.
                   </p>
                 </div>
-                {activeRecoveryDelayHours !== null ? (
+                {activeWelcomeDelayHours !== null || activeRecoveryDelayHours !== null ? (
                   <div className="rounded-2xl bg-background px-3 py-2 text-right text-xs leading-5 text-brand-ink/60">
                     <p className="font-extrabold uppercase tracking-[0.12em] text-brand-ink/45">Recuperacion activa</p>
                     <p className="font-bold text-brand-ink">{activeRecoveryDelayHours} hs de demora</p>
@@ -809,14 +1019,15 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                   </div>
                 ) : (
                   <div className="rounded-2xl bg-amber-50 px-3 py-2 text-right text-xs font-bold leading-5 text-amber-800">
-                    No hay automatizacion activa de carrito abandonado.
+                    No hay automatizaciones activas para leads sin compra.
                   </div>
                 )}
               </div>
               <div className="mt-4 space-y-3">
                 {cartLeads.length ? (
                   cartLeads.slice(0, 8).map((lead) => {
-                    const timing = getRecoveryLeadTiming(lead.triggerAt, activeRecoveryDelayHours, lead.latestLog);
+                    const delayHours = lead.trigger === "WELCOME_LEAD" ? activeWelcomeDelayHours : activeRecoveryDelayHours;
+                    const timing = getRecoveryLeadTiming(lead.triggerAt, delayHours, lead.latestLog, lead.trigger);
 
                     return (
                       <div key={lead.id} className="rounded-2xl bg-background px-4 py-3">
@@ -824,7 +1035,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                           <div className="min-w-0">
                             <p className="truncate text-sm font-bold text-brand-ink">{lead.email}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <p className="text-xs font-bold uppercase tracking-[0.08em] text-brand-ink/45">{lead.status}</p>
+                              <p className="text-xs font-bold uppercase tracking-[0.08em] text-brand-ink/45">{triggerLabels[lead.trigger]} · {lead.status}</p>
                               <span
                                 className={cn(
                                   "rounded-full px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em]",
@@ -853,7 +1064,11 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                           <div>
                             <p className="font-extrabold uppercase tracking-[0.12em] text-brand-ink/40">Programado</p>
                             <p className="mt-1 font-semibold text-brand-ink/70">
-                              {timing.scheduledAt ? formatArgentinaDateTime(timing.scheduledAt) : "Sin automatizacion activa"}
+                              {timing.scheduledAt
+                                ? formatArgentinaDateTime(timing.scheduledAt)
+                                : lead.trigger === "WELCOME_LEAD"
+                                  ? "No aplica: email inmediato del popup"
+                                  : "Sin automatización activa"}
                             </p>
                           </div>
                         </div>
@@ -883,7 +1098,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                     );
                   })
                 ) : (
-                  <p className="text-sm text-brand-ink/55">No hay emails pendientes de recuperacion.</p>
+                  <p className="text-sm text-brand-ink/55">No hay leads sin compra pendientes de seguimiento.</p>
                 )}
               </div>
             </Card>
@@ -892,6 +1107,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
               <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Estado de envios</p>
               <div className="mt-4 space-y-3">
                 <MetricLine label="Enviados" value={sentCount.toString()} />
+                <MetricLine label="Aperturas detectadas" value={trackingSummary.opened.toString()} />
                 <MetricLine label="Clics" value={trackingSummary.clicked.toString()} />
                 <MetricLine label="Ventas atribuidas" value={trackingSummary.converted.toString()} />
                 <MetricLine label="Omitidos" value={recentLogs.filter((log) => log.status === "SKIPPED").length.toString()} />
@@ -996,6 +1212,9 @@ function automationToForm(automation: AutomationItem | null): FormState {
     couponId: automation.couponId ?? "",
     couponHeadline: automation.couponHeadline ?? "",
     couponMessage: automation.couponMessage ?? "",
+    cartRecoveryFreeShippingEnabled: automation.cartRecoveryFreeShippingEnabled,
+    cartRecoveryFreeShippingMessage:
+      automation.cartRecoveryFreeShippingMessage ?? "Tu envío está bonificado para este carrito. Aprovechá el beneficio dentro de las próximas 72 horas.",
   };
 }
 
@@ -1046,6 +1265,7 @@ function getRecoveryLeadTiming(
   triggerAt: Date,
   delayHours: number | null,
   latestLog: CartLeadItem["latestLog"],
+  trigger: EmailAutomationTrigger,
 ): RecoveryLeadTiming & { label: string; visualState: "waiting" | "ready" | "overdue" | "sent" | "error" } {
   if (latestLog?.status === "SENT") {
     return {
@@ -1072,7 +1292,7 @@ function getRecoveryLeadTiming(
       scheduledAt: null,
       isReady: false,
       isOverdue: false,
-      label: "Sin automatizacion",
+      label: trigger === "WELCOME_LEAD" ? "Capturado en popup" : "Sin automatización",
       visualState: "waiting",
     };
   }
@@ -1124,3 +1344,12 @@ function getAutomationCaseKey(log: LogItem) {
 function normalizeAutomationTargetId(targetId: string) {
   return targetId.replace(/:retry:\d+$/, "");
 }
+
+
+
+
+
+
+
+
+

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { normalizeCouponCode } from "@/features/coupons/lib/coupon-pricing";
+import { buildCouponDescription, isWelcomePopupCoupon } from "@/features/coupons/lib/welcome-popup-coupon";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { couponFormSchema } from "@/lib/validations/coupon";
@@ -31,6 +32,36 @@ function buildDiscountPayload(input: {
   } as const;
 }
 
+async function assertSingleActiveWelcomePopupCoupon(options: {
+  welcomePopupEnabled: boolean;
+  active: boolean;
+  couponId?: string;
+}) {
+  if (!options.welcomePopupEnabled || !options.active) {
+    return;
+  }
+
+  const existingCoupon = await prisma.coupon.findFirst({
+    where: {
+      active: true,
+      description: {
+        contains: "[WELCOME_POPUP]",
+      },
+      ...(options.couponId ? { id: { not: options.couponId } } : {}),
+    },
+    select: {
+      code: true,
+    },
+  });
+
+  if (existingCoupon) {
+    throw new AppError(
+      `Ya existe un cupon marcado para el popup de bienvenida: ${existingCoupon.code}. Desactivalo o quitale esa marca antes de continuar.`,
+      400,
+    );
+  }
+}
+
 export async function saveCoupon(payload: unknown, couponId?: string) {
   const parsed = couponFormSchema.safeParse(payload);
 
@@ -56,8 +87,22 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
     throw new AppError("La edicion permite modificar un cupon por vez.", 400);
   }
 
+  if (entries.length > 1 && parsed.data.welcomePopupEnabled) {
+    throw new AppError("La marca del popup de bienvenida solo puede usarse en un cupon individual.", 400);
+  }
+
+  await assertSingleActiveWelcomePopupCoupon({
+    welcomePopupEnabled: parsed.data.welcomePopupEnabled,
+    active: parsed.data.active,
+    couponId,
+  });
+
+  const normalizedDescription = buildCouponDescription(
+    parsed.data.description || "",
+    parsed.data.welcomePopupEnabled,
+  );
   const baseData = {
-    description: parsed.data.description || null,
+    description: normalizedDescription,
     usageType: parsed.data.usageType,
     active: parsed.data.active,
   };
@@ -108,6 +153,7 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
       ? entries.map((entry) => ({
           ...baseData,
           code: entry.code,
+          description: buildCouponDescription(parsed.data.description || "", parsed.data.welcomePopupEnabled),
           ...buildDiscountPayload({
             discountType: parsed.data.discountType,
             discountPercentage: entry.discountPercentage ?? parsed.data.discountPercentage,
@@ -141,6 +187,15 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
 }
 
 export async function deleteCoupon(couponId: string) {
+  const coupon = await prisma.coupon.findUnique({
+    where: { id: couponId },
+    select: { description: true },
+  });
+
+  if (coupon && isWelcomePopupCoupon(coupon.description)) {
+    throw new AppError("Ese cupon esta siendo usado por el popup de bienvenida. Quitale primero la marca desde editar cupon.", 400);
+  }
+
   await prisma.coupon.delete({
     where: { id: couponId },
   });
@@ -149,6 +204,7 @@ export async function deleteCoupon(couponId: string) {
 }
 
 function revalidateCouponViews() {
+  revalidatePath("/");
   revalidatePath("/checkout");
   revalidatePath("/admin/cupones");
   revalidatePath("/admin/pedidos");
