@@ -239,6 +239,39 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-09-18 - Hotfix de conciliacion Mercado Pago con multiples intentos
+
+Pedido:
+
+- investigar pedidos que pasaron de pendiente a cancelado, luego pagado y finalmente cancelado
+- evitar que un intento rechazado anterior sobrescriba un pago aprobado posterior del mismo pedido
+
+Hallazgo:
+
+- Mercado Pago genero dos pagos distintos para una misma preferencia/pedido: un intento rechazado y otro aprobado
+- el webhook del intento aprobado dejo correctamente el pedido en `PAID`
+- un retorno tardio del navegador con el ID rechazado volvio a procesarse y la aplicacion permitio `PAID -> CANCELLED`
+- la proteccion existente solo impedia `PAID -> PENDING`; no cubria rechazados/cancelados ni una carrera concurrente entre eventos
+
+Implementacion:
+
+- un intento pendiente, rechazado, cancelado o vencido ya no puede degradar un pedido cuyo pago quedo aprobado
+- la actualizacion usa una condicion atomica en PostgreSQL para cubrir tambien webhooks y retornos concurrentes
+- el intento individual igualmente se conserva en `mercado_pago_payments` para auditoria
+- reembolsos y contracargos del mismo pago aprobado siguen pudiendo actualizar el estado de pago
+- si una actualizacion queda descartada por la proteccion, no genera historial operativo ni sincronizacion engañosa
+
+Archivos tocados:
+
+- `src/features/orders/services/mercado-pago-service.ts`
+- `docs/codex-contexto-operativo.md`
+
+Impacto:
+
+- hotfix de aplicacion sin cambios de schema ni migraciones
+- no modifica automaticamente pedidos historicos; los casos afectados deben contrastarse con Mercado Pago y corregirse a `PAID` desde admin cuando corresponda
+- requiere build y recreacion del servicio `app` en DigitalOcean; no requiere tocar PostgreSQL
+
 ### 2026-09-03 - Direccion separada en calle y altura para logistica
 
 Pedido:

@@ -305,11 +305,13 @@ async function upsertMercadoPagoPayment(
   }
 
   const mapped = mapMercadoPagoStatusToInternal(payment.status, payment.status_detail);
-  const nextOrderStatus = resolveNextOrderStatus(order.orderStatus, mapped.orderStatus);
-  const nextPaymentStatus = resolveNextPaymentStatus(order, mapped.paymentStatus);
+  const allowPaidDowngrade = isAuthoritativePaymentReversal(order, payment);
+  const nextOrderStatus = resolveNextOrderStatus(order.orderStatus, mapped.orderStatus, allowPaidDowngrade);
+  const nextPaymentStatus = resolveNextPaymentStatus(order, mapped.paymentStatus, allowPaidDowngrade);
+  const protectApprovedPayment = mapped.paymentStatus !== "PAID" && !allowPaidDowngrade;
   const paidAt = payment.date_approved ? new Date(payment.date_approved) : mapped.paidAt ?? order.paidAt;
 
-  await prisma.$transaction(async (tx) => {
+  const transitionApplied = await prisma.$transaction(async (tx) => {
     await tx.mercadoPagoPayment.upsert({
       where: {
         mercadoPagoPaymentId: String(payment.id),
@@ -348,8 +350,11 @@ async function upsertMercadoPagoPayment(
       },
     });
 
-    await tx.order.update({
-      where: { id: order.id },
+    const orderUpdate = await tx.order.updateMany({
+      where: {
+        id: order.id,
+        ...(protectApprovedPayment ? { paymentStatus: { not: "PAID" } } : {}),
+      },
       data: {
         paymentProviderReference: payment.id ? String(payment.id) : order.paymentProviderReference,
         paymentProviderStatus: payment.status ?? order.paymentProviderStatus,
@@ -360,7 +365,7 @@ async function upsertMercadoPagoPayment(
       },
     });
 
-    if (shouldAppendStatusHistory(order, nextOrderStatus, nextPaymentStatus, payment)) {
+    if (orderUpdate.count > 0 && shouldAppendStatusHistory(order, nextOrderStatus, nextPaymentStatus, payment)) {
       await tx.orderStatusHistory.create({
         data: {
           orderId: order.id,
@@ -379,9 +384,11 @@ async function upsertMercadoPagoPayment(
         },
       });
     }
+
+    return orderUpdate.count > 0;
   });
 
-  if (hasOrderSyncRelevantChanges(order, nextOrderStatus, nextPaymentStatus, payment)) {
+  if (transitionApplied && hasOrderSyncRelevantChanges(order, nextOrderStatus, nextPaymentStatus, payment)) {
     await syncOrder(order.id).catch(async (syncError) => {
       await prisma.order.update({
         where: { id: order.id },
@@ -392,7 +399,7 @@ async function upsertMercadoPagoPayment(
     });
   }
 
-  if (nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID") {
+  if (transitionApplied && nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID") {
     await markCartRecoveryConverted({
       id: order.id,
       publicOrderNumber: order.publicOrderNumber,
@@ -656,12 +663,12 @@ function buildMercadoPagoStatusNote(payment: PaymentResponse, source: "webhook" 
   return `${label} desde Mercado Pago (${source}). ${reference}.`;
 }
 
-function resolveNextOrderStatus(current: OrderStatus, next: OrderStatus) {
+function resolveNextOrderStatus(current: OrderStatus, next: OrderStatus, allowPaidDowngrade = false) {
   if (current === OrderStatus.PREPARING || current === OrderStatus.SHIPPED || current === OrderStatus.DELIVERED) {
     return current;
   }
 
-  if (current === OrderStatus.PAID && next === OrderStatus.PENDING_PAYMENT) {
+  if (current === OrderStatus.PAID && next !== OrderStatus.PAID && !allowPaidDowngrade) {
     return current;
   }
 
@@ -671,12 +678,27 @@ function resolveNextOrderStatus(current: OrderStatus, next: OrderStatus) {
 function resolveNextPaymentStatus(
   order: Pick<Order, "paymentStatus" | "paidAt">,
   nextPaymentStatus: Order["paymentStatus"],
+  allowPaidDowngrade = false,
 ) {
-  if (order.paymentStatus === "PAID" && nextPaymentStatus === "PENDING") {
+  if (order.paymentStatus === "PAID" && nextPaymentStatus !== "PAID" && !allowPaidDowngrade) {
     return order.paymentStatus;
   }
 
   return nextPaymentStatus;
+}
+
+function isAuthoritativePaymentReversal(
+  order: Pick<Order, "paymentProviderReference" | "paymentStatus">,
+  payment: PaymentResponse,
+) {
+  if (order.paymentStatus !== "PAID" || !order.paymentProviderReference || !payment.id) {
+    return false;
+  }
+
+  return (
+    order.paymentProviderReference === String(payment.id) &&
+    (payment.status === "refunded" || payment.status === "charged_back")
+  );
 }
 
 function shouldAppendStatusHistory(
