@@ -19,6 +19,7 @@ type AutomationItem = {
   trigger: EmailAutomationTrigger;
   active: boolean;
   activatedAt: Date | null;
+  postPurchaseCutoff: Date | null;
   delayHours: number;
   subject: string;
   previewText: string | null;
@@ -371,7 +372,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(automationId ? { automationId } : {}),
     });
-    const payload = (await response.json()) as { error?: string; data?: { results?: Array<{ sent: number; skipped: number; errors: number }> } };
+    const payload = (await response.json()) as { error?: string; data?: { results?: Array<{ sent: number; skipped: number; errors: number; blockedReason?: string }> } };
     setIsProcessing(null);
 
     if (!response.ok) {
@@ -383,6 +384,8 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
       (acc, item) => ({ sent: acc.sent + item.sent, skipped: acc.skipped + item.skipped, errors: acc.errors + item.errors }),
       { sent: 0, skipped: 0, errors: 0 },
     );
+    const blockedReasons = (payload.data?.results ?? []).flatMap((item) => item.blockedReason ? [item.blockedReason] : []);
+    if (blockedReasons.length) setError([...new Set(blockedReasons)].join(" "));
 
     const waitingCartRecoveries =
       selectedAutomation?.trigger === "CART_ABANDONED" && activeRecoveryDelayHours !== null
@@ -682,6 +685,13 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                       {selectedAutomation?.active && selectedAutomation.activatedAt
                         ? `Activa desde ${formatArgentinaDateTime(new Date(selectedAutomation.activatedAt))}. Solo procesa eventos posteriores a ese momento.`
                         : "Al guardarla activa, empezará a contar desde ese momento. No enviará eventos históricos."}
+                    </p>
+                  ) : null}
+                  {form.trigger === "POST_PURCHASE" && selectedAutomation?.active ? (
+                    <p className="mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-900">
+                      {selectedAutomation.postPurchaseCutoff
+                        ? `Corte de seguridad: ${formatArgentinaDateTime(new Date(selectedAutomation.postPurchaseCutoff))}. Los eventos anteriores quedan excluidos. Los errores requieren revisión y no se reintentan automáticamente.`
+                        : "Post compra bloqueado hasta configurar el corte de seguridad en el servidor. No se enviarán pendientes históricos."}
                     </p>
                   ) : null}
                 </div>

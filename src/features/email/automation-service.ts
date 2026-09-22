@@ -2,6 +2,7 @@
 import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
+import { getPostPurchaseCutoff, postPurchaseWhere } from "@/features/email/post-purchase-policy";
 import { renderMarketingEmail, renderTemplate } from "@/features/email/render";
 import { isEmailUnsubscribed } from "@/features/email/newsletter-service";
 import {
@@ -21,6 +22,7 @@ type ProcessResult = {
   sent: number;
   skipped: number;
   errors: number;
+  blockedReason?: string;
 };
 
 type Candidate = {
@@ -59,7 +61,6 @@ export async function processEmailAutomations(options: { automationId?: string; 
   const results: ProcessResult[] = [];
 
   for (const automation of automations) {
-    const candidates = await getCandidatesForAutomation(automation, options.limit ?? DEFAULT_LIMIT);
     const result: ProcessResult = {
       automationId: automation.id,
       automationName: automation.name,
@@ -67,6 +68,13 @@ export async function processEmailAutomations(options: { automationId?: string; 
       skipped: 0,
       errors: 0,
     };
+    const isPostPurchase = automation.trigger === EmailAutomationTrigger.POST_PURCHASE;
+    if (isPostPurchase && (!env.canSendEmail || !getPostPurchaseCutoff(env.EMAIL_POST_PURCHASE_SEND_FROM, automation.activatedAt))) {
+      result.blockedReason = "Post compra bloqueado: falta proveedor habilitado, fecha de activación o EMAIL_POST_PURCHASE_SEND_FROM válido en UTC.";
+      results.push(result);
+      continue;
+    }
+    const candidates = await getCandidatesForAutomation(automation, options.limit ?? DEFAULT_LIMIT);
 
     for (const candidate of candidates) {
       const existingLog = await prisma.emailSendLog.findFirst({
@@ -80,7 +88,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
 
       let targetId = candidate.targetId;
 
-      if (existingLog && existingLog.status !== EmailSendStatus.ERROR) {
+      if (existingLog && (isPostPurchase || existingLog.status !== EmailSendStatus.ERROR)) {
         result.skipped += 1;
         continue;
       }
@@ -119,6 +127,32 @@ export async function processEmailAutomations(options: { automationId?: string; 
       const unsubscribeUrl = `${env.NEXT_PUBLIC_SITE_URL}/api/email/unsubscribe/${unsubscribeToken}`;
       let createdFreeShippingBenefit: { leadId: string; token: string } | null = null;
       let providerAccepted = false;
+      let acceptedProviderMessageId: string | null = null;
+
+      // The unique automation/order key is reserved before contacting Resend.
+      // A crash leaves a fail-closed SKIPPED row requiring reconciliation.
+      if (isPostPurchase) {
+        const reservation = await createEmailLog({
+          id: logId,
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.SKIPPED,
+          recipientEmail: candidate.recipientEmail,
+          subject,
+          targetType: candidate.targetType,
+          targetId,
+          orderId: candidate.orderId,
+          ctaUrl,
+          clickToken,
+          openToken,
+          unsubscribeToken,
+          errorMessage: "Envío reservado. Si persiste este estado, conciliar con el proveedor; no reenviar automáticamente.",
+        });
+        if (!reservation) {
+          result.skipped += 1;
+          continue;
+        }
+      }
 
       try {
         const freeShippingBenefit =
@@ -177,8 +211,9 @@ export async function processEmailAutomations(options: { automationId?: string; 
           bccEmail: automation.bccEmail,
         });
         providerAccepted = true;
+        acceptedProviderMessageId = sent.providerMessageId;
 
-        await createEmailLog({
+        const sentLog: Prisma.EmailSendLogUncheckedCreateInput = {
           id: logId,
           automationId: automation.id,
           trigger: automation.trigger,
@@ -194,7 +229,15 @@ export async function processEmailAutomations(options: { automationId?: string; 
           clickToken,
           openToken,
           unsubscribeToken,
-        });
+        };
+        if (isPostPurchase) {
+          await prisma.emailSendLog.update({
+            where: { id: logId },
+            data: { status: EmailSendStatus.SENT, sentAt: new Date(), providerMessageId: sent.providerMessageId, errorMessage: null },
+          });
+        } else {
+          await createEmailLog(sentLog);
+        }
         result.sent += 1;
       } catch (error) {
         if (createdFreeShippingBenefit && !providerAccepted) {
@@ -202,7 +245,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
             console.error("Could not revoke unsent cart recovery free shipping benefit", revokeError);
           });
         }
-        await createEmailLog({
+        const errorLog: Prisma.EmailSendLogUncheckedCreateInput = {
           id: logId,
           automationId: automation.id,
           trigger: automation.trigger,
@@ -217,7 +260,19 @@ export async function processEmailAutomations(options: { automationId?: string; 
           clickToken,
           openToken,
           errorMessage: error instanceof Error ? error.message : "Email error",
-        });
+        };
+        if (isPostPurchase) {
+          await prisma.emailSendLog.update({
+            where: { id: logId },
+            data: {
+              status: EmailSendStatus.ERROR,
+              providerMessageId: acceptedProviderMessageId,
+              errorMessage: `${providerAccepted ? "Proveedor aceptó el envío; falló el registro local. " : "Resultado de envío no confirmado. "}Requiere conciliación, sin reintento automático. ${errorLog.errorMessage}`,
+            },
+          });
+        } else {
+          await createEmailLog(errorLog);
+        }
         result.errors += 1;
       }
     }
@@ -355,6 +410,9 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
   return {
     automations: automations.map((automation) => ({
       ...automation,
+      postPurchaseCutoff: automation.trigger === EmailAutomationTrigger.POST_PURCHASE
+        ? getPostPurchaseCutoff(env.EMAIL_POST_PURCHASE_SEND_FROM, automation.activatedAt)
+        : null,
       coupon: serializeCouponPreview(automation.coupon),
     })),
     recentLogs,
@@ -613,31 +671,14 @@ async function getCandidatesForAutomation(
     return orders.map((order) => buildOrderCandidate(order));
   }
 
+  const cutoff = getPostPurchaseCutoff(env.EMAIL_POST_PURCHASE_SEND_FROM, automation.activatedAt);
+  if (!cutoff) return [];
   const orders = await prisma.order.findMany({
-    take: Math.max(limit * 3, limit),
-    where: {
-      paymentStatus: { in: [PaymentStatus.PROOF_UPLOADED, PaymentStatus.PAID] },
-      orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
-      AND: [
-        {
-          OR: [{ paidAt: { gte: activatedAt } }, { paymentProofs: { some: { uploadedAt: { gte: activatedAt } } } }],
-        },
-      ],
-      OR: [{ paidAt: { lte: readyAt } }, { paymentProofs: { some: { uploadedAt: { lte: readyAt } } } }],
-    },
-    orderBy: { createdAt: "asc" },
-    include: {
-      paymentProofs: {
-        orderBy: { uploadedAt: "desc" },
-        take: 1,
-      },
-    },
+    take: limit,
+    where: postPurchaseWhere(automation.id, cutoff, readyAt),
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-
-  return orders
-    .filter((order) => getPostPurchaseEventDate(order) <= readyAt)
-    .slice(0, limit)
-    .map((order) => buildOrderCandidate(order));
+  return orders.map((order) => buildOrderCandidate(order));
 }
 
 function getCartRecoveryLeadCycleDate(lead: CartRecoveryLeadTriggerSnapshot) {
@@ -760,10 +801,6 @@ export async function markEmailClicksConverted(order: {
       convertedAt: new Date(),
     },
   });
-}
-
-function getPostPurchaseEventDate(order: { paidAt: Date | null; paymentProofs?: Array<{ uploadedAt: Date }> }) {
-  return order.paidAt ?? order.paymentProofs?.[0]?.uploadedAt ?? new Date(0);
 }
 
 function buildOrderCandidate(order: {

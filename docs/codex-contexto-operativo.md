@@ -239,6 +239,23 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-09-22 - Hotfix de Post compra, pendiente de deploy
+
+- Se reprodujo el bloqueo al seleccionar 100 pedidos antes de descartar enviados.
+- Post compra ahora excluye logs antes del límite y requiere un corte fijo UTC
+  `EMAIL_POST_PURCHASE_SEND_FROM`; sin corte válido permanece bloqueado.
+- Reserva la clave única automatización/pedido antes de enviar. Errores o reservas
+  persistentes no se reintentan automáticamente: requieren conciliación con Resend.
+- Cambios: `src/features/email/automation-service.ts`, `post-purchase-policy.ts`,
+  `src/lib/env.ts`, panel admin de emails, `.env.example`, tests y documentación.
+- El diagnóstico READ ONLY en producción confirmó 100/100 candidatos bloqueantes
+  ya procesados y 9 eventos posteriores sin log; finalizó con `ROLLBACK`.
+- Sin migraciones ni modificación de históricos. No se ejecutaron envíos.
+  Requiere deploy de app con corte NUEVO para excluir esos 9 pendientes.
+- Runbook: `docs/hotfix-post-compra.md`; consultas: `docs/diagnostico-post-compra.sql`.
+- Pruebas aisladas: `node --test tests/post-purchase.test.cjs`.
+- Mantener separados los tres cambios locales previos de tracking Meta.
+
 ### 2026-09-18 - Hotfix de conciliacion Mercado Pago con multiples intentos
 
 Pedido:

@@ -1,5 +1,13 @@
 # Emails automaticos
 
+## Hotfix Post compra 2026-09-22
+
+Post compra requiere un corte adicional explícito `EMAIL_POST_PURCHASE_SEND_FROM`
+en UTC. Sin él queda bloqueado; no libera pendientes históricos al desplegar.
+Los pedidos con cualquier log previo de esa automatización se excluyen antes del
+límite. Errores y reservas persistentes requieren conciliación manual, sin reintento
+automático. Ver [diagnóstico y publicación segura](hotfix-post-compra.md).
+
 La seccion `/admin/emails` permite configurar automatizaciones de email sin enviar nada por defecto.
 
 ## Newsletter y consentimiento
