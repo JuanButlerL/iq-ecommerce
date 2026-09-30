@@ -15,6 +15,7 @@ type SiteHeaderProps = {
   announcementBarText?: string | null;
   subscriptionSectionEnabled?: boolean | null;
   faqSectionEnabled?: boolean | null;
+  newsletterSectionEnabled?: boolean | null;
 };
 
 export function SiteHeader({
@@ -22,6 +23,7 @@ export function SiteHeader({
   announcementBarText,
   subscriptionSectionEnabled,
   faqSectionEnabled,
+  newsletterSectionEnabled,
 }: SiteHeaderProps) {
   const pathname = usePathname();
   const [isCompact, setIsCompact] = useState(false);
@@ -31,6 +33,7 @@ export function SiteHeader({
     { href: "/", label: "Inicio" },
     { href: "/productos", label: "Productos" },
     ...(faqSectionEnabled ? [{ href: "/preguntas-frecuentes", label: "Preguntas frecuentes" }] : []),
+    ...(newsletterSectionEnabled ? [{ href: "/newsletter", label: "Newsletter" }] : []),
     { href: "/contacto", label: "Contacto" },
   ];
   const homeNavigation = [
@@ -39,6 +42,7 @@ export function SiteHeader({
     { id: "quienes-somos", label: "Quiénes somos" },
     ...(subscriptionSectionEnabled ? [{ id: "suscripcion", label: "Suscripción" }] : []),
     ...(faqSectionEnabled ? [{ id: "faq", label: "Preguntas frecuentes", href: "/preguntas-frecuentes" }] : []),
+    ...(newsletterSectionEnabled ? [{ id: "newsletter", label: "Newsletter", href: "/newsletter" }] : []),
     { id: "contacto", label: "Contacto" },
   ];
 

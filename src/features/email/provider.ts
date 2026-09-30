@@ -11,6 +11,7 @@ type SendEmailInput = {
   html: string;
   text: string;
   bccEmail?: string | null;
+  headers?: Record<string, string>;
 };
 
 export async function sendEmail(input: SendEmailInput) {
@@ -41,6 +42,7 @@ async function sendResendEmail(input: SendEmailInput) {
       text: input.text,
       reply_to: input.replyToEmail || env.EMAIL_REPLY_TO_DEFAULT || undefined,
       bcc: input.bccEmail ? [input.bccEmail] : undefined,
+      headers: input.headers,
     }),
   });
   const payload = (await response.json().catch(() => null)) as { id?: string; message?: string; error?: string } | null;
@@ -73,6 +75,7 @@ async function sendSmtpEmail(input: SendEmailInput) {
     text: input.text,
     replyTo: input.replyToEmail || env.EMAIL_REPLY_TO_DEFAULT || undefined,
     bcc: input.bccEmail || undefined,
+    headers: input.headers,
   });
 
   return {

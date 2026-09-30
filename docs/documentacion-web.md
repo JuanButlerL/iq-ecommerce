@@ -291,6 +291,8 @@ El panel admin es una parte central del sistema. Desde ahi el cliente opera la t
   sincronizacion externa
 - `/admin/preguntas-frecuentes`
   publicación y CRUD de preguntas frecuentes
+- `/admin/newsletter`
+  newsletters por bloques: edición, prueba, programación, envío por mail, publicación web y auditoría (ver `docs/email-automations.md`)
 
 ### Acceso admin
 

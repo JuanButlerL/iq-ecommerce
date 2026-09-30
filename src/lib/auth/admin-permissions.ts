@@ -12,6 +12,7 @@ export const ADMIN_SECTIONS = [
   { id: "orders", label: "Pedidos", href: "/admin/pedidos" },
   { id: "marketing", label: "Marketing", href: "/admin/marketing" },
   { id: "emails", label: "Emails", href: "/admin/emails" },
+  { id: "newsletter", label: "Newsletter", href: "/admin/newsletter" },
   { id: "links", label: "Links", href: "/admin/links" },
   { id: "sync", label: "Sync", href: "/admin/sync" },
   { id: "users", label: "Usuarios", href: "/admin/usuarios" },

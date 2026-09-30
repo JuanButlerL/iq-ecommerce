@@ -109,6 +109,24 @@ enum NewsletterSubscriberStatus {
 enum NewsletterConsentSource {
   CHECKOUT
   WELCOME_POPUP
+  NEWSLETTER_PAGE
+}
+
+enum NewsletterStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  PAUSED
+  SENT
+  NEEDS_REVIEW
+}
+
+enum NewsletterDeliveryStatus {
+  PENDING
+  RESERVED
+  SENT
+  SKIPPED
+  ERROR
 }
 
 enum CouponUsageType {
@@ -292,6 +310,15 @@ model StoreSettings {
   subscriptionItemThree  String?       @map("subscription_item_three")
   purchaseSuccessMessage String?       @map("purchase_success_message")
   requireTaxId           Boolean       @default(false) @map("require_tax_id")
+  newsletterSectionEnabled Boolean     @default(false) @map("newsletter_section_enabled")
+  newsletterEyebrow      String?       @map("newsletter_eyebrow")
+  newsletterTitle        String?       @map("newsletter_title")
+  newsletterDescription  String?       @map("newsletter_description")
+  newsletterSenderName   String        @default("IQ Kids") @map("newsletter_sender_name")
+  newsletterFromEmail    String        @default("no-reply@iqkids.com.ar") @map("newsletter_from_email")
+  newsletterReplyToEmail String?       @map("newsletter_reply_to_email")
+  newsletterTestRecipients String[]    @default([]) @map("newsletter_test_recipients")
+  newsletterDailyLimit   Int           @default(80) @map("newsletter_daily_limit")
   showFloatingWhatsapp   Boolean       @default(true) @map("show_floating_whatsapp")
   isStoreOpen            Boolean       @default(true) @map("is_store_open")
   createdAt              DateTime      @default(now()) @map("created_at")
@@ -452,8 +479,99 @@ model NewsletterSubscriber {
   createdAt      DateTime                 @default(now()) @map("created_at")
   updatedAt      DateTime                 @updatedAt @map("updated_at")
 
+  deliveries     NewsletterDelivery[]
+
   @@index([status, consentedAt], map: "newsletter_subscribers_status_consented_idx")
   @@map("newsletter_subscribers")
+}
+
+model Newsletter {
+  id                     String                 @id @default(uuid()) @db.Uuid
+  slug                   String                 @unique
+  previousSlugs          String[]               @default([]) @map("previous_slugs")
+  title                  String
+  subtitle               String?
+  excerpt                String                 @db.Text
+  category               String?
+  headerTag              String?                @map("header_tag")
+  internalNotes          String?                @map("internal_notes") @db.Text
+  coverImageUrl          String?                @map("cover_image_url")
+  coverImageAlt          String?                @map("cover_image_alt")
+  blocks                 Json                   @default("[]")
+  emailSubject           String                 @map("email_subject")
+  emailPreviewText       String?                @map("email_preview_text")
+  status                 NewsletterStatus       @default(DRAFT)
+  webVisible             Boolean                @default(false) @map("web_visible")
+  publishedAt            DateTime?              @map("published_at")
+  scheduledAt            DateTime?              @map("scheduled_at")
+  approvedAt             DateTime?              @map("approved_at")
+  approvedBy             String?                @map("approved_by")
+  approvedRecipientCount Int?                   @map("approved_recipient_count")
+  contentHash            String                 @map("content_hash")
+  lastTestSentAt         DateTime?              @map("last_test_sent_at")
+  lastTestContentHash    String?                @map("last_test_content_hash")
+  contentLockedAt        DateTime?              @map("content_locked_at")
+  emailSnapshot          Json?                  @map("email_snapshot")
+  currentWave            Int                    @default(0) @map("current_wave")
+  reviewReason           String?                @map("review_reason")
+  sendingStartedAt       DateTime?              @map("sending_started_at")
+  sentAt                 DateTime?              @map("sent_at")
+  createdBy              String?                @map("created_by")
+  updatedBy              String?                @map("updated_by")
+  archivedAt             DateTime?              @map("archived_at")
+  createdAt              DateTime               @default(now()) @map("created_at")
+  updatedAt              DateTime               @updatedAt @map("updated_at")
+  deliveries             NewsletterDelivery[]
+  auditEvents            NewsletterAuditEvent[]
+
+  @@index([status, scheduledAt], map: "newsletters_status_scheduled_idx")
+  @@index([webVisible, publishedAt], map: "newsletters_web_published_idx")
+  @@map("newsletters")
+}
+
+model NewsletterDelivery {
+  id                String                   @id @default(uuid()) @db.Uuid
+  newsletterId      String                   @map("newsletter_id") @db.Uuid
+  subscriberId      String?                  @map("subscriber_id") @db.Uuid
+  recipientEmail    String                   @map("recipient_email")
+  wave              Int
+  status            NewsletterDeliveryStatus @default(PENDING)
+  skipReason        String?                  @map("skip_reason")
+  errorMessage      String?                  @map("error_message")
+  providerMessageId String?                  @map("provider_message_id")
+  openToken         String                   @unique @map("open_token")
+  clickToken        String                   @unique @map("click_token")
+  unsubscribeToken  String                   @unique @map("unsubscribe_token")
+  openCount         Int                      @default(0) @map("open_count")
+  firstOpenedAt     DateTime?                @map("first_opened_at")
+  lastOpenedAt      DateTime?                @map("last_opened_at")
+  clickCount        Int                      @default(0) @map("click_count")
+  firstClickedAt    DateTime?                @map("first_clicked_at")
+  lastClickedAt     DateTime?                @map("last_clicked_at")
+  reservedAt        DateTime?                @map("reserved_at")
+  sentAt            DateTime?                @map("sent_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+  newsletter        Newsletter               @relation(fields: [newsletterId], references: [id], onDelete: Restrict)
+  subscriber        NewsletterSubscriber?    @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+
+  @@unique([newsletterId, recipientEmail], map: "newsletter_deliveries_newsletter_recipient_key")
+  @@index([newsletterId, status], map: "newsletter_deliveries_newsletter_status_idx")
+  @@index([status, sentAt], map: "newsletter_deliveries_status_sent_idx")
+  @@map("newsletter_deliveries")
+}
+
+model NewsletterAuditEvent {
+  id           String     @id @default(uuid()) @db.Uuid
+  newsletterId String     @map("newsletter_id") @db.Uuid
+  action       String
+  actorEmail   String?    @map("actor_email")
+  metadata     Json?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  newsletter   Newsletter @relation(fields: [newsletterId], references: [id], onDelete: Cascade)
+
+  @@index([newsletterId, createdAt], map: "newsletter_audit_events_newsletter_created_idx")
+  @@map("newsletter_audit_events")
 }
 
 model EmailAutomation {

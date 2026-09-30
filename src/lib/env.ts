@@ -42,6 +42,9 @@ const envSchema = z.object({
   EMAIL_REPLY_TO_DEFAULT: z.string().email().optional().or(z.literal("")),
   EMAIL_CRON_SECRET: z.string().min(16).optional().or(z.literal("")),
   RESEND_API_KEY: z.string().optional().or(z.literal("")),
+  NEWSLETTER_SENDING_ENABLED: z.enum(["true", "false"]).default("false"),
+  NEWSLETTER_BATCH_SIZE: z.coerce.number().int().min(1).max(200).default(40),
+  NEWSLETTER_LATE_MARGIN_HOURS: z.coerce.number().int().min(1).max(168).default(12),
   SMTP_HOST: z.string().optional().or(z.literal("")),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_SECURE: z.enum(["true", "false"]).default("false"),
@@ -92,6 +95,9 @@ const parsedEnv = envSchema.parse({
   EMAIL_REPLY_TO_DEFAULT: process.env.EMAIL_REPLY_TO_DEFAULT,
   EMAIL_CRON_SECRET: process.env.EMAIL_CRON_SECRET,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
+  NEWSLETTER_SENDING_ENABLED: process.env.NEWSLETTER_SENDING_ENABLED,
+  NEWSLETTER_BATCH_SIZE: process.env.NEWSLETTER_BATCH_SIZE,
+  NEWSLETTER_LATE_MARGIN_HOURS: process.env.NEWSLETTER_LATE_MARGIN_HOURS,
   SMTP_HOST: process.env.SMTP_HOST,
   SMTP_PORT: process.env.SMTP_PORT,
   SMTP_SECURE: process.env.SMTP_SECURE,
@@ -150,6 +156,11 @@ export const env = {
   isSmtpSecure: parsedEnv.SMTP_SECURE === "true",
   hasEmailProvider: hasResendConfig(parsedEnv) || hasSmtpConfig(parsedEnv),
   canSendEmail: parsedEnv.EMAIL_SENDING_ENABLED === "true" && (hasResendConfig(parsedEnv) || hasSmtpConfig(parsedEnv)),
+  // Newsletter mass sends need their own explicit switch on top of the global email switch.
+  newsletterSendingEnabled:
+    parsedEnv.NEWSLETTER_SENDING_ENABLED === "true" &&
+    parsedEnv.EMAIL_SENDING_ENABLED === "true" &&
+    (hasResendConfig(parsedEnv) || hasSmtpConfig(parsedEnv)),
   devAdminBypass: parsedEnv.DEV_ADMIN_BYPASS === "true" && process.env.NODE_ENV !== "production",
   hasLocalAdminAuth:
     Boolean(parsedEnv.ADMIN_LOCAL_EMAIL) &&

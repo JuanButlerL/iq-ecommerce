@@ -239,6 +239,19 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-09-28 - Modulo Newsletter (rama `feature/newsletter`, pendiente de deploy)
+
+- Nueva seccion publica `/newsletter` (archivo) y `/newsletter/[slug]` (detalle con compartir, suscripcion, metadata, JSON-LD `BlogPosting` y redireccion 301 si cambia la URL).
+- Admin `/admin/newsletter`: editor por bloques (titulo, parrafo con formato minimo, imagen, imagen + texto, galeria, frase, boton, producto con precio del catalogo, tip, separador), vista previa web/mail en escritorio y celular, checklist, prueba obligatoria, programacion con confirmacion `ENVIAR`, pausa, envio a nuevos suscriptos, conciliacion y auditoria. Nueva seccion de permisos `newsletter`.
+- Envio: cron separado `POST /api/cron/newsletters`. Tres llaves (`NEWSLETTER_SENDING_ENABLED`, `EMAIL_SENDING_ENABLED` + proveedor, aprobacion en admin). Una fila por newsletter + email con indice unico, reserva condicional antes de contactar al proveedor, sin reintentos automaticos, revision obligatoria si el envio se atrasa o la audiencia crece, limite diario compartido con automatizaciones, y fuera de produccion solo reciben las casillas de prueba.
+- Tracking propio (`/api/newsletter/open|click|unsubscribe`); la baja usa la baja global existente. Encabezados `List-Unsubscribe` (se agrego `headers` opcional a `provider.ts`, sin cambio para los mails existentes). No se tocaron automatizaciones, `render.ts`, pop-up, checkout, pedidos ni tracking.
+- Migraciones aditivas: `202609281200_add_newsletter_consent_source`, `202609281210_add_newsletters`. Sin seed.
+- Pruebas: `node --test tests/newsletter.test.cjs` (19) y `tests/post-purchase.test.cjs` sin cambios. `npm run release:check` en verde.
+- Deploy: requiere backup + `prisma migrate deploy`, publicar con `NEWSLETTER_SENDING_ENABLED=false`, agregar el cron nuevo. Ver `docs/deploy-produccion-digitalocean.md` seccion 7 y `docs/email-automations.md` seccion Newsletter.
+- 2026-09-29: bloques editoriales (datos, lista de pasos, testimonio, fuentes; cita con cargo/color; boton con nota/color; caja sin titulo), campos categoria / frase de encabezado / notas internas (migracion `202609281230_add_newsletter_editorial_fields`) e importador "Importar HTML" (`src/features/newsletter/import-html.ts`) probado con las 9 newsletters de la secuencia de la agencia: todas pasan la validacion.
+- 2026-09-30 (endurecimiento pre-produccion): pausa automatica tras 3 errores seguidos del proveedor; "Enviar ahora" usa la hora del servidor; confirmacion con fecha completa en hora de Buenos Aires; validacion estricta de fecha; baja por GET con boton de confirmacion (evita bajas por escaneres de links) y one-click por POST; reintento masivo de errores con confirmacion; importador con varios archivos, vista previa, deteccion de duplicados y links a los borradores; guia de uso en `/admin/newsletter/guia`. Runbook de pase a produccion en `docs/deploy-produccion-digitalocean.md` seccion 7.
+- Pendiente conocido: el `loading.tsx` global hace que los 404 respondan 200; una newsletter oculta muestra la pagina 404 con `noindex`. Se corrige en la rama de GEO.
+
 ### 2026-09-22 - Hotfix de Post compra, pendiente de deploy
 
 - Se reprodujo el bloqueo al seleccionar 100 pedidos antes de descartar enviados.

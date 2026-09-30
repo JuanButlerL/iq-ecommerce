@@ -20,6 +20,7 @@ type AppChromeProps = {
   announcementBarText?: string | null;
   subscriptionSectionEnabled?: boolean | null;
   faqSectionEnabled?: boolean | null;
+  newsletterSectionEnabled?: boolean | null;
 };
 
 export function AppChrome({
@@ -32,6 +33,7 @@ export function AppChrome({
   announcementBarText,
   subscriptionSectionEnabled,
   faqSectionEnabled,
+  newsletterSectionEnabled,
 }: AppChromeProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
@@ -51,6 +53,7 @@ export function AppChrome({
           announcementBarText={announcementBarText}
           subscriptionSectionEnabled={subscriptionSectionEnabled}
           faqSectionEnabled={faqSectionEnabled}
+          newsletterSectionEnabled={newsletterSectionEnabled}
         />
       )}
       <main>{children}</main>
@@ -60,6 +63,7 @@ export function AppChrome({
             instagramUrl={instagramUrl ?? undefined}
             contactEmail={contactEmail ?? undefined}
             whatsappNumber={whatsappNumber ?? undefined}
+            newsletterSectionEnabled={newsletterSectionEnabled}
           />
           {showFloatingWhatsapp && whatsappNumber && !hideFloatingWhatsapp ? (
             <FloatingWhatsapp

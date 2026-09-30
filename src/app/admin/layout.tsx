@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, BarChart3, CircleHelp, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageSquareQuote, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, CircleHelp, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageSquareQuote, Newspaper, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -18,6 +18,7 @@ const navigation = [
   { section: "orders", href: "/admin/pedidos", label: "Pedidos", icon: <ShoppingBag className="h-4 w-4" />, prefetch: false },
   { section: "marketing", href: "/admin/marketing", label: "Marketing", icon: <BarChart3 className="h-4 w-4" />, prefetch: false },
   { section: "emails", href: "/admin/emails", label: "Emails", icon: <Mail className="h-4 w-4" />, prefetch: false },
+  { section: "newsletter", href: "/admin/newsletter", label: "Newsletter", icon: <Newspaper className="h-4 w-4" />, prefetch: false },
   { section: "links", href: "/admin/links", label: "Links", icon: <Link2 className="h-4 w-4" /> },
   { section: "sync", href: "/admin/sync", label: "Sync", icon: <RefreshCcw className="h-4 w-4" /> },
   { section: "users", href: "/admin/usuarios", label: "Usuarios", icon: <Users className="h-4 w-4" /> },
