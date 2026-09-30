@@ -127,7 +127,7 @@ export function NewsletterEditor({
     lastTestContentHash: newsletter.lastTestContentHash,
     testRecipientsCount: settings.testRecipients.length,
   });
-  const checklistReady = checklist.every((item) => item.ok);
+  const checklistReady = checklist.every((item) => item.ok || item.optional);
   const emailLocked = newsletter.sendingStartedAt !== null;
   const status = newsletter.status;
   const meta = newsletterStatusMeta[status];
@@ -419,7 +419,11 @@ export function NewsletterEditor({
         <ul className="mt-3 space-y-2">
           {checklist.map((item) => (
             <li key={item.id} className={cn("flex items-start gap-2 text-sm", item.ok ? "text-brand-ink/70" : "text-brand-ink")}>
-              {item.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-brand-ink/30" />}
+              {item.ok ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+              ) : (
+                <Circle className={cn("mt-0.5 h-4 w-4 shrink-0", item.optional ? "text-brand-ink/15" : "text-brand-ink/30")} />
+              )}
               {item.label}
             </li>
           ))}

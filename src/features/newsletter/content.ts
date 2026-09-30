@@ -397,7 +397,8 @@ export function computeNewsletterContentHash(content: NewsletterContent) {
   );
 }
 
-export type NewsletterChecklistItem = { id: string; label: string; ok: boolean };
+// `optional` items are recommendations: shown in the checklist but never block sending.
+export type NewsletterChecklistItem = { id: string; label: string; ok: boolean; optional?: boolean };
 
 export function getNewsletterChecklist(
   content: NewsletterContent,
@@ -409,8 +410,9 @@ export function getNewsletterChecklist(
     { id: "title", label: "Título y resumen completos", ok: content.title.trim().length >= 3 && content.excerpt.trim().length >= 10 },
     {
       id: "cover",
-      label: "Portada cargada con texto alternativo",
+      label: "Portada con texto alternativo (recomendado)",
       ok: Boolean(content.coverImageUrl?.trim()) && (content.coverImageAlt?.trim().length ?? 0) >= 3,
+      optional: true,
     },
     { id: "subject", label: "Asunto del mail (hasta 120 caracteres)", ok: content.emailSubject.trim().length >= 3 && content.emailSubject.length <= 120 },
     { id: "preview", label: "Texto de vista previa del mail", ok: (content.emailPreviewText?.trim().length ?? 0) >= 10 },

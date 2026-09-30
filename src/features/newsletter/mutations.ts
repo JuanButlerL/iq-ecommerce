@@ -367,7 +367,7 @@ export async function scheduleNewsletter(id: string, payload: unknown, actorEmai
     lastTestContentHash: newsletter.lastTestContentHash,
     testRecipientsCount: await getTestRecipientsCount(),
   });
-  const missing = checklist.filter((item) => !item.ok);
+  const missing = checklist.filter((item) => !item.ok && !item.optional);
 
   if (missing.length > 0) {
     throw new AppError(`Antes de programar: ${missing.map((item) => item.label.toLowerCase()).join(", ")}.`, 400, true);
