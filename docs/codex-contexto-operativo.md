@@ -239,6 +239,13 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-09-30 - Dashboard: grafico mensual con historial completo y rediseno
+
+- La vista "Mes" usaba los pedidos de los ultimos 90 dias, por eso los meses anteriores salian vacios. Ahora usa una consulta de solo lectura (fecha, total y unidades) sobre todo el historial con el mismo filtro de estado: desde el primer pedido hasta el mes actual, minimo 6 meses, maximo 60 barras. Dia y Semana no cambian.
+- Rediseno del grafico: barras finas con eje y lineas guia, panel de detalle del periodo senalado (pedidos, facturacion, unidades), separador de anio, desplazamiento solo con historiales largos y navegacion por teclado. Mismos datos.
+- Fechas del admin de newsletter en formato 24 h explicito para evitar un error de hidratacion (Node y el navegador formateaban distinto).
+- Archivos: `src/features/orders/queries.ts`, `src/features/admin/components/dashboard-sales-chart.tsx`, `src/features/newsletter/components/newsletter-admin-labels.ts`. Sin migraciones.
+
 ### 2026-09-28 - Modulo Newsletter (rama `feature/newsletter`, pendiente de deploy)
 
 - Nueva seccion publica `/newsletter` (archivo) y `/newsletter/[slug]` (detalle con compartir, suscripcion, metadata, JSON-LD `BlogPosting` y redireccion 301 si cambia la URL).

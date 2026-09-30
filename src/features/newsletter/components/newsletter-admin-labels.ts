@@ -80,6 +80,8 @@ export function formatArgentinaLongDateTime(value: Date | string) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    // Explicit 24h: server (Node ICU) and browsers disagree on the es-AR default.
+    hourCycle: "h23",
   });
 }
 
@@ -95,5 +97,7 @@ export function formatAdminDateTime(value: Date | string | null | undefined) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    // Explicit 24h: server (Node ICU) and browsers disagree on the es-AR default.
+    hourCycle: "h23",
   });
 }
