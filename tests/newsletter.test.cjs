@@ -141,7 +141,8 @@ function harness(options = {}) {
     } },
     '@/features/newsletter/audit': { recordNewsletterAudit: async (_db, event) => db.audit.push(event) },
     '@/features/newsletter/render-email': render,
-    '@/features/newsletter/server-content': { buildSnapshotForNewsletter: buildSnapshot },
+    '@/features/newsletter/content': content,
+    '@/features/newsletter/server-content': { buildSnapshotForNewsletter: buildSnapshot, toNewsletterContent: row => ({ slug: row.slug, title: row.title, subtitle: row.subtitle, excerpt: row.excerpt, category: row.category, headerTag: row.headerTag, coverImageUrl: row.coverImageUrl, coverImageAlt: row.coverImageAlt, blocks: row.blocks, emailSubject: row.emailSubject, emailPreviewText: row.emailPreviewText }) },
     '@/lib/db/prisma': { prisma },
     '@/lib/env': { env },
     '@/lib/errors/app-error': { AppError: class AppError extends Error {} },
@@ -312,7 +313,10 @@ test('test sends go only to the test inboxes and never create deliveries', async
   assert.equal(h.calls.length, 1);
   assert.match(h.calls[0].subject, /^\[PRUEBA\] /);
   assert.equal(h.db.deliveries.length, 0);
-  assert.equal(h.db.newsletters[0].lastTestContentHash, 'hash-1');
+  const row = h.db.newsletters[0];
+  const expected = content.computeNewsletterContentHash({ slug: row.slug, title: row.title, subtitle: row.subtitle, excerpt: row.excerpt, coverImageUrl: row.coverImageUrl, coverImageAlt: row.coverImageAlt, blocks: row.blocks, emailSubject: row.emailSubject, emailPreviewText: row.emailPreviewText });
+  assert.equal(row.lastTestContentHash, expected, 'test unlocks the canonical hash of the stored content');
+  assert.equal(row.contentHash, expected);
 });
 
 test('block validation rejects HTML and dangerous links', () => {
@@ -412,4 +416,12 @@ test('Buenos Aires wall time converts to the right instant and back', () => {
   assert.equal(labels.isoToArgentinaLocalInput('2026-10-01T12:00:00.000Z'), '2026-10-01T09:00');
   assert.equal(labels.argentinaLocalInputToIso('no-es-fecha'), null);
   assert.match(labels.formatArgentinaLongDateTime('2026-10-01T12:00:00.000Z'), /1 de octubre de 2026.*09:00/);
+});
+
+test('content hash ignores JSON key order, surrounding spaces and empty values', () => {
+  const base = { slug: 's', title: 'Título', excerpt: 'Resumen suficiente', blocks: [{ id: '1', type: 'quote', text: 'Hola', author: 'Ana', role: null, tone: 'pink' }], emailSubject: 'Asunto', subtitle: null };
+  // Same content as PostgreSQL JSONB returns it: keys reordered, "" instead of null, extra spaces.
+  const fromDatabase = { emailSubject: 'Asunto ', blocks: [{ tone: 'pink', role: '', type: 'quote', text: 'Hola', id: '1', author: 'Ana' }], excerpt: 'Resumen suficiente', title: ' Título', slug: 's', subtitle: '' };
+  assert.equal(content.computeNewsletterContentHash(base), content.computeNewsletterContentHash(fromDatabase));
+  assert.notEqual(content.computeNewsletterContentHash(base), content.computeNewsletterContentHash({ ...base, title: 'Otro título' }));
 });

@@ -348,21 +348,52 @@ function cyrb53(value: string, seed = 0) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, "0");
 }
 
+// Canonical form for hashing. PostgreSQL JSONB does not keep object key order and
+// validation turns "" into null and trims text, so the hash must ignore key order,
+// surrounding whitespace and empty values. Otherwise the editor would always see
+// "unsaved changes" and a test send would never match the saved content.
+function canonicalize(value: unknown): unknown {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed === "" ? undefined : trimmed;
+  }
+
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalize(item) ?? null);
+  }
+
+  if (typeof value === "object") {
+    const entries = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => [key, canonicalize((value as Record<string, unknown>)[key])] as const)
+      .filter(([, item]) => item !== undefined);
+    return Object.fromEntries(entries);
+  }
+
+  return value;
+}
+
 export function computeNewsletterContentHash(content: NewsletterContent) {
   return cyrb53(
-    JSON.stringify([
-      content.slug,
-      content.title,
-      content.subtitle ?? "",
-      content.excerpt,
-      content.category ?? "",
-      content.headerTag ?? "",
-      content.coverImageUrl ?? "",
-      content.coverImageAlt ?? "",
-      content.blocks,
-      content.emailSubject,
-      content.emailPreviewText ?? "",
-    ]),
+    JSON.stringify(
+      canonicalize({
+        slug: content.slug,
+        title: content.title,
+        subtitle: content.subtitle,
+        excerpt: content.excerpt,
+        category: content.category,
+        headerTag: content.headerTag,
+        coverImageUrl: content.coverImageUrl,
+        coverImageAlt: content.coverImageAlt,
+        blocks: content.blocks,
+        emailSubject: content.emailSubject,
+        emailPreviewText: content.emailPreviewText,
+      }),
+    ),
   );
 }
 

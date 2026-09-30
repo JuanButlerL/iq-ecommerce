@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { NewsletterEditor } from "@/features/newsletter/components/newsletter-editor";
 import { getAdminNewsletter, getNewsletterAdminSettings } from "@/features/newsletter/queries";
 import { countEligibleSubscribers } from "@/features/newsletter/send-service";
+import { computeNewsletterContentHash } from "@/features/newsletter/content";
 import { getNewsletterProductIds, loadNewsletterProducts, toNewsletterContent } from "@/features/newsletter/server-content";
 import { getAdminTestimonials } from "@/features/testimonials/queries";
 import { requireAdminSection } from "@/lib/auth/admin";
@@ -45,7 +46,8 @@ export default async function AdminNewsletterEditorPage({ params }: PageProps) {
         publishedAt: newsletter.publishedAt?.toISOString() ?? null,
         reviewReason: newsletter.reviewReason,
         approvedRecipientCount: newsletter.approvedRecipientCount,
-        contentHash: newsletter.contentHash,
+        // Recomputed from the stored content so the editor never shows phantom "unsaved changes".
+        contentHash: computeNewsletterContentHash(content),
         lastTestContentHash: newsletter.lastTestContentHash,
         lastTestSentAt: newsletter.lastTestSentAt?.toISOString() ?? null,
         updatedAt: newsletter.updatedAt.toISOString(),

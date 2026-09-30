@@ -4,8 +4,9 @@ import { EmailSendStatus, NewsletterDeliveryStatus, NewsletterStatus, Newsletter
 import { isEmailUnsubscribed } from "@/features/email/newsletter-service";
 import { sendEmail } from "@/features/email/provider";
 import { recordNewsletterAudit } from "@/features/newsletter/audit";
+import { computeNewsletterContentHash } from "@/features/newsletter/content";
 import { personalizeNewsletterEmail, type NewsletterEmailSnapshot } from "@/features/newsletter/render-email";
-import { buildSnapshotForNewsletter } from "@/features/newsletter/server-content";
+import { buildSnapshotForNewsletter, toNewsletterContent } from "@/features/newsletter/server-content";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors/app-error";
@@ -475,10 +476,13 @@ export async function sendNewsletterTest(newsletterId: string, actorEmail: strin
     throw new AppError(`No se pudo enviar la prueba. ${failures[0] ?? ""}`.trim(), 502, true);
   }
 
-  // Only the exact content that was tested unlocks scheduling.
+  // Only the exact content that was tested unlocks scheduling. The hash is
+  // recomputed from what is stored (canonical form), and the write only happens
+  // if nobody saved changes after this test started.
+  const testedHash = computeNewsletterContentHash(toNewsletterContent(newsletter));
   await prisma.newsletter.updateMany({
-    where: { id: newsletterId, contentHash: newsletter.contentHash },
-    data: { lastTestSentAt: new Date(), lastTestContentHash: newsletter.contentHash },
+    where: { id: newsletterId, updatedAt: newsletter.updatedAt },
+    data: { lastTestSentAt: new Date(), lastTestContentHash: testedHash, contentHash: testedHash },
   });
   await recordNewsletterAudit(prisma, {
     newsletterId,
