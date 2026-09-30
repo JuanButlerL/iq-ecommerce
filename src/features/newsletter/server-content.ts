@@ -57,18 +57,15 @@ export function getNewsletterWebUrl(slug: string) {
   return `${env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}/newsletter/${slug}`;
 }
 
-// "Ver en la web" is only linked when the page will actually be reachable.
+// "Ver en la web" is only linked when the newsletter page is published (visible).
 export async function buildSnapshotForNewsletter(row: NewsletterContentRow & Pick<Newsletter, "webVisible">) {
   const content = toNewsletterContent(row);
-  const [products, settings] = await Promise.all([
-    loadNewsletterProducts(getNewsletterProductIds(content)),
-    prisma.storeSettings.findUnique({ where: { id: "default" }, select: { newsletterSectionEnabled: true } }),
-  ]);
+  const products = await loadNewsletterProducts(getNewsletterProductIds(content));
 
   return buildNewsletterEmailSnapshot({
     content,
     products,
     siteUrl: env.NEXT_PUBLIC_SITE_URL,
-    webUrl: settings?.newsletterSectionEnabled && row.webVisible ? getNewsletterWebUrl(row.slug) : null,
+    webUrl: row.webVisible ? getNewsletterWebUrl(row.slug) : null,
   });
 }

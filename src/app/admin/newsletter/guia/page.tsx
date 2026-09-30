@@ -40,7 +40,7 @@ const faqs: Array<[string, ReactNode]> = [
   ["¿Qué es “Requiere revisión”?", "El sistema frenó el envío por seguridad: se atrasó más de 12 horas (por ejemplo, el servidor estuvo caído) o creció mucho la lista. Revisá y decidí “Enviar igual” o “Cancelar envío”."],
   ["Hay mails con error", "En Envíos se pueden reintentar una sola vez. Si fallan 3 seguidos, el envío se pausa solo para no perder la lista."],
   ["¿Qué significa “A conciliar”?", "No se sabe si el proveedor aceptó ese mail (por ejemplo, un corte justo al enviar). Buscalo en el panel de Resend y marcalo como enviado o no enviado. Nunca se reintenta solo, para no duplicar."],
-  ["¿Se ve en la web?", "Solo si activás “Mostrar en la web” en esa newsletter y la sección Newsletter está activa en Configuración. Una programada no aparece antes de enviarse."],
+  ["¿Se ve en la web?", "“Mostrar en la web” publica esa newsletter con su propio link (botones “Ver en la web” y “Copiar link” en el editor). Para que además aparezca en el menú y en el listado /newsletter, activá la sección en Configuración. Una programada no se ve antes de enviarse."],
   ["¿Puedo editar una newsletter que ya salió?", "Sí, la versión web. El mail que ya se envió no cambia, y el asunto queda bloqueado."],
 ];
 

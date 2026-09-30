@@ -425,3 +425,12 @@ test('content hash ignores JSON key order, surrounding spaces and empty values',
   assert.equal(content.computeNewsletterContentHash(base), content.computeNewsletterContentHash(fromDatabase));
   assert.notEqual(content.computeNewsletterContentHash(base), content.computeNewsletterContentHash({ ...base, title: 'Otro título' }));
 });
+
+test('the email loads the brand display font from the site with safe fallbacks', () => {
+  const snapshot = render.buildNewsletterEmailSnapshot({
+    content: { slug: 's', title: 'Título', excerpt: 'Resumen de prueba', blocks: [], emailSubject: 'Asunto' },
+    products: {}, siteUrl: 'https://iqkids.example/', webUrl: null,
+  });
+  assert.ok(snapshot.html.includes("url('https://iqkids.example/fonts/watermelon-regular.woff2')"));
+  assert.ok(snapshot.html.includes("'Watermelon Regular','Arial Rounded MT Bold'"));
+});

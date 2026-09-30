@@ -15,15 +15,10 @@ import { env } from "@/lib/env";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
-const loadNewsletter = cache(async (slug: string) => {
-  const settings = await getNewsletterPageSettings();
-
-  if (!settings.enabled) {
-    return { newsletter: null, redirectTo: null };
-  }
-
-  return getPublishedNewsletterBySlug(slug);
-});
+// A newsletter marked "Mostrar en la web" opens by its own link even when the
+// section is not in the menu yet. The section toggle only controls the menu and
+// the /newsletter archive.
+const loadNewsletter = cache(async (slug: string) => getPublishedNewsletterBySlug(slug));
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -66,7 +61,12 @@ export default async function NewsletterDetailPage({ params }: PageProps) {
   }
 
   const content = toNewsletterContent(newsletter);
-  const [products, neighbours] = await Promise.all([loadNewsletterProducts(getNewsletterProductIds(content)), getNewsletterNeighbours(newsletter)]);
+  const [products, neighbours, pageSettings] = await Promise.all([
+    loadNewsletterProducts(getNewsletterProductIds(content)),
+    getNewsletterNeighbours(newsletter),
+    getNewsletterPageSettings(),
+  ]);
+  const sectionEnabled = pageSettings.enabled;
   const url = getNewsletterWebUrl(newsletter.slug);
   const minutes = estimateReadingMinutes(content);
   const cover = newsletter.coverImageUrl ? toAbsoluteUrl(newsletter.coverImageUrl, env.NEXT_PUBLIC_SITE_URL) : null;
@@ -94,9 +94,13 @@ export default async function NewsletterDetailPage({ params }: PageProps) {
 
       <article>
         <header className="mx-auto max-w-[820px] px-5 pb-8 pt-9 sm:px-8 sm:pt-12 lg:pt-14">
-          <Link href="/newsletter" className="inline-flex items-center gap-2 text-sm font-extrabold text-brand-pink transition hover:gap-3">
-            <ArrowLeft className="h-4 w-4" /> Newsletter
-          </Link>
+          {sectionEnabled ? (
+            <Link href="/newsletter" className="inline-flex items-center gap-2 text-sm font-extrabold text-brand-pink transition hover:gap-3">
+              <ArrowLeft className="h-4 w-4" /> Newsletter
+            </Link>
+          ) : (
+            <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-brand-pink">Newsletter IQ Kids</p>
+          )}
           <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-brand-ink/50">
             <time dateTime={newsletter.publishedAt?.toISOString()}>{formatNewsletterDate(newsletter.publishedAt)}</time>
             <span aria-hidden>·</span>

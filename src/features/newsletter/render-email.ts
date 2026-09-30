@@ -32,7 +32,9 @@ const cyanSoft = "#EAF8FE";
 const pinkSoft = "#FAD5D8";
 const muted = "#6f6680";
 const pageBackground = "#FFF4F5";
-const displayFont = "'Arial Rounded MT Bold','Trebuchet MS','Avenir Next Rounded',Arial,sans-serif";
+// Brand display font. Apple Mail, iOS Mail, Samsung Mail and Outlook for Mac load it
+// from the site; Gmail and Outlook for Windows ignore web fonts and use the fallbacks.
+const displayFont = "'Watermelon Regular','Arial Rounded MT Bold','Trebuchet MS','Avenir Next Rounded',Arial,sans-serif";
 const bodyFont = "'DM Sans','Segoe UI','Helvetica Neue',Arial,sans-serif";
 
 const tipTones: Record<NewsletterTipTone, { background: string; border: string }> = {
@@ -237,6 +239,7 @@ export function buildNewsletterEmailSnapshot(input: {
 <meta name="x-apple-disable-message-reformatting" />
 <title>${escapeHtml(subject)}</title>
 <style>
+  @font-face { font-family: 'Watermelon Regular'; src: url('${siteUrl.replace(/\/$/, "")}/fonts/watermelon-regular.woff2') format('woff2'); font-weight: 400; font-style: normal; }
   @media only screen and (max-width: 620px) {
     .container { width: 100% !important; border-radius: 0 !important; }
     .stack { display: block !important; width: 100% !important; padding: 0 0 14px 0 !important; }

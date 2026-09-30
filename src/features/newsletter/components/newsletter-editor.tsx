@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   FlaskConical,
+  Link2,
   ListChecks,
   Pause,
   Play,
@@ -131,7 +132,20 @@ export function NewsletterEditor({
   const status = newsletter.status;
   const meta = newsletterStatusMeta[status];
   const locked = newsletter.archived;
-  const publicUrl = settings.sectionEnabled && newsletter.webVisible && newsletter.publishedAt ? `/newsletter/${newsletter.content.slug}` : null;
+  const publicUrl = newsletter.webVisible && newsletter.publishedAt ? `/newsletter/${newsletter.content.slug}` : null;
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  async function copyPublicLink() {
+    if (!publicUrl) return;
+    const absolute = `${server.siteUrl}${publicUrl}`;
+    try {
+      await navigator.clipboard.writeText(absolute);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2200);
+    } catch {
+      window.prompt("Copiá el link:", absolute);
+    }
+  }
 
   useEffect(() => {
     if (!dirty) return;
@@ -432,9 +446,15 @@ export function NewsletterEditor({
         </div>
         <div className="flex flex-wrap gap-2">
           {publicUrl ? (
-            <Link href={publicUrl} target="_blank" className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-extrabold text-brand-pink ring-1 ring-brand-pink/25 hover:bg-brand-pink/5">
-              <Eye className="h-4 w-4" /> Ver en la web
-            </Link>
+            <>
+              <Link href={publicUrl} target="_blank" className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-extrabold text-brand-pink ring-1 ring-brand-pink/25 hover:bg-brand-pink/5">
+                <Eye className="h-4 w-4" /> Ver en la web
+              </Link>
+              <button type="button" onClick={copyPublicLink} className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 hover:bg-white">
+                {linkCopied ? <Check className="h-4 w-4 text-green-600" /> : <Link2 className="h-4 w-4" />}
+                {linkCopied ? "¡Link copiado!" : "Copiar link"}
+              </button>
+            </>
           ) : null}
           {newsletter.stats.total > 0 ? (
             <Link href={`/admin/newsletter/${newsletter.id}/envios`} className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 hover:bg-white">

@@ -322,7 +322,7 @@ export function NewsletterAdminDashboard({
                 checked={form.sectionEnabled}
                 onChange={(event) => setForm((current) => ({ ...current, sectionEnabled: event.target.checked }))}
               />
-              <p className="mt-2 pl-7 text-xs leading-5 text-brand-ink/55">Necesita al menos una newsletter marcada como visible. Apagada, la página /newsletter no existe para el público.</p>
+              <p className="mt-2 pl-7 text-xs leading-5 text-brand-ink/55">Agrega “Newsletter” al menú (después de Preguntas frecuentes) y al footer, y publica el listado /newsletter. Necesita al menos una newsletter visible. Aunque esté apagada, cada newsletter visible se puede abrir con su link.</p>
             </div>
             <label className="block">
               <span className="mb-2 block text-sm font-bold">Nombre del remitente</span>
