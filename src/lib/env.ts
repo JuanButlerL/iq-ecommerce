@@ -45,6 +45,8 @@ const envSchema = z.object({
   SMTP_SECURE: z.enum(["true", "false"]).default("false"),
   SMTP_USER: z.string().optional().or(z.literal("")),
   SMTP_PASSWORD: z.string().optional().or(z.literal("")),
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional().or(z.literal("")),
+  WHATSAPP_APP_SECRET: z.string().optional().or(z.literal("")),
   DEV_ADMIN_BYPASS: z.enum(["true", "false"]).default("false"),
 });
 
@@ -93,6 +95,8 @@ const parsedEnv = envSchema.parse({
   SMTP_SECURE: process.env.SMTP_SECURE,
   SMTP_USER: process.env.SMTP_USER,
   SMTP_PASSWORD: process.env.SMTP_PASSWORD,
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+  WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET,
   DEV_ADMIN_BYPASS: process.env.DEV_ADMIN_BYPASS,
 });
 
