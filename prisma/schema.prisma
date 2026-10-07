@@ -930,3 +930,39 @@ model WhatsappWebhookEvent {
   @@index([phoneNumberId, createdAt], map: "whatsapp_webhook_events_phone_idx")
   @@map("whatsapp_webhook_events")
 }
+
+enum WhatsappConnectionStatus {
+  PENDING
+  CONNECTING
+  CONNECTED
+  FAILED
+  CANCELLED
+}
+
+model WhatsappConnection {
+  id                    String                   @id @default(uuid()) @db.Uuid
+  sessionKey            String                   @unique @map("session_key")
+  status                WhatsappConnectionStatus @default(PENDING)
+  signupEvent           String?                  @map("signup_event")
+  encryptedToken        String?                  @map("encrypted_token")
+  tokenObtainedAt       DateTime?                @map("token_obtained_at")
+  wabaId                String?                  @map("waba_id")
+  phoneNumberId         String?                  @map("phone_number_id")
+  businessId            String?                  @map("business_id")
+  displayPhoneNumber    String?                  @map("display_phone_number")
+  verifiedName          String?                  @map("verified_name")
+  isOnBizApp            Boolean?                 @map("is_on_biz_app")
+  platformType          String?                  @map("platform_type")
+  contactsSyncRequestId String?                  @map("contacts_sync_request_id")
+  historySyncRequestId  String?                  @map("history_sync_request_id")
+  lastStep              String?                  @map("last_step")
+  errorMessage          String?                  @map("error_message")
+  steps                 Json                     @default("[]")
+  connectedAt           DateTime?                @map("connected_at")
+  createdBy             String?                  @map("created_by")
+  createdAt             DateTime                 @default(now()) @map("created_at")
+  updatedAt             DateTime                 @updatedAt @map("updated_at")
+
+  @@index([status, createdAt], map: "whatsapp_connections_status_idx")
+  @@map("whatsapp_connections")
+}

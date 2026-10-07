@@ -52,6 +52,10 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional().or(z.literal("")),
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional().or(z.literal("")),
   WHATSAPP_APP_SECRET: z.string().optional().or(z.literal("")),
+  WHATSAPP_APP_ID: z.string().optional().or(z.literal("")),
+  WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID: z.string().optional().or(z.literal("")),
+  WHATSAPP_GRAPH_API_VERSION: z.string().default("v25.0"),
+  WHATSAPP_TOKEN_ENCRYPTION_KEY: z.string().optional().or(z.literal("")),
   DEV_ADMIN_BYPASS: z.enum(["true", "false"]).default("false"),
 });
 
@@ -107,6 +111,10 @@ const parsedEnv = envSchema.parse({
   SMTP_PASSWORD: process.env.SMTP_PASSWORD,
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
   WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET,
+  WHATSAPP_APP_ID: process.env.WHATSAPP_APP_ID,
+  WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID: process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID,
+  WHATSAPP_GRAPH_API_VERSION: process.env.WHATSAPP_GRAPH_API_VERSION || undefined,
+  WHATSAPP_TOKEN_ENCRYPTION_KEY: process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY,
   DEV_ADMIN_BYPASS: process.env.DEV_ADMIN_BYPASS,
 });
 
