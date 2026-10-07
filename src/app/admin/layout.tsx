@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, BarChart3, CircleHelp, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageSquareQuote, Newspaper, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, CircleHelp, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -22,6 +22,7 @@ const navigation = [
   { section: "links", href: "/admin/links", label: "Links", icon: <Link2 className="h-4 w-4" /> },
   { section: "sync", href: "/admin/sync", label: "Sync", icon: <RefreshCcw className="h-4 w-4" /> },
   { section: "users", href: "/admin/usuarios", label: "Usuarios", icon: <Users className="h-4 w-4" /> },
+  { section: "whatsapp", href: "/admin/whatsapp", label: "WhatsApp", icon: <MessageCircle className="h-4 w-4" />, prefetch: false },
 ];
 
 export default async function AdminLayout({
@@ -32,7 +33,7 @@ export default async function AdminLayout({
   const session = await getAdminSession();
   const visibleNavigation = session
     ? navigation.filter((item) => {
-        if (item.section === "users") {
+        if (item.section === "users" || item.section === "whatsapp") {
           return isPrincipalAdminEmail(session.adminUser.email, env.ADMIN_LOCAL_EMAIL);
         }
 
