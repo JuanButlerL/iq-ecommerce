@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Heart, Instagram, Mail, Newspaper } from "lucide-react";
+import { Heart, Instagram, Mail, Newspaper, ShieldCheck } from "lucide-react";
 
 import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { Container } from "@/components/layout/container";
@@ -54,6 +54,10 @@ export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber, newslet
               WhatsApp
             </Link>
           ) : null}
+          <Link href="/privacidad" className="inline-flex items-center gap-2 hover:text-brand-pink">
+            <ShieldCheck className="h-4 w-4" />
+            Política de privacidad
+          </Link>
         </div>
       </Container>
     </footer>
