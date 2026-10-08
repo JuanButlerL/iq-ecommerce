@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
+import { PRESET_CART_PARAM } from "@/features/cart/lib/preset-cart";
 import { useCartStore } from "@/features/cart/store";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
@@ -31,6 +32,7 @@ type CartPageProps = {
   products: ProductWithImages[];
   settings: SettingsWithRule;
   recoveryToken?: string;
+  presetItems?: Array<{ productId: string; quantity: number }>;
 };
 
 const cartFallbackImageMap: Record<string, string> = {
@@ -46,7 +48,7 @@ function cartSignature(items: Array<{ productId: string; quantity: number }>) {
     .join("|");
 }
 
-export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
+export function CartPage({ products, settings, recoveryToken, presetItems = [] }: CartPageProps) {
   const router = useRouter();
   const emailInputRef = useRef<HTMLInputElement>(null);
   const items = useCartStore((state) => state.items);
@@ -84,6 +86,31 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
         !selectedProductIds.has(product.id),
     );
   }, [items, products]);
+
+  // Pre-filled cart link (ads): replace the cart once, after the saved cart was
+  // read from the browser, then drop the parameter so a reload does not re-apply it.
+  const presetApplied = useRef(false);
+  useEffect(() => {
+    if (presetApplied.current || presetItems.length === 0) {
+      return;
+    }
+
+    const apply = () => {
+      if (presetApplied.current) return;
+      presetApplied.current = true;
+      replaceItems(presetItems);
+      const url = new URL(window.location.href);
+      url.searchParams.delete(PRESET_CART_PARAM);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    };
+
+    if (useCartStore.persist.hasHydrated()) {
+      apply();
+      return;
+    }
+
+    return useCartStore.persist.onFinishHydration(apply);
+  }, [presetItems, replaceItems]);
 
   useEffect(() => {
     if (!recoveryToken) {
