@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, GripVertical, ImagePlus, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, ImagePlus, Loader2, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
@@ -235,8 +235,8 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
         <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Home carrusel</p>
         <h1 className="font-display text-3xl text-brand-ink md:text-5xl">Slides del inicio</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/70 md:text-base">
-          Cada slide es una imagen de portada con su título, subtítulo, checks y botón. Si no hay slides activos, la home
-          muestra la portada original.
+          Cada slide es una imagen de portada con su título, subtítulo, checks y botón. La portada original siempre se
+          muestra primera; los slides que cargues acá aparecen después.
         </p>
       </div>
 
@@ -367,9 +367,34 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
           </div>
 
           <div className="space-y-3">
+            <div className="rounded-[1.5rem] border border-dashed border-brand-ink/15 bg-white p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Lock className="h-4 w-4 text-brand-ink/35" aria-hidden />
+                <span className="rounded-full bg-brand-peach px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-pink">
+                  Posición 1 · Fija
+                </span>
+              </div>
+              <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/redesign/hero-home.jpg"
+                  alt=""
+                  draggable={false}
+                  className="aspect-[16/9] w-full shrink-0 rounded-2xl object-cover sm:w-36"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-brand-pink">Snacks para niños</p>
+                  <p className="mt-1 font-bold text-brand-ink">Portada original</p>
+                  <p className="mt-2 text-sm text-brand-ink/60">
+                    Siempre va primera. El texto y el link de su botón se editan en Configuración.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {slides.length === 0 ? (
               <div className="rounded-[1.5rem] border border-dashed border-brand-ink/15 p-6 text-sm text-brand-ink/55">
-                Todavía no hay slides. La home sigue mostrando la portada original.
+                Todavía no cargaste slides. Los que agregues se muestran después de la portada original.
               </div>
             ) : (
               orderedSlides.map((slide, index) => {
@@ -400,7 +425,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                       <div className="flex flex-wrap items-center gap-2">
                         <GripVertical className="h-5 w-5 text-brand-ink/35" aria-hidden />
                         <span className="rounded-full bg-brand-peach px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-pink">
-                          Posición {index + 1}
+                          Posición {index + 2}
                         </span>
                         <span
                           className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${

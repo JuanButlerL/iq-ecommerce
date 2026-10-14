@@ -383,27 +383,25 @@ export default async function HomePage() {
   const heroDefaultProduct = homeFeaturedSlots.find((slot) => slot.slotOrder === 1)?.product ?? firstProduct;
   const heroCtaLabel = settings?.heroCtaLabel?.trim() || "Empezá con la caja mix → 3 sabores, 12 barritas";
   const heroCtaUrl = settings?.heroCtaUrl?.trim() || (heroDefaultProduct ? `/productos/${heroDefaultProduct.slug}` : "/productos");
-  // Without slides configured in the admin, keep showing the original hero.
-  const heroSlides: HomeHeroSlide[] =
-    homeSlides.length > 0
-      ? homeSlides
-      : [
-          {
-            id: "default-hero",
-            eyebrow: "Snacks para niños",
-            title: "Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.",
-            mobileTitle: "El snack ya está resuelto.",
-            subtitle: "Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.",
-            badges: ["Nutricionistas", "Sin sellos", "Ingredientes reales"],
-            ctaLabel: heroCtaLabel,
-            ctaUrl: heroCtaUrl,
-            imageUrl: "/redesign/hero-home.jpg",
-            mobileImageUrl: null,
-            imageAlt: settings?.storeName ?? "IQ Kids",
-            imageClassName:
-              "absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]",
-          },
-        ];
+  // The original hero is always the first slide; slides from the admin follow it.
+  const heroSlides: HomeHeroSlide[] = [
+    {
+      id: "default-hero",
+      eyebrow: "Snacks para niños",
+      title: "Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.",
+      mobileTitle: "El snack ya está resuelto.",
+      subtitle: "Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.",
+      badges: ["Nutricionistas", "Sin sellos", "Ingredientes reales"],
+      ctaLabel: heroCtaLabel,
+      ctaUrl: heroCtaUrl,
+      imageUrl: "/redesign/hero-home.jpg",
+      mobileImageUrl: null,
+      imageAlt: settings?.storeName ?? "IQ Kids",
+      imageClassName:
+        "absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]",
+    },
+    ...homeSlides,
+  ];
   const landingProducts = findProductsForLanding(products);
   const subscriptionItems = [
     settings?.subscriptionItemOne?.trim(),
