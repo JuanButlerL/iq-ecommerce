@@ -1,9 +1,13 @@
 import Link from "next/link";
 
 import { HashScrollHandler } from "@/components/hash-scroll-handler";
+import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
 import { HomeProductCardActions } from "@/features/catalog/components/home-product-card-actions";
+import { ProductPrice } from "@/features/catalog/components/product-price";
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
+import { HomeHeroCarousel, type HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
+import { getActiveHomeSlides } from "@/features/home-slides/queries";
 import { getStoreSettingsForClient } from "@/features/settings/queries";
 import { TestimonialsCarousel } from "@/features/testimonials/components/testimonials-carousel";
 import { getActiveTestimonials } from "@/features/testimonials/queries";
@@ -210,7 +214,12 @@ function ProductLandingCard({
         </div>
         <div className="mt-auto space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</span>
+            <ProductPrice
+              className="text-lg font-extrabold"
+              priceArs={product.priceArs}
+              listPriceArs={product.listPriceArs}
+              discountPercentage={product.activeDiscountPercentage}
+            />
             <span
               className="rounded-full px-4 py-2 text-sm font-extrabold text-white transition group-hover:translate-x-1"
               style={{ backgroundColor: theme.accent }}
@@ -330,7 +339,12 @@ function HomeFeaturedSlotCard({
         <div className="mt-auto space-y-4">
           <div className="space-y-3">
             <div>
-              <div className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</div>
+              <ProductPrice
+                className="text-lg font-extrabold"
+                priceArs={product.priceArs}
+                listPriceArs={product.listPriceArs}
+                discountPercentage={product.activeDiscountPercentage}
+              />
               {unitPriceLabel ? (
                 <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">
                   {unitPriceLabel}
@@ -353,11 +367,12 @@ function HomeFeaturedSlotCard({
 }
 
 export default async function HomePage() {
-  const [settings, products, homeFeaturedSlots, testimonials] = await Promise.all([
+  const [settings, products, homeFeaturedSlots, testimonials, homeSlides] = await Promise.all([
     getStoreSettingsForClient(),
     getVisibleProducts(),
     getHomeFeaturedProductSlots(),
     getActiveTestimonials(),
+    getActiveHomeSlides(),
   ]);
 
   const hasTestimonials = testimonials.length > 0;
@@ -368,6 +383,27 @@ export default async function HomePage() {
   const heroDefaultProduct = homeFeaturedSlots.find((slot) => slot.slotOrder === 1)?.product ?? firstProduct;
   const heroCtaLabel = settings?.heroCtaLabel?.trim() || "Empezá con la caja mix → 3 sabores, 12 barritas";
   const heroCtaUrl = settings?.heroCtaUrl?.trim() || (heroDefaultProduct ? `/productos/${heroDefaultProduct.slug}` : "/productos");
+  // Without slides configured in the admin, keep showing the original hero.
+  const heroSlides: HomeHeroSlide[] =
+    homeSlides.length > 0
+      ? homeSlides
+      : [
+          {
+            id: "default-hero",
+            eyebrow: "Snacks para niños",
+            title: "Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.",
+            mobileTitle: "El snack ya está resuelto.",
+            subtitle: "Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.",
+            badges: ["Nutricionistas", "Sin sellos", "Ingredientes reales"],
+            ctaLabel: heroCtaLabel,
+            ctaUrl: heroCtaUrl,
+            imageUrl: "/redesign/hero-home.jpg",
+            mobileImageUrl: null,
+            imageAlt: settings?.storeName ?? "IQ Kids",
+            imageClassName:
+              "absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]",
+          },
+        ];
   const landingProducts = findProductsForLanding(products);
   const subscriptionItems = [
     settings?.subscriptionItemOne?.trim(),
@@ -378,7 +414,7 @@ export default async function HomePage() {
     homeFeaturedSlots.length === 4
       ? homeFeaturedSlots.map((slot: typeof homeFeaturedSlots[number]) => ({
           slotOrder: slot.slotOrder,
-          product: slot.product,
+          product: applyProductDiscount(slot.product),
           eyebrow: slot.eyebrow,
           title: slot.title,
           description: slot.description,
@@ -389,55 +425,11 @@ export default async function HomePage() {
   return (
     <main className="flex flex-col overflow-x-hidden bg-white text-brand-ink">
       <HashScrollHandler />
-      <section id="inicio" className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src="/redesign/hero-home.jpg"
-            alt={settings?.storeName ?? "IQ Kids"}
-            className="absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,249,250,0.28)_0%,rgba(255,249,250,0.22)_48%,rgba(255,249,250,0.16)_78%,rgba(255,249,250,0.1)_100%)] md:bg-[linear-gradient(90deg,rgba(255,248,250,0.94)_0%,rgba(255,248,250,0.86)_28%,rgba(255,248,250,0.62)_45%,rgba(255,248,250,0.18)_65%,rgba(255,248,250,0)_78%)]" />
-          <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(123,216,247,0.12),rgba(255,255,255,0))]" />
-          <div className="absolute inset-y-0 right-0 w-24 bg-[linear-gradient(270deg,rgba(255,211,92,0.12),rgba(255,255,255,0))] sm:w-40" />
-          <div className="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_at_83%_5%,rgba(44,34,65,0.24)_0%,rgba(44,34,65,0.13)_18%,rgba(44,34,65,0.04)_34%,transparent_48%)] lg:block" />
-        </div>
-
-        <div className="relative mx-auto max-w-[1600px] px-0 pb-0 pt-0 sm:px-6 sm:pb-14 sm:pt-6 lg:px-10 lg:pb-24 lg:pt-14 xl:px-12">
-          <div className="flex min-h-[560px] w-full max-w-[860px] flex-col justify-stretch sm:min-h-[620px] sm:justify-center lg:min-h-[610px] xl:min-h-[640px] xl:max-w-[980px]">
-            <div className="relative flex min-h-[560px] w-full flex-col justify-center px-8 py-10 sm:mx-0 sm:min-h-0 sm:max-w-none sm:p-0">
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.72)_100%)] shadow-[0_14px_34px_rgba(255,255,255,0.18)] backdrop-blur-[2px] sm:hidden" />
-            <p className="relative mb-4 text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
-              Snacks para niños
-            </p>
-            <h1 className="relative max-w-[860px] font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.25rem] xl:text-[4.45rem]">
-              <span className="sm:hidden">El snack ya está resuelto.</span>
-              <span className="hidden sm:inline">
-                Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.
-              </span>
-            </h1>
-            <p className="relative mt-5 max-w-[760px] text-[1.05rem] leading-8 text-brand-ink/80 sm:text-xl sm:leading-8">
-              Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.
-            </p>
-            <div className="relative mt-8 flex flex-wrap gap-3 text-sm font-bold text-brand-ink">
-              <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Nutricionistas</span>
-              <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Sin sellos</span>
-              <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Ingredientes reales</span>
-            </div>
-            <div className="relative mt-10 flex flex-col items-start gap-4">
-              <Link
-                href={heroCtaUrl}
-                className="inline-flex w-full max-w-[420px] items-center justify-center rounded-full bg-brand-pink px-8 py-5 text-center text-lg font-extrabold text-white shadow-soft transition hover:bg-[#ea737d] sm:w-auto sm:max-w-none sm:px-10"
-              >
-                {heroCtaLabel}
-              </Link>
-              {showSubscriptionSection && subscriptionHeroNote ? (
-                <p className="text-sm font-bold text-brand-ink/70">{subscriptionHeroNote}</p>
-              ) : null}
-            </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HomeHeroCarousel
+        slides={heroSlides}
+        footnote={showSubscriptionSection ? subscriptionHeroNote : null}
+        intervalSeconds={settings?.heroCarouselIntervalSeconds ?? 7}
+      />
 
       {SHOW_PROCESS_SECTION ? (
         <section id="como-funciona" className="bg-white py-12 sm:py-14 lg:py-16">

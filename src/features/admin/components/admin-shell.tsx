@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, LogOut, Menu, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut, Menu, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { AdminSignOutButton } from "@/features/admin/components/admin-signout-button";
 import { cn } from "@/lib/utils/cn";
 
 type NavigationItem = {
+  group: string;
   href: string;
   label: string;
   icon: ReactNode;
@@ -21,14 +22,143 @@ type AdminShellProps = {
   navigation: NavigationItem[];
 };
 
+const COLLAPSED_GROUPS_STORAGE_KEY = "iqkids-admin-collapsed-groups";
+
+function groupNavigation(navigation: NavigationItem[]) {
+  const groups: { name: string; items: NavigationItem[] }[] = [];
+
+  for (const item of navigation) {
+    const group = groups.find((entry) => entry.name === item.group);
+
+    if (group) {
+      group.items.push(item);
+    } else {
+      groups.push({ name: item.group, items: [item] });
+    }
+  }
+
+  return groups;
+}
+
 export function AdminShell({ children, navigation }: AdminShellProps) {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
   const isLoginRoute = pathname === "/admin/login";
+  const groups = useMemo(() => groupNavigation(navigation), [navigation]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(COLLAPSED_GROUPS_STORAGE_KEY) ?? "[]");
+      if (Array.isArray(stored)) {
+        setCollapsedGroups(stored.filter((name): name is string => typeof name === "string"));
+      }
+    } catch {
+      // Storage unavailable: every group starts expanded.
+    }
+  }, []);
+
+  function updateCollapsedGroups(update: (current: string[]) => string[]) {
+    setCollapsedGroups((current) => {
+      const next = update(current);
+
+      if (next === current) {
+        return current;
+      }
+
+      try {
+        window.localStorage.setItem(COLLAPSED_GROUPS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // Not persisted; the toggle still works for this visit.
+      }
+
+      return next;
+    });
+  }
+
+  function toggleGroup(name: string) {
+    updateCollapsedGroups((current) =>
+      current.includes(name) ? current.filter((entry) => entry !== name) : [...current, name],
+    );
+  }
+
+  // Navigating into a collapsed group opens it, so the current page is always listed.
+  useEffect(() => {
+    const activeGroup = navigation.find((item) => item.href === pathname)?.group;
+
+    if (activeGroup) {
+      updateCollapsedGroups((current) =>
+        current.includes(activeGroup) ? current.filter((entry) => entry !== activeGroup) : current,
+      );
+    }
+  }, [navigation, pathname]);
+
+  function renderNavigation(variant: "mobile" | "desktop") {
+    const iconsOnly = variant === "desktop" && isDesktopCollapsed;
+
+    return groups.map((group, groupIndex) => {
+      const isExpanded = iconsOnly || !collapsedGroups.includes(group.name);
+      const listId = `admin-nav-${variant}-${groupIndex}`;
+
+      return (
+        <div key={group.name} className={cn(groupIndex > 0 && (iconsOnly ? "mt-3 border-t border-brand-ink/10 pt-3" : "mt-4"))}>
+          {iconsOnly ? null : (
+            <button
+              type="button"
+              aria-expanded={isExpanded}
+              aria-controls={listId}
+              onClick={() => toggleGroup(group.name)}
+              className="flex w-full items-center justify-between rounded-xl px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand-ink/45 transition hover:text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/40"
+            >
+              {group.name}
+              <ChevronDown aria-hidden="true" className={cn("h-3.5 w-3.5 transition-transform", !isExpanded && "-rotate-90")} />
+            </button>
+          )}
+
+          {isExpanded ? (
+            <div id={listId} className="mt-1 space-y-1">
+              {group.items.map((item) => {
+                const isActive = pathname === item.href;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch={item.prefetch}
+                    className={cn(
+                      "flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-bold transition",
+                      isActive
+                        ? "bg-brand-pink text-white shadow-soft"
+                        : variant === "mobile"
+                          ? "bg-brand-pink/6 text-brand-ink hover:bg-brand-pink/12"
+                          : "text-brand-ink hover:bg-brand-pink/8",
+                      iconsOnly && "justify-center px-3",
+                    )}
+                    title={item.label}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <span aria-hidden="true" className="shrink-0">
+                      {item.icon}
+                    </span>
+                    <span className={cn(iconsOnly && "sr-only")}>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      );
+    });
+  }
 
   useEffect(() => {
     setIsMenuOpen(false);
+  }, [pathname]);
+
+  // Keep the active section visible when the desktop menu is scrolled.
+  useEffect(() => {
+    document.querySelector('aside nav [aria-current="page"]')?.scrollIntoView({ block: "nearest" });
   }, [pathname]);
 
   if (isLoginRoute) {
@@ -82,28 +212,7 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
               </Button>
             </div>
 
-            <nav className="mt-6 space-y-2">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    prefetch={item.prefetch}
-                    className={cn(
-                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition",
-                      isActive ? "bg-brand-pink text-white shadow-soft" : "bg-brand-pink/6 text-brand-ink hover:bg-brand-pink/12",
-                    )}
-                  >
-                    <span aria-hidden="true" className="shrink-0">
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
+            <nav className="mt-6">{renderNavigation("mobile")}</nav>
 
             <div className="mt-6">
               <AdminSignOutButton className="w-full justify-center" />
@@ -136,32 +245,11 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
               </Button>
             </div>
 
-            <nav className="mt-8 space-y-2">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    prefetch={item.prefetch}
-                    className={cn(
-                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition",
-                      isActive ? "bg-brand-pink text-white shadow-soft" : "text-brand-ink hover:bg-brand-pink/8",
-                      isDesktopCollapsed && "justify-center px-3",
-                    )}
-                    title={item.label}
-                  >
-                    <span aria-hidden="true" className="shrink-0">
-                      {item.icon}
-                    </span>
-                    <span className={cn(isDesktopCollapsed && "sr-only")}>{item.label}</span>
-                  </Link>
-                );
-              })}
+            <nav className="-mx-2 mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-1 [scrollbar-width:thin]">
+              {renderNavigation("desktop")}
             </nav>
 
-            <div className="mt-auto pt-6">
+            <div className="shrink-0 border-t border-brand-ink/10 pt-5">
               <AdminSignOutButton className={cn("w-full justify-center", isDesktopCollapsed && "px-0")} title="Cerrar sesión">
                 <span className={cn(isDesktopCollapsed && "sr-only")}>Cerrar sesión</span>
                 {isDesktopCollapsed ? <LogOut aria-hidden="true" className="h-4 w-4" /> : null}

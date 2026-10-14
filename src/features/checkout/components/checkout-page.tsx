@@ -16,6 +16,8 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCartStore } from "@/features/cart/store";
 import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
+import { ProductPrice } from "@/features/catalog/components/product-price";
+import type { ProductPricing } from "@/features/catalog/lib/product-discount";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
@@ -29,7 +31,7 @@ import { checkoutCustomerSchema, type CheckoutCustomerInput } from "@/lib/valida
 import { formatArs } from "@/lib/utils/currency";
 import { getBrowserMarketingContext } from "@/lib/marketing/client";
 
-type ProductWithImages = Product & { images: ProductImage[] };
+type ProductWithImages = Product & { images: ProductImage[] } & ProductPricing;
 type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
   bankTransferDiscountPercentage: number;
   activeShippingRule: (ShippingRule & { provinces: ShippingRuleProvince[] }) | null;
@@ -756,7 +758,14 @@ export function CheckoutPage({
               <span className="pr-2">
                 {item.product.name} x {item.quantity}
               </span>
-              <span className="shrink-0">{formatArs(item.product.priceArs * item.quantity)}</span>
+              <ProductPrice
+                className="shrink-0 justify-end"
+                priceArs={item.product.priceArs}
+                listPriceArs={item.product.listPriceArs}
+                discountPercentage={item.product.activeDiscountPercentage}
+                quantity={item.quantity}
+                showBadge={false}
+              />
             </div>
           ))}
         </div>
@@ -938,7 +947,12 @@ export function CheckoutPage({
                       <span className="mt-2 line-clamp-1 max-w-full text-xs font-extrabold uppercase tracking-[0.08em] text-brand-ink">
                         {formatCheckoutProductLabel(productLabel)}
                       </span>
-                      <span className="mt-1 text-[11px] font-semibold text-brand-ink/55">{formatArs(product.priceArs)}</span>
+                      <ProductPrice
+                        className="mt-1 justify-center text-[11px] font-semibold text-brand-ink/55"
+                        priceArs={product.priceArs}
+                        listPriceArs={product.listPriceArs}
+                        showBadge={false}
+                      />
                       <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-extrabold text-brand-pink">
                         <Plus className="h-3 w-3" /> Agregar
                       </span>

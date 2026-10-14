@@ -196,6 +196,9 @@ model Product {
   shortDescription String            @map("short_description")
   longDescription  String            @map("long_description")
   priceArs         Int               @map("price_ars")
+  discountPercentage Int?            @map("discount_percentage")
+  discountStartsAt DateTime?         @map("discount_starts_at")
+  discountEndsAt   DateTime?         @map("discount_ends_at")
   homeVarietyLabel String?           @map("home_variety_label")
   colorTheme       ProductColorTheme @map("color_theme")
   visualAccentHex  String?           @map("visual_accent_hex")
@@ -302,6 +305,7 @@ model StoreSettings {
   faqSupportText         String?       @map("faq_support_text")
   heroCtaLabel           String?       @map("hero_cta_label")
   heroCtaUrl             String?       @map("hero_cta_url")
+  heroCarouselIntervalSeconds Int     @default(7) @map("hero_carousel_interval_seconds")
   subscriptionSectionEnabled Boolean   @default(false) @map("subscription_section_enabled")
   subscriptionCtaUrl     String?       @map("subscription_cta_url")
   subscriptionHeroNote   String?       @map("subscription_hero_note")
@@ -358,6 +362,27 @@ model Testimonial {
 
   @@index([active, sortOrder], map: "testimonials_active_sort_idx")
   @@map("testimonials")
+}
+
+model HomeSlide {
+  id             String   @id @default(uuid()) @db.Uuid
+  eyebrow        String?
+  title          String
+  mobileTitle    String?  @map("mobile_title")
+  subtitle       String?
+  badges         String[] @default([])
+  ctaLabel       String?  @map("cta_label")
+  ctaUrl         String?  @map("cta_url")
+  imageUrl       String   @map("image_url")
+  mobileImageUrl String?  @map("mobile_image_url")
+  imageAlt       String?  @map("image_alt")
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder], map: "home_slides_active_sort_idx")
+  @@map("home_slides")
 }
 
 model FrequentlyAskedQuestion {
