@@ -3,6 +3,7 @@ import type { AdminUser } from "@prisma/client";
 export const ADMIN_SECTIONS = [
   { id: "dashboard", label: "Dashboard", href: "/admin" },
   { id: "products", label: "Productos", href: "/admin/productos" },
+  { id: "home-carousel", label: "Home carrusel", href: "/admin/home-carrusel" },
   { id: "home-products", label: "Home productos", href: "/admin/home-productos" },
   { id: "settings", label: "Configuracion", href: "/admin/configuracion" },
   { id: "coupons", label: "Cupones", href: "/admin/cupones" },
