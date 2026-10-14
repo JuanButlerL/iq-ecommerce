@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { HashScrollHandler } from "@/components/hash-scroll-handler";
+import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
 import { HomeProductCardActions } from "@/features/catalog/components/home-product-card-actions";
+import { ProductPrice } from "@/features/catalog/components/product-price";
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
 import { HomeHeroCarousel, type HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
@@ -212,7 +214,12 @@ function ProductLandingCard({
         </div>
         <div className="mt-auto space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</span>
+            <ProductPrice
+              className="text-lg font-extrabold"
+              priceArs={product.priceArs}
+              listPriceArs={product.listPriceArs}
+              discountPercentage={product.activeDiscountPercentage}
+            />
             <span
               className="rounded-full px-4 py-2 text-sm font-extrabold text-white transition group-hover:translate-x-1"
               style={{ backgroundColor: theme.accent }}
@@ -332,7 +339,12 @@ function HomeFeaturedSlotCard({
         <div className="mt-auto space-y-4">
           <div className="space-y-3">
             <div>
-              <div className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</div>
+              <ProductPrice
+                className="text-lg font-extrabold"
+                priceArs={product.priceArs}
+                listPriceArs={product.listPriceArs}
+                discountPercentage={product.activeDiscountPercentage}
+              />
               {unitPriceLabel ? (
                 <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">
                   {unitPriceLabel}
@@ -402,7 +414,7 @@ export default async function HomePage() {
     homeFeaturedSlots.length === 4
       ? homeFeaturedSlots.map((slot: typeof homeFeaturedSlots[number]) => ({
           slotOrder: slot.slotOrder,
-          product: slot.product,
+          product: applyProductDiscount(slot.product),
           eyebrow: slot.eyebrow,
           title: slot.title,
           description: slot.description,

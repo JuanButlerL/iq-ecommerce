@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, BarChart3, CircleHelp, GalleryHorizontalEnd, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, CircleHelp, GalleryHorizontalEnd, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, RefreshCcw, Settings, ShoppingBag, Tag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -12,6 +12,7 @@ const navigation = [
   { section: "home-carousel", href: "/admin/home-carrusel", label: "Home carrusel", icon: <GalleryHorizontalEnd className="h-4 w-4" /> },
   { section: "home-products", href: "/admin/home-productos", label: "Home productos", icon: <LayoutTemplate className="h-4 w-4" /> },
   { section: "settings", href: "/admin/configuracion", label: "Configuracion", icon: <Settings className="h-4 w-4" /> },
+  { section: "discounts", href: "/admin/descuentos", label: "Descuentos", icon: <Tag className="h-4 w-4" /> },
   { section: "coupons", href: "/admin/cupones", label: "Cupones", icon: <BadgePercent className="h-4 w-4" /> },
   { section: "testimonials", href: "/admin/testimonios", label: "Testimonios", icon: <MessageSquareQuote className="h-4 w-4" /> },
   { section: "faq", href: "/admin/preguntas-frecuentes", label: "Preguntas frecuentes", icon: <CircleHelp className="h-4 w-4" /> },

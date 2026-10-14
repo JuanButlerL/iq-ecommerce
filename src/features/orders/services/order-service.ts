@@ -1,6 +1,7 @@
 import { NewsletterConsentSource, OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 import { MarketingEventType } from "@prisma/client";
 
+import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
@@ -76,14 +77,16 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   }
 
   const productIds = input.items.map((item) => item.productId);
-  const products = await prisma.product.findMany({
-    where: {
-      id: { in: productIds },
-      active: true,
-      visible: true,
-      manualSoldOut: false,
-    },
-  });
+  const products = (
+    await prisma.product.findMany({
+      where: {
+        id: { in: productIds },
+        active: true,
+        visible: true,
+        manualSoldOut: false,
+      },
+    })
+  ).map((product) => applyProductDiscount(product));
 
   if (products.length !== productIds.length) {
     throw new AppError("Uno o mas productos ya no estan disponibles.", 400);

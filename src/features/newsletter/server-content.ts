@@ -1,5 +1,6 @@
 import type { Newsletter } from "@prisma/client";
 
+import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
 import type { NewsletterBlock, NewsletterContent, NewsletterProductSummary } from "@/features/newsletter/content";
 import { buildNewsletterEmailSnapshot } from "@/features/newsletter/render-email";
 import { prisma } from "@/lib/db/prisma";
@@ -41,7 +42,7 @@ export async function loadNewsletterProducts(productIds?: string[]) {
         id: product.id,
         name: product.name,
         slug: product.slug,
-        priceArs: product.priceArs,
+        priceArs: applyProductDiscount(product).priceArs,
         imageUrl: product.images[0]?.publicUrl ?? null,
         available: product.active && product.visible && !product.manualSoldOut,
       } satisfies NewsletterProductSummary,

@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
 import { prisma } from "@/lib/db/prisma";
 
 const productInclude = {
@@ -11,7 +12,7 @@ const productInclude = {
 };
 
 export const getFeaturedProducts = cache(async () => {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       active: true,
       visible: true,
@@ -19,10 +20,12 @@ export const getFeaturedProducts = cache(async () => {
     include: productInclude,
     orderBy: [{ featured: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
   });
+
+  return products.map((product) => applyProductDiscount(product));
 });
 
 export const getVisibleProducts = cache(async () => {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       active: true,
       visible: true,
@@ -30,17 +33,21 @@ export const getVisibleProducts = cache(async () => {
     include: productInclude,
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
+
+  return products.map((product) => applyProductDiscount(product));
 });
 
 export const getProductBySlug = cache(async (slug: string) => {
-  return prisma.product.findUnique({
+  const product = await prisma.product.findUnique({
     where: { slug },
     include: productInclude,
   });
+
+  return product ? applyProductDiscount(product) : null;
 });
 
 export async function getSimilarProducts(productId: string) {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: {
       id: { not: productId },
       active: true,
@@ -50,4 +57,6 @@ export async function getSimilarProducts(productId: string) {
     orderBy: [{ featured: "desc" }, { sortOrder: "asc" }],
     take: 3,
   });
+
+  return products.map((product) => applyProductDiscount(product));
 }

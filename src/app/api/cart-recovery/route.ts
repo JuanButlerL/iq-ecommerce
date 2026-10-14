@@ -3,6 +3,7 @@ import { MarketingEventType } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
 import { ensureMarketingSession, logMarketingEvent } from "@/features/marketing/attribution-service";
 import { hasSameRecoveryCart } from "@/features/cart-recovery/free-shipping-service";
 import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
@@ -40,20 +41,22 @@ export async function POST(request: Request) {
       quantityByProductId.set(item.productId, (quantityByProductId.get(item.productId) ?? 0) + item.quantity);
     }
 
-    const products = await prisma.product.findMany({
-      where: {
-        id: { in: Array.from(quantityByProductId.keys()) },
-        active: true,
-        visible: true,
-        manualSoldOut: false,
-      },
-      include: {
-        images: {
-          orderBy: { sortOrder: "asc" },
-          take: 1,
+    const products = (
+      await prisma.product.findMany({
+        where: {
+          id: { in: Array.from(quantityByProductId.keys()) },
+          active: true,
+          visible: true,
+          manualSoldOut: false,
         },
-      },
-    });
+        include: {
+          images: {
+            orderBy: { sortOrder: "asc" },
+            take: 1,
+          },
+        },
+      })
+    ).map((product) => applyProductDiscount(product));
 
     if (!products.length) {
       return NextResponse.json({ error: "El carrito no tiene productos disponibles." }, { status: 400 });

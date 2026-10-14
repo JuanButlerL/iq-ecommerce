@@ -14,6 +14,8 @@ import { Select } from "@/components/ui/select";
 import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { PRESET_CART_PARAM } from "@/features/cart/lib/preset-cart";
 import { useCartStore } from "@/features/cart/store";
+import { ProductPrice } from "@/features/catalog/components/product-price";
+import type { ProductPricing } from "@/features/catalog/lib/product-discount";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { formatArs } from "@/lib/utils/currency";
@@ -22,7 +24,7 @@ import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
 import { getBrowserMarketingContext } from "@/lib/marketing/client";
 import { WELCOME_POPUP_EMAIL_STORAGE_KEY } from "@/lib/marketing/welcome-popup-copy";
 
-type ProductWithImages = Product & { images: ProductImage[] };
+type ProductWithImages = Product & { images: ProductImage[] } & ProductPricing;
 type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
   bankTransferDiscountPercentage: number;
   activeShippingRule: (ShippingRule & { provinces: ShippingRuleProvince[] }) | null;
@@ -362,7 +364,12 @@ export function CartPage({ products, settings, recoveryToken, presetItems = [] }
                 </h2>
                 <p className="mt-1 break-words text-xs font-extrabold leading-4 text-emerald-700 md:leading-5 md:text-sm">Seleccionado por nutricionistas - Sin sellos</p>
                 <p className="mt-2 text-[0.95rem] leading-none text-brand-ink md:mt-1 md:text-sm md:text-brand-ink/60">
-                  {formatArs(product.priceArs * cart.quantity)}
+                  <ProductPrice
+                    priceArs={product.priceArs}
+                    listPriceArs={product.listPriceArs}
+                    discountPercentage={product.activeDiscountPercentage}
+                    quantity={cart.quantity}
+                  />
                 </p>
               </div>
 
@@ -453,7 +460,14 @@ export function CartPage({ products, settings, recoveryToken, presetItems = [] }
 
                     <div className="min-w-0">
                       <p className="truncate text-[0.92rem] font-extrabold leading-5 text-brand-ink">{productLabel}</p>
-                      <p className="mt-1 text-sm font-bold text-brand-ink/55">{formatArs(product.priceArs)}</p>
+                      <p className="mt-1 text-sm font-bold text-brand-ink/55">
+                        <ProductPrice
+                          priceArs={product.priceArs}
+                          listPriceArs={product.listPriceArs}
+                          discountPercentage={product.activeDiscountPercentage}
+                          showBadge={false}
+                        />
+                      </p>
                     </div>
 
                     <div className="inline-flex items-center justify-self-end rounded-full border border-brand-ink/12 bg-white shadow-[0_8px_18px_rgba(44,34,65,0.05)]">
