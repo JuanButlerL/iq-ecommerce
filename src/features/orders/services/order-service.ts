@@ -1,7 +1,11 @@
 import { NewsletterConsentSource, OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 import { MarketingEventType } from "@prisma/client";
 
-import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
+import {
+  applyProductDiscount,
+  COUPON_EXCLUDES_DISCOUNTED_MESSAGE,
+  getCouponEligibleSubtotal,
+} from "@/features/catalog/lib/product-discount";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
@@ -109,10 +113,21 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     items: input.items,
   });
   const shippingArs = hasRecoveryFreeShipping ? 0 : shippingQuote.shippingArs;
+  const couponEligibleSubtotalArs = getCouponEligibleSubtotal(
+    input.items.flatMap((item) => {
+      const product = products.find((entry) => entry.id === item.productId);
+      return product ? [{ ...product, quantity: item.quantity }] : [];
+    }),
+  );
+
+  if (input.couponCode?.trim() && couponEligibleSubtotalArs <= 0) {
+    throw new AppError(COUPON_EXCLUDES_DISCOUNTED_MESSAGE, 400);
+  }
+
   const coupon = input.couponCode?.trim()
       ? await getCouponPreview({
           code: input.couponCode,
-          subtotalArs,
+          subtotalArs: couponEligibleSubtotalArs,
           taxId: input.taxId,
         })
     : null;

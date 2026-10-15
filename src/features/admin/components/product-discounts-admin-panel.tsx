@@ -34,6 +34,10 @@ export function ProductDiscountsAdminPanel({ products }: ProductDiscountsAdminPa
           con descuento, y es el precio que se cobra. Las fechas son opcionales: sin fechas, el descuento queda activo
           hasta que lo quites.
         </p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-brand-ink/70 md:text-base">
+          No se acumula con cupones: si el carrito tiene productos con descuento, el cupón se aplica solo sobre los demás.
+          El descuento por transferencia sí se suma.
+        </p>
         <p className="mt-3 text-sm font-bold text-brand-ink/60">
           {activeCount} {activeCount === 1 ? "producto con descuento activo" : "productos con descuento activo"}.
         </p>
