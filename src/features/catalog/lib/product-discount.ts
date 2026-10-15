@@ -29,6 +29,21 @@ export function getProductDiscountStatus(product: Omit<DiscountableProduct, "pri
   return "active";
 }
 
+export const COUPON_EXCLUDES_DISCOUNTED_MESSAGE = "El cupón no aplica a productos que ya tienen descuento.";
+
+/**
+ * Coupons don't stack with product discounts: they are calculated only over the
+ * lines without an active discount.
+ */
+export function getCouponEligibleSubtotal(
+  lines: { priceArs: number; activeDiscountPercentage: number | null; quantity: number }[],
+) {
+  return lines.reduce(
+    (total, line) => (line.activeDiscountPercentage ? total : total + line.priceArs * line.quantity),
+    0,
+  );
+}
+
 export function calculateDiscountedPrice(priceArs: number, discountPercentage: number) {
   return Math.max(Math.round((priceArs * (100 - discountPercentage)) / 100), 0);
 }

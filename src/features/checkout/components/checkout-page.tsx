@@ -17,7 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCartStore } from "@/features/cart/store";
 import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { ProductPrice } from "@/features/catalog/components/product-price";
-import type { ProductPricing } from "@/features/catalog/lib/product-discount";
+import {
+  COUPON_EXCLUDES_DISCOUNTED_MESSAGE,
+  getCouponEligibleSubtotal,
+  type ProductPricing,
+} from "@/features/catalog/lib/product-discount";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
@@ -221,6 +225,10 @@ export function CheckoutPage({
       /(?:^|\s)\d{3,8}\s*(?:bis|[a-z])?\s*$/i.test(watchedAddressLine?.trim() ?? ""),
   );
   const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
+  const couponEligibleSubtotal = getCouponEligibleSubtotal(
+    productItems.map((item) => ({ ...item.product, quantity: item.quantity })),
+  );
+  const hasDiscountedItems = productItems.some((item) => item.product.activeDiscountPercentage);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
   const displayedShippingArs = recoveryFreeShippingActive ? 0 : shippingQuote.shippingArs;
   const couponDiscountArs = appliedCoupon?.discountArs ?? 0;
@@ -346,7 +354,7 @@ export function CheckoutPage({
     }
 
     void refreshCoupon(appliedCoupon.couponCode, false);
-  }, [appliedCoupon, subtotal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [appliedCoupon, couponEligibleSubtotal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (hasTrackedCheckoutRef.current) {
@@ -381,6 +389,14 @@ export function CheckoutPage({
 
   async function refreshCoupon(code: string, updateInput = true) {
     const requestVersion = ++couponRequestVersionRef.current;
+
+    if (couponEligibleSubtotal <= 0) {
+      setAppliedCoupon(null);
+      setCouponError(COUPON_EXCLUDES_DISCOUNTED_MESSAGE);
+      form.setValue("couponCode", "");
+      return;
+    }
+
     const response = await fetch("/api/coupons/validate", {
       method: "POST",
       headers: {
@@ -388,7 +404,7 @@ export function CheckoutPage({
       },
       body: JSON.stringify({
         code,
-        subtotalArs: subtotal,
+        subtotalArs: couponEligibleSubtotal,
         taxId: form.getValues("taxId") ?? "",
       }),
     });
@@ -833,6 +849,9 @@ export function CheckoutPage({
                       })}{" "}
                       ({formatArs(appliedCoupon.discountArs)})
                     </p>
+                    {hasDiscountedItems ? (
+                      <p className="mt-1 text-xs">No aplica a los productos que ya tienen descuento.</p>
+                    ) : null}
                   </div>
                 </div>
                 <button
