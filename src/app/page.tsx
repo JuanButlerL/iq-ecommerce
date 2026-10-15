@@ -22,6 +22,11 @@ type HomeProductCardItem = {
   buttonLabel: string;
 };
 
+// The original hero photo needs its own framing to keep the people visible next to the text.
+const ORIGINAL_HERO_IMAGE = "/redesign/hero-home.jpg";
+const ORIGINAL_HERO_IMAGE_CLASS =
+  "absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]";
+
 // Keep the section ready while its final content and imagery are being defined.
 const SHOW_PROCESS_SECTION = false;
 
@@ -383,25 +388,29 @@ export default async function HomePage() {
   const heroDefaultProduct = homeFeaturedSlots.find((slot) => slot.slotOrder === 1)?.product ?? firstProduct;
   const heroCtaLabel = settings?.heroCtaLabel?.trim() || "Empezá con la caja mix → 3 sabores, 12 barritas";
   const heroCtaUrl = settings?.heroCtaUrl?.trim() || (heroDefaultProduct ? `/productos/${heroDefaultProduct.slug}` : "/productos");
-  // The original hero is always the first slide; slides from the admin follow it.
-  const heroSlides: HomeHeroSlide[] = [
-    {
-      id: "default-hero",
-      eyebrow: "Snacks para niños",
-      title: "Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.",
-      mobileTitle: "El snack ya está resuelto.",
-      subtitle: "Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.",
-      badges: ["Nutricionistas", "Sin sellos", "Ingredientes reales"],
-      ctaLabel: heroCtaLabel,
-      ctaUrl: heroCtaUrl,
-      imageUrl: "/redesign/hero-home.jpg",
-      mobileImageUrl: null,
-      imageAlt: settings?.storeName ?? "IQ Kids",
-      imageClassName:
-        "absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]",
-    },
-    ...homeSlides,
-  ];
+  // Slides come from the admin (the original hero is one of them, editable like the rest).
+  // With no active slides the home falls back to the original hero.
+  const heroSlides: HomeHeroSlide[] =
+    homeSlides.length > 0
+      ? homeSlides.map((slide) =>
+          slide.imageUrl === ORIGINAL_HERO_IMAGE ? { ...slide, imageClassName: ORIGINAL_HERO_IMAGE_CLASS } : slide,
+        )
+      : [
+          {
+            id: "default-hero",
+            eyebrow: "Snacks para niños",
+            title: "Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.",
+            mobileTitle: "El snack ya está resuelto.",
+            subtitle: "Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.",
+            badges: ["Nutricionistas", "Sin sellos", "Ingredientes reales"],
+            ctaLabel: heroCtaLabel,
+            ctaUrl: heroCtaUrl,
+            imageUrl: ORIGINAL_HERO_IMAGE,
+            mobileImageUrl: null,
+            imageAlt: settings?.storeName ?? "IQ Kids",
+            imageClassName: ORIGINAL_HERO_IMAGE_CLASS,
+          },
+        ];
   const landingProducts = findProductsForLanding(products);
   const subscriptionItems = [
     settings?.subscriptionItemOne?.trim(),
