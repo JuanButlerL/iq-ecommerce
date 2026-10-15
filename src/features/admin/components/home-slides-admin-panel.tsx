@@ -466,7 +466,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                             {slide.eyebrow}
                           </p>
                         ) : null}
-                        <p className="mt-1 font-bold text-brand-ink">{slide.title}</p>
+                        <p className="mt-1 whitespace-pre-line font-bold text-brand-ink">{slide.title}</p>
                         {slide.ctaLabel ? (
                           <p className="mt-2 break-words text-sm text-brand-ink/60">
                             Botón: {slide.ctaLabel} → {slide.ctaUrl}
