@@ -133,7 +133,7 @@ export function HomeHeroCarousel({ slides, footnote, intervalSeconds = 7 }: Home
                         {slide.eyebrow}
                       </p>
                     ) : null}
-                    <TitleTag className="relative max-w-[860px] font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.25rem] xl:text-[4.45rem]">
+                    <TitleTag className="relative max-w-[860px] whitespace-pre-line font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.25rem] xl:text-[4.45rem]">
                       {slide.mobileTitle ? (
                         <>
                           <span className="sm:hidden">{slide.mobileTitle}</span>
@@ -144,7 +144,7 @@ export function HomeHeroCarousel({ slides, footnote, intervalSeconds = 7 }: Home
                       )}
                     </TitleTag>
                     {slide.subtitle ? (
-                      <p className="relative mt-5 max-w-[760px] text-[1.05rem] leading-8 text-brand-ink/80 sm:text-xl sm:leading-8">
+                      <p className="relative mt-5 max-w-[760px] whitespace-pre-line text-[1.05rem] leading-8 text-brand-ink/80 sm:text-xl sm:leading-8">
                         {slide.subtitle}
                       </p>
                     ) : null}
