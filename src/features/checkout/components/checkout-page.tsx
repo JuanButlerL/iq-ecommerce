@@ -794,6 +794,10 @@ export function CheckoutPage({
             <div className="min-w-0 flex-1">
               <p className="font-bold text-brand-ink">Código de descuento</p>
               <p className="mt-1 text-sm text-brand-ink/60">Aplicalo antes de confirmar tu pedido.</p>
+              <p className="mt-1 text-xs leading-5 text-brand-ink/55">
+                Podés usar un solo cupón por compra.
+                {hasDiscountedItems ? " No se suma a los productos que ya tienen descuento." : null}
+              </p>
             </div>
           </div>
 
