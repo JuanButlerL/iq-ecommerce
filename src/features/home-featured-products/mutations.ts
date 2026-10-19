@@ -10,57 +10,42 @@ export async function saveHomeFeaturedProductSlots(payload: unknown) {
   const parsed = homeFeaturedProductsSchema.safeParse(payload);
 
   if (!parsed.success) {
-    throw new AppError("Datos de productos destacados invalidos.", 400);
+    throw new AppError(parsed.error.issues[0]?.message ?? "Datos de productos destacados invalidos.", 400, true);
   }
 
-  const uniqueSlotOrders = new Set(parsed.data.slots.map((slot) => slot.slotOrder));
-  const uniqueProductIds = new Set(parsed.data.slots.map((slot) => slot.productId));
+  const { slots } = parsed.data;
+  const uniqueProductIds = new Set(slots.map((slot) => slot.productId));
 
-  if (uniqueSlotOrders.size !== 4) {
-    throw new AppError("Cada posicion del home debe aparecer una sola vez.", 400);
+  if (uniqueProductIds.size !== slots.length) {
+    throw new AppError("Cada producto puede aparecer una sola vez en el home.", 400, true);
   }
 
-  if (uniqueProductIds.size !== 4) {
-    throw new AppError("Cada posicion del home debe usar un producto distinto.", 400);
-  }
-
-  const products = await prisma.product.findMany({
+  const existingCount = await prisma.product.count({
     where: {
       id: { in: Array.from(uniqueProductIds) },
     },
-    select: {
-      id: true,
-    },
   });
 
-  if (products.length !== 4) {
-    throw new AppError("Uno o mas productos seleccionados ya no existen.", 400);
+  if (existingCount !== uniqueProductIds.size) {
+    throw new AppError("Uno o mas productos seleccionados ya no existen.", 400, true);
   }
 
-  await prisma.$transaction(
-    parsed.data.slots.map((slot) =>
-      prisma.homeFeaturedProductSlot.upsert({
-        where: { slotOrder: slot.slotOrder },
-        update: {
-          productId: slot.productId,
-          eyebrow: slot.eyebrow,
-          title: slot.title,
-          description: slot.description,
-          quote: slot.quote || null,
-          buttonLabel: slot.buttonLabel,
-        },
-        create: {
-          slotOrder: slot.slotOrder,
-          productId: slot.productId,
-          eyebrow: slot.eyebrow,
-          title: slot.title,
-          description: slot.description,
-          quote: slot.quote || null,
-          buttonLabel: slot.buttonLabel,
-        },
-      }),
-    ),
-  );
+  // The list is saved as a whole: replacing it keeps slot orders consecutive (1..n)
+  // without clashing with the unique slot_order index while reordering.
+  await prisma.$transaction([
+    prisma.homeFeaturedProductSlot.deleteMany({}),
+    prisma.homeFeaturedProductSlot.createMany({
+      data: slots.map((slot, index) => ({
+        slotOrder: index + 1,
+        productId: slot.productId,
+        eyebrow: slot.eyebrow,
+        title: slot.title,
+        description: slot.description,
+        quote: slot.quote || null,
+        buttonLabel: slot.buttonLabel,
+      })),
+    }),
+  ]);
 
   revalidatePath("/");
   revalidatePath("/admin/home-productos");
