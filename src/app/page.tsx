@@ -4,6 +4,8 @@ import { HashScrollHandler } from "@/components/hash-scroll-handler";
 import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
 import { HomeProductCardActions } from "@/features/catalog/components/home-product-card-actions";
 import { ProductPrice } from "@/features/catalog/components/product-price";
+import { HomeProductsScroller } from "@/features/catalog/components/home-products-scroller";
+import { HOME_PRODUCTS_GRID_LIMIT } from "@/features/catalog/lib/home-products";
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
 import { HomeHeroCarousel, type HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
@@ -298,6 +300,7 @@ function HomeFeaturedSlotCard({
   description,
   buttonLabel,
   highlighted = false,
+  inScroller = false,
 }: {
   product: ProductItem;
   eyebrow: string;
@@ -305,6 +308,7 @@ function HomeFeaturedSlotCard({
   description: string;
   buttonLabel: string;
   highlighted?: boolean;
+  inScroller?: boolean;
 }) {
   const theme = getThemeColors(product);
   const homeLabel = product.homeVarietyLabel?.trim() || eyebrow;
@@ -312,7 +316,11 @@ function HomeFeaturedSlotCard({
 
   return (
     <article
-      className={`group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 md:h-full md:w-auto md:shrink ${
+      className={`group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 md:h-full ${
+        inScroller
+          ? "md:w-[calc((100%_-_1.25rem)/2)] xl:w-[calc((100%_-_3.75rem)/4)]"
+          : "md:w-auto md:shrink"
+      } ${
         highlighted
           ? "border-brand-pink/60 shadow-[0_20px_48px_rgba(244,137,145,0.2)] ring-1 ring-brand-pink/20"
           : "border-brand-ink/10 shadow-card"
@@ -417,9 +425,13 @@ export default async function HomePage() {
     settings?.subscriptionItemTwo?.trim(),
     settings?.subscriptionItemThree?.trim(),
   ].filter((item): item is string => Boolean(item));
+  // Hidden or inactive products are skipped so the home never links to an unavailable page.
+  const visibleFeaturedSlots = homeFeaturedSlots.filter(
+    (slot: typeof homeFeaturedSlots[number]) => slot.product.active && slot.product.visible,
+  );
   const homeProductCards: HomeProductCardItem[] =
-    homeFeaturedSlots.length === 4
-      ? homeFeaturedSlots.map((slot: typeof homeFeaturedSlots[number]) => ({
+    visibleFeaturedSlots.length > 0
+      ? visibleFeaturedSlots.map((slot: typeof homeFeaturedSlots[number]) => ({
           slotOrder: slot.slotOrder,
           product: applyProductDiscount(slot.product),
           eyebrow: slot.eyebrow,
@@ -428,6 +440,7 @@ export default async function HomePage() {
           buttonLabel: slot.buttonLabel,
         }))
       : buildHomeFeaturedFallbackSlots(products);
+  const homeProductsScroll = homeProductCards.length > HOME_PRODUCTS_GRID_LIMIT;
 
   return (
     <main className="flex flex-col overflow-x-hidden bg-white text-brand-ink">
@@ -569,24 +582,22 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <div className="relative">
-            <div className="mt-8 flex items-stretch snap-x snap-mandatory gap-5 overflow-x-auto pb-5 pr-12 md:mt-10 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 md:pr-0 xl:grid-cols-4">
-              {hasProducts
-                ? homeProductCards.map((slot: HomeProductCardItem) => (
-                    <HomeFeaturedSlotCard
-                      key={`${slot.slotOrder}-${slot.product.id}`}
-                      product={slot.product}
-                      eyebrow={slot.eyebrow}
-                      title={slot.title}
-                      description={slot.description}
-                      buttonLabel={slot.buttonLabel}
-                      highlighted={slot.slotOrder === 1}
-                    />
-                  ))
-                : null}
-            </div>
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#fff6f7] via-[#fff6f7]/75 to-transparent md:hidden" />
-          </div>
+          <HomeProductsScroller itemCount={hasProducts ? homeProductCards.length : 0}>
+            {hasProducts
+              ? homeProductCards.map((slot: HomeProductCardItem, index: number) => (
+                  <HomeFeaturedSlotCard
+                    key={`${slot.slotOrder}-${slot.product.id}`}
+                    product={slot.product}
+                    eyebrow={slot.eyebrow}
+                    title={slot.title}
+                    description={slot.description}
+                    buttonLabel={slot.buttonLabel}
+                    highlighted={index === 0}
+                    inScroller={homeProductsScroll}
+                  />
+                ))
+              : null}
+          </HomeProductsScroller>
 
           <div className="hidden mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4">
             <article className="flex min-w-[280px] max-w-[320px] snap-start flex-col overflow-hidden rounded-[2rem] border border-brand-ink/10 bg-white shadow-card">
