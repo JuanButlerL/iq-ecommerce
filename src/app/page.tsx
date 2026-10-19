@@ -316,10 +316,11 @@ function HomeFeaturedSlotCard({
 
   return (
     <article
-      className={`group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 md:h-full ${
+      className={`group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 ${
+        // In the scroller cards stretch to the tallest one; a fixed 100% height would block that.
         inScroller
           ? "md:w-[calc((100%_-_1.25rem)/2)] xl:w-[calc((100%_-_3.75rem)/4)]"
-          : "md:w-auto md:shrink"
+          : "md:h-full md:w-auto md:shrink"
       } ${
         highlighted
           ? "border-brand-pink/60 shadow-[0_20px_48px_rgba(244,137,145,0.2)] ring-1 ring-brand-pink/20"
