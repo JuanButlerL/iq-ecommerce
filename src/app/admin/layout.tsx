@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, BarChart3, CircleHelp, GalleryHorizontalEnd, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, RefreshCcw, Settings, ShoppingBag, Tag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, CircleHelp, ClipboardList, GalleryHorizontalEnd, Inbox, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, Receipt, RefreshCcw, Settings, ShoppingBag, Store, Tag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -17,6 +17,14 @@ const navigation = [
   { group: "Home y contenido", section: "home-products", href: "/admin/home-productos", label: "Home productos", icon: <LayoutTemplate className="h-4 w-4" /> },
   { group: "Home y contenido", section: "testimonials", href: "/admin/testimonios", label: "Testimonios", icon: <MessageSquareQuote className="h-4 w-4" /> },
   { group: "Home y contenido", section: "faq", href: "/admin/preguntas-frecuentes", label: "Preguntas frecuentes", icon: <CircleHelp className="h-4 w-4" /> },
+  { group: "Mayoristas", section: "wholesale", href: "/admin/mayoristas/consultas", label: "Consultas", icon: <Inbox className="h-4 w-4" />, prefetch: false },
+  { group: "Mayoristas", section: "wholesale", href: "/admin/mayoristas", label: "General", icon: <Store className="h-4 w-4" /> },
+  { group: "Mayoristas", section: "wholesale", href: "/admin/mayoristas/productos", label: "Productos", icon: <Package className="h-4 w-4" /> },
+  { group: "Mayoristas", section: "wholesale", href: "/admin/mayoristas/contenido", label: "Contenido", icon: <LayoutTemplate className="h-4 w-4" /> },
+  { group: "Mayoristas", section: "wholesale", href: "/admin/mayoristas/condiciones", label: "Condiciones y precios", icon: <Receipt className="h-4 w-4" /> },
+  { group: "Mayoristas", section: "wholesale", href: "/admin/mayoristas/pedido", label: "Formulario y pedido", icon: <ClipboardList className="h-4 w-4" /> },
+  { group: "Mayoristas", section: "wholesale", href: "/admin/mayoristas/testimonios", label: "Testimonios", icon: <MessageSquareQuote className="h-4 w-4" /> },
+  { group: "Mayoristas", section: "wholesale", href: "/admin/mayoristas/preguntas-frecuentes", label: "Preguntas frecuentes", icon: <CircleHelp className="h-4 w-4" /> },
   { group: "Marketing", section: "marketing", href: "/admin/marketing", label: "Marketing", icon: <BarChart3 className="h-4 w-4" />, prefetch: false },
   { group: "Marketing", section: "emails", href: "/admin/emails", label: "Emails", icon: <Mail className="h-4 w-4" />, prefetch: false },
   { group: "Marketing", section: "newsletter", href: "/admin/newsletter", label: "Newsletter", icon: <Newspaper className="h-4 w-4" />, prefetch: false },
