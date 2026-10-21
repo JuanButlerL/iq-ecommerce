@@ -13,15 +13,19 @@ const extensionByMimeType: Record<string, string> = {
   "image/webp": "webp",
 };
 
-// Same public bucket as product images, under its own folder.
 export async function uploadHomeSlideImage(file: File): Promise<UploadResult> {
+  return uploadContentImage("home-slides", file);
+}
+
+// Same public bucket as product images, under its own folder.
+export async function uploadContentImage(folder: string, file: File): Promise<UploadResult> {
   if (!env.hasSupabaseAdmin) {
-    return writeLocalUpload("home-slides", "general", file);
+    return writeLocalUpload(folder, "general", file);
   }
 
   const supabase = createSupabaseAdminClient();
   const extension = extensionByMimeType[file.type] ?? "jpg";
-  const storagePath = `home-slides/${crypto.randomUUID()}.${extension}`;
+  const storagePath = `${folder}/${crypto.randomUUID()}.${extension}`;
   const arrayBuffer = await file.arrayBuffer();
 
   const { error } = await supabase.storage.from(env.SUPABASE_PRODUCT_BUCKET).upload(storagePath, arrayBuffer, {

@@ -385,6 +385,51 @@ model HomeSlide {
   @@map("home_slides")
 }
 
+model WholesalePage {
+  id        String   @id @default("default")
+  content   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("wholesale_page")
+}
+
+model WholesaleLead {
+  id                String              @id @default(uuid()) @db.Uuid
+  status            WholesaleLeadStatus @default(NEW)
+  name              String
+  phone             String
+  email             String
+  businessName      String?             @map("business_name")
+  businessType      String              @map("business_type")
+  cuit              String?
+  street            String
+  floor             String?
+  city              String
+  province          String
+  postalCode        String              @map("postal_code")
+  reference         String?
+  monthlyVolume     String?             @map("monthly_volume")
+  message           String?             @db.Text
+  adminNotes        String?             @map("admin_notes") @db.Text
+  ipAddress         String?             @map("ip_address")
+  userAgent         String?             @map("user_agent")
+  notifiedAt        DateTime?           @map("notified_at")
+  notificationError String?             @map("notification_error")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  @@index([status, createdAt], map: "wholesale_leads_status_created_idx")
+  @@index([ipAddress, createdAt], map: "wholesale_leads_ip_created_idx")
+  @@map("wholesale_leads")
+}
+
+enum WholesaleLeadStatus {
+  NEW
+  CONTACTED
+  CLIENT
+  DISCARDED
+}
+
 model FrequentlyAskedQuestion {
   id        String   @id @default(uuid()) @db.Uuid
   question  String

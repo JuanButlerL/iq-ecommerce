@@ -10,6 +10,7 @@ export const ADMIN_SECTIONS = [
   { id: "coupons", label: "Cupones", href: "/admin/cupones" },
   { id: "testimonials", label: "Testimonios", href: "/admin/testimonios" },
   { id: "faq", label: "Preguntas frecuentes", href: "/admin/preguntas-frecuentes" },
+  { id: "wholesale", label: "Mayoristas", href: "/admin/mayoristas" },
   { id: "shipping", label: "Envios", href: "/admin/envios" },
   { id: "orders", label: "Pedidos", href: "/admin/pedidos" },
   { id: "marketing", label: "Marketing", href: "/admin/marketing" },
