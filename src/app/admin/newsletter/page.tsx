@@ -22,7 +22,7 @@ export default async function AdminNewsletterPage() {
       settings={settings}
       server={{
         newsletterSendingEnabled: env.newsletterSendingEnabled,
-        canSendEmail: env.canSendEmail,
+        canSendEmail: env.canSendNewsletterEmail,
         isProduction: env.isProduction,
         batchSize: env.NEWSLETTER_BATCH_SIZE,
       }}

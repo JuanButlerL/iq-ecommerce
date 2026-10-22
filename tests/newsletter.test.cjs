@@ -77,7 +77,7 @@ function harness(options = {}) {
   };
   const calls = [];
   const settings = { newsletterSenderName: 'IQ Kids', newsletterFromEmail: 'no-reply@iqkids.example', newsletterReplyToEmail: null, newsletterTestRecipients: options.testRecipients ?? ['equipo@iqkids.example'], newsletterDailyLimit: options.dailyLimit ?? 80 };
-  const env = { newsletterSendingEnabled: true, canSendEmail: true, isProduction: true, NEWSLETTER_BATCH_SIZE: 40, NEWSLETTER_LATE_MARGIN_HOURS: 12, NEXT_PUBLIC_SITE_URL: SITE, EMAIL_FROM_DEFAULT: 'no-reply@iqkids.example', ...options.env };
+  const env = { newsletterSendingEnabled: true, canSendEmail: true, canSendNewsletterEmail: true, isProduction: true, NEWSLETTER_BATCH_SIZE: 40, NEWSLETTER_LATE_MARGIN_HOURS: 12, NEXT_PUBLIC_SITE_URL: SITE, EMAIL_FROM_DEFAULT: 'no-reply@iqkids.example', ...options.env };
   const subscribersWithDeliveries = () => db.subscribers.map(s => ({ ...s, deliveries: db.deliveries.filter(d => d.subscriberId === s.id) }));
   const applyUpdate = (rows, where, data) => {
     const targets = rows.filter(row => matches(row, where));
