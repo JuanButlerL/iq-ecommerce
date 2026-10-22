@@ -1,3 +1,4 @@
+import { sendGraphEmail } from "@/features/email/graph-transport";
 import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors/app-error";
 import nodemailer from "nodemailer";
@@ -12,18 +13,50 @@ type SendEmailInput = {
   text: string;
   bccEmail?: string | null;
   headers?: Record<string, string>;
+  // Newsletters can go through their own provider (NEWSLETTER_EMAIL_PROVIDER).
+  channel?: "newsletter";
 };
 
 export async function sendEmail(input: SendEmailInput) {
-  if (!env.canSendEmail) {
+  const isNewsletter = input.channel === "newsletter";
+
+  if (!(isNewsletter ? env.canSendNewsletterEmail : env.canSendEmail)) {
     throw new AppError("El proveedor de emails no esta configurado.", 400, true);
   }
 
-  if (env.EMAIL_PROVIDER === "smtp") {
+  const provider = isNewsletter ? env.newsletterEmailProvider : env.EMAIL_PROVIDER;
+
+  if (provider === "graph") {
+    return sendMicrosoftGraphEmail(input);
+  }
+
+  if (provider === "smtp") {
     return sendSmtpEmail(input);
   }
 
   return sendResendEmail(input);
+}
+
+async function sendMicrosoftGraphEmail(input: SendEmailInput) {
+  try {
+    await sendGraphEmail(
+      {
+        tenantId: env.GRAPH_TENANT_ID || "",
+        clientId: env.GRAPH_CLIENT_ID || "",
+        senderEmail: env.GRAPH_SENDER_EMAIL || "",
+        certificatePem: env.GRAPH_CERTIFICATE || "",
+        privateKeyPem: env.GRAPH_PRIVATE_KEY || "",
+      },
+      { ...input, replyToEmail: input.replyToEmail || env.EMAIL_REPLY_TO_DEFAULT || null },
+    );
+  } catch (error) {
+    throw new AppError(error instanceof Error ? error.message : "No se pudo enviar el email.", 502, true);
+  }
+
+  // Graph answers 202 without a message id.
+  return {
+    providerMessageId: null,
+  };
 }
 
 async function sendResendEmail(input: SendEmailInput) {
