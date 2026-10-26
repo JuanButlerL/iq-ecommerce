@@ -6,7 +6,7 @@ import { getStoreSettings } from "@/features/settings/queries";
 import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
 
 export const metadata: Metadata = {
-  title: "Política de privacidad | IQ Kids",
+  title: "Política de privacidad",
   description: "Cómo IQ Kids recolecta, usa y protege tus datos personales, y cómo ejercer tus derechos.",
   alternates: { canonical: "/privacidad" },
 };
