@@ -3,6 +3,7 @@ import { Heart, Instagram, Mail, Newspaper, ShieldCheck } from "lucide-react";
 
 import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { Container } from "@/components/layout/container";
+import { siteConfig } from "@/lib/utils/site";
 import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
 
 type SiteFooterProps = {
@@ -23,6 +24,9 @@ export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber, newslet
             <span>Hecho con</span>
             <Heart className="h-4 w-4 fill-current" />
             <span>para niños</span>
+          </p>
+          <p className="mt-2 text-xs text-brand-ink/55">
+            {siteConfig.name} es una marca de {siteConfig.companyName}.
           </p>
         </div>
         <div className="flex flex-col gap-3 break-all text-sm text-brand-ink/70 sm:break-normal">

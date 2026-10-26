@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { HashScrollHandler } from "@/components/hash-scroll-handler";
@@ -13,6 +14,10 @@ import { getActiveHomeSlides } from "@/features/home-slides/queries";
 import { getStoreSettingsForClient } from "@/features/settings/queries";
 import { TestimonialsCarousel } from "@/features/testimonials/components/testimonials-carousel";
 import { getActiveTestimonials } from "@/features/testimonials/queries";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 type ProductItem = Awaited<ReturnType<typeof getVisibleProducts>>[number];
 type HomeProductCardItem = {
