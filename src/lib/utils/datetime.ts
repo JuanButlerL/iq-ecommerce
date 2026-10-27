@@ -81,6 +81,15 @@ export function getArgentinaMonthStart(year: number, month: number) {
   return new Date(Date.UTC(year, month - 1, 1, ARGENTINA_UTC_OFFSET_HOURS, 0, 0, 0));
 }
 
+// "octubre de 2026"
+export function formatArgentinaMonthYear(value: Date) {
+  return value.toLocaleDateString("es-AR", {
+    timeZone: ARGENTINA_TIME_ZONE,
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export function formatArgentinaDayLabel(value: Date) {
   return value.toLocaleDateString("es-AR", {
     timeZone: ARGENTINA_TIME_ZONE,
