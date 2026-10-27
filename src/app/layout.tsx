@@ -12,6 +12,7 @@ import { AppChrome } from "@/components/layout/app-chrome";
 import { getStoreSettings } from "@/features/settings/queries";
 import { env } from "@/lib/env";
 import { absoluteUrl, JsonLd } from "@/lib/seo/json-ld";
+import { getSiteLastUpdatedAt } from "@/lib/seo/last-updated";
 import { siteConfig } from "@/lib/utils/site";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +47,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const settings = await getStoreSettings();
+  const [settings, lastUpdatedAt] = await Promise.all([getStoreSettings(), getSiteLastUpdatedAt()]);
   const clarityProjectId = env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID || "wqhtpsarz4";
   const facebookPixelId = env.hasFacebookPixel ? env.NEXT_PUBLIC_FB_PIXEL_ID : null;
   const googleTagManagerId = env.hasGoogleTagManager ? env.NEXT_PUBLIC_GTM_ID : null;
@@ -69,6 +70,7 @@ export default async function RootLayout({
         url: absoluteUrl("/"),
         inLanguage: "es-AR",
         publisher: { "@id": absoluteUrl("/#organization") },
+        ...(lastUpdatedAt ? { dateModified: lastUpdatedAt.toISOString() } : {}),
       },
     ],
   };
@@ -96,6 +98,7 @@ export default async function RootLayout({
           subscriptionSectionEnabled={settings?.subscriptionSectionEnabled}
           faqSectionEnabled={settings?.faqSectionEnabled}
           newsletterSectionEnabled={settings?.newsletterSectionEnabled}
+          lastUpdatedAt={lastUpdatedAt?.toISOString()}
         >
           {children}
         </AppChrome>
