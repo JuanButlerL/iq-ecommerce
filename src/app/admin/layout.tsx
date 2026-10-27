@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, BarChart3, CircleHelp, ClipboardList, GalleryHorizontalEnd, Inbox, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, Receipt, RefreshCcw, Settings, ShoppingBag, Store, Tag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, CircleHelp, ClipboardList, GalleryHorizontalEnd, Gift, Inbox, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, Receipt, RefreshCcw, Settings, ShoppingBag, Store, Tag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -12,6 +12,7 @@ const navigation = [
   { group: "Tienda", section: "products", href: "/admin/productos", label: "Productos", icon: <Package className="h-4 w-4" /> },
   { group: "Tienda", section: "discounts", href: "/admin/descuentos", label: "Descuentos", icon: <Tag className="h-4 w-4" /> },
   { group: "Tienda", section: "coupons", href: "/admin/cupones", label: "Cupones", icon: <BadgePercent className="h-4 w-4" /> },
+  { group: "Tienda", section: "coupons", href: "/admin/envio-gratis", label: "Envío gratis", icon: <Gift className="h-4 w-4" /> },
   { group: "Tienda", section: "shipping", href: "/admin/envios", label: "Envios", icon: <Truck className="h-4 w-4" /> },
   { group: "Home y contenido", section: "home-carousel", href: "/admin/home-carrusel", label: "Home carrusel", icon: <GalleryHorizontalEnd className="h-4 w-4" /> },
   { group: "Home y contenido", section: "home-products", href: "/admin/home-productos", label: "Home productos", icon: <LayoutTemplate className="h-4 w-4" /> },

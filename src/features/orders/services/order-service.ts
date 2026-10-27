@@ -15,6 +15,7 @@ import {
   canUseCartRecoveryFreeShippingBenefit,
   redeemCartRecoveryFreeShippingBenefit,
 } from "@/features/cart-recovery/free-shipping-service";
+import { canUseFreeShippingLink, redeemFreeShippingLink } from "@/features/free-shipping-links/service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
@@ -112,7 +113,11 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     email: input.email,
     items: input.items,
   });
-  const shippingArs = hasRecoveryFreeShipping ? 0 : shippingQuote.shippingArs;
+  // The same checkout token can also be a free shipping link generated from the admin.
+  const hasFreeShippingLink =
+    !hasRecoveryFreeShipping &&
+    (await canUseFreeShippingLink({ token: input.cartRecoveryFreeShippingToken, email: input.email }));
+  const shippingArs = hasRecoveryFreeShipping || hasFreeShippingLink ? 0 : shippingQuote.shippingArs;
   const couponEligibleSubtotalArs = getCouponEligibleSubtotal(
     input.items.flatMap((item) => {
       const product = products.find((entry) => entry.id === item.productId);
@@ -240,6 +245,18 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
           }
         }
 
+        if (hasFreeShippingLink) {
+          const redeemed = await redeemFreeShippingLink(tx, {
+            token: input.cartRecoveryFreeShippingToken!,
+            email: input.email,
+            orderId: order.id,
+          });
+
+          if (!redeemed) {
+            throw new AppError("El link de envío gratis ya no está disponible. Volvé a cargar el checkout para actualizar el total.", 409);
+          }
+        }
+
         await tx.orderStatusHistory.create({
           data: {
             orderId: order.id,
@@ -258,7 +275,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
                   })}).`
               : pricing.paymentMethodDiscountArs > 0
                 ? `Pedido generado desde checkout web con descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
-                : "Pedido generado desde checkout web."}${hasRecoveryFreeShipping ? " Envío bonificado por recuperación de carrito." : ""}`,
+                : "Pedido generado desde checkout web."}${hasRecoveryFreeShipping ? " Envío bonificado por recuperación de carrito." : ""}${hasFreeShippingLink ? " Envío gratis por link personal." : ""}`,
             changedBy: "system",
           },
         });

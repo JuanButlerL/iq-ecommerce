@@ -150,6 +150,7 @@ export function CheckoutPage({
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponPreview | null>(null);
   const [recoveryFreeShippingActive, setRecoveryFreeShippingActive] = useState(false);
+  const [freeShippingSource, setFreeShippingSource] = useState<"cart_recovery" | "free_shipping_link" | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isApplyingCoupon, startApplyingCoupon] = useTransition();
   const hasTrackedCheckoutRef = useRef(false);
@@ -317,6 +318,7 @@ export function CheckoutPage({
   useEffect(() => {
     if (!initialCartRecoveryFreeShippingToken || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(watchedEmail)) {
       setRecoveryFreeShippingActive(false);
+      setFreeShippingSource(null);
       return;
     }
 
@@ -336,9 +338,11 @@ export function CheckoutPage({
         });
         const payload = await response.json();
         setRecoveryFreeShippingActive(Boolean(response.ok && payload.data?.eligible));
+        setFreeShippingSource(response.ok && payload.data?.eligible ? payload.data.source ?? null : null);
       } catch (error) {
         if ((error as Error).name !== "AbortError") {
           setRecoveryFreeShippingActive(false);
+          setFreeShippingSource(null);
         }
       }
     }
@@ -926,10 +930,14 @@ export function CheckoutPage({
         <div className="space-y-4 border-t border-brand-ink/10 pt-4">
           {recoveryFreeShippingActive ? (
             <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
-              Envío bonificado por recuperar este carrito. Se confirma al crear el pedido para este email y estos productos.
+              {freeShippingSource === "free_shipping_link"
+                ? "Envío gratis por tu link personal. Se confirma al crear el pedido con este email."
+                : "Envío bonificado por recuperar este carrito. Se confirma al crear el pedido para este email y estos productos."}
             </p>
           ) : null}
-          <p className="text-sm font-bold leading-6 text-emerald-700">{checkoutShippingNudge}</p>
+          {freeShippingSource === "free_shipping_link" ? null : (
+            <p className="text-sm font-bold leading-6 text-emerald-700">{checkoutShippingNudge}</p>
+          )}
 
           {suggestedProducts.length > 0 ? (
             <div>
