@@ -15,6 +15,9 @@ export type OrderSheetRow = {
   localidad: string;
   codigo_postal: string;
   direccion: string;
+  calle: string;
+  altura: string;
+  sin_altura: boolean;
   direccion_extra: string;
   observaciones: string;
   cupon: string;

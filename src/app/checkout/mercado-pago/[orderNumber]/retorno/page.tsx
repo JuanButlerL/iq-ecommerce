@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
+﻿import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 
 import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,10 @@ export default async function MercadoPagoReturnPage({
     notFound();
   }
 
+  if (order.paymentStatus === "PAID") {
+    redirect(`/checkout/confirmacion/${order.publicOrderNumber}`);
+  }
+
   const copy = getReturnCopy(order.paymentProviderStatus ?? undefined, order.paymentProviderStatusDetail ?? undefined);
 
   return (
@@ -62,11 +66,7 @@ export default async function MercadoPagoReturnPage({
         </div>
 
         <div className="flex flex-wrap justify-center gap-4">
-          {order.paymentStatus === "PAID" ? (
-            <Link href={`/checkout/confirmacion/${order.publicOrderNumber}`}>
-              <Button>Ver confirmacion</Button>
-            </Link>
-          ) : order.mercadoPagoPreference ? (
+          {order.mercadoPagoPreference ? (
             <Link href={`/checkout/mercado-pago/${order.publicOrderNumber}`}>
               <Button>Intentar de nuevo</Button>
             </Link>

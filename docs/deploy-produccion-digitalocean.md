@@ -20,6 +20,10 @@ Las migraciones nuevas agregan controles de contenido del home, testimonios, slo
 - preferencias, pagos y webhooks de Mercado Pago
 - trabajos y logs de sincronizacion
 
+Las migraciones de FAQ son aditivas: `202609151200_add_frequently_asked_questions` crea la tabla y agrega el booleano apagado por defecto; `202609161000_add_faq_page_content` agrega seis textos opcionales a `store_settings`. La segunda usa `ADD COLUMN IF NOT EXISTS` para tolerar entornos locales que hubieran aplicado una versión intermedia. No modifican pedidos, pagos, productos, envíos, clientes ni integraciones.
+
+Las migraciones de Newsletter son aditivas: `202609281200_add_newsletter_consent_source` agrega el valor `NEWSLETTER_PAGE` al enum de origen de consentimiento (con `IF NOT EXISTS`); `202609281210_add_newsletters` crea los enums `NewsletterStatus` y `NewsletterDeliveryStatus`, las tablas `newsletters`, `newsletter_deliveries` y `newsletter_audit_events`, sus índices, y nueve columnas nuevas de `store_settings` con valores por defecto (sección apagada, remitente `no-reply@iqkids.com.ar`, límite diario 80). `202609281230_add_newsletter_editorial_fields` agrega tres columnas opcionales a `newsletters` (categoría, frase de encabezado y notas internas) con `IF NOT EXISTS`. No modifican ni borran registros existentes, no crean newsletters y no cambian suscriptos, automatizaciones, logs de email, pedidos ni pagos.
+
 La suscripcion queda desactivada por defecto cuando no tiene contenido configurado. La seccion de testimonios no se muestra si todavia no hay testimonios activos.
 
 ## Variables que deben existir en produccion
@@ -33,6 +37,7 @@ NEXT_PUBLIC_SITE_URL=https://iqkids.com.ar
 
 NEXT_PUBLIC_GTM_ID=GTM-NGKTHTNF
 NEXT_PUBLIC_GA_MEASUREMENT_ID=
+GA_MEASUREMENT_PROTOCOL_API_SECRET=
 NEXT_PUBLIC_MICROSOFT_CLARITY_ID=
 NEXT_PUBLIC_FB_PIXEL_ID=
 META_CONVERSIONS_API_ACCESS_TOKEN=
@@ -62,6 +67,10 @@ MERCADO_PAGO_STATEMENT_DESCRIPTOR=IQKIDS
 
 WHATSAPP_WEBHOOK_VERIFY_TOKEN=
 WHATSAPP_APP_SECRET=
+WHATSAPP_APP_ID=
+WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID=
+WHATSAPP_GRAPH_API_VERSION=v25.0
+WHATSAPP_TOKEN_ENCRYPTION_KEY=
 
 ADMIN_BOOTSTRAP_EMAIL=
 ADMIN_LOCAL_EMAIL=
@@ -69,6 +78,11 @@ ADMIN_LOCAL_PASSWORD=
 ADMIN_SESSION_SECRET=
 ENABLE_PROOF_PUBLIC_URL_SYNC=
 DEV_ADMIN_BYPASS=false
+
+# Newsletter: publicar SIEMPRE con false y habilitar recien despues de la prueba interna.
+NEWSLETTER_SENDING_ENABLED=false
+NEWSLETTER_BATCH_SIZE=40
+NEWSLETTER_LATE_MARGIN_HOURS=12
 ```
 
 Las variables `NEXT_PUBLIC_*` deben estar disponibles durante `docker compose build`, no solamente al iniciar el contenedor.
@@ -180,6 +194,8 @@ Repetir la consulta de cantidades y compararla con el preflight. Los conteos de 
 6. Crear un pedido de prueba por Mercado Pago y confirmar preferencia, retorno y webhook `PAID`.
 7. Entrar al admin y probar lectura/guardado de productos, configuracion, testimonios, suscripcion, envios y pedidos.
 8. Confirmar que las imagenes existentes de Supabase sigan accesibles.
+9. En Preguntas frecuentes, crear una pregunta de prueba, verificar edición y orden, activar la sección y abrir `/preguntas-frecuentes` en desktop y mobile.
+10. Desactivar la sección y confirmar que desaparezca del menú y que la ruta pública responda 404; volver a dejar el estado comercial acordado.
 
 ### Smoke test de medicion
 
@@ -196,6 +212,111 @@ Repetir la consulta de cantidades y compararla con el preflight. Los conteos de 
 - Productos: revisar etiqueta corta del home, colores y orden de imagenes; la primera imagen es la que se usa en el home.
 - Suscripcion: completar link, nota del hero y tres beneficios antes de activarla.
 - Barra de anuncio: revisar texto, estado y umbral de envio gratis.
+- Preguntas frecuentes: cargar y ordenar contenido; activarla solo cuando exista al menos una pregunta activa revisada.
+- Newsletter: ver la seccion siguiente. Configurar remitente y casillas de prueba antes de cualquier envio.
+
+## 7. Newsletter: pase a produccion, habilitacion, cron y emergencia
+
+### Garantias de diseno
+
+- Deploy seguro por defecto: si `NEWSLETTER_SENDING_ENABLED` no existe o es `false`, el cron de newsletter no envia nada aunque haya newsletters programadas.
+- Importar HTML, crear, editar, mostrar en la web o duplicar **nunca** envia mails. Solo crea o modifica borradores.
+- Un envio real exige: switch del servidor + prueba enviada con el contenido actual + confirmacion escribiendo `ENVIAR`.
+- Una fila por newsletter + email (indice unico): nadie la recibe dos veces.
+- Las migraciones son aditivas. No se modifican automatizaciones, pop-up, checkout, pedidos ni pagos.
+
+### Paso a paso del deploy (primera vez)
+
+1. Preflight y punto de retorno:
+
+```bash
+cd /opt/iqkids/web
+git status --short
+git rev-parse HEAD
+docker compose ps
+```
+
+Anotar el commit que devuelve `git rev-parse HEAD`: es el punto de rollback. Si `git status` no esta limpio, frenar.
+
+2. Ver que se publica (puede incluir commits previos de la rama, por ejemplo hotfixes de Post compra y Mercado Pago):
+
+```bash
+git fetch origin --tags
+git log --oneline HEAD..<TAG>
+```
+
+3. Asegurar el switch apagado ANTES de construir:
+
+```bash
+grep -n "^NEWSLETTER_SENDING_ENABLED\|^EMAIL_SENDING_ENABLED\|^EMAIL_CRON_SECRET\|^EMAIL_POST_PURCHASE_SEND_FROM" .env | sed 's/=.*/=<definido>/'
+grep -q "^NEWSLETTER_SENDING_ENABLED=" .env || echo "NEWSLETTER_SENDING_ENABLED=false" >> .env
+grep "^NEWSLETTER_SENDING_ENABLED=" .env
+```
+
+Tiene que decir `NEWSLETTER_SENDING_ENABLED=false`. Si dice `true`, editarlo a `false`.
+
+4. Backup verificado (obligatorio) y conteos previos: seccion 3 de este documento.
+
+5. Construir, migrar con la imagen nueva y recien despues reemplazar la app:
+
+```bash
+git checkout <TAG>
+docker compose build app
+docker compose run --rm app npx prisma migrate deploy
+docker compose up -d app
+docker compose ps
+docker compose logs --tail=150 app
+```
+
+`migrate deploy` debe listar exactamente `202609281200_add_newsletter_consent_source`, `202609281210_add_newsletters` y `202609281230_add_newsletter_editorial_fields` (mas las previas que todavia no estuvieran aplicadas).
+
+6. Verificacion:
+
+```bash
+docker compose exec app printenv NEWSLETTER_SENDING_ENABLED
+curl -fsS -o /dev/null -w "%{http_code}\n" https://iqkids.com.ar/
+curl -fsS -o /dev/null -w "%{http_code}\n" https://iqkids.com.ar/productos
+```
+
+La primera linea tiene que imprimir `false` (o nada). Repetir la consulta de conteos y compararla. Abrir `/admin/newsletter`: el cartel tiene que decir "Envios reales apagados".
+
+7. Cron (queda inofensivo mientras el switch este apagado). Primero mirar como esta configurado el de automatizaciones y replicar el mismo metodo:
+
+```bash
+crontab -l
+```
+
+Agregar con `crontab -e` (verificar la ruta del `.env`):
+
+```cron
+*/10 * * * * curl -fsS -m 120 -X POST https://iqkids.com.ar/api/cron/newsletters -H "Authorization: Bearer $(grep ^EMAIL_CRON_SECRET= /opt/iqkids/web/.env | cut -d= -f2- | tr -d '"')" > /dev/null 2>&1
+```
+
+Probarlo una vez a mano: con el switch apagado responde `"enabled":false` y no hace nada.
+
+### Primera newsletter real
+
+1. `/admin/newsletter` > Configuracion: remitente `no-reply@iqkids.com.ar`, casillas de prueba y maximo diario 80 (Resend gratis = 100/dia incluyendo los mails de pedidos).
+2. Importar o crear la newsletter, subir la portada, revisar textos y mandar la prueba. Revisarla en Gmail y en el celular.
+3. Habilitar el switch: poner `NEWSLETTER_SENDING_ENABLED=true` en `.env` y recrear solo la app:
+
+```bash
+docker compose up -d app
+docker compose exec app printenv NEWSLETTER_SENDING_ENABLED
+```
+
+4. Programar con fecha y hora de Buenos Aires. Sale dentro de los 10 minutos siguientes. Seguir el envio en `/admin/newsletter/<id>/envios`.
+
+### Emergencia
+
+- Frenar una newsletter: boton "Pausar envio" en el editor (corta antes del siguiente mail).
+- Frenar todo: `NEWSLETTER_SENDING_ENABLED=false` en `.env` y `docker compose up -d app`. Los pendientes quedan intactos.
+- Si fallan 3 mails seguidos, la newsletter se pausa sola (motivo visible en el editor).
+- Nunca borrar filas de `newsletter_deliveries` ni cambiar estados por SQL. Los "A conciliar" y errores se resuelven desde la pantalla de envios.
+
+### Rollback de la newsletter
+
+Volver al commit anotado en el paso 1 y recrear solo la app (`git checkout <COMMIT_ANTERIOR>`, `docker compose build app`, `docker compose up -d app`). No revertir migraciones: las tablas y columnas nuevas quedan y el codigo anterior las ignora.
 
 ## Rollback
 

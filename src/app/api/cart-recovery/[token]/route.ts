@@ -58,6 +58,13 @@ export async function GET(
       email: lead.email,
       province: lead.province,
       items,
+      freeShippingToken:
+        lead.freeShippingToken &&
+        !lead.freeShippingRedeemedAt &&
+        lead.freeShippingExpiresAt &&
+        lead.freeShippingExpiresAt > new Date()
+          ? lead.freeShippingToken
+          : null,
     });
   } catch (error) {
     return routeError(error);

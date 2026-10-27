@@ -11,6 +11,8 @@ import { WebVitals } from "@/components/analytics/web-vitals";
 import { AppChrome } from "@/components/layout/app-chrome";
 import { getStoreSettings } from "@/features/settings/queries";
 import { env } from "@/lib/env";
+import { absoluteUrl, JsonLd } from "@/lib/seo/json-ld";
+import { getSiteLastUpdatedAt } from "@/lib/seo/last-updated";
 import { siteConfig } from "@/lib/utils/site";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +34,7 @@ icons: {
     description: siteConfig.description,
     siteName: "IQ Kids",
     type: "website",
+    images: [{ url: "/brand/iq-kids-logo.png", alt: "IQ Kids" }],
   },
 };
 
@@ -44,10 +47,33 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const settings = await getStoreSettings();
+  const [settings, lastUpdatedAt] = await Promise.all([getStoreSettings(), getSiteLastUpdatedAt()]);
   const clarityProjectId = env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID || "wqhtpsarz4";
   const facebookPixelId = env.hasFacebookPixel ? env.NEXT_PUBLIC_FB_PIXEL_ID : null;
   const googleTagManagerId = env.hasGoogleTagManager ? env.NEXT_PUBLIC_GTM_ID : null;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": absoluteUrl("/#organization"),
+        name: siteConfig.name,
+        url: absoluteUrl("/"),
+        logo: absoluteUrl("/brand/iq-kids-logo.png"),
+        parentOrganization: { "@type": "Organization", name: siteConfig.companyName },
+        ...(settings?.instagramUrl ? { sameAs: [settings.instagramUrl] } : {}),
+      },
+      {
+        "@type": "WebSite",
+        "@id": absoluteUrl("/#website"),
+        name: siteConfig.name,
+        url: absoluteUrl("/"),
+        inLanguage: "es-AR",
+        publisher: { "@id": absoluteUrl("/#organization") },
+        ...(lastUpdatedAt ? { dateModified: lastUpdatedAt.toISOString() } : {}),
+      },
+    ],
+  };
 
   return (
     <html lang="es">
@@ -56,6 +82,7 @@ export default async function RootLayout({
         {googleTagManagerId ? <GoogleTagManager containerId={googleTagManagerId} /> : null}
       </head>
       <body>
+        <JsonLd data={structuredData} />
         {googleTagManagerId ? <GoogleTagManagerNoScript containerId={googleTagManagerId} /> : null}
         {env.NEXT_PUBLIC_GA_MEASUREMENT_ID ? <GoogleAnalytics measurementId={env.NEXT_PUBLIC_GA_MEASUREMENT_ID} /> : null}
         <MicrosoftClarity projectId={clarityProjectId} />
@@ -69,6 +96,9 @@ export default async function RootLayout({
           announcementBarEnabled={settings?.announcementBarEnabled}
           announcementBarText={settings?.announcementBarText}
           subscriptionSectionEnabled={settings?.subscriptionSectionEnabled}
+          faqSectionEnabled={settings?.faqSectionEnabled}
+          newsletterSectionEnabled={settings?.newsletterSectionEnabled}
+          lastUpdatedAt={lastUpdatedAt?.toISOString()}
         >
           {children}
         </AppChrome>

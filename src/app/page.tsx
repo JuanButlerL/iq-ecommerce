@@ -1,12 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { HashScrollHandler } from "@/components/hash-scroll-handler";
+import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
 import { HomeProductCardActions } from "@/features/catalog/components/home-product-card-actions";
+import { ProductPrice } from "@/features/catalog/components/product-price";
+import { HomeProductsScroller } from "@/features/catalog/components/home-products-scroller";
+import { HOME_PRODUCTS_GRID_LIMIT } from "@/features/catalog/lib/home-products";
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
+import { HomeHeroCarousel, type HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
+import { getActiveHomeSlides } from "@/features/home-slides/queries";
 import { getStoreSettingsForClient } from "@/features/settings/queries";
 import { TestimonialsCarousel } from "@/features/testimonials/components/testimonials-carousel";
 import { getActiveTestimonials } from "@/features/testimonials/queries";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 type ProductItem = Awaited<ReturnType<typeof getVisibleProducts>>[number];
 type HomeProductCardItem = {
@@ -17,6 +28,11 @@ type HomeProductCardItem = {
   description: string;
   buttonLabel: string;
 };
+
+// The original hero photo needs its own framing to keep the people visible next to the text.
+const ORIGINAL_HERO_IMAGE = "/redesign/hero-home.jpg";
+const ORIGINAL_HERO_IMAGE_CLASS =
+  "absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]";
 
 // Keep the section ready while its final content and imagery are being defined.
 const SHOW_PROCESS_SECTION = false;
@@ -210,7 +226,12 @@ function ProductLandingCard({
         </div>
         <div className="mt-auto space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</span>
+            <ProductPrice
+              className="text-lg font-extrabold"
+              priceArs={product.priceArs}
+              listPriceArs={product.listPriceArs}
+              discountPercentage={product.activeDiscountPercentage}
+            />
             <span
               className="rounded-full px-4 py-2 text-sm font-extrabold text-white transition group-hover:translate-x-1"
               style={{ backgroundColor: theme.accent }}
@@ -284,6 +305,7 @@ function HomeFeaturedSlotCard({
   description,
   buttonLabel,
   highlighted = false,
+  inScroller = false,
 }: {
   product: ProductItem;
   eyebrow: string;
@@ -291,6 +313,7 @@ function HomeFeaturedSlotCard({
   description: string;
   buttonLabel: string;
   highlighted?: boolean;
+  inScroller?: boolean;
 }) {
   const theme = getThemeColors(product);
   const homeLabel = product.homeVarietyLabel?.trim() || eyebrow;
@@ -298,7 +321,12 @@ function HomeFeaturedSlotCard({
 
   return (
     <article
-      className={`group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 md:h-full md:w-auto md:shrink ${
+      className={`group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 ${
+        // In the scroller cards stretch to the tallest one; a fixed 100% height would block that.
+        inScroller
+          ? "md:w-[calc((100%_-_1.25rem)/2)] xl:w-[calc((100%_-_3.75rem)/4)]"
+          : "md:h-full md:w-auto md:shrink"
+      } ${
         highlighted
           ? "border-brand-pink/60 shadow-[0_20px_48px_rgba(244,137,145,0.2)] ring-1 ring-brand-pink/20"
           : "border-brand-ink/10 shadow-card"
@@ -330,7 +358,12 @@ function HomeFeaturedSlotCard({
         <div className="mt-auto space-y-4">
           <div className="space-y-3">
             <div>
-              <div className="text-lg font-extrabold">{formatCurrency(product.priceArs)}</div>
+              <ProductPrice
+                className="text-lg font-extrabold"
+                priceArs={product.priceArs}
+                listPriceArs={product.listPriceArs}
+                discountPercentage={product.activeDiscountPercentage}
+              />
               {unitPriceLabel ? (
                 <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">
                   {unitPriceLabel}
@@ -353,11 +386,12 @@ function HomeFeaturedSlotCard({
 }
 
 export default async function HomePage() {
-  const [settings, products, homeFeaturedSlots, testimonials] = await Promise.all([
+  const [settings, products, homeFeaturedSlots, testimonials, homeSlides] = await Promise.all([
     getStoreSettingsForClient(),
     getVisibleProducts(),
     getHomeFeaturedProductSlots(),
     getActiveTestimonials(),
+    getActiveHomeSlides(),
   ]);
 
   const hasTestimonials = testimonials.length > 0;
@@ -368,76 +402,60 @@ export default async function HomePage() {
   const heroDefaultProduct = homeFeaturedSlots.find((slot) => slot.slotOrder === 1)?.product ?? firstProduct;
   const heroCtaLabel = settings?.heroCtaLabel?.trim() || "Empezá con la caja mix → 3 sabores, 12 barritas";
   const heroCtaUrl = settings?.heroCtaUrl?.trim() || (heroDefaultProduct ? `/productos/${heroDefaultProduct.slug}` : "/productos");
+  // Slides come from the admin (the original hero is one of them, editable like the rest).
+  // With no active slides the home falls back to the original hero.
+  const heroSlides: HomeHeroSlide[] =
+    homeSlides.length > 0
+      ? homeSlides.map((slide) =>
+          slide.imageUrl === ORIGINAL_HERO_IMAGE ? { ...slide, imageClassName: ORIGINAL_HERO_IMAGE_CLASS } : slide,
+        )
+      : [
+          {
+            id: "default-hero",
+            eyebrow: "Snacks para niños",
+            title: "Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.",
+            mobileTitle: "El snack ya está resuelto.",
+            subtitle: "Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.",
+            badges: ["Nutricionistas", "Sin sellos", "Ingredientes reales"],
+            ctaLabel: heroCtaLabel,
+            ctaUrl: heroCtaUrl,
+            imageUrl: ORIGINAL_HERO_IMAGE,
+            mobileImageUrl: null,
+            imageAlt: settings?.storeName ?? "IQ Kids",
+            imageClassName: ORIGINAL_HERO_IMAGE_CLASS,
+          },
+        ];
   const landingProducts = findProductsForLanding(products);
   const subscriptionItems = [
     settings?.subscriptionItemOne?.trim(),
     settings?.subscriptionItemTwo?.trim(),
     settings?.subscriptionItemThree?.trim(),
   ].filter((item): item is string => Boolean(item));
+  // Hidden or inactive products are skipped so the home never links to an unavailable page.
+  const visibleFeaturedSlots = homeFeaturedSlots.filter(
+    (slot: typeof homeFeaturedSlots[number]) => slot.product.active && slot.product.visible,
+  );
   const homeProductCards: HomeProductCardItem[] =
-    homeFeaturedSlots.length === 4
-      ? homeFeaturedSlots.map((slot: typeof homeFeaturedSlots[number]) => ({
+    visibleFeaturedSlots.length > 0
+      ? visibleFeaturedSlots.map((slot: typeof homeFeaturedSlots[number]) => ({
           slotOrder: slot.slotOrder,
-          product: slot.product,
+          product: applyProductDiscount(slot.product),
           eyebrow: slot.eyebrow,
           title: slot.title,
           description: slot.description,
           buttonLabel: slot.buttonLabel,
         }))
       : buildHomeFeaturedFallbackSlots(products);
+  const homeProductsScroll = homeProductCards.length > HOME_PRODUCTS_GRID_LIMIT;
 
   return (
     <main className="flex flex-col overflow-x-hidden bg-white text-brand-ink">
       <HashScrollHandler />
-      <section id="inicio" className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src="/redesign/hero-home.jpg"
-            alt={settings?.storeName ?? "IQ Kids"}
-            className="absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,249,250,0.28)_0%,rgba(255,249,250,0.22)_48%,rgba(255,249,250,0.16)_78%,rgba(255,249,250,0.1)_100%)] md:bg-[linear-gradient(90deg,rgba(255,248,250,0.94)_0%,rgba(255,248,250,0.86)_28%,rgba(255,248,250,0.62)_45%,rgba(255,248,250,0.18)_65%,rgba(255,248,250,0)_78%)]" />
-          <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(123,216,247,0.12),rgba(255,255,255,0))]" />
-          <div className="absolute inset-y-0 right-0 w-24 bg-[linear-gradient(270deg,rgba(255,211,92,0.12),rgba(255,255,255,0))] sm:w-40" />
-          <div className="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_at_83%_5%,rgba(44,34,65,0.24)_0%,rgba(44,34,65,0.13)_18%,rgba(44,34,65,0.04)_34%,transparent_48%)] lg:block" />
-        </div>
-
-        <div className="relative mx-auto max-w-[1600px] px-0 pb-0 pt-0 sm:px-6 sm:pb-14 sm:pt-6 lg:px-10 lg:pb-24 lg:pt-14 xl:px-12">
-          <div className="flex min-h-[560px] w-full max-w-[860px] flex-col justify-stretch sm:min-h-[620px] sm:justify-center lg:min-h-[610px] xl:min-h-[640px] xl:max-w-[980px]">
-            <div className="relative flex min-h-[560px] w-full flex-col justify-center px-8 py-10 sm:mx-0 sm:min-h-0 sm:max-w-none sm:p-0">
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.72)_100%)] shadow-[0_14px_34px_rgba(255,255,255,0.18)] backdrop-blur-[2px] sm:hidden" />
-            <p className="relative mb-4 text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
-              Snacks para niños
-            </p>
-            <h1 className="relative max-w-[860px] font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.25rem] xl:text-[4.45rem]">
-              <span className="sm:hidden">El snack ya está resuelto.</span>
-              <span className="hidden sm:inline">
-                Entre mochilas, corridas y tuppers… por lo menos que el snack ya esté resuelto.
-              </span>
-            </h1>
-            <p className="relative mt-5 max-w-[760px] text-[1.05rem] leading-8 text-brand-ink/80 sm:text-xl sm:leading-8">
-              Nutricionistas eligieron cada producto para que vos no tengas que leer etiquetas ni dudar.
-            </p>
-            <div className="relative mt-8 flex flex-wrap gap-3 text-sm font-bold text-brand-ink">
-              <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Nutricionistas</span>
-              <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Sin sellos</span>
-              <span className="rounded-full bg-white px-4 py-2 shadow-card">✓ Ingredientes reales</span>
-            </div>
-            <div className="relative mt-10 flex flex-col items-start gap-4">
-              <Link
-                href={heroCtaUrl}
-                className="inline-flex w-full max-w-[420px] items-center justify-center rounded-full bg-brand-pink px-8 py-5 text-center text-lg font-extrabold text-white shadow-soft transition hover:bg-[#ea737d] sm:w-auto sm:max-w-none sm:px-10"
-              >
-                {heroCtaLabel}
-              </Link>
-              {showSubscriptionSection && subscriptionHeroNote ? (
-                <p className="text-sm font-bold text-brand-ink/70">{subscriptionHeroNote}</p>
-              ) : null}
-            </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HomeHeroCarousel
+        slides={heroSlides}
+        footnote={showSubscriptionSection ? subscriptionHeroNote : null}
+        intervalSeconds={settings?.heroCarouselIntervalSeconds ?? 7}
+      />
 
       {SHOW_PROCESS_SECTION ? (
         <section id="como-funciona" className="bg-white py-12 sm:py-14 lg:py-16">
@@ -570,24 +588,22 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <div className="relative">
-            <div className="mt-8 flex items-stretch snap-x snap-mandatory gap-5 overflow-x-auto pb-5 pr-12 md:mt-10 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 md:pr-0 xl:grid-cols-4">
-              {hasProducts
-                ? homeProductCards.map((slot: HomeProductCardItem) => (
-                    <HomeFeaturedSlotCard
-                      key={`${slot.slotOrder}-${slot.product.id}`}
-                      product={slot.product}
-                      eyebrow={slot.eyebrow}
-                      title={slot.title}
-                      description={slot.description}
-                      buttonLabel={slot.buttonLabel}
-                      highlighted={slot.slotOrder === 1}
-                    />
-                  ))
-                : null}
-            </div>
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#fff6f7] via-[#fff6f7]/75 to-transparent md:hidden" />
-          </div>
+          <HomeProductsScroller itemCount={hasProducts ? homeProductCards.length : 0}>
+            {hasProducts
+              ? homeProductCards.map((slot: HomeProductCardItem, index: number) => (
+                  <HomeFeaturedSlotCard
+                    key={`${slot.slotOrder}-${slot.product.id}`}
+                    product={slot.product}
+                    eyebrow={slot.eyebrow}
+                    title={slot.title}
+                    description={slot.description}
+                    buttonLabel={slot.buttonLabel}
+                    highlighted={index === 0}
+                    inScroller={homeProductsScroll}
+                  />
+                ))
+              : null}
+          </HomeProductsScroller>
 
           <div className="hidden mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-4">
             <article className="flex min-w-[280px] max-w-[320px] snap-start flex-col overflow-hidden rounded-[2rem] border border-brand-ink/10 bg-white shadow-card">

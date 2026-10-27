@@ -1,17 +1,21 @@
 import Link from "next/link";
-import { Heart, Instagram, Mail } from "lucide-react";
+import { Heart, Instagram, Mail, Newspaper, ShieldCheck } from "lucide-react";
 
 import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { Container } from "@/components/layout/container";
+import { formatArgentinaMonthYear } from "@/lib/utils/datetime";
+import { siteConfig } from "@/lib/utils/site";
 import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
 
 type SiteFooterProps = {
   instagramUrl?: string | null;
   contactEmail?: string;
   whatsappNumber?: string;
+  newsletterSectionEnabled?: boolean | null;
+  lastUpdatedAt?: string;
 };
 
-export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber }: SiteFooterProps) {
+export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber, newsletterSectionEnabled, lastUpdatedAt }: SiteFooterProps) {
   return (
     <footer id="contacto" className="border-t border-brand-ink/10 bg-white py-8 md:py-10">
       <Container className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -23,8 +27,23 @@ export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber }: SiteF
             <Heart className="h-4 w-4 fill-current" />
             <span>para niños</span>
           </p>
+          <p className="mt-2 text-xs text-brand-ink/55">
+            {siteConfig.name} es una marca de {siteConfig.companyName}.
+            {lastUpdatedAt ? (
+              <>
+                {" "}
+                Actualizado en <time dateTime={lastUpdatedAt}>{formatArgentinaMonthYear(new Date(lastUpdatedAt))}</time>.
+              </>
+            ) : null}
+          </p>
         </div>
         <div className="flex flex-col gap-3 break-all text-sm text-brand-ink/70 sm:break-normal">
+          {newsletterSectionEnabled ? (
+            <Link href="/newsletter" className="inline-flex items-center gap-2 hover:text-brand-pink">
+              <Newspaper className="h-4 w-4" />
+              Newsletter
+            </Link>
+          ) : null}
           {instagramUrl ? (
             <Link href={instagramUrl} target="_blank" className="inline-flex items-center gap-2 hover:text-brand-pink">
               <Instagram className="h-4 w-4" />
@@ -47,6 +66,10 @@ export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber }: SiteF
               WhatsApp
             </Link>
           ) : null}
+          <Link href="/privacidad" className="inline-flex items-center gap-2 hover:text-brand-pink">
+            <ShieldCheck className="h-4 w-4" />
+            Política de privacidad
+          </Link>
         </div>
       </Container>
     </footer>

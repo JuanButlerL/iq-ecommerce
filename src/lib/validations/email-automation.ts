@@ -18,4 +18,29 @@ export const emailAutomationSchema = z.object({
   couponId: z.string().uuid().optional().or(z.literal("")),
   couponHeadline: z.string().trim().max(120).optional().or(z.literal("")),
   couponMessage: z.string().trim().max(600).optional().or(z.literal("")),
+  cartRecoveryFreeShippingEnabled: z.boolean().default(false),
+  cartRecoveryFreeShippingMessage: z.string().trim().max(600).optional().or(z.literal("")),
+  cartRecoveryFreeShippingProductIds: z
+    .array(z.string().uuid())
+    .max(100)
+    .default([])
+    .transform((ids) => Array.from(new Set(ids))),
+}).superRefine((value, context) => {
+  if (!value.cartRecoveryFreeShippingEnabled) return;
+
+  if (value.trigger !== EmailAutomationTrigger.CART_ABANDONED) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["cartRecoveryFreeShippingEnabled"], message: "El envío bonificado sólo aplica a recuperación de carrito." });
+  }
+
+  if (value.ctaUrlTemplate !== "{{recoveryUrl}}") {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["ctaUrlTemplate"], message: "El envío bonificado requiere usar {{recoveryUrl}} como CTA." });
+  }
+
+  if (!value.cartRecoveryFreeShippingMessage) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["cartRecoveryFreeShippingMessage"], message: "Escribí el mensaje del envío bonificado." });
+  }
+
+  if (value.cartRecoveryFreeShippingProductIds.length === 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["cartRecoveryFreeShippingProductIds"], message: "Elegí al menos un producto para el envío bonificado." });
+  }
 });

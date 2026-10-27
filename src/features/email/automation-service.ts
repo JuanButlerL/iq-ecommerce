@@ -1,8 +1,15 @@
-import { randomUUID } from "crypto";
-import { EmailAutomationTrigger, EmailSendStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
+﻿import { randomUUID } from "crypto";
+import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
+import { getPostPurchaseCutoff, postPurchaseWhere } from "@/features/email/post-purchase-policy";
 import { renderMarketingEmail, renderTemplate } from "@/features/email/render";
+import { isEmailUnsubscribed } from "@/features/email/newsletter-service";
+import {
+  grantCartRecoveryFreeShippingBenefit,
+  revokeUnsentCartRecoveryFreeShippingBenefit,
+} from "@/features/cart-recovery/free-shipping-service";
+import { WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID } from "@/features/email/system-automations";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { formatArs } from "@/lib/utils/currency";
@@ -15,6 +22,7 @@ type ProcessResult = {
   sent: number;
   skipped: number;
   errors: number;
+  blockedReason?: string;
 };
 
 type Candidate = {
@@ -43,7 +51,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
   const automations = await prisma.emailAutomation.findMany({
     where: {
       active: true,
-      ...(options.automationId ? { id: options.automationId } : {}),
+      id: options.automationId ?? { not: WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID },
     },
     include: {
       coupon: true,
@@ -53,7 +61,6 @@ export async function processEmailAutomations(options: { automationId?: string; 
   const results: ProcessResult[] = [];
 
   for (const automation of automations) {
-    const candidates = await getCandidatesForAutomation(automation, options.limit ?? DEFAULT_LIMIT);
     const result: ProcessResult = {
       automationId: automation.id,
       automationName: automation.name,
@@ -61,23 +68,27 @@ export async function processEmailAutomations(options: { automationId?: string; 
       skipped: 0,
       errors: 0,
     };
+    const isPostPurchase = automation.trigger === EmailAutomationTrigger.POST_PURCHASE;
+    if (isPostPurchase && (!env.canSendEmail || !getPostPurchaseCutoff(env.EMAIL_POST_PURCHASE_SEND_FROM, automation.activatedAt))) {
+      result.blockedReason = "Post compra bloqueado: falta proveedor habilitado, fecha de activación o EMAIL_POST_PURCHASE_SEND_FROM válido en UTC.";
+      results.push(result);
+      continue;
+    }
+    const candidates = await getCandidatesForAutomation(automation, options.limit ?? DEFAULT_LIMIT);
 
     for (const candidate of candidates) {
       const existingLog = await prisma.emailSendLog.findFirst({
         where: {
           automationId: automation.id,
           targetType: candidate.targetType,
-          OR: [
-            { targetId: candidate.targetId },
-            { targetId: { startsWith: `${candidate.targetId}:retry:` } },
-          ],
+          OR: [{ targetId: candidate.targetId }, { targetId: { startsWith: `${candidate.targetId}:retry:` } }],
         },
         orderBy: { createdAt: "desc" },
       });
 
       let targetId = candidate.targetId;
 
-      if (existingLog && existingLog.status !== EmailSendStatus.ERROR) {
+      if (existingLog && (isPostPurchase || existingLog.status !== EmailSendStatus.ERROR)) {
         result.skipped += 1;
         continue;
       }
@@ -86,34 +97,101 @@ export async function processEmailAutomations(options: { automationId?: string; 
         targetId = `${candidate.targetId}:retry:${Date.now()}`;
       }
 
+      if (await isEmailUnsubscribed(prisma, candidate.recipientEmail)) {
+        await createEmailLog({
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.SKIPPED,
+          recipientEmail: candidate.recipientEmail,
+          subject: "Omitido por baja de email",
+          targetType: candidate.targetType,
+          targetId,
+          orderId: candidate.orderId,
+          cartRecoveryLeadId: candidate.cartRecoveryLeadId,
+          errorMessage: "Omitido: la persona solicitó no recibir más emails.",
+        });
+        result.skipped += 1;
+        continue;
+      }
+
       const subject = renderTemplate(automation.subject, candidate.variables);
       const previewText = automation.previewText ? renderTemplate(automation.previewText, candidate.variables) : null;
       const bodyText = renderTemplate(automation.bodyText, candidate.variables);
       const ctaLabel = automation.ctaLabel ? renderTemplate(automation.ctaLabel, candidate.variables) : null;
       const ctaUrl = automation.ctaUrlTemplate ? renderTemplate(automation.ctaUrlTemplate, candidate.variables) : null;
       const logId = randomUUID();
+      const openToken = randomUUID();
+      const unsubscribeToken = randomUUID();
       const clickToken = ctaUrl ? randomUUID() : null;
       const trackedCtaUrl = clickToken ? `${env.NEXT_PUBLIC_SITE_URL}/api/email/click/${clickToken}` : null;
-      const html = renderMarketingEmail({
-        subject,
-        previewText,
-        bodyText,
-        ctaLabel,
-        ctaUrl: trackedCtaUrl ?? ctaUrl,
-        coupon: automation.coupon
-          ? {
-              code: automation.coupon.code,
-              discountType: automation.coupon.discountType,
-              discountPercentage:
-                automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
-              fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
-              headline: automation.couponHeadline,
-              message: automation.couponMessage,
-            }
-          : null,
-      });
+      const unsubscribeUrl = `${env.NEXT_PUBLIC_SITE_URL}/api/email/unsubscribe/${unsubscribeToken}`;
+      let createdFreeShippingBenefit: { leadId: string; token: string } | null = null;
+      let providerAccepted = false;
+      let acceptedProviderMessageId: string | null = null;
+
+      // The unique automation/order key is reserved before contacting Resend.
+      // A crash leaves a fail-closed SKIPPED row requiring reconciliation.
+      if (isPostPurchase) {
+        const reservation = await createEmailLog({
+          id: logId,
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.SKIPPED,
+          recipientEmail: candidate.recipientEmail,
+          subject,
+          targetType: candidate.targetType,
+          targetId,
+          orderId: candidate.orderId,
+          ctaUrl,
+          clickToken,
+          openToken,
+          unsubscribeToken,
+          errorMessage: "Envío reservado. Si persiste este estado, conciliar con el proveedor; no reenviar automáticamente.",
+        });
+        if (!reservation) {
+          result.skipped += 1;
+          continue;
+        }
+      }
 
       try {
+        const freeShippingBenefit =
+          automation.trigger === EmailAutomationTrigger.CART_ABANDONED &&
+          automation.cartRecoveryFreeShippingEnabled &&
+          candidate.cartRecoveryLeadId &&
+          ctaUrl === candidate.variables.recoveryUrl
+            ? await grantCartRecoveryFreeShippingBenefit(candidate.cartRecoveryLeadId, automation.cartRecoveryFreeShippingProductIds)
+            : null;
+
+        if (freeShippingBenefit?.created && candidate.cartRecoveryLeadId) {
+          createdFreeShippingBenefit = { leadId: candidate.cartRecoveryLeadId, token: freeShippingBenefit.token };
+        }
+
+        const freeShippingMessage = freeShippingBenefit
+          ? renderTemplate(automation.cartRecoveryFreeShippingMessage || "", candidate.variables)
+          : null;
+        const html = renderMarketingEmail({
+          subject,
+          previewText,
+          bodyText,
+          ctaLabel,
+          ctaUrl: trackedCtaUrl ?? ctaUrl,
+          openTrackingUrl: `${env.NEXT_PUBLIC_SITE_URL}/api/email/open/${openToken}`,
+          unsubscribeUrl,
+          freeShippingMessage,
+          coupon: freeShippingBenefit
+            ? null
+            : automation.coupon
+              ? {
+                  code: automation.coupon.code,
+                  discountType: automation.coupon.discountType,
+                  discountPercentage: automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
+                  fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
+                  headline: automation.couponHeadline,
+                  message: automation.couponMessage,
+                }
+              : null,
+        });
         const sent = await sendEmail({
           fromEmail: automation.fromEmail || env.EMAIL_FROM_DEFAULT,
           senderName: automation.senderName || "IQ Kids",
@@ -121,11 +199,21 @@ export async function processEmailAutomations(options: { automationId?: string; 
           to: candidate.recipientEmail,
           subject,
           html,
-          text: [subject, bodyText, ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : ""].filter(Boolean).join("\n\n"),
+          text: [
+            subject,
+            bodyText,
+            freeShippingMessage,
+            ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : "",
+            `Para dejar de recibir emails de IQ Kids: ${unsubscribeUrl}`,
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
           bccEmail: automation.bccEmail,
         });
+        providerAccepted = true;
+        acceptedProviderMessageId = sent.providerMessageId;
 
-        await createEmailLog({
+        const sentLog: Prisma.EmailSendLogUncheckedCreateInput = {
           id: logId,
           automationId: automation.id,
           trigger: automation.trigger,
@@ -139,10 +227,25 @@ export async function processEmailAutomations(options: { automationId?: string; 
           providerMessageId: sent.providerMessageId,
           ctaUrl,
           clickToken,
-        });
+          openToken,
+          unsubscribeToken,
+        };
+        if (isPostPurchase) {
+          await prisma.emailSendLog.update({
+            where: { id: logId },
+            data: { status: EmailSendStatus.SENT, sentAt: new Date(), providerMessageId: sent.providerMessageId, errorMessage: null },
+          });
+        } else {
+          await createEmailLog(sentLog);
+        }
         result.sent += 1;
       } catch (error) {
-        await createEmailLog({
+        if (createdFreeShippingBenefit && !providerAccepted) {
+          await revokeUnsentCartRecoveryFreeShippingBenefit(createdFreeShippingBenefit).catch((revokeError) => {
+            console.error("Could not revoke unsent cart recovery free shipping benefit", revokeError);
+          });
+        }
+        const errorLog: Prisma.EmailSendLogUncheckedCreateInput = {
           id: logId,
           automationId: automation.id,
           trigger: automation.trigger,
@@ -155,8 +258,21 @@ export async function processEmailAutomations(options: { automationId?: string; 
           cartRecoveryLeadId: candidate.cartRecoveryLeadId,
           ctaUrl,
           clickToken,
+          openToken,
           errorMessage: error instanceof Error ? error.message : "Email error",
-        });
+        };
+        if (isPostPurchase) {
+          await prisma.emailSendLog.update({
+            where: { id: logId },
+            data: {
+              status: EmailSendStatus.ERROR,
+              providerMessageId: acceptedProviderMessageId,
+              errorMessage: `${providerAccepted ? "Proveedor aceptó el envío; falló el registro local. " : "Resultado de envío no confirmado. "}Requiere conciliación, sin reintento automático. ${errorLog.errorMessage}`,
+            },
+          });
+        } else {
+          await createEmailLog(errorLog);
+        }
         result.errors += 1;
       }
     }
@@ -177,8 +293,12 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
           },
         }
       : {};
-  const [automations, recentLogs, cartLeads, coupons] = await Promise.all([
+
+  const [automations, recentLogs, cartLeads, coupons, newsletterSubscribers, products] = await Promise.all([
     prisma.emailAutomation.findMany({
+      where: {
+        id: { not: WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID },
+      },
       orderBy: [{ active: "desc" }, { trigger: "asc" }, { name: "asc" }],
       include: {
         coupon: true,
@@ -193,7 +313,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       orderBy: { createdAt: "desc" },
       include: {
         automation: {
-          select: { name: true },
+          select: { name: true, ctaLabel: true },
         },
         convertedOrder: {
           select: {
@@ -234,7 +354,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
     prisma.cartRecoveryLead.findMany({
       take: 20,
       where: {
-        status: { in: ["CAPTURED", "CHECKOUT_STARTED"] },
+        status: { in: ["WELCOME_CAPTURED", "CAPTURED", "CHECKOUT_STARTED"] },
       },
       orderBy: [{ checkoutStartedAt: "desc" }, { createdAt: "desc" }],
     }),
@@ -250,8 +370,17 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         description: true,
       },
     }),
+    prisma.newsletterSubscriber.count({
+      where: { status: NewsletterSubscriberStatus.SUBSCRIBED },
+    }),
+    prisma.product.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, visible: true },
+    }),
   ]);
 
+  const logsWithOpens = recentLogs.filter((log) => log.openCount > 0).length;
   const logsWithClicks = recentLogs.filter((log) => log.clickCount > 0).length;
   const logsWithConversions = recentLogs.filter((log) => log.convertedAt).length;
   const leadIds = cartLeads.map((lead) => lead.id);
@@ -261,7 +390,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
   const leadLogs = leadIds.length
     ? await prisma.emailSendLog.findMany({
         where: {
-          trigger: EmailAutomationTrigger.CART_ABANDONED,
+          trigger: { in: [EmailAutomationTrigger.WELCOME_LEAD, EmailAutomationTrigger.CART_ABANDONED] },
           OR: [
             { cartRecoveryLeadId: { in: leadIds } },
             {
@@ -284,7 +413,13 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
     : [];
 
   return {
-    automations,
+    automations: automations.map((automation) => ({
+      ...automation,
+      postPurchaseCutoff: automation.trigger === EmailAutomationTrigger.POST_PURCHASE
+        ? getPostPurchaseCutoff(env.EMAIL_POST_PURCHASE_SEND_FROM, automation.activatedAt)
+        : null,
+      coupon: serializeCouponPreview(automation.coupon),
+    })),
     recentLogs,
     cartLeads: cartLeads.map((lead) =>
       buildCartRecoveryLeadPreview(
@@ -294,14 +429,21 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
           lead.id,
           leadLogs,
         ),
+        getCartRecoveryLeadTrigger(lead),
       ),
     ),
-    coupons,
+    coupons: coupons.map((coupon) => ({
+      ...coupon,
+      discountPercentage: coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
+    })),
     trackingSummary: {
+      opened: logsWithOpens,
       clicked: logsWithClicks,
       converted: logsWithConversions,
       sent: recentLogs.filter((log) => log.status === EmailSendStatus.SENT).length,
     },
+    newsletterSubscribers,
+    products,
     emailEnabled: env.canSendEmail,
   };
 }
@@ -316,10 +458,101 @@ export async function getEmailAuditPreview(options: { logFrom?: Date; logTo?: Da
 }
 
 async function getCandidatesForAutomation(
-  automation: { id: string; trigger: EmailAutomationTrigger; delayHours: number },
+  automation: { id: string; trigger: EmailAutomationTrigger; delayHours: number; activatedAt: Date | null },
   limit: number,
 ): Promise<Candidate[]> {
   const readyAt = new Date(Date.now() - Math.max(automation.delayHours, 0) * 60 * 60 * 1000);
+  const activatedAt = automation.activatedAt ?? new Date();
+
+  if (automation.trigger === EmailAutomationTrigger.WELCOME_LEAD) {
+    const leads = await prisma.cartRecoveryLead.findMany({
+      take: limit,
+      where: {
+        status: "WELCOME_CAPTURED",
+        createdAt: { gte: activatedAt },
+        updatedAt: { lte: readyAt },
+      },
+      orderBy: { updatedAt: "asc" },
+      include: {
+        emailLogs: {
+          where: {
+            trigger: EmailAutomationTrigger.WELCOME_LEAD,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
+
+    const candidates: Candidate[] = [];
+
+    for (const lead of leads) {
+      const cycleDate = lead.updatedAt;
+      const cycleTargetId = buildCartRecoveryTargetId(lead.id, cycleDate);
+      const latestLog = getCartRecoveryCycleLog(cycleTargetId, lead.id, lead.emailLogs);
+
+      const convertedLater = await prisma.order.findFirst({
+        where: {
+          customerEmail: {
+            equals: lead.email,
+            mode: "insensitive",
+          },
+          createdAt: {
+            gte: cycleDate,
+          },
+          orderStatus: {
+            notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED],
+          },
+          paymentStatus: {
+            in: [PaymentStatus.PROOF_UPLOADED, PaymentStatus.PAID],
+          },
+        },
+        select: { id: true, publicOrderNumber: true },
+      });
+
+      if (convertedLater) {
+        await prisma.cartRecoveryLead.update({
+          where: { id: lead.id },
+          data: {
+            status: "CONVERTED",
+            convertedOrderId: convertedLater.id,
+            convertedOrderNumber: convertedLater.publicOrderNumber,
+            convertedAt: new Date(),
+          },
+        });
+
+        await createEmailLog({
+          automationId: automation.id,
+          trigger: automation.trigger,
+          status: EmailSendStatus.SKIPPED,
+          recipientEmail: lead.email,
+          subject: "Skipped: customer converted",
+          targetType: "cart_recovery_lead",
+          targetId: cycleTargetId,
+          cartRecoveryLeadId: lead.id,
+          errorMessage: "Omitido: el email ya tiene una compra posterior confirmada.",
+        });
+        continue;
+      }
+
+      if (latestLog?.status === EmailSendStatus.SENT && latestLog.createdAt >= cycleDate) {
+        continue;
+      }
+
+      candidates.push({
+        targetType: "cart_recovery_lead",
+        targetId: cycleTargetId,
+        recipientEmail: lead.email,
+        cartRecoveryLeadId: lead.id,
+        variables: {
+          email: lead.email,
+          siteUrl: env.NEXT_PUBLIC_SITE_URL,
+        },
+      });
+    }
+
+    return candidates;
+  }
 
   if (automation.trigger === EmailAutomationTrigger.CART_ABANDONED) {
     const leads = await prisma.cartRecoveryLead.findMany({
@@ -333,6 +566,14 @@ async function getCandidatesForAutomation(
           {
             status: "CHECKOUT_STARTED",
             checkoutStartedAt: { lte: readyAt },
+          },
+        ],
+        AND: [
+          {
+            OR: [
+              { status: "CAPTURED", createdAt: { gte: activatedAt } },
+              { status: "CHECKOUT_STARTED", checkoutStartedAt: { gte: activatedAt } },
+            ],
           },
         ],
       },
@@ -427,7 +668,7 @@ async function getCandidatesForAutomation(
     const orders = await prisma.order.findMany({
       take: limit,
       where: {
-        createdAt: { lte: readyAt },
+        createdAt: { gte: activatedAt, lte: readyAt },
         orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
       },
       orderBy: { createdAt: "asc" },
@@ -436,30 +677,54 @@ async function getCandidatesForAutomation(
     return orders.map((order) => buildOrderCandidate(order));
   }
 
+  const cutoff = getPostPurchaseCutoff(env.EMAIL_POST_PURCHASE_SEND_FROM, automation.activatedAt);
+  if (!cutoff) return [];
   const orders = await prisma.order.findMany({
-    take: Math.max(limit * 3, limit),
-    where: {
-      paymentStatus: { in: [PaymentStatus.PROOF_UPLOADED, PaymentStatus.PAID] },
-      orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
-      OR: [{ paidAt: { lte: readyAt } }, { paymentProofs: { some: { uploadedAt: { lte: readyAt } } } }],
-    },
-    orderBy: { createdAt: "asc" },
-    include: {
-      paymentProofs: {
-        orderBy: { uploadedAt: "desc" },
-        take: 1,
-      },
-    },
+    take: limit,
+    where: postPurchaseWhere(automation.id, cutoff, readyAt),
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-
-  return orders
-    .filter((order) => getPostPurchaseEventDate(order) <= readyAt)
-    .slice(0, limit)
-    .map((order) => buildOrderCandidate(order));
+  return orders.map((order) => buildOrderCandidate(order));
 }
 
 function getCartRecoveryLeadCycleDate(lead: CartRecoveryLeadTriggerSnapshot) {
-  return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.updatedAt;
+  // Saving a changed cart refreshes updatedAt, but must never postpone an already scheduled recovery.
+  return lead.status === "CHECKOUT_STARTED" && lead.checkoutStartedAt ? lead.checkoutStartedAt : lead.createdAt;
+}
+
+function getCartRecoveryLeadTrigger(lead: { status: string }) {
+  return lead.status === "WELCOME_CAPTURED" ? EmailAutomationTrigger.WELCOME_LEAD : EmailAutomationTrigger.CART_ABANDONED;
+}
+
+type SerializableCouponPreview = {
+  id: string;
+  code: string;
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountPercentage: number | null;
+  fixedDiscountArs: number | null;
+  description: string | null;
+};
+
+function serializeCouponPreview(
+  coupon:
+    | {
+        id: string;
+        code: string;
+        discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+        discountPercentage: Prisma.Decimal | number | string | null;
+        fixedDiscountArs: number | null;
+        description: string | null;
+      }
+    | null,
+): SerializableCouponPreview | null {
+  if (!coupon) {
+    return null;
+  }
+
+  return {
+    ...coupon,
+    discountPercentage: coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
+  };
 }
 
 function buildCartRecoveryLeadPreview(
@@ -474,10 +739,12 @@ function buildCartRecoveryLeadPreview(
       name: string;
     };
   } | null,
+  trigger: EmailAutomationTrigger,
 ) {
   return {
     id: lead.id,
     email: lead.email,
+    trigger,
     status: lead.status,
     subtotalArs: lead.subtotalArs,
     triggerAt: getCartRecoveryLeadCycleDate(lead),
@@ -507,16 +774,14 @@ function getCartRecoveryCycleLog<T extends { targetId: string; createdAt: Date; 
   leadId: string,
   logs: T[],
 ) {
+  const leadLogs = logs.filter((log) => (log.cartRecoveryLeadId ?? extractLeadIdFromTargetId(log.targetId)) === leadId);
+
   return (
-    logs.find((log) => {
-      const logLeadId = log.cartRecoveryLeadId ?? extractLeadIdFromTargetId(log.targetId);
-
-      if (logLeadId !== leadId) {
-        return false;
-      }
-
-      return log.targetId === cycleTargetId || log.targetId.startsWith(`${cycleTargetId}:retry:`);
-    }) ?? null
+    leadLogs.find((log) => log.targetId === cycleTargetId || log.targetId.startsWith(`${cycleTargetId}:retry:`)) ??
+    // Recoveries sent before the stable cycle anchor used updatedAt in their target id.
+    // A lead is unique per active 24-hour window, so its latest log remains the same cycle.
+    leadLogs[0] ??
+    null
   );
 }
 
@@ -542,10 +807,6 @@ export async function markEmailClicksConverted(order: {
       convertedAt: new Date(),
     },
   });
-}
-
-function getPostPurchaseEventDate(order: { paidAt: Date | null; paymentProofs?: Array<{ uploadedAt: Date }> }) {
-  return order.paidAt ?? order.paymentProofs?.[0]?.uploadedAt ?? new Date(0);
 }
 
 function buildOrderCandidate(order: {
@@ -586,3 +847,5 @@ async function createEmailLog(input: Prisma.EmailSendLogUncheckedCreateInput) {
     throw error;
   }
 }
+
+

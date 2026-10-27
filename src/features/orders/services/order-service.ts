@@ -1,9 +1,21 @@
-import { OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
+import { NewsletterConsentSource, OrderStatus, PaymentMethod, PaymentProvider, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
+import { MarketingEventType } from "@prisma/client";
 
+import {
+  applyProductDiscount,
+  COUPON_EXCLUDES_DISCOUNTED_MESSAGE,
+  getCouponEligibleSubtotal,
+} from "@/features/catalog/lib/product-discount";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getCouponPreview } from "@/features/coupons/queries";
 import { syncOrder } from "@/features/orders/services/sync-service";
+import { subscribeToNewsletter } from "@/features/email/newsletter-service";
 import { markCartRecoveryCheckoutStarted, markCartRecoveryConverted } from "@/features/cart-recovery/services";
+import {
+  canUseCartRecoveryFreeShippingBenefit,
+  redeemCartRecoveryFreeShippingBenefit,
+} from "@/features/cart-recovery/free-shipping-service";
+import { canUseFreeShippingLink, redeemFreeShippingLink } from "@/features/free-shipping-links/service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
@@ -12,10 +24,12 @@ import { AppError } from "@/lib/errors/app-error";
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
+import { sendGoogleAnalyticsPurchaseForOrder } from "@/lib/integrations/google-analytics/server";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
 import { buildNextOrderNumber, buildOrderNumberPrefix } from "@/lib/utils/order-number";
 import { ensureMercadoPagoPreference } from "@/features/orders/services/mercado-pago-service";
+import { ensureMarketingSession, logMarketingEvent, logOrderConfirmedFromStoredAttribution } from "@/features/marketing/attribution-service";
 
 type CreatedCheckoutOrder = {
   id: string;
@@ -43,6 +57,8 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     });
   }
 
+  const marketingSession = await ensureMarketingSession(input.marketing, input.email);
+
   const settings = await getStoreSettings();
 
   if (!settings) {
@@ -66,14 +82,16 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   }
 
   const productIds = input.items.map((item) => item.productId);
-  const products = await prisma.product.findMany({
-    where: {
-      id: { in: productIds },
-      active: true,
-      visible: true,
-      manualSoldOut: false,
-    },
-  });
+  const products = (
+    await prisma.product.findMany({
+      where: {
+        id: { in: productIds },
+        active: true,
+        visible: true,
+        manualSoldOut: false,
+      },
+    })
+  ).map((product) => applyProductDiscount(product));
 
   if (products.length !== productIds.length) {
     throw new AppError("Uno o mas productos ya no estan disponibles.", 400);
@@ -90,10 +108,31 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   }, 0);
 
   const shippingQuote = calculateShippingQuote(subtotalArs, input.province, settings);
+  const hasRecoveryFreeShipping = await canUseCartRecoveryFreeShippingBenefit({
+    token: input.cartRecoveryFreeShippingToken,
+    email: input.email,
+    items: input.items,
+  });
+  // The same checkout token can also be a free shipping link generated from the admin.
+  const hasFreeShippingLink =
+    !hasRecoveryFreeShipping &&
+    (await canUseFreeShippingLink({ token: input.cartRecoveryFreeShippingToken, email: input.email }));
+  const shippingArs = hasRecoveryFreeShipping || hasFreeShippingLink ? 0 : shippingQuote.shippingArs;
+  const couponEligibleSubtotalArs = getCouponEligibleSubtotal(
+    input.items.flatMap((item) => {
+      const product = products.find((entry) => entry.id === item.productId);
+      return product ? [{ ...product, quantity: item.quantity }] : [];
+    }),
+  );
+
+  if (input.couponCode?.trim() && couponEligibleSubtotalArs <= 0) {
+    throw new AppError(COUPON_EXCLUDES_DISCOUNTED_MESSAGE, 400);
+  }
+
   const coupon = input.couponCode?.trim()
       ? await getCouponPreview({
           code: input.couponCode,
-          subtotalArs,
+          subtotalArs: couponEligibleSubtotalArs,
           taxId: input.taxId,
         })
     : null;
@@ -101,7 +140,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     paymentMethod: input.paymentMethod,
     subtotalArs,
     couponDiscountArs: coupon?.discountArs ?? 0,
-    shippingArs: shippingQuote.shippingArs,
+    shippingArs,
     enableBankTransferDiscount: settings.enableBankTransferDiscount,
     bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
   });
@@ -143,14 +182,18 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             locality: input.locality,
             postalCode: input.postalCode,
             addressLine: input.addressLine,
+            addressNumber: input.addressWithoutNumber ? null : input.addressNumber || null,
+            addressWithoutNumber: input.addressWithoutNumber,
             addressExtra: input.addressExtra || null,
             notes: input.notes || null,
+            newsletterOptIn: input.newsletterOptIn,
+            newsletterOptInAt: input.newsletterOptIn ? new Date() : null,
             couponId: coupon?.couponId,
             couponCode: coupon?.couponCode,
             discountPercentage: coupon?.discountPercentage,
             discountArs: coupon?.discountArs ?? 0,
             subtotalArs,
-            shippingArs: shippingQuote.shippingArs,
+            shippingArs,
             paymentMethodDiscountPercentage:
               pricing.paymentMethodDiscountPercentage > 0 ? pricing.paymentMethodDiscountPercentage : null,
             paymentMethodDiscountArs: pricing.paymentMethodDiscountArs,
@@ -165,6 +208,8 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
               input.paymentMethod === PaymentMethod.MERCADO_PAGO ? "waiting_checkout" : null,
             syncStatus: SyncStatus.PENDING,
             reservationExpiresAt,
+            marketingSessionId: marketingSession?.id ?? null,
+            marketingVisitorId: marketingSession?.visitorId ?? null,
           },
         });
 
@@ -187,11 +232,36 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
           }),
         });
 
+        if (hasRecoveryFreeShipping) {
+          const redeemed = await redeemCartRecoveryFreeShippingBenefit(tx, {
+            token: input.cartRecoveryFreeShippingToken!,
+            email: input.email,
+            items: input.items,
+            orderId: order.id,
+          });
+
+          if (!redeemed) {
+            throw new AppError("El envío bonificado ya no está disponible. Volvé a cargar el checkout para actualizar el total.", 409);
+          }
+        }
+
+        if (hasFreeShippingLink) {
+          const redeemed = await redeemFreeShippingLink(tx, {
+            token: input.cartRecoveryFreeShippingToken!,
+            email: input.email,
+            orderId: order.id,
+          });
+
+          if (!redeemed) {
+            throw new AppError("El link de envío gratis ya no está disponible. Volvé a cargar el checkout para actualizar el total.", 409);
+          }
+        }
+
         await tx.orderStatusHistory.create({
           data: {
             orderId: order.id,
             status: OrderStatus.PENDING_PAYMENT,
-            note: coupon
+            note: `${coupon
               ? pricing.paymentMethodDiscountArs > 0
                 ? `Pedido generado desde checkout web con cupon ${coupon.couponCode} (${getCouponDiscountLabel({
                     discountType: coupon.discountType,
@@ -205,10 +275,14 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
                   })}).`
               : pricing.paymentMethodDiscountArs > 0
                 ? `Pedido generado desde checkout web con descuento por transferencia ${pricing.paymentMethodDiscountPercentage}%.`
-                : "Pedido generado desde checkout web.",
+                : "Pedido generado desde checkout web."}${hasRecoveryFreeShipping ? " Envío bonificado por recuperación de carrito." : ""}${hasFreeShippingLink ? " Envío gratis por link personal." : ""}`,
             changedBy: "system",
           },
         });
+
+        if (input.newsletterOptIn) {
+          await subscribeToNewsletter(tx, { email: input.email, source: NewsletterConsentSource.CHECKOUT });
+        }
 
         return {
           id: order.id,
@@ -251,6 +325,15 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   if (!createdOrder) {
     throw new AppError("No pudimos generar el numero de pedido.", 500, false);
   }
+
+  await logMarketingEvent({
+    marketingContext: input.marketing,
+    eventType: MarketingEventType.ORDER_CREATED,
+    email: input.email,
+    path: input.marketing?.pagePath ?? "/checkout",
+    orderId: createdOrder.id,
+    metadata: { paymentMethod: input.paymentMethod, subtotalArs, totalArs: pricing.totalArs, couponCode: coupon?.couponCode ?? null },
+  });
 
   await markCartRecoveryCheckoutStarted({
     id: createdOrder.id,
@@ -373,7 +456,7 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
       data: {
         orderId: order.id,
         status: OrderStatus.PROOF_UPLOADED,
-        note: `Comprobante subido por el cliente${transferSenderName ? ` · DNI: ${transferSenderName}` : ""}${details.transferReference ? ` · Ref: ${details.transferReference}` : ""}.`,
+        note: `Comprobante subido por el cliente${transferSenderName ? ` - DNI: ${transferSenderName}` : ""}${details.transferReference ? ` - Ref: ${details.transferReference}` : ""}.`,
         changedBy: "customer",
       },
     });
@@ -398,6 +481,8 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     publicOrderNumber: order.publicOrderNumber,
     customerEmail: order.customerEmail,
   });
+
+  await logOrderConfirmedFromStoredAttribution(order.id);
 
   await sendMetaConversionsApiEvent({
     eventName: "Purchase",
@@ -428,6 +513,10 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     }),
   }).catch((error) => {
     console.error("Meta Conversions API transfer purchase event failed", error);
+  });
+
+  await sendGoogleAnalyticsPurchaseForOrder(order.id).catch((error) => {
+    console.error("Google Analytics transfer purchase event failed", error);
   });
 
   return {
@@ -466,7 +555,11 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, no
       },
     });
   });
+  if (status === OrderStatus.PAID || status === OrderStatus.PROOF_UPLOADED) {
+    await logOrderConfirmedFromStoredAttribution(orderId);
+  }
 }
+
 
 async function buildCheckoutResponse(order: CreatedCheckoutOrder) {
   if (order.paymentMethod === PaymentMethod.MERCADO_PAGO) {

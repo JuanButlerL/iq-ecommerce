@@ -1,12 +1,14 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
+import { MarketingSessionTracker } from "@/components/analytics/marketing-session-tracker";
 import { FloatingWhatsapp } from "@/components/layout/floating-whatsapp";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { TabTitleNudge } from "@/components/layout/tab-title-nudge";
+import { WelcomePopup } from "@/features/marketing/components/welcome-popup";
 
 type AppChromeProps = {
   children: ReactNode;
@@ -17,6 +19,9 @@ type AppChromeProps = {
   announcementBarEnabled?: boolean | null;
   announcementBarText?: string | null;
   subscriptionSectionEnabled?: boolean | null;
+  faqSectionEnabled?: boolean | null;
+  newsletterSectionEnabled?: boolean | null;
+  lastUpdatedAt?: string;
 };
 
 export function AppChrome({
@@ -28,6 +33,9 @@ export function AppChrome({
   announcementBarEnabled,
   announcementBarText,
   subscriptionSectionEnabled,
+  faqSectionEnabled,
+  newsletterSectionEnabled,
+  lastUpdatedAt,
 }: AppChromeProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
@@ -38,14 +46,16 @@ export function AppChrome({
 
   return (
     <>
+      <MarketingSessionTracker />
       <TabTitleNudge />
-      {hideHeader ? (
-        null
-      ) : (
+      <WelcomePopup />
+      {hideHeader ? null : (
         <SiteHeader
           announcementBarEnabled={announcementBarEnabled}
           announcementBarText={announcementBarText}
           subscriptionSectionEnabled={subscriptionSectionEnabled}
+          faqSectionEnabled={faqSectionEnabled}
+          newsletterSectionEnabled={newsletterSectionEnabled}
         />
       )}
       <main>{children}</main>
@@ -55,11 +65,17 @@ export function AppChrome({
             instagramUrl={instagramUrl ?? undefined}
             contactEmail={contactEmail ?? undefined}
             whatsappNumber={whatsappNumber ?? undefined}
+            newsletterSectionEnabled={newsletterSectionEnabled}
+            lastUpdatedAt={lastUpdatedAt}
           />
           {showFloatingWhatsapp && whatsappNumber && !hideFloatingWhatsapp ? (
             <FloatingWhatsapp
               phone={whatsappNumber}
-              message="Hola! Quiero consultar por las barritas de IQ Kids."
+              message={
+                pathname.startsWith("/mayoristas")
+                  ? "Hola! Quiero info de venta mayorista de iQ Kids."
+                  : "Hola! Quiero consultar por las barritas de IQ Kids."
+              }
             />
           ) : null}
         </>

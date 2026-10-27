@@ -6,6 +6,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
   NEXT_PUBLIC_GTM_ID: z.string().regex(/^GTM-[A-Z0-9]+$/).optional().or(z.literal("")),
   NEXT_PUBLIC_GA_MEASUREMENT_ID: z.string().optional(),
+  GA_MEASUREMENT_PROTOCOL_API_SECRET: z.string().min(8).optional().or(z.literal("")),
   NEXT_PUBLIC_MICROSOFT_CLARITY_ID: z.string().optional(),
   NEXT_PUBLIC_FB_PIXEL_ID: z.string().optional(),
   META_CONVERSIONS_API_ACCESS_TOKEN: z.string().optional(),
@@ -35,18 +36,33 @@ const envSchema = z.object({
   ADMIN_SESSION_SECRET: z.string().min(16).optional(),
   ENABLE_PROOF_PUBLIC_URL_SYNC: z.enum(["true", "false"]).default("false"),
   EMAIL_SENDING_ENABLED: z.enum(["true", "false"]).default("false"),
-  EMAIL_PROVIDER: z.enum(["resend", "smtp"]).default("resend"),
+  EMAIL_POST_PURCHASE_SEND_FROM: z.string().optional(),
+  EMAIL_PROVIDER: z.enum(["resend", "smtp", "graph"]).default("resend"),
+  // Empty = newsletters use EMAIL_PROVIDER. Lets mass sends stay on Brevo while the rest goes through Microsoft 365.
+  NEWSLETTER_EMAIL_PROVIDER: z.enum(["resend", "smtp", "graph"]).optional().or(z.literal("")),
   EMAIL_FROM_DEFAULT: z.string().email().default("no-reply@iqkids.com.ar"),
   EMAIL_REPLY_TO_DEFAULT: z.string().email().optional().or(z.literal("")),
   EMAIL_CRON_SECRET: z.string().min(16).optional().or(z.literal("")),
   RESEND_API_KEY: z.string().optional().or(z.literal("")),
+  NEWSLETTER_SENDING_ENABLED: z.enum(["true", "false"]).default("false"),
+  NEWSLETTER_BATCH_SIZE: z.coerce.number().int().min(1).max(200).default(40),
+  NEWSLETTER_LATE_MARGIN_HOURS: z.coerce.number().int().min(1).max(168).default(12),
   SMTP_HOST: z.string().optional().or(z.literal("")),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_SECURE: z.enum(["true", "false"]).default("false"),
   SMTP_USER: z.string().optional().or(z.literal("")),
   SMTP_PASSWORD: z.string().optional().or(z.literal("")),
+  GRAPH_TENANT_ID: z.string().optional().or(z.literal("")),
+  GRAPH_CLIENT_ID: z.string().optional().or(z.literal("")),
+  GRAPH_SENDER_EMAIL: z.string().email().optional().or(z.literal("")),
+  GRAPH_CERTIFICATE: z.string().optional().or(z.literal("")),
+  GRAPH_PRIVATE_KEY: z.string().optional().or(z.literal("")),
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().optional().or(z.literal("")),
   WHATSAPP_APP_SECRET: z.string().optional().or(z.literal("")),
+  WHATSAPP_APP_ID: z.string().optional().or(z.literal("")),
+  WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID: z.string().optional().or(z.literal("")),
+  WHATSAPP_GRAPH_API_VERSION: z.string().default("v25.0"),
+  WHATSAPP_TOKEN_ENCRYPTION_KEY: z.string().optional().or(z.literal("")),
   DEV_ADMIN_BYPASS: z.enum(["true", "false"]).default("false"),
 });
 
@@ -56,6 +72,7 @@ const parsedEnv = envSchema.parse({
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_GTM_ID: process.env.NEXT_PUBLIC_GTM_ID,
   NEXT_PUBLIC_GA_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID,
+  GA_MEASUREMENT_PROTOCOL_API_SECRET: process.env.GA_MEASUREMENT_PROTOCOL_API_SECRET,
   NEXT_PUBLIC_MICROSOFT_CLARITY_ID: process.env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID,
   NEXT_PUBLIC_FB_PIXEL_ID: process.env.NEXT_PUBLIC_FB_PIXEL_ID,
   META_CONVERSIONS_API_ACCESS_TOKEN: process.env.META_CONVERSIONS_API_ACCESS_TOKEN,
@@ -85,18 +102,32 @@ const parsedEnv = envSchema.parse({
   ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
   ENABLE_PROOF_PUBLIC_URL_SYNC: process.env.ENABLE_PROOF_PUBLIC_URL_SYNC,
   EMAIL_SENDING_ENABLED: process.env.EMAIL_SENDING_ENABLED,
+  EMAIL_POST_PURCHASE_SEND_FROM: process.env.EMAIL_POST_PURCHASE_SEND_FROM,
   EMAIL_PROVIDER: process.env.EMAIL_PROVIDER,
+  NEWSLETTER_EMAIL_PROVIDER: process.env.NEWSLETTER_EMAIL_PROVIDER,
   EMAIL_FROM_DEFAULT: process.env.EMAIL_FROM_DEFAULT,
   EMAIL_REPLY_TO_DEFAULT: process.env.EMAIL_REPLY_TO_DEFAULT,
   EMAIL_CRON_SECRET: process.env.EMAIL_CRON_SECRET,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
+  NEWSLETTER_SENDING_ENABLED: process.env.NEWSLETTER_SENDING_ENABLED,
+  NEWSLETTER_BATCH_SIZE: process.env.NEWSLETTER_BATCH_SIZE,
+  NEWSLETTER_LATE_MARGIN_HOURS: process.env.NEWSLETTER_LATE_MARGIN_HOURS,
   SMTP_HOST: process.env.SMTP_HOST,
   SMTP_PORT: process.env.SMTP_PORT,
   SMTP_SECURE: process.env.SMTP_SECURE,
   SMTP_USER: process.env.SMTP_USER,
   SMTP_PASSWORD: process.env.SMTP_PASSWORD,
+  GRAPH_TENANT_ID: process.env.GRAPH_TENANT_ID,
+  GRAPH_CLIENT_ID: process.env.GRAPH_CLIENT_ID,
+  GRAPH_SENDER_EMAIL: process.env.GRAPH_SENDER_EMAIL,
+  GRAPH_CERTIFICATE: process.env.GRAPH_CERTIFICATE,
+  GRAPH_PRIVATE_KEY: process.env.GRAPH_PRIVATE_KEY,
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
   WHATSAPP_APP_SECRET: process.env.WHATSAPP_APP_SECRET,
+  WHATSAPP_APP_ID: process.env.WHATSAPP_APP_ID,
+  WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID: process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID,
+  WHATSAPP_GRAPH_API_VERSION: process.env.WHATSAPP_GRAPH_API_VERSION || undefined,
+  WHATSAPP_TOKEN_ENCRYPTION_KEY: process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY,
   DEV_ADMIN_BYPASS: process.env.DEV_ADMIN_BYPASS,
 });
 
@@ -128,18 +159,29 @@ function isRealResendApiKey(value?: string) {
   return Boolean(value) && !String(value).includes("your-resend-api-key");
 }
 
-function hasSmtpConfig(values: typeof parsedEnv) {
-  return (
-    values.EMAIL_PROVIDER === "smtp" &&
-    Boolean(values.SMTP_HOST) &&
-    Boolean(values.SMTP_USER) &&
-    Boolean(values.SMTP_PASSWORD)
-  );
+type EmailProvider = (typeof parsedEnv)["EMAIL_PROVIDER"];
+
+function hasEmailProviderConfig(values: typeof parsedEnv, provider: EmailProvider) {
+  if (provider === "smtp") {
+    return Boolean(values.SMTP_HOST) && Boolean(values.SMTP_USER) && Boolean(values.SMTP_PASSWORD);
+  }
+
+  if (provider === "graph") {
+    return (
+      Boolean(values.GRAPH_TENANT_ID) &&
+      Boolean(values.GRAPH_CLIENT_ID) &&
+      Boolean(values.GRAPH_SENDER_EMAIL) &&
+      Boolean(values.GRAPH_CERTIFICATE) &&
+      Boolean(values.GRAPH_PRIVATE_KEY)
+    );
+  }
+
+  return isRealResendApiKey(values.RESEND_API_KEY);
 }
 
-function hasResendConfig(values: typeof parsedEnv) {
-  return values.EMAIL_PROVIDER === "resend" && isRealResendApiKey(values.RESEND_API_KEY);
-}
+const newsletterEmailProvider: EmailProvider = parsedEnv.NEWSLETTER_EMAIL_PROVIDER || parsedEnv.EMAIL_PROVIDER;
+const hasDefaultEmailProvider = hasEmailProviderConfig(parsedEnv, parsedEnv.EMAIL_PROVIDER);
+const hasNewsletterEmailProvider = hasEmailProviderConfig(parsedEnv, newsletterEmailProvider);
 
 export const env = {
   ...parsedEnv,
@@ -148,8 +190,13 @@ export const env = {
   enableProofPublicUrlSync: parsedEnv.ENABLE_PROOF_PUBLIC_URL_SYNC === "true",
   emailSendingEnabled: parsedEnv.EMAIL_SENDING_ENABLED === "true",
   isSmtpSecure: parsedEnv.SMTP_SECURE === "true",
-  hasEmailProvider: hasResendConfig(parsedEnv) || hasSmtpConfig(parsedEnv),
-  canSendEmail: parsedEnv.EMAIL_SENDING_ENABLED === "true" && (hasResendConfig(parsedEnv) || hasSmtpConfig(parsedEnv)),
+  newsletterEmailProvider,
+  hasEmailProvider: hasDefaultEmailProvider,
+  canSendEmail: parsedEnv.EMAIL_SENDING_ENABLED === "true" && hasDefaultEmailProvider,
+  canSendNewsletterEmail: parsedEnv.EMAIL_SENDING_ENABLED === "true" && hasNewsletterEmailProvider,
+  // Newsletter mass sends need their own explicit switch on top of the global email switch.
+  newsletterSendingEnabled:
+    parsedEnv.NEWSLETTER_SENDING_ENABLED === "true" && parsedEnv.EMAIL_SENDING_ENABLED === "true" && hasNewsletterEmailProvider,
   devAdminBypass: parsedEnv.DEV_ADMIN_BYPASS === "true" && process.env.NODE_ENV !== "production",
   hasLocalAdminAuth:
     Boolean(parsedEnv.ADMIN_LOCAL_EMAIL) &&
@@ -175,6 +222,7 @@ export const env = {
       (parsedEnv.ADMIN_LOCAL_PASSWORD !== "Cambiame123!" &&
         parsedEnv.ADMIN_SESSION_SECRET !== "iqkids-local-admin-secret")),
   hasGoogleAnalytics: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID),
+  hasGoogleMeasurementProtocol: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID && parsedEnv.GA_MEASUREMENT_PROTOCOL_API_SECRET),
   hasGoogleTagManager: Boolean(parsedEnv.NEXT_PUBLIC_GTM_ID),
   hasMicrosoftClarity: Boolean(parsedEnv.NEXT_PUBLIC_MICROSOFT_CLARITY_ID),
   hasFacebookPixel: isRealFacebookPixelId(parsedEnv.NEXT_PUBLIC_FB_PIXEL_ID),

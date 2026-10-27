@@ -13,10 +13,21 @@ export async function PATCH(request: Request, context: RouteContext) {
     await assertAdminSection("emails");
     const { id } = await context.params;
     const parsed = emailAutomationSchema.parse(await request.json());
+    const existing = await prisma.emailAutomation.findUnique({
+      where: { id },
+      select: { active: true, activatedAt: true },
+    });
+
+    if (!existing) {
+      throw new AppError("Automatizacion no encontrada.", 404, true);
+    }
+
+    const activatedAt = parsed.active ? (!existing.active || !existing.activatedAt ? new Date() : existing.activatedAt) : null;
     const automation = await prisma.emailAutomation.update({
       where: { id },
       data: {
         ...parsed,
+        activatedAt,
         previewText: parsed.previewText || null,
         ctaLabel: parsed.ctaLabel || null,
         ctaUrlTemplate: parsed.ctaUrlTemplate || null,
@@ -25,6 +36,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         couponId: parsed.couponId || null,
         couponHeadline: parsed.couponHeadline || null,
         couponMessage: parsed.couponMessage || null,
+        cartRecoveryFreeShippingMessage: parsed.cartRecoveryFreeShippingMessage || null,
       },
     });
 

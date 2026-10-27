@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iQ Kids — Popup Bienvenida v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,500;6..12,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --rosa:#E78080; --teal:#57BCCF;
+  --dark:#1E1814; --mid:#5A5048; --soft:#9A8A7A;
+  --sand:#EDE8E2; --cream:#FAF7F4; --white:#fff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Nunito Sans',sans-serif;background:#e8ddd8;min-height:100vh;padding:32px 16px 56px;display:flex;flex-direction:column;align-items:center;gap:56px;}
+
+.section-label{font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#999;margin-bottom:14px;text-align:center;}
+.demo-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;}
+
+/* ═══ PHONE FRAME ════════════════════════ */
+.phone{width:320px;background:#111;border-radius:44px;padding:12px;box-shadow:0 32px 80px rgba(0,0,0,0.3);}
+.phone-notch{width:88px;height:7px;background:#222;border-radius:4px;margin:4px auto 12px;}
+.phone-screen{background:#f0e8e4;border-radius:34px;overflow:hidden;height:580px;position:relative;}
+/* simulated web bg */
+.phone-bg{position:absolute;inset:0;}
+.phone-bg-bar{height:36px;background:var(--rosa);display:flex;align-items:center;justify-content:space-between;padding:0 14px;}
+.phone-bg-logo{font-family:'Nunito',sans-serif;font-weight:900;font-size:12px;color:#fff;}
+.phone-bg-icons{display:flex;gap:10px;}
+.phone-bg-icon{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.4);}
+.phone-bg-content{padding:12px;}
+.phone-bg-hero{height:90px;background:#d4c0b8;border-radius:10px;margin-bottom:10px;}
+.phone-bg-cards{display:flex;gap:8px;}
+.phone-bg-card{flex:1;height:60px;background:#e4d8d4;border-radius:8px;}
+/* overlay */
+.phone-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;padding:20px;}
+/* POPUP inside phone */
+.phone-popup{background:#fff;border-radius:16px;width:100%;padding:24px 22px 20px;position:relative;box-shadow:0 16px 48px rgba(0,0,0,0.22);}
+.phone-close{position:absolute;top:12px;right:14px;font-size:14px;color:#bbb;background:none;border:none;cursor:pointer;line-height:1;}
+.phone-popup h2{font-family:'Nunito',sans-serif;font-weight:900;font-size:17px;color:var(--dark);text-align:center;line-height:1.25;margin-bottom:12px;}
+.phone-popup h2 span{color:var(--rosa);}
+.phone-popup .desc{font-size:11.5px;color:var(--mid);line-height:1.65;text-align:center;margin-bottom:16px;}
+.phone-popup .desc strong{color:var(--dark);font-weight:700;}
+.phone-divider{height:1px;background:var(--sand);margin-bottom:14px;}
+.phone-popup .sub-text{font-size:10.5px;color:var(--soft);line-height:1.6;text-align:center;margin-bottom:14px;}
+.phone-inp{width:100%;padding:10px 12px;border:1.5px solid var(--sand);border-radius:10px;font-family:'Nunito Sans',sans-serif;font-size:11px;color:var(--dark);margin-bottom:8px;outline:none;}
+.phone-btn{width:100%;padding:11px;background:var(--rosa);border:none;border-radius:10px;font-family:'Nunito',sans-serif;font-weight:900;font-size:11.5px;color:#fff;letter-spacing:.03em;margin-bottom:10px;}
+.phone-skip{text-align:center;font-size:9.5px;color:#bbb;}
+.phone-skip span{text-decoration:underline;}
+
+/* ═══ DESKTOP POPUP ══════════════════════ */
+.desktop-popup{
+  background:#fff; border-radius:20px;
+  width:100%; max-width:420px;
+  padding:40px 40px 32px;
+  position:relative;
+  box-shadow:0 20px 60px rgba(0,0,0,0.13);
+}
+.desktop-close{
+  position:absolute;top:16px;right:18px;
+  font-size:16px;color:#ccc;background:none;border:none;cursor:pointer;
+  line-height:1; font-family:'Nunito Sans',sans-serif;
+}
+.desktop-popup h2{
+  font-family:'Nunito',sans-serif;font-weight:900;
+  font-size:24px;color:var(--dark);
+  text-align:center;line-height:1.2;margin-bottom:14px;
+}
+.desktop-popup h2 span{color:var(--rosa);}
+.desktop-popup .desc{
+  font-size:14px;color:var(--mid);line-height:1.7;
+  text-align:center;margin-bottom:22px;
+}
+.desktop-popup .desc strong{color:var(--dark);font-weight:700;}
+.desktop-divider{height:1px;background:var(--sand);margin-bottom:20px;}
+.desktop-popup .sub-text{
+  font-size:13px;color:var(--soft);line-height:1.65;
+  text-align:center;margin-bottom:20px;
+}
+.desktop-inp{
+  width:100%;padding:13px 16px;
+  border:2px solid var(--sand);border-radius:12px;
+  font-family:'Nunito Sans',sans-serif;font-size:14px;color:var(--dark);
+  outline:none;margin-bottom:10px;display:block;transition:border-color .2s;
+}
+.desktop-inp:focus{border-color:var(--rosa);}
+.desktop-inp::placeholder{color:#ccc;}
+.desktop-btn{
+  width:100%;padding:14px;
+  background:var(--rosa);border:none;border-radius:12px;
+  font-family:'Nunito',sans-serif;font-weight:900;font-size:15px;
+  color:#fff;letter-spacing:.03em;cursor:pointer;
+  transition:background .15s;margin-bottom:14px;
+}
+.desktop-btn:hover{background:#d46a6a;}
+.desktop-skip{text-align:center;font-size:12px;color:#bbb;}
+.desktop-skip a{color:#bbb;text-decoration:underline;cursor:pointer;}
+
+/* ═══ SUCCESS ════════════════════════════ */
+.success{
+  background:#fff;border-radius:20px;
+  width:100%;max-width:420px;
+  padding:40px 40px 36px;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.13);
+}
+.success-check{width:64px;height:64px;border-radius:50%;background:#EEF9FB;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:24px;}
+.success h3{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--dark);margin-bottom:10px;}
+.success p{font-size:14px;color:var(--mid);line-height:1.65;margin-bottom:18px;}
+.success-code{background:#EEF9FB;border:2px dashed var(--teal);border-radius:12px;padding:14px 24px;display:inline-block;margin-bottom:10px;}
+.success-code span{font-family:'Nunito',sans-serif;font-weight:900;font-size:26px;color:var(--teal);letter-spacing:.2em;}
+.success-note{font-size:11px;color:var(--soft);margin-bottom:22px;}
+.success-btn{display:inline-block;padding:13px 36px;background:var(--rosa);border:none;border-radius:12px;font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;color:#fff;cursor:pointer;}
+
+/* NOTES */
+.notes{background:#FFF9EC;border-left:4px solid #F0C040;border-radius:0 12px 12px 0;padding:16px 22px;width:100%;max-width:860px;}
+.notes-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#854F0B;margin-bottom:8px;}
+.notes ul{font-size:12px;color:#854F0B;line-height:1.8;padding-left:16px;}
+</style>
+</head>
+<body>
+
+<!-- MOBILE -->
+<div class="demo-wrap">
+  <p class="section-label">Mobile — vista en celular</p>
+  <div class="phone">
+    <div class="phone-notch"></div>
+    <div class="phone-screen">
+      <div class="phone-bg">
+        <div class="phone-bg-bar">
+          <span class="phone-bg-logo">iQ Kids</span>
+          <div class="phone-bg-icons"><div class="phone-bg-icon"></div><div class="phone-bg-icon"></div></div>
+        </div>
+        <div class="phone-bg-content">
+          <div class="phone-bg-hero"></div>
+          <div class="phone-bg-cards">
+            <div class="phone-bg-card"></div><div class="phone-bg-card"></div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-overlay">
+        <div class="phone-popup">
+          <button class="phone-close">✕</button>
+          <h2>¡Tenemos un regalo para vos!<br><span>10% off en tu primera caja.</span></h2>
+          <p class="desc">Ingresá tu email, recibí el descuento. También te avisamos cuando haya novedades y lanzamientos.</p>
+          <div class="phone-divider"></div>
+          <input class="phone-inp" type="email" placeholder="tu@email.com" readonly>
+          <button class="phone-btn">QUIERO MI 10% →</button>
+          <p class="phone-skip"><span>Ahora no, gracias</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP -->
+<div class="demo-wrap">
+  <p class="section-label">Desktop</p>
+  <div class="desktop-popup" id="dp">
+    <button class="desktop-close">✕</button>
+    <h2>¡Tenemos un regalo para vos!<br><span>10% off en tu primera caja.</span></h2>
+    <p class="desc">Ingresá tu email, recibí el descuento y <strong>sé la primera en enterarte</strong> de novedades, lanzamientos y contenido para tu familia.</p>
+    <div class="desktop-divider"></div>
+    <p class="sub-text">También te avisamos cuando haya novedades, lanzamientos y contenido para tu familia.</p>
+    <input class="desktop-inp" type="email" placeholder="tu@email.com">
+    <button class="desktop-btn" onclick="showSuccess()">QUIERO MI 10% →</button>
+    <p class="desktop-skip"><a>Ahora no, gracias</a></p>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div class="demo-wrap">
+  <p class="section-label">Estado confirmación</p>
+  <div class="success" id="ds" style="display:none">
+    <div class="success-check">✓</div>
+    <h3>¡Listo! Ya podés usarlo.</h3>
+    <p>Te mandamos el código a tu email. Usalo en tu primera caja iQ Kids:</p>
+    <div class="success-code"><span>BIENVENIDA10</span></div>
+    <p class="success-note">Válido para tu primera caja · Sin mínimo de compra</p>
+    <button class="success-btn">Ver productos →</button>
+  </div>
+  <div class="success" id="ds-show">
+    <div class="success-check">✓</div>
+    <h3>¡Listo! Ya podés usarlo.</h3>
+    <p>Te mandamos el código a tu email. Usalo en tu primera caja iQ Kids:</p>
+    <div class="success-code"><span>BIENVENIDA10</span></div>
+    <p class="success-note">Válido para tu primera caja · Sin mínimo de compra</p>
+    <button class="success-btn">Ver productos →</button>
+  </div>
+</div>
+
+<!-- NOTAS -->
+<div class="notes">
+  <div class="notes-title">Notas para el desarrollador</div>
+  <ul>
+    <li><strong>Trigger:</strong> aparece al cargar la página (delay 800ms).</li>
+    <li><strong>Cookie:</strong> si ya se mostró o ya se registró el email → no mostrar en 30 días (localStorage).</li>
+    <li><strong>Email:</strong> conectar con lista "Descuento bienvenida + Newsletter" en Klaviyo/Mailchimp. Flow: email inmediato con código BIENVENIDA10 + suscripción a la lista general de newsletter.</li>
+    <li><strong>Colores:</strong> Rosa #E78080 · Teal #57BCCF.</li>
+    <li><strong>Tipografía:</strong> Watermelon para h2 (del manual). Fallback: Nunito 900.</li>
+    <li><strong>Overlay:</strong> rgba(0,0,0,0.35). Click fuera cierra. ESC cierra en desktop.</li>
+    <li><strong>Estado éxito:</strong> reemplaza el contenido del popup sin cerrarlo.</li>
+  </ul>
+</div>
+
+<script>
+function showSuccess(){
+  document.getElementById('dp').style.display='none';
+  document.getElementById('ds').style.display='block';
+}
+</script>
+</body>
+</html>

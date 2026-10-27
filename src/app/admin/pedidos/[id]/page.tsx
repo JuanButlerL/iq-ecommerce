@@ -83,7 +83,9 @@ export default async function AdminOrderDetailPage({
           <p className="text-brand-ink/70">{order.customerPhone}</p>
           <p className="text-brand-ink/70">Documento / DNI: {order.customerTaxId ?? "No informado"}</p>
           <p className="text-brand-ink/70">
-            {order.addressLine} {order.addressExtra}
+            {[order.addressLine, order.addressNumber, order.addressWithoutNumber ? "sin altura" : null, order.addressExtra]
+              .filter(Boolean)
+              .join(" ")}
           </p>
           <p className="text-brand-ink/70">
             {order.locality}, {order.province}, {order.postalCode}

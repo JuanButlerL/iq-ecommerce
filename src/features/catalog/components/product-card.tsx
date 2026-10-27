@@ -5,11 +5,12 @@ import type { Product, ProductImage } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ProductPrice } from "@/features/catalog/components/product-price";
+import type { ProductPricing } from "@/features/catalog/lib/product-discount";
 import { productFallbackImageMap, resolveProductTheme } from "@/features/catalog/product-theme";
-import { formatArs } from "@/lib/utils/currency";
 
 type ProductCardProps = {
-  product: Product & { images: ProductImage[] };
+  product: Product & { images: ProductImage[] } & ProductPricing;
 };
 
 export function ProductCard({ product }: ProductCardProps) {
@@ -64,7 +65,13 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <p className="text-2xl font-extrabold text-brand-ink">{formatArs(product.priceArs)}</p>
+          <p className="text-2xl font-extrabold text-brand-ink">
+            <ProductPrice
+              priceArs={product.priceArs}
+              listPriceArs={product.listPriceArs}
+              discountPercentage={product.activeDiscountPercentage}
+            />
+          </p>
           <Link href={`/productos/${product.slug}`}>
             <Button size="sm">Comprar</Button>
           </Link>

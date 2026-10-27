@@ -45,13 +45,20 @@ export async function POST(request: Request) {
     const bodyText = renderTemplate(automation.bodyText, variables);
     const ctaLabel = automation.ctaLabel ? renderTemplate(automation.ctaLabel, variables) : null;
     const ctaUrl = automation.ctaUrlTemplate ? renderTemplate(automation.ctaUrlTemplate, variables) : null;
+    const freeShippingMessage =
+      automation.trigger === EmailAutomationTrigger.CART_ABANDONED && automation.cartRecoveryFreeShippingEnabled
+        ? renderTemplate(automation.cartRecoveryFreeShippingMessage || "", variables)
+        : null;
     const html = renderMarketingEmail({
       subject,
       previewText,
       bodyText,
       ctaLabel,
       ctaUrl,
-      coupon: automation.coupon
+      freeShippingMessage,
+      coupon: freeShippingMessage
+        ? null
+        : automation.coupon
         ? {
             code: automation.coupon.code,
             discountType: automation.coupon.discountType,
@@ -70,7 +77,7 @@ export async function POST(request: Request) {
       to: parsed.to,
       subject,
       html,
-      text: [subject, bodyText, ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : ""].filter(Boolean).join("\n\n"),
+      text: [subject, bodyText, freeShippingMessage, ctaLabel && ctaUrl ? `${ctaLabel}: ${ctaUrl}` : ""].filter(Boolean).join("\n\n"),
       bccEmail: automation.bccEmail,
     });
 

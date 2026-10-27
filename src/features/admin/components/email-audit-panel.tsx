@@ -20,14 +20,18 @@ type LogItem = {
   targetType: string;
   targetId: string;
   errorMessage: string | null;
+  openCount: number;
+  firstOpenedAt: Date | null;
+  lastOpenedAt: Date | null;
   clickCount: number;
   firstClickedAt: Date | null;
   lastClickedAt: Date | null;
   convertedOrderNumber: string | null;
   convertedAt: Date | null;
+  ctaUrl: string | null;
   sentAt: Date | null;
   createdAt: Date;
-  automation: { name: string };
+  automation: { name: string; ctaLabel: string | null };
   convertedOrder: {
     publicOrderNumber: string;
     createdAt: Date;
@@ -63,6 +67,7 @@ type EmailAuditPanelProps = {
 };
 
 const triggerLabels: Record<EmailAutomationTrigger, string> = {
+  WELCOME_LEAD: "Bienvenida temprana",
   CART_ABANDONED: "Recuperacion sin compra",
   ORDER_CREATED: "Pedido recibido",
   POST_PURCHASE: "Post compra",
@@ -118,23 +123,25 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
       </Card>
 
       <Card className="p-5 md:p-6">
-        <div className="mb-5 grid gap-3 md:grid-cols-4">
+        <div className="mb-5 grid gap-3 md:grid-cols-5">
           <Metric label="Enviados" value={recentLogs.filter((log) => log.status === "SENT").length.toString()} />
+          <Metric label="Con apertura detectada" value={recentLogs.filter((log) => log.openCount > 0).length.toString()} />
           <Metric label="Con click" value={recentLogs.filter((log) => log.clickCount > 0).length.toString()} />
           <Metric label="Ventas atribuidas" value={recentLogs.filter((log) => log.convertedAt).length.toString()} />
           <Metric label="Errores" value={recentLogs.filter((log) => log.status === "ERROR").length.toString()} />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] text-left text-sm">
+          <table className="w-full min-w-[1400px] text-left text-sm">
             <thead>
               <tr className="border-b border-brand-ink/10 text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/45">
                 <th className="py-3 pr-4">Estado</th>
                 <th className="py-3 pr-4">Mail</th>
                 <th className="py-3 pr-4">Automatizacion</th>
                 <th className="py-3 pr-4">Disparador</th>
-                <th className="py-3 pr-4">Fecha envio/log</th>
+                <th className="py-3 pr-4">Fecha y hora de envío</th>
                 <th className="py-3 pr-4">Fecha inicio</th>
-                <th className="py-3 pr-4">Click</th>
+                <th className="py-3 pr-4">CTA</th>
+                <th className="py-3 pr-4">Aperturas y clicks</th>
                 <th className="py-3 pr-4">Venta atribuida</th>
                 <th className="py-3 pr-4">Objetivo</th>
                 <th className="py-3 pr-4">Detalle</th>
@@ -151,13 +158,42 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                     <td className="py-3 pr-4 font-bold text-brand-ink">{log.recipientEmail}</td>
                     <td className="py-3 pr-4 text-brand-ink/70">{log.automation.name}</td>
                     <td className="py-3 pr-4 text-brand-ink/70">{triggerLabels[log.trigger]}</td>
-                    <td className="py-3 pr-4 text-brand-ink/70">{formatArgentinaDateTime(new Date(log.sentAt ?? log.createdAt))}</td>
+                    <td className="whitespace-nowrap py-3 pr-4 text-brand-ink/70">
+                      {log.sentAt ? (
+                        <p className="font-bold text-brand-ink">{formatArgentinaDateTime(new Date(log.sentAt))}</p>
+                      ) : (
+                        <div>
+                          <p className="font-bold text-brand-ink/55">No enviado</p>
+                          <p className="text-xs text-brand-ink/55">Registrado {formatArgentinaDateTime(new Date(log.createdAt))}</p>
+                        </div>
+                      )}
+                    </td>
                     <td className="py-3 pr-4 text-brand-ink/70">{getLogStartDate(log)}</td>
                     <td className="py-3 pr-4 text-brand-ink/70">
-                      {log.clickCount > 0 ? (
+                      {log.ctaUrl ? (
+                        <div className="max-w-[240px]">
+                          {log.automation.ctaLabel ? <p className="font-bold text-brand-ink">{log.automation.ctaLabel}</p> : null}
+                          <a
+                            href={log.ctaUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={log.ctaUrl}
+                            className="block truncate text-xs text-brand-pink underline-offset-2 hover:underline"
+                          >
+                            {formatCtaUrl(log.ctaUrl)}
+                          </a>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="py-3 pr-4 text-brand-ink/70">
+                      {log.openCount > 0 || log.clickCount > 0 ? (
                         <div>
-                          <p className="font-bold text-brand-ink">{log.clickCount} click{log.clickCount === 1 ? "" : "s"}</p>
-                          <p className="text-xs text-brand-ink/55">{log.lastClickedAt ? formatArgentinaDateTime(new Date(log.lastClickedAt)) : "-"}</p>
+                          <p className="font-bold text-brand-ink">{log.openCount} apertura{log.openCount === 1 ? "" : "s"} detectada{log.openCount === 1 ? "" : "s"}</p>
+                          <p className="text-xs text-brand-ink/55">{log.lastOpenedAt ? formatArgentinaDateTime(new Date(log.lastOpenedAt)) : "Sin apertura detectada"}</p>
+                          <p className="mt-1 font-bold text-brand-ink">{log.clickCount} click{log.clickCount === 1 ? "" : "s"}</p>
+                          <p className="text-xs text-brand-ink/55">{log.lastClickedAt ? formatArgentinaDateTime(new Date(log.lastClickedAt)) : "Sin clicks"}</p>
                         </div>
                       ) : (
                         "-"
@@ -188,7 +224,7 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
                 ))
               ) : (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-brand-ink/55">
+                  <td colSpan={11} className="py-8 text-center text-brand-ink/55">
                     No hay emails para el filtro seleccionado.
                   </td>
                 </tr>
@@ -203,13 +239,25 @@ export function EmailAuditPanel({ recentLogs, logFilters }: EmailAuditPanelProps
 
 function getLogStartDate(log: LogItem) {
   const start =
-    log.trigger === "CART_ABANDONED"
+    log.trigger === "WELCOME_LEAD"
+      ? log.cartRecoveryLead?.createdAt
+      : log.trigger === "CART_ABANDONED"
       ? log.cartRecoveryLead?.createdAt
       : log.trigger === "POST_PURCHASE"
         ? log.order?.paidAt ?? log.order?.paymentProofs[0]?.uploadedAt ?? log.order?.createdAt
         : log.order?.createdAt;
 
   return start ? formatArgentinaDateTime(new Date(start)) : "-";
+}
+
+// Host + path + query, without the protocol, so the link fits in the column.
+function formatCtaUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.host}${parsed.pathname === "/" ? "" : parsed.pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -284,3 +332,4 @@ function StatusBadge({ status }: { status: EmailSendStatus }) {
     </span>
   );
 }
+

@@ -12,14 +12,21 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
+import { PRESET_CART_PARAM } from "@/features/cart/lib/preset-cart";
 import { useCartStore } from "@/features/cart/store";
+import { ProductPrice } from "@/features/catalog/components/product-price";
+import type { ProductPricing } from "@/features/catalog/lib/product-discount";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { formatArs } from "@/lib/utils/currency";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
+import { FREE_SHIPPING_LINK_PARAM, FREE_SHIPPING_LINK_STORAGE_KEY } from "@/features/free-shipping-links/constants";
+import { formatArgentinaDateTime } from "@/lib/utils/datetime";
+import { getBrowserMarketingContext } from "@/lib/marketing/client";
+import { WELCOME_POPUP_EMAIL_STORAGE_KEY } from "@/lib/marketing/welcome-popup-copy";
 
-type ProductWithImages = Product & { images: ProductImage[] };
+type ProductWithImages = Product & { images: ProductImage[] } & ProductPricing;
 type SettingsWithRule = Omit<StoreSettings, "bankTransferDiscountPercentage"> & {
   bankTransferDiscountPercentage: number;
   activeShippingRule: (ShippingRule & { provinces: ShippingRuleProvince[] }) | null;
@@ -29,6 +36,14 @@ type CartPageProps = {
   products: ProductWithImages[];
   settings: SettingsWithRule;
   recoveryToken?: string;
+  freeShippingLinkToken?: string;
+  presetItems?: Array<{ productId: string; quantity: number }>;
+};
+
+type FreeShippingLink = {
+  token: string;
+  email: string;
+  expiresAt: string;
 };
 
 const cartFallbackImageMap: Record<string, string> = {
@@ -37,7 +52,14 @@ const cartFallbackImageMap: Record<string, string> = {
   PEANUT: "/home/mani.webp",
 };
 
-export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
+function cartSignature(items: Array<{ productId: string; quantity: number }>) {
+  return [...items]
+    .sort((left, right) => left.productId.localeCompare(right.productId))
+    .map((item) => `${item.productId}:${item.quantity}`)
+    .join("|");
+}
+
+export function CartPage({ products, settings, recoveryToken, freeShippingLinkToken, presetItems = [] }: CartPageProps) {
   const router = useRouter();
   const emailInputRef = useRef<HTMLInputElement>(null);
   const items = useCartStore((state) => state.items);
@@ -51,6 +73,9 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
   const [captureError, setCaptureError] = useState("");
   const [isCapturing, setIsCapturing] = useState(false);
   const [isRecoveringCart, setIsRecoveringCart] = useState(Boolean(recoveryToken));
+  const [freeShippingToken, setFreeShippingToken] = useState<string | null>(null);
+  const [recoveryCartSignature, setRecoveryCartSignature] = useState("");
+  const [freeShippingLink, setFreeShippingLink] = useState<FreeShippingLink | null>(null);
 
   const detailedItems = useMemo(
     () =>
@@ -74,6 +99,31 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     );
   }, [items, products]);
 
+  // Pre-filled cart link (ads): replace the cart once, after the saved cart was
+  // read from the browser, then drop the parameter so a reload does not re-apply it.
+  const presetApplied = useRef(false);
+  useEffect(() => {
+    if (presetApplied.current || presetItems.length === 0) {
+      return;
+    }
+
+    const apply = () => {
+      if (presetApplied.current) return;
+      presetApplied.current = true;
+      replaceItems(presetItems);
+      const url = new URL(window.location.href);
+      url.searchParams.delete(PRESET_CART_PARAM);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    };
+
+    if (useCartStore.persist.hasHydrated()) {
+      apply();
+      return;
+    }
+
+    return useCartStore.persist.onFinishHydration(apply);
+  }, [presetItems, replaceItems]);
+
   useEffect(() => {
     if (!recoveryToken) {
       return;
@@ -96,8 +146,11 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
         }
 
         replaceItems(payload.data.items);
+        setFreeShippingToken(payload.data.freeShippingToken ?? null);
+        setRecoveryCartSignature(cartSignature(payload.data.items));
         setEmail(payload.data.email);
         setCapturedEmail(payload.data.email);
+        window.localStorage.setItem(WELCOME_POPUP_EMAIL_STORAGE_KEY, payload.data.email);
 
         if (payload.data.province) {
           setProvince(payload.data.province);
@@ -124,14 +177,105 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     };
   }, [recoveryToken, replaceItems]);
 
+  // Free shipping link from the admin: keep the token in the browser while the
+  // customer picks products, and check it is still valid before showing it.
+  useEffect(() => {
+    let storedToken: string | null = null;
+
+    try {
+      storedToken = window.localStorage.getItem(FREE_SHIPPING_LINK_STORAGE_KEY);
+
+      if (freeShippingLinkToken) {
+        window.localStorage.setItem(FREE_SHIPPING_LINK_STORAGE_KEY, freeShippingLinkToken);
+      }
+    } catch {
+      // Storage unavailable: the link still works for this visit.
+    }
+
+    if (freeShippingLinkToken) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete(FREE_SHIPPING_LINK_PARAM);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    const token = freeShippingLinkToken ?? storedToken;
+
+    if (!token) {
+      return;
+    }
+
+    let isMounted = true;
+    const linkToken = token;
+
+    async function loadFreeShippingLink() {
+      try {
+        const response = await fetch(`/api/free-shipping-links/${encodeURIComponent(linkToken)}`);
+        const payload = await response.json();
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!response.ok) {
+          try {
+            window.localStorage.removeItem(FREE_SHIPPING_LINK_STORAGE_KEY);
+          } catch {}
+
+          if (freeShippingLinkToken) {
+            setCaptureError(payload.error || "El link de envío gratis venció o ya fue usado.");
+          }
+          return;
+        }
+
+        setFreeShippingLink({ token: linkToken, email: payload.data.email, expiresAt: payload.data.expiresAt });
+        setEmail((current) => current || payload.data.email);
+      } catch {
+        // Network error: the checkout validates the link again anyway.
+      }
+    }
+
+    void loadFreeShippingLink();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [freeShippingLinkToken]);
+
+  useEffect(() => {
+    if (recoveryToken || capturedEmail) {
+      return;
+    }
+
+    const storedEmail = window.localStorage.getItem(WELCOME_POPUP_EMAIL_STORAGE_KEY)?.trim().toLowerCase() ?? "";
+
+    if (!storedEmail) {
+      return;
+    }
+
+    setEmail((current) => current || storedEmail);
+    setCapturedEmail(storedEmail);
+  }, [capturedEmail, recoveryToken]);
+
   const subtotal = detailedItems.reduce((acc, item) => acc + item.product.priceArs * item.cart.quantity, 0);
   const shippingQuote = calculateShippingQuote(subtotal, province, settings);
-  const total = subtotal + shippingQuote.shippingArs;
-  const checkoutParams = new URLSearchParams({ province });
+  const hasRecoveryFreeShipping = Boolean(freeShippingToken) && recoveryCartSignature === cartSignature(items);
   const checkoutEmail = capturedEmail || email.trim();
+  // The link only applies to the email it was generated for.
+  const hasLinkFreeShipping =
+    !hasRecoveryFreeShipping &&
+    Boolean(freeShippingLink) &&
+    (email.trim() || checkoutEmail).toLowerCase() === freeShippingLink?.email;
+  const displayedShippingArs = hasRecoveryFreeShipping || hasLinkFreeShipping ? 0 : shippingQuote.shippingArs;
+  const total = subtotal + displayedShippingArs;
+  const checkoutParams = new URLSearchParams({ province });
 
   if (checkoutEmail) {
     checkoutParams.set("email", checkoutEmail);
+  }
+  if (hasRecoveryFreeShipping && freeShippingToken) {
+    checkoutParams.set("recoveryBenefit", freeShippingToken);
+  } else if (freeShippingLink) {
+    checkoutParams.set("recoveryBenefit", freeShippingLink.token);
   }
 
   const checkoutHref = `/checkout?${checkoutParams.toString()}`;
@@ -181,6 +325,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
         body: JSON.stringify({
           email: trimmedEmail,
           province,
+          marketing: getBrowserMarketingContext() ?? undefined,
           items: detailedItems.map(({ cart }) => ({
             productId: cart.productId,
             quantity: cart.quantity,
@@ -194,6 +339,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
       }
 
       setCapturedEmail(payload.data.email);
+      window.localStorage.setItem(WELCOME_POPUP_EMAIL_STORAGE_KEY, payload.data.email);
       return true;
     } catch (error) {
       if (!options.silent) {
@@ -251,7 +397,14 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
   }
 
   if (detailedItems.length === 0) {
-    return (
+    return freeShippingLink ? (
+      <EmptyState
+        title="Tenés envío gratis"
+        description={`Elegí tus barritas y comprá con ${freeShippingLink.email}. El envío es gratis hasta el ${formatArgentinaDateTime(new Date(freeShippingLink.expiresAt))}`}
+        actionHref="/#productos"
+        actionLabel="Ver productos"
+      />
+    ) : (
       <EmptyState
         title="Tu carrito está vacío"
         description="Elegí una de nuestras barritas y avanzá con un checkout rápido por transferencia."
@@ -280,7 +433,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
       <div className="space-y-4">
         {detailedItems.map(({ cart, product }) => (
           <Card key={product.id} className="p-4 md:p-5">
-            <div className="grid grid-cols-[56px_minmax(0,1fr)_88px] items-start gap-x-4 gap-y-2 md:grid-cols-[80px_minmax(0,1fr)_120px] md:items-center md:gap-5">
+            <div className="grid grid-cols-[56px_minmax(0,1fr)] items-start gap-x-4 gap-y-2 md:grid-cols-[80px_minmax(0,1fr)_120px] md:items-center md:gap-5">
               <div className="relative mt-1 h-14 w-14 shrink-0 overflow-hidden bg-white md:h-20 md:w-20 md:rounded-[1.25rem]">
                 <img
                   src={product.images[0]?.publicUrl ?? cartFallbackImageMap[product.colorTheme]}
@@ -297,15 +450,18 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
                 <h2 className="text-[0.95rem] font-medium leading-[1.16] text-brand-ink md:text-lg md:font-extrabold md:leading-6">
                   {product.name}
                 </h2>
-                <p className="mt-1 text-xs font-extrabold leading-5 text-emerald-700 md:text-sm">
-                  ✓ Seleccionado por nutricionistas · Sin sellos
-                </p>
+                <p className="mt-1 break-words text-xs font-extrabold leading-4 text-emerald-700 md:leading-5 md:text-sm">Seleccionado por nutricionistas - Sin sellos</p>
                 <p className="mt-2 text-[0.95rem] leading-none text-brand-ink md:mt-1 md:text-sm md:text-brand-ink/60">
-                  {formatArs(product.priceArs * cart.quantity)}
+                  <ProductPrice
+                    priceArs={product.priceArs}
+                    listPriceArs={product.listPriceArs}
+                    discountPercentage={product.activeDiscountPercentage}
+                    quantity={cart.quantity}
+                  />
                 </p>
               </div>
 
-              <div className="flex flex-col items-end gap-3 md:justify-self-end">
+              <div className="col-span-2 mt-1 flex flex-row-reverse items-center justify-between gap-3 border-t border-brand-ink/8 pt-3 md:col-span-1 md:mt-0 md:flex-col md:items-end md:justify-self-end md:border-0 md:pt-0">
                 <button
                   type="button"
                   className="text-[0.95rem] font-normal leading-none text-brand-ink/70 underline underline-offset-2 hover:text-brand-pink"
@@ -392,7 +548,14 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
 
                     <div className="min-w-0">
                       <p className="truncate text-[0.92rem] font-extrabold leading-5 text-brand-ink">{productLabel}</p>
-                      <p className="mt-1 text-sm font-bold text-brand-ink/55">{formatArs(product.priceArs)}</p>
+                      <p className="mt-1 text-sm font-bold text-brand-ink/55">
+                        <ProductPrice
+                          priceArs={product.priceArs}
+                          listPriceArs={product.listPriceArs}
+                          discountPercentage={product.activeDiscountPercentage}
+                          showBadge={false}
+                        />
+                      </p>
                     </div>
 
                     <div className="inline-flex items-center justify-self-end rounded-full border border-brand-ink/12 bg-white shadow-[0_8px_18px_rgba(44,34,65,0.05)]">
@@ -434,9 +597,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
             <Link
               href="/#productos"
               className="inline-flex w-full items-center justify-center rounded-full border border-brand-pink/28 bg-white px-4 py-2.5 text-sm font-extrabold text-brand-pink transition hover:border-brand-pink hover:bg-brand-pink/6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/30"
-            >
-              Ver más productos
-            </Link>
+            >Ver más productos</Link>
         )}
       </div>
 
@@ -460,7 +621,11 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
             </div>
             <div className="flex items-center justify-between">
               <span>Envío estimado</span>
-              {shippingQuote.freeShippingReached ? (
+              {hasRecoveryFreeShipping ? (
+                <span className="font-bold text-emerald-700">Bonificado</span>
+              ) : hasLinkFreeShipping ? (
+                <span className="font-bold text-emerald-700">Gratis</span>
+              ) : shippingQuote.freeShippingReached ? (
                 <span className="font-bold text-emerald-700">Gratis</span>
               ) : shippingQuote.shippingDiscountReached ? (
                 <span className="flex items-center gap-2 font-bold">
@@ -511,7 +676,18 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
             </div>
           ) : null}
         </div>
-        <p className="text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p>
+        {hasLinkFreeShipping ? null : <p className="text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p>}
+        {hasRecoveryFreeShipping ? (
+          <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
+            Recuperaste este carrito con envío bonificado. Se mantiene solo para este producto y este email al finalizar la compra.
+          </p>
+        ) : freeShippingLink ? (
+          <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
+            {hasLinkFreeShipping
+              ? `Tenés envío gratis con este email. Se aplica al finalizar la compra, hasta el ${formatArgentinaDateTime(new Date(freeShippingLink.expiresAt))}`
+              : `Tu envío gratis es para ${freeShippingLink.email}. Usá ese email para que se aplique.`}
+          </p>
+        ) : null}
         <div className="pt-2">
           <Button type="button" className="w-full" disabled={isCapturing} onClick={handleContinueCheckout}>
             {isCapturing ? "Continuando..." : "Continuar compra"}
@@ -521,3 +697,4 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     </div>
   );
 }
+

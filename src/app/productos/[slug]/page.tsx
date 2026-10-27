@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { MetaPixelEvent } from "@/components/analytics/meta-pixel-event";
@@ -8,14 +9,43 @@ import { ProductGallery } from "@/features/catalog/components/product-gallery";
 import { ProductLongDescription } from "@/features/catalog/components/product-long-description";
 import { ProductPurchasePanel } from "@/features/catalog/components/product-purchase-panel";
 import { ProductCard } from "@/features/catalog/components/product-card";
+import { ProductPrice } from "@/features/catalog/components/product-price";
 import { getProductBySlug, getSimilarProducts } from "@/features/catalog/queries";
+import { absoluteUrl, JsonLd } from "@/lib/seo/json-ld";
 import { formatArs } from "@/lib/utils/currency";
+import { siteConfig } from "@/lib/utils/site";
 
-export default async function ProductDetailPage({
-  params,
-}: {
+type ProductPageProps = {
   params: Promise<{ slug: string }>;
-}) {
+};
+
+function toPlainDescription(value: string, maxLength = 300) {
+  const text = value.replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1).trimEnd()}…` : text;
+}
+
+export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
+
+  if (!product || !product.active || !product.visible) {
+    return { robots: { index: false } };
+  }
+
+  const description = toPlainDescription(product.shortDescription, 160);
+  const image = product.images.find((item) => item.isPrimary) ?? product.images[0];
+  const images = image ? [{ url: image.publicUrl, alt: image.altText || product.name }] : undefined;
+
+  return {
+    title: product.name,
+    description,
+    alternates: { canonical: `/productos/${product.slug}` },
+    openGraph: { title: `${product.name} | IQ Kids`, description, type: "website", url: `/productos/${product.slug}`, images },
+    twitter: { card: image ? "summary_large_image" : "summary", title: product.name, description, images: image ? [image.publicUrl] : undefined },
+  };
+}
+
+export default async function ProductDetailPage({ params }: ProductPageProps) {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
 
@@ -24,9 +54,33 @@ export default async function ProductDetailPage({
   }
 
   const similarProducts = await getSimilarProducts(product.id);
+  const productUrl = absoluteUrl(`/productos/${product.slug}`);
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: toPlainDescription(product.shortDescription),
+    image: product.images.map((image) => absoluteUrl(image.publicUrl)),
+    url: productUrl,
+    brand: { "@type": "Brand", name: siteConfig.name },
+    manufacturer: { "@type": "Organization", name: siteConfig.companyName },
+    offers: {
+      "@type": "Offer",
+      url: productUrl,
+      priceCurrency: "ARS",
+      price: product.priceArs,
+      ...(product.activeDiscountPercentage && product.discountEndsAt
+        ? { priceValidUntil: product.discountEndsAt.toISOString().slice(0, 10) }
+        : {}),
+      availability: product.manualSoldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+      itemCondition: "https://schema.org/NewCondition",
+      seller: { "@type": "Organization", name: siteConfig.name },
+    },
+  };
 
   return (
     <Container className="space-y-14 py-12 md:py-16">
+      <JsonLd data={structuredData} />
       <MetaPixelEvent
         eventName="ViewContent"
         dedupeKey={`view-content:${product.id}`}
@@ -64,7 +118,18 @@ export default async function ProductDetailPage({
 
           <div className="rounded-[2rem] bg-white p-5 shadow-card">
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Precio</p>
-            <p className="mt-2 text-3xl font-extrabold text-brand-pink md:text-4xl">{formatArs(product.priceArs)}</p>
+            <p className="mt-2 text-3xl font-extrabold text-brand-pink md:text-4xl">
+              <ProductPrice
+                priceArs={product.priceArs}
+                listPriceArs={product.listPriceArs}
+                discountPercentage={product.activeDiscountPercentage}
+              />
+            </p>
+            {product.listPriceArs ? (
+              <p className="mt-2 text-sm font-bold text-emerald-700">
+                Ahorrás {formatArs(product.listPriceArs - product.priceArs)}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2 border-t border-brand-ink/10 pt-4">

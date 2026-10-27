@@ -1,4 +1,4 @@
-import { cache } from "react";
+﻿import { cache } from "react";
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
@@ -214,7 +214,7 @@ function getProductFlavor(item: {
   const label = rawLabel.toLowerCase();
 
   if (label.includes("mix")) return "Mix";
-  if (label.includes("mani") || label.includes("maní")) return "Mani";
+  if (label.includes("mani") || label.includes("manÃ­")) return "Mani";
   if (label.includes("cacao") || label.includes("chocolate")) return "Cacao";
   if (label.includes("banana")) return "Banana";
 
@@ -225,6 +225,44 @@ function formatArgentinaMonthYearLabel(date: Date) {
   const parts = getArgentinaDateParts(date);
 
   return `${formatArgentinaMonthLabel(date)} ${parts.year}`;
+}
+
+type DashboardMonthlyPoint = { label: string; year: number; orders: number; revenue: number; units: number };
+
+// Full monthly history (from the first order month to the current month) for the
+// "Mes" chart. Uses the same totals as before (totalArs, units, order count); only
+// the time window changes. Always at least 6 months, capped at 60 bars.
+function buildMonthlyHistory(
+  historyOrders: Array<{ createdAt: Date; totalArs: number; items: Array<{ quantity: number }> }>,
+  now: Date,
+): DashboardMonthlyPoint[] {
+  const current = getArgentinaDateParts(now);
+  const first = historyOrders[0] ? getArgentinaDateParts(historyOrders[0].createdAt) : current;
+  const monthsBack = Math.min(Math.max((current.year - first.year) * 12 + (current.month - first.month), 5), 59);
+  const monthlyMap = new Map<string, DashboardMonthlyPoint>();
+
+  for (let index = monthsBack; index >= 0; index -= 1) {
+    const date = getArgentinaMonthStart(current.year, current.month - index);
+    monthlyMap.set(getArgentinaMonthKey(date), {
+      label: formatArgentinaMonthLabel(date),
+      year: getArgentinaDateParts(date).year,
+      orders: 0,
+      revenue: 0,
+      units: 0,
+    });
+  }
+
+  for (const order of historyOrders) {
+    const month = monthlyMap.get(getArgentinaMonthKey(order.createdAt));
+
+    if (month) {
+      month.orders += 1;
+      month.revenue += order.totalArs;
+      month.units += order.items.reduce((acc, item) => acc + item.quantity, 0);
+    }
+  }
+
+  return Array.from(monthlyMap.values());
 }
 
 export const getAdminDashboardAnalytics = cache(async () => {
@@ -241,7 +279,7 @@ export const getAdminDashboardAnalyticsByStatus = cache(async (
   const rolling90Start = startOfRollingWindow(90);
   const dashboardWhere = buildDashboardOrderWhere(orderStatusFilter);
 
-  const [orders, recentOrders, activeProducts, syncPending, recoveryCandidates, collectedIdentityOrders] = await Promise.all([
+  const [orders, recentOrders, activeProducts, syncPending, recoveryCandidates, collectedIdentityOrders, historyOrders] = await Promise.all([
     prisma.order.findMany({
       where: {
         createdAt: { gte: rolling90Start },
@@ -296,6 +334,18 @@ export const getAdminDashboardAnalyticsByStatus = cache(async (
         customerTaxId: true,
       },
     }),
+    // Read-only, minimal columns: the monthly chart needs the full history, not only 90 days.
+    prisma.order.findMany({
+      where: {
+        ...dashboardWhere,
+      },
+      select: {
+        createdAt: true,
+        totalArs: true,
+        items: { select: { quantity: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   const todayOrders = orders.filter((order) => order.createdAt >= todayStart);
@@ -316,14 +366,6 @@ export const getAdminDashboardAnalyticsByStatus = cache(async (
     const date = addArgentinaDays(todayStart, -index);
     const key = getArgentinaDateKey(date);
     dailyMap.set(key, { label: formatArgentinaDayLabel(date), orders: 0, revenue: 0, units: 0 });
-  }
-
-  const monthlyMap = new Map<string, { label: string; orders: number; revenue: number; units: number }>();
-  const currentMonthParts = getArgentinaDateParts(now);
-  for (let index = 5; index >= 0; index -= 1) {
-    const date = getArgentinaMonthStart(currentMonthParts.year, currentMonthParts.month - index);
-    const key = getArgentinaMonthKey(date);
-    monthlyMap.set(key, { label: formatArgentinaMonthLabel(date), orders: 0, revenue: 0, units: 0 });
   }
 
   const weeklyRanges = Array.from({ length: 8 }, (_, index) => {
@@ -349,20 +391,12 @@ export const getAdminDashboardAnalyticsByStatus = cache(async (
     const orderRevenue = order.totalArs;
     const orderUnits = order.items.reduce((acc, item) => acc + item.quantity, 0);
     const dayKey = getArgentinaDateKey(order.createdAt);
-    const monthKey = getArgentinaMonthKey(order.createdAt);
     const day = dailyMap.get(dayKey);
-    const month = monthlyMap.get(monthKey);
 
     if (day) {
       day.orders += 1;
       day.revenue += orderRevenue;
       day.units += orderUnits;
-    }
-
-    if (month) {
-      month.orders += 1;
-      month.revenue += orderRevenue;
-      month.units += orderUnits;
     }
 
     const week = weeklyRanges.find((range) => order.createdAt >= range.start && order.createdAt < range.end);
@@ -467,7 +501,7 @@ export const getAdminDashboardAnalyticsByStatus = cache(async (
     },
     daily: Array.from(dailyMap.values()),
     weekly: weeklyRanges.map(({ label, orders, revenue, units }) => ({ label, orders, revenue, units })),
-    monthly: Array.from(monthlyMap.values()),
+    monthly: buildMonthlyHistory(historyOrders, now),
     collectedDaily: collectedSeries.daily,
     collectedWeekly: collectedSeries.weekly,
     collectedMonthly: collectedSeries.monthly,
@@ -551,6 +585,23 @@ function buildOrdersWhere(filters: OrderFilters = {}): Prisma.OrderWhereInput {
 const ordersInclude = {
   items: true,
   coupon: true,
+  marketingSession: {
+    select: {
+      email: true,
+      sourceCategory: true,
+      sourcePlatform: true,
+      sourceChannel: true,
+      sourceLabel: true,
+      utmCampaign: true,
+      utmSource: true,
+      utmMedium: true,
+      utmContent: true,
+      utmTerm: true,
+      referrerHost: true,
+      firstSeenAt: true,
+      lastSeenAt: true,
+    },
+  },
   paymentProofs: {
     orderBy: {
       uploadedAt: "desc",
@@ -622,12 +673,30 @@ export async function getOrderDetail(orderId: string) {
           },
         },
       },
+      marketingSession: {
+        select: {
+          email: true,
+          sourceCategory: true,
+          sourcePlatform: true,
+          sourceChannel: true,
+          sourceLabel: true,
+          utmCampaign: true,
+          utmSource: true,
+          utmMedium: true,
+          utmContent: true,
+          utmTerm: true,
+          referrerHost: true,
+          firstSeenAt: true,
+          lastSeenAt: true,
+        },
+      },
       paymentProofs: {
         orderBy: {
           uploadedAt: "desc",
         },
       },
       mercadoPagoPreference: true,
+
       mercadoPagoPayments: {
         orderBy: {
           createdAt: "desc",
@@ -659,3 +728,5 @@ export async function getOrderDetail(orderId: string) {
     },
   });
 }
+
+
