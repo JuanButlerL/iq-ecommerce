@@ -313,7 +313,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       orderBy: { createdAt: "desc" },
       include: {
         automation: {
-          select: { name: true },
+          select: { name: true, ctaLabel: true },
         },
         convertedOrder: {
           select: {
