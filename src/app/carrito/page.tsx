@@ -8,7 +8,7 @@ import { notFound } from "next/navigation";
 export default async function CartRoutePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ recuperar?: string; productos?: string }>;
+  searchParams?: Promise<{ recuperar?: string; productos?: string; envioGratis?: string }>;
 }) {
   const params = await searchParams;
   const [products, settings] = await Promise.all([getVisibleProducts(), getStoreSettingsForClient()]);
@@ -23,6 +23,7 @@ export default async function CartRoutePage({
         products={products}
         settings={settings}
         recoveryToken={params?.recuperar}
+        freeShippingLinkToken={params?.envioGratis}
         presetItems={params?.recuperar ? [] : parsePresetCart(params?.productos, products)}
       />
     </Container>

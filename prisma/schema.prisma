@@ -813,6 +813,7 @@ model Order {
   syncJobs              SyncJob[]
   emailLogs             EmailSendLog[]
   convertedEmailLogs    EmailSendLog[]      @relation("EmailLogConvertedOrder")
+  freeShippingLinks     FreeShippingLink[]
   marketingEvents       MarketingEvent[]
 
   @@index([couponId], map: "orders_coupon_idx")
@@ -1035,4 +1036,23 @@ model WhatsappConnection {
 
   @@index([status, createdAt], map: "whatsapp_connections_status_idx")
   @@map("whatsapp_connections")
+}
+
+// Personal, single-use free shipping link generated from the admin for one email.
+model FreeShippingLink {
+  id         String    @id @default(uuid()) @db.Uuid
+  email      String
+  token      String    @unique @db.Uuid
+  note       String?
+  expiresAt  DateTime  @map("expires_at")
+  createdBy  String?   @map("created_by")
+  revokedAt  DateTime? @map("revoked_at")
+  redeemedAt DateTime? @map("redeemed_at")
+  orderId    String?   @map("order_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+  order      Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([email], map: "free_shipping_links_email_idx")
+  @@index([createdAt], map: "free_shipping_links_created_at_idx")
+  @@map("free_shipping_links")
 }
