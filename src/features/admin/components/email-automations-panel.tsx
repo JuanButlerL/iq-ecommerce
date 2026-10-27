@@ -35,6 +35,7 @@ type AutomationItem = {
   couponMessage: string | null;
   cartRecoveryFreeShippingEnabled: boolean;
   cartRecoveryFreeShippingMessage: string | null;
+  cartRecoveryFreeShippingProductIds: string[];
   coupon: {
     id: string;
     code: string;
@@ -136,6 +137,7 @@ type EmailAutomationsPanelProps = {
     converted: number;
   };
   newsletterSubscribers: number;
+  products: Array<{ id: string; name: string; visible: boolean }>;
   emailEnabled: boolean;
 };
 
@@ -159,6 +161,7 @@ type FormState = {
   couponMessage: string;
   cartRecoveryFreeShippingEnabled: boolean;
   cartRecoveryFreeShippingMessage: string;
+  cartRecoveryFreeShippingProductIds: string[];
 };
 
 const defaultForm: FormState = {
@@ -181,6 +184,7 @@ const defaultForm: FormState = {
   couponMessage: "",
   cartRecoveryFreeShippingEnabled: false,
   cartRecoveryFreeShippingMessage: "Tu envío está bonificado para este carrito. Aprovechá el beneficio dentro de las próximas 72 horas.",
+  cartRecoveryFreeShippingProductIds: [],
 };
 
 const triggerLabels: Record<EmailAutomationTrigger, string> = {
@@ -252,7 +256,7 @@ const variableDescriptions: Partial<Record<EmailAutomationTrigger, Record<string
   },
 };
 
-export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, newsletterSubscribers, emailEnabled }: EmailAutomationsPanelProps) {
+export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coupons, trackingSummary, newsletterSubscribers, products, emailEnabled }: EmailAutomationsPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(automations[0]?.id ?? null);
   const [form, setForm] = useState<FormState>(() => automationToForm(automations[0] ?? null));
   const [testEmail, setTestEmail] = useState("");
@@ -894,7 +898,7 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-emerald-800">Beneficio de recuperación</p>
                       <p className="mt-2 text-sm leading-6 text-brand-ink/65">
-                        Sólo para carritos elegibles de un producto y clientes sin compras previas. Cuando aplica, el mail muestra envío bonificado y no incluye cupón.
+                        Sólo para carritos donde todos los productos estén marcados abajo y clientes sin compras previas. Cuando aplica, el mail muestra envío bonificado y no incluye cupón.
                       </p>
                     </div>
                     <label className="flex shrink-0 items-center gap-2 text-sm font-extrabold text-brand-ink">
@@ -920,6 +924,39 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                       <p className="mt-2 text-xs leading-5 text-emerald-800">
                         Requiere que el CTA use <span className="font-extrabold">{"{{recoveryUrl}}"}</span>. Para quienes no califiquen, se mantiene el cupón configurado arriba.
                       </p>
+                      <div className="mt-4">
+                        <p className="text-sm font-extrabold text-brand-ink">Productos incluidos</p>
+                        <p className="mt-1 text-xs leading-5 text-brand-ink/60">
+                          Si el carrito tiene algún producto sin marcar, el mail sale sin envío bonificado.
+                        </p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {products.map((product) => (
+                            <label
+                              key={product.id}
+                              className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-brand-ink"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={form.cartRecoveryFreeShippingProductIds.includes(product.id)}
+                                onChange={(event) =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    cartRecoveryFreeShippingProductIds: event.target.checked
+                                      ? [...current.cartRecoveryFreeShippingProductIds, product.id]
+                                      : current.cartRecoveryFreeShippingProductIds.filter((id) => id !== product.id),
+                                  }))
+                                }
+                                className="h-4 w-4 accent-[#278460]"
+                              />
+                              <span>{product.name}</span>
+                              {!product.visible ? <span className="text-xs font-normal text-brand-ink/45">(oculto)</span> : null}
+                            </label>
+                          ))}
+                        </div>
+                        {form.cartRecoveryFreeShippingProductIds.length === 0 ? (
+                          <p className="mt-2 text-xs font-bold text-red-700">Elegí al menos un producto.</p>
+                        ) : null}
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -1225,6 +1262,7 @@ function automationToForm(automation: AutomationItem | null): FormState {
     cartRecoveryFreeShippingEnabled: automation.cartRecoveryFreeShippingEnabled,
     cartRecoveryFreeShippingMessage:
       automation.cartRecoveryFreeShippingMessage ?? "Tu envío está bonificado para este carrito. Aprovechá el beneficio dentro de las próximas 72 horas.",
+    cartRecoveryFreeShippingProductIds: automation.cartRecoveryFreeShippingProductIds,
   };
 }
 
