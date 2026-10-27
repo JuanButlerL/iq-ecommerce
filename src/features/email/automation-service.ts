@@ -160,7 +160,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
           automation.cartRecoveryFreeShippingEnabled &&
           candidate.cartRecoveryLeadId &&
           ctaUrl === candidate.variables.recoveryUrl
-            ? await grantCartRecoveryFreeShippingBenefit(candidate.cartRecoveryLeadId)
+            ? await grantCartRecoveryFreeShippingBenefit(candidate.cartRecoveryLeadId, automation.cartRecoveryFreeShippingProductIds)
             : null;
 
         if (freeShippingBenefit?.created && candidate.cartRecoveryLeadId) {
@@ -294,7 +294,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         }
       : {};
 
-  const [automations, recentLogs, cartLeads, coupons, newsletterSubscribers] = await Promise.all([
+  const [automations, recentLogs, cartLeads, coupons, newsletterSubscribers, products] = await Promise.all([
     prisma.emailAutomation.findMany({
       where: {
         id: { not: WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID },
@@ -373,6 +373,11 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
     prisma.newsletterSubscriber.count({
       where: { status: NewsletterSubscriberStatus.SUBSCRIBED },
     }),
+    prisma.product.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, visible: true },
+    }),
   ]);
 
   const logsWithOpens = recentLogs.filter((log) => log.openCount > 0).length;
@@ -438,6 +443,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       sent: recentLogs.filter((log) => log.status === EmailSendStatus.SENT).length,
     },
     newsletterSubscribers,
+    products,
     emailEnabled: env.canSendEmail,
   };
 }

@@ -665,6 +665,7 @@ model EmailAutomation {
   couponMessage  String?                @map("coupon_message") @db.Text
   cartRecoveryFreeShippingEnabled Boolean @default(false) @map("cart_recovery_free_shipping_enabled")
   cartRecoveryFreeShippingMessage String? @map("cart_recovery_free_shipping_message") @db.Text
+  cartRecoveryFreeShippingProductIds String[] @default([]) @map("cart_recovery_free_shipping_product_ids") @db.Uuid
   createdAt      DateTime               @default(now()) @map("created_at")
   updatedAt      DateTime               @updatedAt @map("updated_at")
   coupon         Coupon?                @relation(fields: [couponId], references: [id], onDelete: SetNull)

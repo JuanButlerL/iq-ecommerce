@@ -55,9 +55,11 @@ export function hasSameRecoveryCart(savedItems: Prisma.JsonValue, checkoutItems:
   return checkoutItems.every((item) => savedByProduct.get(item.productId) === item.quantity);
 }
 
-function hasSingleProductLine(savedItems: Prisma.JsonValue) {
+// Every product in the cart must be one the automation marks as eligible.
+function hasOnlyEligibleProducts(savedItems: Prisma.JsonValue, eligibleProductIds: string[]) {
   const parsedItems = parseRecoveryItems(savedItems);
-  return Boolean(parsedItems && parsedItems.length === 1);
+  const eligible = new Set(eligibleProductIds);
+  return Boolean(parsedItems && parsedItems.length > 0 && parsedItems.every((item) => eligible.has(item.productId)));
 }
 
 async function hasConfirmedPurchase(db: PrismaClient, email: string) {
@@ -78,7 +80,9 @@ async function hasConfirmedPurchase(db: PrismaClient, email: string) {
   });
 }
 
-export async function grantCartRecoveryFreeShippingBenefit(leadId: string) {
+// Eligibility is decided here, when the email is sent. Validation and redemption
+// then require the exact same cart, so a granted token can't be reused for other products.
+export async function grantCartRecoveryFreeShippingBenefit(leadId: string, eligibleProductIds: string[]) {
   const lead = await prisma.cartRecoveryLead.findUnique({
     where: { id: leadId },
     select: {
@@ -91,7 +95,12 @@ export async function grantCartRecoveryFreeShippingBenefit(leadId: string) {
     },
   });
 
-  if (!lead || lead.freeShippingRedeemedAt || !hasSingleProductLine(lead.items) || (await hasConfirmedPurchase(prisma, lead.email))) {
+  if (
+    !lead ||
+    lead.freeShippingRedeemedAt ||
+    !hasOnlyEligibleProducts(lead.items, eligibleProductIds) ||
+    (await hasConfirmedPurchase(prisma, lead.email))
+  ) {
     return null;
   }
 
@@ -156,7 +165,7 @@ export async function canUseCartRecoveryFreeShippingBenefit(input: {
     select: { email: true, items: true },
   });
 
-  return Boolean(lead && hasSingleProductLine(lead.items) && hasSameRecoveryCart(lead.items, input.items) && !(await hasConfirmedPurchase(prisma, lead.email)));
+  return Boolean(lead && hasSameRecoveryCart(lead.items, input.items) && !(await hasConfirmedPurchase(prisma, lead.email)));
 }
 
 export async function redeemCartRecoveryFreeShippingBenefit(
@@ -176,7 +185,7 @@ export async function redeemCartRecoveryFreeShippingBenefit(
     select: { id: true, email: true, items: true },
   });
 
-  if (!lead || !hasSingleProductLine(lead.items) || !hasSameRecoveryCart(lead.items, input.items) || (await hasConfirmedPurchase(db, lead.email))) {
+  if (!lead || !hasSameRecoveryCart(lead.items, input.items) || (await hasConfirmedPurchase(db, lead.email))) {
     return false;
   }
 
