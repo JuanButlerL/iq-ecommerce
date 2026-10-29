@@ -7,7 +7,13 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto/secret-box";
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors/app-error";
-import { exchangeCodeForBusinessToken, graphRequest } from "@/lib/integrations/whatsapp/graph";
+import {
+  exchangeCodeForBusinessToken,
+  getTokenWabaIds,
+  graphRequest,
+  MetaGraphError,
+  REDIRECT_URI_MISMATCH_SUBCODE,
+} from "@/lib/integrations/whatsapp/graph";
 
 // Alta de coexistencia (WhatsApp Business app + Cloud API) via Embedded Signup.
 // El code y los datos de la sesion llegan en requests separados: se juntan por sessionKey.
@@ -18,6 +24,8 @@ const sessionKeySchema = z.string().uuid();
 export const signupCodeSchema = z.object({
   sessionKey: sessionKeySchema,
   code: z.string().min(10).max(4000),
+  // Page where FB.login ran: the SDK can bind the code to it as fallback_redirect_uri.
+  pageUrl: z.string().url().max(500).optional(),
 });
 
 export const signupSessionSchema = z.object({
@@ -64,13 +72,13 @@ export async function recordSignupCode(input: z.infer<typeof signupCodeSchema>, 
   // El code vence en minutos: se canjea apenas llega, sin esperar los datos de la sesion.
   if (!connection.encryptedToken) {
     try {
-      const { access_token: accessToken } = await exchangeCodeForBusinessToken(input.code);
+      const { accessToken, redirectUriLabel } = await exchangeSignupCode(input.code, input.pageUrl);
       connection = await prisma.whatsappConnection.update({
         where: { id: connection.id },
         data: {
           encryptedToken: encryptSecret(accessToken),
           tokenObtainedAt: new Date(),
-          ...stepData(connection, { step: "token", ok: true }),
+          ...stepData(connection, { step: "token", ok: true, detail: `redirect_uri: ${redirectUriLabel}` }),
         },
       });
     } catch (error) {
@@ -79,7 +87,71 @@ export async function recordSignupCode(input: z.infer<typeof signupCodeSchema>, 
     }
   }
 
+  // Si el mensaje de la sesion no llega del popup, la WABA sale de los permisos del token.
+  if (!connection.wabaId && connection.encryptedToken) {
+    connection = await fillWabaFromToken(connection);
+  }
+
   return finalizeIfReady(connection.id);
+}
+
+// Meta ata el code al redirect_uri que uso el SDK (propio, vacio o la pagina como fallback).
+// Solo ante 36008 se prueba el siguiente (Meta rechaza el redirect_uri antes de dar el token);
+// cualquier otro error corta. El paso "token" guarda cual funciono.
+async function exchangeSignupCode(code: string, pageUrl?: string) {
+  const candidates: Array<{ label: string; redirectUri?: string }> = [
+    { label: "omitido" },
+    { label: "vacio", redirectUri: "" },
+  ];
+  const safePageUrl = pageUrl && isOwnSiteUrl(pageUrl) ? pageUrl : null;
+
+  if (safePageUrl) {
+    candidates.push({ label: safePageUrl, redirectUri: safePageUrl });
+  }
+
+  let lastError: unknown;
+
+  for (const candidate of candidates) {
+    try {
+      const { access_token: accessToken } = await exchangeCodeForBusinessToken(code, candidate.redirectUri);
+      return { accessToken, redirectUriLabel: candidate.label };
+    } catch (error) {
+      if (!(error instanceof MetaGraphError) || error.subcode !== REDIRECT_URI_MISMATCH_SUBCODE) {
+        throw error;
+      }
+
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
+function isOwnSiteUrl(value: string) {
+  const siteHost = new URL(env.NEXT_PUBLIC_SITE_URL).hostname.replace(/^www\./, "");
+  const url = new URL(value);
+
+  return url.protocol === "https:" && url.hostname.replace(/^www\./, "") === siteHost;
+}
+
+async function fillWabaFromToken(connection: WhatsappConnection) {
+  try {
+    const wabaIds = await getTokenWabaIds(decryptSecret(connection.encryptedToken as string));
+
+    if (wabaIds.length !== 1) {
+      return saveStep(connection, { step: "waba_from_token", ok: false, detail: `${wabaIds.length} WABA en el token` });
+    }
+
+    // Puede haber llegado la sesion mientras tanto: no pisar una WABA ya guardada.
+    await prisma.whatsappConnection.updateMany({
+      where: { id: connection.id, wabaId: null },
+      data: { wabaId: wabaIds[0], ...stepData(connection, { step: "waba_from_token", ok: true, detail: wabaIds[0] }) },
+    });
+  } catch (error) {
+    await saveStep(connection, { step: "waba_from_token", ok: false, detail: error instanceof Error ? error.message : "Error" });
+  }
+
+  return prisma.whatsappConnection.findUniqueOrThrow({ where: { id: connection.id } });
 }
 
 export async function recordSignupSession(input: z.infer<typeof signupSessionSchema>, adminEmail: string) {
