@@ -26,7 +26,11 @@ export const signupCodeSchema = z.object({
   code: z.string().min(10).max(4000),
   // Page where FB.login ran: the SDK can bind the code to it as fallback_redirect_uri.
   pageUrl: z.string().url().max(500).optional(),
+  // Dialogo OAuth propio: el code esta atado a este redirect_uri exacto y se canjea solo con el.
+  redirectUri: z.string().url().max(500).optional(),
 });
+
+const SIGNUP_REDIRECT_PATH = "/admin/whatsapp";
 
 export const signupSessionSchema = z.object({
   sessionKey: sessionKeySchema,
@@ -72,7 +76,9 @@ export async function recordSignupCode(input: z.infer<typeof signupCodeSchema>, 
   // El code vence en minutos: se canjea apenas llega, sin esperar los datos de la sesion.
   if (!connection.encryptedToken) {
     try {
-      const { accessToken, redirectUriLabel } = await exchangeSignupCode(input.code, input.pageUrl);
+      const { accessToken, redirectUriLabel } = input.redirectUri
+        ? await exchangeRedirectCode(input.code, input.redirectUri)
+        : await exchangeSignupCode(input.code, input.pageUrl);
       connection = await prisma.whatsappConnection.update({
         where: { id: connection.id },
         data: {
@@ -125,6 +131,16 @@ async function exchangeSignupCode(code: string, pageUrl?: string) {
   }
 
   throw lastError;
+}
+
+async function exchangeRedirectCode(code: string, redirectUri: string) {
+  // Solo se acepta la URL fija del admin del propio sitio: no se canjea contra URIs que mande el navegador.
+  if (!isOwnSiteUrl(redirectUri) || new URL(redirectUri).pathname !== SIGNUP_REDIRECT_PATH || new URL(redirectUri).search) {
+    throw new AppError("redirect_uri no permitido para el alta de WhatsApp.", 400);
+  }
+
+  const { access_token: accessToken } = await exchangeCodeForBusinessToken(code, redirectUri);
+  return { accessToken, redirectUriLabel: redirectUri };
 }
 
 function isOwnSiteUrl(value: string) {
