@@ -8,22 +8,29 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { WhatsappConnectionView } from "@/features/whatsapp/onboarding-service";
 
-type FacebookLoginResponse = { authResponse?: { code?: string } | null; status?: string };
+// El signup se abre como dialogo OAuth en la misma pestana, con un redirect_uri propio y fijo:
+// con el popup del SDK, Meta ataba el code a un redirect_uri interno y el canje fallaba (100/36008).
+// Esta URL tiene que estar en "URIs de redireccionamiento de OAuth validos" de la app.
+const SIGNUP_REDIRECT_PATH = "/admin/whatsapp";
+const PENDING_SIGNUP_KEY = "iqkids.whatsapp.signup";
+const PENDING_SIGNUP_MAX_AGE_MS = 15 * 60 * 1000;
 
-type FacebookSdk = {
-  init: (options: Record<string, unknown>) => void;
-  login: (callback: (response: FacebookLoginResponse) => void, options: Record<string, unknown>) => void;
-};
+// Lee y borra el alta pendiente: el state se usa una sola vez y vence a los 15 minutos.
+function readPendingSignup(): { state: string; redirectUri: string } | null {
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_SIGNUP_KEY);
+    window.sessionStorage.removeItem(PENDING_SIGNUP_KEY);
+    const pending = raw ? (JSON.parse(raw) as { state?: string; redirectUri?: string; at?: number }) : null;
 
-declare global {
-  interface Window {
-    FB?: FacebookSdk;
-    fbAsyncInit?: () => void;
+    if (!pending?.state || !pending.redirectUri || !pending.at || Date.now() - pending.at > PENDING_SIGNUP_MAX_AGE_MS) {
+      return null;
+    }
+
+    return { state: pending.state, redirectUri: pending.redirectUri };
+  } catch {
+    return null;
   }
 }
-
-// Solo se aceptan mensajes del popup de Meta, comparando el origen exacto.
-const FACEBOOK_ORIGINS = new Set(["https://www.facebook.com", "https://web.facebook.com"]);
 
 const STATUS_LABEL: Record<WhatsappConnectionView["status"], string> = {
   PENDING: "Esperando datos del signup",
@@ -43,53 +50,44 @@ type Props = {
 
 export function WhatsappConnectPanel({ appId, configId, graphVersion, missingConfig, connections }: Props) {
   const router = useRouter();
-  const sessionKeyRef = useRef<string | null>(null);
-  const [sdkReady, setSdkReady] = useState(false);
+  const callbackHandled = useRef(false);
   const [running, setRunning] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canConnect = missingConfig.length === 0 && Boolean(appId && configId);
 
+  // Vuelta del dialogo de Meta: ?code=...&state=... (o ?error=...). Se procesa una sola vez.
   useEffect(() => {
-    if (!canConnect) return;
+    if (callbackHandled.current) return;
 
-    window.fbAsyncInit = () => {
-      window.FB?.init({ appId, autoLogAppEvents: true, xfbml: false, version: graphVersion });
-      setSdkReady(true);
-    };
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+    const metaError = params.get("error_description") ?? params.get("error_message") ?? params.get("error");
 
-    if (window.FB) {
-      window.fbAsyncInit();
-    } else if (!document.getElementById("facebook-jssdk")) {
-      const script = document.createElement("script");
-      script.id = "facebook-jssdk";
-      script.src = "https://connect.facebook.net/es_LA/sdk.js";
-      script.async = true;
-      script.defer = true;
-      script.crossOrigin = "anonymous";
-      document.body.appendChild(script);
-    }
-  }, [appId, canConnect, graphVersion]);
+    if (!code && !metaError) return;
 
-  useEffect(() => {
-    function onMessage(event: MessageEvent) {
-      if (!FACEBOOK_ORIGINS.has(event.origin) || !sessionKeyRef.current) return;
+    callbackHandled.current = true;
+    window.history.replaceState(window.history.state, "", SIGNUP_REDIRECT_PATH);
+    const pending = readPendingSignup();
 
-      let payload: unknown;
-      try {
-        payload = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-      } catch {
-        return;
-      }
-
-      if (!payload || typeof payload !== "object" || (payload as { type?: string }).type !== "WA_EMBEDDED_SIGNUP") return;
-
-      void post("/api/admin/whatsapp/onboarding/session", { sessionKey: sessionKeyRef.current, payload });
+    if (metaError) {
+      setError(`Meta no completo el alta: ${metaError}`);
+      return;
     }
 
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    if (!pending || pending.state !== state) {
+      setError("La vuelta de Meta no corresponde a un alta iniciada desde este navegador. Volve a intentarlo.");
+      return;
+    }
+
+    setRunning(true);
+    void post("/api/admin/whatsapp/onboarding/code", {
+      sessionKey: pending.state,
+      code,
+      redirectUri: pending.redirectUri,
+    }).finally(() => setRunning(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -121,40 +119,33 @@ export function WhatsappConnectPanel({ appId, configId, graphVersion, missingCon
   }
 
   function launchSignup() {
-    if (!window.FB) return;
+    if (!appId || !configId) return;
 
-    sessionKeyRef.current = crypto.randomUUID();
-    setRunning(true);
-    setMessage(null);
-    setError(null);
+    // El state viaja a Meta y vuelve en el redirect; tambien es la sessionKey de la conexion.
+    const state = crypto.randomUUID();
+    const redirectUri = `${window.location.origin}${SIGNUP_REDIRECT_PATH}`;
 
-    window.FB.login(
-      (response) => {
-        const code = response.authResponse?.code;
+    try {
+      window.sessionStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({ state, redirectUri, at: Date.now() }));
+    } catch {
+      setError("El navegador no permite guardar el estado del alta (sessionStorage).");
+      return;
+    }
 
-        if (!code) {
-          setRunning(false);
-          setError("No se recibio autorizacion de Meta (ventana cerrada o permisos rechazados).");
-          return;
-        }
-
-        void post("/api/admin/whatsapp/onboarding/code", {
-          sessionKey: sessionKeyRef.current,
-          code,
-          pageUrl: window.location.href,
-        }).finally(() => setRunning(false));
-      },
-      {
-        config_id: configId,
-        response_type: "code",
-        override_default_response_type: true,
-        extras: {
-          setup: {},
-          featureType: "whatsapp_business_app_onboarding",
-          sessionInfoVersion: "3",
-        },
-      },
+    const url = new URL(`https://www.facebook.com/${graphVersion}/dialog/oauth`);
+    url.searchParams.set("client_id", appId);
+    url.searchParams.set("config_id", configId);
+    url.searchParams.set("redirect_uri", redirectUri);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("override_default_response_type", "true");
+    url.searchParams.set("state", state);
+    url.searchParams.set(
+      "extras",
+      JSON.stringify({ setup: {}, featureType: "whatsapp_business_app_onboarding", sessionInfoVersion: "3" }),
     );
+
+    setRunning(true);
+    window.location.assign(url.toString());
   }
 
   async function retry(id: string) {
@@ -175,9 +166,9 @@ export function WhatsappConnectPanel({ appId, configId, graphVersion, missingCon
           <div className="space-y-2 text-sm leading-6 text-brand-ink/70">
             <p className="font-bold text-brand-ink">Conectar el numero de la app WhatsApp Business a la Cloud API</p>
             <p>
-              Se abre una ventana de Meta. Elegi el portfolio y la cuenta de WhatsApp, ingresa el numero y escanea el QR
-              desde la app WhatsApp Business del telefono principal. <strong>Acepta compartir el historial</strong>: si se
-              rechaza, despues no se puede sincronizar.
+              Te lleva a Meta en esta misma pestana. Elegi el portfolio y la cuenta de WhatsApp, ingresa el numero y escanea
+              el QR desde la app WhatsApp Business del telefono principal. <strong>Acepta compartir el historial</strong>: si
+              se rechaza, despues no se puede sincronizar. Al terminar, Meta te devuelve a esta pagina.
             </p>
           </div>
         </div>
@@ -188,9 +179,9 @@ export function WhatsappConnectPanel({ appId, configId, graphVersion, missingCon
           </p>
         ) : null}
 
-        <Button onClick={launchSignup} disabled={!canConnect || !sdkReady || running}>
+        <Button onClick={launchSignup} disabled={!canConnect || running}>
           {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {running ? "Conectando..." : sdkReady || !canConnect ? "Conectar WhatsApp Business" : "Cargando SDK de Meta..."}
+          {running ? "Conectando..." : "Conectar WhatsApp Business"}
         </Button>
 
         {message ? (
