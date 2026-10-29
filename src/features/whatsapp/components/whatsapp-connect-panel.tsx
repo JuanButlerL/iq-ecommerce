@@ -138,7 +138,11 @@ export function WhatsappConnectPanel({ appId, configId, graphVersion, missingCon
           return;
         }
 
-        void post("/api/admin/whatsapp/onboarding/code", { sessionKey: sessionKeyRef.current, code }).finally(() => setRunning(false));
+        void post("/api/admin/whatsapp/onboarding/code", {
+          sessionKey: sessionKeyRef.current,
+          code,
+          pageUrl: window.location.href,
+        }).finally(() => setRunning(false));
       },
       {
         config_id: configId,
