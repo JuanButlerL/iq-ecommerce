@@ -42,6 +42,7 @@ export const homeSlideFormSchema = z
     imageUrl: z.string().trim().min(1, "Subí una imagen para el slide.").max(500),
     mobileImageUrl: optionalText("Imagen de celular", 500),
     imageAlt: optionalText("Texto alternativo", 200),
+    imageOverlay: z.boolean().default(true),
     active: z.boolean().default(true),
     startsAt: argentinaDateTime("Fecha de inicio"),
     endsAt: argentinaDateTime("Fecha de fin"),

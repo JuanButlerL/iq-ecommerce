@@ -376,6 +376,8 @@ model HomeSlide {
   imageUrl       String   @map("image_url")
   mobileImageUrl String?  @map("mobile_image_url")
   imageAlt       String?  @map("image_alt")
+  // Soft wash over the photo behind the text; some artworks look better without it.
+  imageOverlay   Boolean  @default(true) @map("image_overlay")
   active         Boolean  @default(true)
   // Optional publishing window; the home only shows the slide between these moments.
   startsAt       DateTime? @map("starts_at")
