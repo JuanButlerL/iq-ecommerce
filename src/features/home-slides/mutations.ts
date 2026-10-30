@@ -21,7 +21,7 @@ export async function saveHomeSlide(payload: unknown, slideId?: string) {
 
   const data = {
     eyebrow: parsed.data.eyebrow || null,
-    title: parsed.data.title,
+    title: parsed.data.title ?? "",
     mobileTitle: parsed.data.mobileTitle || null,
     subtitle: parsed.data.subtitle || null,
     badges: parsed.data.badges,

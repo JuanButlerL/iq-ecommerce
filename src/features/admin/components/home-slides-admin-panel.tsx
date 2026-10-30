@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, GripVertical, ImagePlus, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye, GripVertical, ImagePlus, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
@@ -9,7 +9,14 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatAdminDateTime, isoToArgentinaLocalInput } from "@/features/newsletter/components/newsletter-admin-labels";
+import { HomeSlidesPreviewDialog } from "@/features/admin/components/home-slides-preview-dialog";
+import type { HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
+import { withHeroImageFraming } from "@/features/home-slides/lib/hero-slides";
+import {
+  argentinaLocalInputToIso,
+  formatAdminDateTime,
+  isoToArgentinaLocalInput,
+} from "@/features/newsletter/components/newsletter-admin-labels";
 import { cn } from "@/lib/utils/cn";
 
 type HomeSlideListItem = {
@@ -80,6 +87,35 @@ const slideStatusMeta: Record<SlideStatus, { label: string; className: string }>
   ended: { label: "Finalizado", className: "bg-brand-ink/10 text-brand-ink/55" },
 };
 
+function argentinaInputToDate(value: string) {
+  const iso = value ? argentinaLocalInputToIso(value) : null;
+  return iso ? new Date(iso) : null;
+}
+
+function isVisibleAt(slide: HomeSlideListItem, at: Date) {
+  return (
+    slide.active &&
+    (!slide.startsAt || new Date(slide.startsAt) <= at) &&
+    (!slide.endsAt || new Date(slide.endsAt) > at)
+  );
+}
+
+function toHeroSlide(slide: HomeSlideListItem): HomeHeroSlide {
+  return withHeroImageFraming({
+    id: slide.id,
+    eyebrow: slide.eyebrow,
+    title: slide.title,
+    mobileTitle: slide.mobileTitle,
+    subtitle: slide.subtitle,
+    badges: slide.badges,
+    ctaLabel: slide.ctaLabel,
+    ctaUrl: slide.ctaUrl,
+    imageUrl: slide.imageUrl,
+    mobileImageUrl: slide.mobileImageUrl,
+    imageAlt: slide.imageAlt,
+  });
+}
+
 function getSlideStatus(slide: HomeSlideListItem, now: Date): SlideStatus {
   if (!slide.active) return "paused";
   if (slide.endsAt && new Date(slide.endsAt) <= now) return "ended";
@@ -105,6 +141,8 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
   const [orderError, setOrderError] = useState<string | null>(null);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const dragStartOrder = useRef<string[]>([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewAt, setPreviewAt] = useState("");
 
   useEffect(() => {
     setOrderedSlides(slides);
@@ -113,6 +151,54 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
   const editingSlide = useMemo(() => slides.find((slide) => slide.id === editingId) ?? null, [slides, editingId]);
   const now = new Date();
   const activeCount = slides.filter((slide) => getSlideStatus(slide, now) === "active").length;
+
+  // The carousel as the home would show it at `previewAt`, with the form's unsaved slide in place.
+  const preview = useMemo(() => {
+    if (!isPreviewOpen) {
+      return null;
+    }
+
+    const at = argentinaInputToDate(previewAt) ?? new Date();
+    const draftId = editingId ?? "draft-slide";
+    const draft: HomeSlideListItem = {
+      id: draftId,
+      eyebrow: form.eyebrow.trim() || null,
+      title: form.title.trim(),
+      mobileTitle: form.mobileTitle.trim() || null,
+      subtitle: form.subtitle.trim() || null,
+      badges: parseBadges(form.badges),
+      ctaLabel: form.ctaLabel.trim() || null,
+      ctaUrl: form.ctaUrl.trim() || null,
+      imageUrl: form.imageUrl,
+      mobileImageUrl: form.mobileImageUrl || null,
+      imageAlt: form.imageAlt.trim() || null,
+      active: form.active,
+      startsAt: argentinaInputToDate(form.startsAt),
+      endsAt: argentinaInputToDate(form.endsAt),
+      sortOrder: 0,
+    };
+    const allSlides = editingId
+      ? orderedSlides.map((slide) => (slide.id === editingId ? draft : slide))
+      : [...orderedSlides, draft];
+    // The draft is always shown so it can be reviewed, even when it wouldn't be live at that moment.
+    const shown = allSlides.filter((slide) => slide.id === draftId || isVisibleAt(slide, at));
+    const notice = isVisibleAt(draft, at)
+      ? null
+      : !draft.active
+        ? "Este slide está pausado, así que en la home real no se vería. Lo mostramos igual para que veas cómo queda."
+        : "En esa fecha este slide todavía no empezó o ya terminó, así que en la home real no se vería. Lo mostramos igual para que veas cómo queda.";
+
+    return {
+      slides: shown.map(toHeroSlide),
+      initialIndex: shown.findIndex((slide) => slide.id === draftId),
+      notice,
+    };
+  }, [isPreviewOpen, previewAt, editingId, form, orderedSlides]);
+
+  function openPreview() {
+    setPreviewAt(form.startsAt || isoToArgentinaLocalInput(new Date()));
+    setIsPreviewOpen(true);
+  }
 
   function resetForm() {
     setEditingId(null);
@@ -311,7 +397,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                 onChange={(event) => setForm((current) => ({ ...current, eyebrow: event.target.value }))}
               />
             </Field>
-            <Field label="Título">
+            <Field label="Título (opcional)">
               <Textarea
                 value={form.title}
                 rows={2}
@@ -358,6 +444,10 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                 />
               </Field>
             </div>
+            <p className="-mt-2 text-xs text-brand-ink/55">
+              ¿Slide de solo imagen? Dejá vacíos los textos. Si cargás el link sin texto de botón, toda la imagen es
+              clickeable.
+            </p>
             <Checkbox
               label="Slide activo"
               checked={form.active}
@@ -402,19 +492,44 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
 
           {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
 
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            disabled={isPending}
-            onClick={() => {
-              setError(null);
-              startTransition(async () => {
-                await submitForm();
-              });
-            }}
-          >
-            {isPending ? "Guardando..." : editingSlide ? "Guardar cambios" : "Crear slide"}
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              disabled={isPending}
+              onClick={() => {
+                setError(null);
+                startTransition(async () => {
+                  await submitForm();
+                });
+              }}
+            >
+              {isPending ? "Guardando..." : editingSlide ? "Guardar cambios" : "Crear slide"}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              disabled={!form.imageUrl}
+              title={form.imageUrl ? undefined : "Subí una imagen para ver la vista previa."}
+              onClick={openPreview}
+            >
+              <Eye className="h-4 w-4" /> Vista previa
+            </Button>
+          </div>
+          {!form.imageUrl ? (
+            <p className="-mt-2 text-xs text-brand-ink/55">Subí una imagen para ver la vista previa.</p>
+          ) : null}
+          {preview ? (
+            <HomeSlidesPreviewDialog
+              slides={preview.slides}
+              initialIndex={preview.initialIndex}
+              previewAt={previewAt}
+              onPreviewAtChange={setPreviewAt}
+              notice={preview.notice}
+              onClose={() => setIsPreviewOpen(false)}
+            />
+          ) : null}
         </Card>
 
         <Card className="space-y-4 p-5 md:p-6">
@@ -528,7 +643,11 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                             {slide.eyebrow}
                           </p>
                         ) : null}
-                        <p className="mt-1 whitespace-pre-line font-bold text-brand-ink">{slide.title}</p>
+                        {slide.title ? (
+                          <p className="mt-1 whitespace-pre-line font-bold text-brand-ink">{slide.title}</p>
+                        ) : (
+                          <p className="mt-1 font-bold italic text-brand-ink/50">Solo imagen, sin textos</p>
+                        )}
                         {slide.ctaLabel ? (
                           <p className="mt-2 break-words text-sm text-brand-ink/60">
                             Botón: {slide.ctaLabel} → {slide.ctaUrl}
