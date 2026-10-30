@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { argentinaLocalInputToIso } from "@/features/newsletter/components/newsletter-admin-labels";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import {
@@ -30,6 +31,8 @@ export async function saveHomeSlide(payload: unknown, slideId?: string) {
     mobileImageUrl: parsed.data.mobileImageUrl || null,
     imageAlt: parsed.data.imageAlt || null,
     active: parsed.data.active,
+    startsAt: parseArgentinaDateTime(parsed.data.startsAt),
+    endsAt: parseArgentinaDateTime(parsed.data.endsAt),
   };
 
   if (slideId) {
@@ -114,6 +117,11 @@ export async function saveHomeCarouselSettings(payload: unknown) {
   }
 
   revalidateHomeSlideViews();
+}
+
+function parseArgentinaDateTime(value: string | undefined) {
+  const iso = value ? argentinaLocalInputToIso(value) : null;
+  return iso ? new Date(iso) : null;
 }
 
 function assertHomeSlideId(slideId: string) {

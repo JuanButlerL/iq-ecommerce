@@ -17,6 +17,15 @@ const linkUrl = z
     message: "El link del botón debe empezar con / o con http(s)://",
   });
 
+// <input type="datetime-local"> value ("2026-11-01T09:00"), read as Argentina time.
+const argentinaDateTime = (field: string) =>
+  z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, `${field}: fecha y hora inválidas.`)
+    .optional()
+    .or(z.literal(""));
+
 export const homeSlideFormSchema = z
   .object({
     eyebrow: optionalText("Encabezado", 60),
@@ -37,10 +46,17 @@ export const homeSlideFormSchema = z
     mobileImageUrl: optionalText("Imagen de celular", 500),
     imageAlt: optionalText("Texto alternativo", 200),
     active: z.boolean().default(true),
+    startsAt: argentinaDateTime("Fecha de inicio"),
+    endsAt: argentinaDateTime("Fecha de fin"),
   })
   .refine((data) => !data.ctaLabel || Boolean(data.ctaUrl), {
     message: "Si cargás un texto de botón, también tenés que cargar el link.",
     path: ["ctaUrl"],
+  })
+  // Same-format strings compare chronologically.
+  .refine((data) => !data.startsAt || !data.endsAt || data.endsAt > data.startsAt, {
+    message: "La fecha de fin tiene que ser posterior a la de inicio.",
+    path: ["endsAt"],
   });
 
 export const homeSlideIdSchema = z.string().uuid("Orden inválido.");

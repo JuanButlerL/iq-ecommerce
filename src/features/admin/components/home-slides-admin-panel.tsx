@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatAdminDateTime, isoToArgentinaLocalInput } from "@/features/newsletter/components/newsletter-admin-labels";
 import { cn } from "@/lib/utils/cn";
 
 type HomeSlideListItem = {
@@ -24,6 +25,8 @@ type HomeSlideListItem = {
   mobileImageUrl: string | null;
   imageAlt: string | null;
   active: boolean;
+  startsAt: Date | null;
+  endsAt: Date | null;
   sortOrder: number;
 };
 
@@ -44,6 +47,9 @@ type HomeSlideFormState = {
   mobileImageUrl: string;
   imageAlt: string;
   active: boolean;
+  // datetime-local values in Argentina time ("" = no limit).
+  startsAt: string;
+  endsAt: string;
 };
 
 const emptyForm: HomeSlideFormState = {
@@ -58,10 +64,28 @@ const emptyForm: HomeSlideFormState = {
   mobileImageUrl: "",
   imageAlt: "",
   active: true,
+  startsAt: "",
+  endsAt: "",
 };
 
 const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxImageSize = 8 * 1024 * 1024;
+
+type SlideStatus = "active" | "paused" | "scheduled" | "ended";
+
+const slideStatusMeta: Record<SlideStatus, { label: string; className: string }> = {
+  active: { label: "Activo", className: "bg-green-100 text-green-700" },
+  paused: { label: "Pausado", className: "bg-brand-ink/10 text-brand-ink/55" },
+  scheduled: { label: "Programado", className: "bg-sky-100 text-sky-700" },
+  ended: { label: "Finalizado", className: "bg-brand-ink/10 text-brand-ink/55" },
+};
+
+function getSlideStatus(slide: HomeSlideListItem, now: Date): SlideStatus {
+  if (!slide.active) return "paused";
+  if (slide.endsAt && new Date(slide.endsAt) <= now) return "ended";
+  if (slide.startsAt && new Date(slide.startsAt) > now) return "scheduled";
+  return "active";
+}
 
 function parseBadges(value: string) {
   return value
@@ -87,7 +111,8 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
   }, [slides]);
 
   const editingSlide = useMemo(() => slides.find((slide) => slide.id === editingId) ?? null, [slides, editingId]);
-  const activeCount = slides.filter((slide) => slide.active).length;
+  const now = new Date();
+  const activeCount = slides.filter((slide) => getSlideStatus(slide, now) === "active").length;
 
   function resetForm() {
     setEditingId(null);
@@ -109,6 +134,8 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
       mobileImageUrl: slide.mobileImageUrl ?? "",
       imageAlt: slide.imageAlt ?? "",
       active: slide.active,
+      startsAt: slide.startsAt ? isoToArgentinaLocalInput(slide.startsAt) : "",
+      endsAt: slide.endsAt ? isoToArgentinaLocalInput(slide.endsAt) : "",
     });
     setError(null);
   }
@@ -237,7 +264,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
         <h1 className="font-display text-3xl text-brand-ink md:text-5xl">Slides del inicio</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/70 md:text-base">
           Cada slide es una imagen de portada con su título, subtítulo, checks y botón. Todos se pueden editar, ordenar,
-          pausar o borrar. Si no queda ningún slide activo, la home muestra la portada original.
+          pausar, programar para una fecha y hora o borrar. Si no queda ningún slide activo, la home muestra la portada original.
         </p>
       </div>
 
@@ -336,6 +363,41 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
               checked={form.active}
               onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
             />
+            <div className="space-y-3 rounded-[1.5rem] border border-brand-ink/10 bg-background p-4">
+              <div>
+                <p className="text-sm font-bold text-brand-ink">Programación (opcional)</p>
+                <p className="mt-1 text-xs text-brand-ink/55">
+                  Hora de Argentina. El slide aparece en la home desde el inicio y deja de mostrarse al llegar al fin. Dejá
+                  vacío para que no tenga límite.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Mostrar desde">
+                  <Input
+                    type="datetime-local"
+                    value={form.startsAt}
+                    onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
+                  />
+                </Field>
+                <Field label="Mostrar hasta">
+                  <Input
+                    type="datetime-local"
+                    value={form.endsAt}
+                    min={form.startsAt || undefined}
+                    onChange={(event) => setForm((current) => ({ ...current, endsAt: event.target.value }))}
+                  />
+                </Field>
+              </div>
+              {form.startsAt || form.endsAt ? (
+                <button
+                  type="button"
+                  onClick={() => setForm((current) => ({ ...current, startsAt: "", endsAt: "" }))}
+                  className="text-xs font-extrabold text-brand-ink/60 hover:text-brand-pink"
+                >
+                  Quitar programación
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
@@ -376,6 +438,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
               orderedSlides.map((slide, index) => {
                 const isEditing = slide.id === editingId;
                 const isDragging = slide.id === draggingId;
+                const status = slideStatusMeta[getSlideStatus(slide, now)];
 
                 return (
                   <div
@@ -404,11 +467,9 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                           Posición {index + 1}
                         </span>
                         <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${
-                            slide.active ? "bg-green-100 text-green-700" : "bg-brand-ink/10 text-brand-ink/55"
-                          }`}
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${status.className}`}
                         >
-                          {slide.active ? "Activo" : "Pausado"}
+                          {status.label}
                         </span>
                       </div>
 
@@ -471,6 +532,13 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                         {slide.ctaLabel ? (
                           <p className="mt-2 break-words text-sm text-brand-ink/60">
                             Botón: {slide.ctaLabel} → {slide.ctaUrl}
+                          </p>
+                        ) : null}
+                        {slide.startsAt || slide.endsAt ? (
+                          <p className="mt-1 text-sm text-brand-ink/60">
+                            {slide.startsAt ? `Desde ${formatAdminDateTime(slide.startsAt)}` : "Sin inicio"}
+                            {" · "}
+                            {slide.endsAt ? `hasta ${formatAdminDateTime(slide.endsAt)}` : "sin fin"}
                           </p>
                         ) : null}
                       </div>
