@@ -30,6 +30,7 @@ export async function saveHomeSlide(payload: unknown, slideId?: string) {
     imageUrl: parsed.data.imageUrl,
     mobileImageUrl: parsed.data.mobileImageUrl || null,
     imageAlt: parsed.data.imageAlt || null,
+    imageOverlay: parsed.data.imageOverlay,
     active: parsed.data.active,
     startsAt: parseArgentinaDateTime(parsed.data.startsAt),
     endsAt: parseArgentinaDateTime(parsed.data.endsAt),

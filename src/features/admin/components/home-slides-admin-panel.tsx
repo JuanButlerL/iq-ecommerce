@@ -31,6 +31,7 @@ type HomeSlideListItem = {
   imageUrl: string;
   mobileImageUrl: string | null;
   imageAlt: string | null;
+  imageOverlay: boolean;
   active: boolean;
   startsAt: Date | null;
   endsAt: Date | null;
@@ -53,6 +54,7 @@ type HomeSlideFormState = {
   imageUrl: string;
   mobileImageUrl: string;
   imageAlt: string;
+  imageOverlay: boolean;
   active: boolean;
   // datetime-local values in Argentina time ("" = no limit).
   startsAt: string;
@@ -70,6 +72,7 @@ const emptyForm: HomeSlideFormState = {
   imageUrl: "",
   mobileImageUrl: "",
   imageAlt: "",
+  imageOverlay: true,
   active: true,
   startsAt: "",
   endsAt: "",
@@ -113,6 +116,7 @@ function toHeroSlide(slide: HomeSlideListItem): HomeHeroSlide {
     imageUrl: slide.imageUrl,
     mobileImageUrl: slide.mobileImageUrl,
     imageAlt: slide.imageAlt,
+    imageOverlay: slide.imageOverlay,
   });
 }
 
@@ -172,6 +176,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
       imageUrl: form.imageUrl,
       mobileImageUrl: form.mobileImageUrl || null,
       imageAlt: form.imageAlt.trim() || null,
+      imageOverlay: form.imageOverlay,
       active: form.active,
       startsAt: argentinaInputToDate(form.startsAt),
       endsAt: argentinaInputToDate(form.endsAt),
@@ -219,6 +224,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
       imageUrl: slide.imageUrl,
       mobileImageUrl: slide.mobileImageUrl ?? "",
       imageAlt: slide.imageAlt ?? "",
+      imageOverlay: slide.imageOverlay,
       active: slide.active,
       startsAt: slide.startsAt ? isoToArgentinaLocalInput(slide.startsAt) : "",
       endsAt: slide.endsAt ? isoToArgentinaLocalInput(slide.endsAt) : "",
@@ -448,6 +454,17 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
               ¿Slide de solo imagen? Dejá vacíos los textos. Si cargás el link sin texto de botón, toda la imagen es
               clickeable.
             </p>
+            <div>
+              <Checkbox
+                label="Degradé sobre la imagen"
+                checked={form.imageOverlay}
+                onChange={(event) => setForm((current) => ({ ...current, imageOverlay: event.target.checked }))}
+              />
+              <p className="mt-1 text-xs text-brand-ink/55">
+                Aclara la foto detrás del texto para que se lea mejor. Desactivalo si la imagen ya tiene buen contraste.
+                En slides de solo imagen no se aplica.
+              </p>
+            </div>
             <Checkbox
               label="Slide activo"
               checked={form.active}

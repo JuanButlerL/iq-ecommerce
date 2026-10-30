@@ -17,6 +17,8 @@ export type HomeHeroSlide = {
   imageUrl: string;
   mobileImageUrl: string | null;
   imageAlt: string | null;
+  // Soft wash behind the text (on unless the slide turns it off).
+  imageOverlay?: boolean;
   // Framing override for the original hero photo; uploaded slides use the default.
   imageClassName?: string;
 };
@@ -104,6 +106,7 @@ export function HomeHeroCarousel({
           const TitleTag = index === 0 ? "h1" : "h2";
           const hasButton = Boolean(slide.ctaLabel && slide.ctaUrl);
           const hasText = Boolean(slide.title || slide.eyebrow || slide.subtitle || slide.badges.length > 0 || hasButton);
+          const showOverlay = hasText && slide.imageOverlay !== false;
           // A link without button text makes the whole slide clickable (typical for promo banners).
           const slideHref = !slide.ctaLabel && slide.ctaUrl ? slide.ctaUrl : null;
 
@@ -132,7 +135,7 @@ export function HomeHeroCarousel({
                     className={hasText ? (slide.imageClassName ?? defaultImageClassName) : imageOnlyClassName}
                   />
                 </picture>
-                {hasText ? (
+                {showOverlay ? (
                   <>
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,249,250,0.28)_0%,rgba(255,249,250,0.22)_48%,rgba(255,249,250,0.16)_78%,rgba(255,249,250,0.1)_100%)] md:bg-[linear-gradient(90deg,rgba(255,248,250,0.94)_0%,rgba(255,248,250,0.86)_28%,rgba(255,248,250,0.62)_45%,rgba(255,248,250,0.18)_65%,rgba(255,248,250,0)_78%)]" />
                     <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(123,216,247,0.12),rgba(255,255,255,0))]" />
@@ -154,7 +157,9 @@ export function HomeHeroCarousel({
                   <div className="relative flex min-h-[560px] w-full flex-1 flex-col justify-center px-8 sm:flex-initial py-10 sm:mx-0 sm:min-h-0 sm:max-w-none sm:p-0">
                     {hasText ? (
                       <>
-                        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.72)_100%)] shadow-[0_14px_34px_rgba(255,255,255,0.18)] backdrop-blur-[2px] sm:hidden" />
+                        {showOverlay ? (
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.72)_100%)] shadow-[0_14px_34px_rgba(255,255,255,0.18)] backdrop-blur-[2px] sm:hidden" />
+                        ) : null}
                         {slide.eyebrow ? (
                           <p className="relative mb-4 text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
                             {slide.eyebrow}

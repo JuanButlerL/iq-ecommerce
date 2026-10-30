@@ -239,6 +239,14 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-10-30 - Degradé opcional por slide del carrusel de la home (rama `feature/carrusel-degrade-opcional`, pendiente de deploy)
+
+- Cada slide de Admin > Home carrusel tiene el checkbox "Degradé sobre la imagen", activado por defecto, así que los slides existentes se ven igual.
+- Desactivado, el slide conserva textos y botón pero no lleva el lavado claro sobre la foto (desktop y mobile) ni el panel blanco con blur detrás del texto en celular. Los slides de solo imagen ya no llevaban degradé y no cambian.
+- La vista previa del admin respeta el checkbox antes de guardar.
+- Migración estrictamente aditiva: `202610301800_add_home_slide_image_overlay` agrega `home_slides.image_overlay BOOLEAN NOT NULL DEFAULT true`. Requiere `prisma migrate deploy` según `docs/deploy-produccion-digitalocean.md`.
+- Archivos: `prisma/schema.prisma`, `src/features/home-slides/components/home-hero-carousel.tsx`, `src/features/home-slides/mutations.ts`, `src/lib/validations/home-slide.ts`, `src/features/admin/components/home-slides-admin-panel.tsx`.
+
 ### 2026-09-30 - Dashboard: grafico mensual con historial completo y rediseno
 
 - La vista "Mes" usaba los pedidos de los ultimos 90 dias, por eso los meses anteriores salian vacios. Ahora usa una consulta de solo lectura (fecha, total y unidades) sobre todo el historial con el mismo filtro de estado: desde el primer pedido hasta el mes actual, minimo 6 meses, maximo 60 barras. Dia y Semana no cambian.
