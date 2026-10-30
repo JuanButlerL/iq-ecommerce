@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronUp, GripVertical, ImagePlus, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils/cn";
 
 type HomeSlideListItem = {
   id: string;
@@ -569,7 +570,29 @@ function SlideImageField({
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Drag and drop is an alternative to the OS file picker, which can hang on some
+  // computers (cloud-synced folders, folders with many photos).
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    if (!dragging) setDragging(true);
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files[0];
+    if (file && !uploading) void upload(file);
+  }
 
   async function upload(file: File) {
     setError(null);
@@ -601,10 +624,15 @@ function SlideImageField({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       <span className="block text-sm font-bold text-brand-ink/75">{label}</span>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-brand-pinkSoft/25 ring-1 ring-brand-ink/10 sm:w-48 sm:shrink-0">
+        <div
+          className={cn(
+            "relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-brand-pinkSoft/25 ring-1 ring-brand-ink/10 sm:w-48 sm:shrink-0",
+            dragging && "ring-2 ring-brand-pink",
+          )}
+        >
           {url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={url} alt="" className="h-full w-full object-cover" />
@@ -613,9 +641,14 @@ function SlideImageField({
               htmlFor={inputId}
               className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1 text-xs font-bold text-brand-ink/45 hover:text-brand-pink"
             >
-              <ImagePlus className="h-6 w-6" /> Subir imagen
+              <ImagePlus className="h-6 w-6" /> Subir o arrastrar imagen
             </label>
           )}
+          {dragging && !uploading ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-brand-pink/80 px-2 text-center text-xs font-extrabold text-white">
+              Soltá la imagen acá
+            </div>
+          ) : null}
           {uploading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/70">
               <Loader2 className="h-6 w-6 animate-spin text-brand-pink" />
@@ -648,7 +681,7 @@ function SlideImageField({
               </button>
             ) : null}
           </div>
-          <p className="text-xs leading-5 text-brand-ink/55">{hint}</p>
+          <p className="text-xs leading-5 text-brand-ink/55">{hint} También podés arrastrar la imagen desde una carpeta y soltarla acá.</p>
           {error ? (
             <p role="alert" className="text-xs font-bold text-red-600">
               {error}
