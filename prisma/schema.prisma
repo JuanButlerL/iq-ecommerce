@@ -377,6 +377,9 @@ model HomeSlide {
   mobileImageUrl String?  @map("mobile_image_url")
   imageAlt       String?  @map("image_alt")
   active         Boolean  @default(true)
+  // Optional publishing window; the home only shows the slide between these moments.
+  startsAt       DateTime? @map("starts_at")
+  endsAt         DateTime? @map("ends_at")
   sortOrder      Int      @default(0) @map("sort_order")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
