@@ -10,6 +10,7 @@ import { HOME_PRODUCTS_GRID_LIMIT } from "@/features/catalog/lib/home-products";
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
 import { HomeHeroCarousel, type HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
+import { ORIGINAL_HERO_IMAGE, ORIGINAL_HERO_IMAGE_CLASS, withHeroImageFraming } from "@/features/home-slides/lib/hero-slides";
 import { getActiveHomeSlides } from "@/features/home-slides/queries";
 import { getStoreSettingsForClient } from "@/features/settings/queries";
 import { TestimonialsCarousel } from "@/features/testimonials/components/testimonials-carousel";
@@ -28,11 +29,6 @@ type HomeProductCardItem = {
   description: string;
   buttonLabel: string;
 };
-
-// The original hero photo needs its own framing to keep the people visible next to the text.
-const ORIGINAL_HERO_IMAGE = "/redesign/hero-home.jpg";
-const ORIGINAL_HERO_IMAGE_CLASS =
-  "absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]";
 
 // Keep the section ready while its final content and imagery are being defined.
 const SHOW_PROCESS_SECTION = false;
@@ -406,9 +402,7 @@ export default async function HomePage() {
   // With no active slides the home falls back to the original hero.
   const heroSlides: HomeHeroSlide[] =
     homeSlides.length > 0
-      ? homeSlides.map((slide) =>
-          slide.imageUrl === ORIGINAL_HERO_IMAGE ? { ...slide, imageClassName: ORIGINAL_HERO_IMAGE_CLASS } : slide,
-        )
+      ? homeSlides.map(withHeroImageFraming)
       : [
           {
             id: "default-hero",

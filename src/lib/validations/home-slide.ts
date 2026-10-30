@@ -29,11 +29,8 @@ const argentinaDateTime = (field: string) =>
 export const homeSlideFormSchema = z
   .object({
     eyebrow: optionalText("Encabezado", 60),
-    title: z
-      .string()
-      .trim()
-      .min(3, "El título debe tener al menos 3 caracteres.")
-      .max(160, "Título: máximo 160 caracteres."),
+    // Optional: promo banners often carry their text inside the image.
+    title: optionalText("Título", 160),
     mobileTitle: optionalText("Título para celular", 80),
     subtitle: optionalText("Subtítulo", 300),
     badges: z
