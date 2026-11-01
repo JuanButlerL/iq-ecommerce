@@ -116,6 +116,7 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
   const productTotals = summarizeProductLines(cartLines);
   const subtotalArs = productTotals.subtotalArs;
   const couponEligibleLines = getCouponEligibleLines(cartLines).map((line) => ({
+    productId: line.id,
     unitPriceArs: line.priceArs,
     quantity: line.quantity,
   }));

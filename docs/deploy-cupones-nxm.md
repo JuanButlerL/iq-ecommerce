@@ -5,7 +5,9 @@ Release que agrega cupones NxM (2x1, 3x2, 4x3...) y NxM en descuentos por produc
 
 ## Qué cambia en la base
 
-Una sola migración, `202611011200_add_buy_x_pay_y_promotions`, **solo aditiva**:
+Dos migraciones, **solo aditivas**. `202611011600_add_coupon_buy_x_pay_y_scope` agrega a `coupons` la
+columna `buy_x_pay_y_same_product_only` (default `false`, o sea "se pueden mezclar productos").
+`202611011200_add_buy_x_pay_y_promotions` hace lo siguiente:
 
 - agrega el valor `BUY_X_PAY_Y` al enum `CouponDiscountType`;
 - crea el enum `ProductDiscountType` (`PERCENTAGE`, `BUY_X_PAY_Y`);
@@ -108,12 +110,15 @@ SELECT name, discount_type, discount_percentage, discount_buy_quantity, discount
 
 1. Admin → Cupones: crear `PRUEBA3X2` tipo NxM, llevás 3 / pagás 2, uso "Un uso total".
 2. En la tienda, carrito con 3 cajas, checkout, aplicar `PRUEBA3X2`: tiene que descontar 1 caja.
-3. Con el tilde **tildado** y 3 cajas de $21.660, el envío tiene que salir gratis (cuenta $64.980).
+3. Con "Se pueden mezclar productos", 1 caja de cada sabor (3 en total) activa el 3x2. Cambiar a
+   "Solo unidades del mismo producto": con esas mismas 3 cajas tiene que avisar que faltan unidades, y con
+   3 cajas del mismo sabor tiene que funcionar.
+4. Con el tilde **tildado** y 3 cajas de $21.660, el envío tiene que salir gratis (cuenta $64.980).
    Editar el cupón, **destildar**, volver a aplicarlo: el envío tiene que cobrarse (cuenta $43.320).
-4. Con 2 cajas el cupón tiene que avisar que faltan unidades.
-5. Admin → Descuentos: probar un NxM en un producto, ver la etiqueta en la tienda y el descuento en el carrito; después quitarlo.
-6. Probar que un cupón de porcentaje existente siga funcionando igual.
-7. Borrar o pausar `PRUEBA3X2`.
+5. Con 2 cajas el cupón tiene que avisar que faltan unidades.
+6. Admin → Descuentos: probar un NxM en un producto, ver la etiqueta en la tienda y el descuento en el carrito; después quitarlo.
+7. Probar que un cupón de porcentaje existente siga funcionando igual.
+8. Borrar o pausar `PRUEBA3X2`.
 
 ## 5. Plan de rollback
 

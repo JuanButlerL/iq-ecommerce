@@ -165,6 +165,7 @@ const coupon = (overrides = {}) => ({
   buyQuantity: 3,
   payQuantity: 2,
   freeUnitsCountForFreeShipping: true,
+  buyXPayYSameProductOnly: false,
   ...overrides,
 });
 
@@ -225,6 +226,39 @@ test('percentage and fixed coupons behave exactly as before and never touch free
   assert.equal(fixed.freeShippingDeductionArs, 0);
 });
 
+test('a mixed NxM coupon groups different flavors; a same-product one does not', () => {
+  const threeFlavors = [
+    { productId: 'cacao', unitPriceArs: PRICE, quantity: 1 },
+    { productId: 'banana', unitPriceArs: PRICE, quantity: 1 },
+    { productId: 'mani', unitPriceArs: PRICE, quantity: 1 },
+  ];
+  assert.equal(coupons.buildCouponSummary(coupon(), PRICE * 3, threeFlavors).freeUnits, 1);
+  assert.throws(
+    () => coupons.buildCouponSummary(coupon({ buyXPayYSameProductOnly: true }), PRICE * 3, threeFlavors),
+    /3x2 por producto: sumá al menos 3 unidades del mismo producto/,
+  );
+  const summary = coupons.buildCouponSummary(coupon({ buyXPayYSameProductOnly: true }), PRICE * 5, [
+    { productId: 'cacao', unitPriceArs: PRICE, quantity: 3 },
+    { productId: 'banana', unitPriceArs: PRICE, quantity: 2 },
+  ]);
+  assert.equal(summary.freeUnits, 1);
+  assert.equal(summary.discountArs, PRICE);
+  assert.equal(summary.sameProductOnly, true);
+});
+
+test('per product grouping merges repeated lines of the same product', () => {
+  const result = coupons.calculateBuyXPayYCouponDiscountPerProduct(
+    [
+      { productId: 'cacao', unitPriceArs: 1000, quantity: 2 },
+      { productId: 'cacao', unitPriceArs: 1000, quantity: 2 },
+      { productId: 'banana', unitPriceArs: 500, quantity: 2 },
+    ],
+    2,
+    1,
+  );
+  assert.deepEqual({ ...result }, { discountArs: 2500, freeUnits: 3 });
+});
+
 // ---------- free shipping threshold ----------
 
 const settings = {
@@ -266,6 +300,11 @@ test('coupon form accepts a valid NxM and rejects broken ones', () => {
   assert.equal(ok.success, true);
   assert.equal(ok.data.buyQuantity, 3);
   assert.equal(ok.data.freeUnitsCountForFreeShipping, false);
+  assert.equal(ok.data.buyXPayYSameProductOnly, false);
+  assert.equal(
+    couponValidation.couponFormSchema.safeParse({ ...baseCoupon, buyQuantity: 3, payQuantity: 2, buyXPayYSameProductOnly: true }).data.buyXPayYSameProductOnly,
+    true,
+  );
   assert.equal(couponValidation.couponFormSchema.safeParse({ ...baseCoupon, buyQuantity: 2, payQuantity: 2 }).success, false);
   assert.equal(couponValidation.couponFormSchema.safeParse({ ...baseCoupon }).success, false);
   assert.equal(

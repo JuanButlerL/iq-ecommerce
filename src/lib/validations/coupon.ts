@@ -29,6 +29,8 @@ export const couponFormSchema = z
     buyQuantity: z.coerce.number().int().min(2).max(BUY_X_PAY_Y_MAX_BUY_QUANTITY).optional(),
     payQuantity: z.coerce.number().int().min(1).max(BUY_X_PAY_Y_MAX_BUY_QUANTITY - 1).optional(),
     freeUnitsCountForFreeShipping: z.boolean().default(true),
+    // false: units of different products can be combined; true: each product counts on its own.
+    buyXPayYSameProductOnly: z.boolean().default(false),
     usageType: z.enum(["UNLIMITED", "SINGLE_USE", "SINGLE_USE_PER_CUSTOMER"]).default("UNLIMITED"),
     active: z.coerce.boolean(),
   })

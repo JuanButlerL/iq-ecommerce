@@ -27,6 +27,7 @@ type CouponListItem = {
   buyQuantity: number | null;
   payQuantity: number | null;
   freeUnitsCountForFreeShipping: boolean;
+  buyXPayYSameProductOnly: boolean;
   usageType: CouponUsageType;
   active: boolean;
   createdAt: Date;
@@ -49,6 +50,7 @@ type CouponFormState = {
   buyQuantity: string;
   payQuantity: string;
   freeUnitsCountForFreeShipping: boolean;
+  buyXPayYSameProductOnly: boolean;
   usageType: CouponUsageType;
   active: boolean;
   bulkEntriesText: string;
@@ -76,6 +78,7 @@ const emptyForm: CouponFormState = {
   buyQuantity: "3",
   payQuantity: "2",
   freeUnitsCountForFreeShipping: true,
+  buyXPayYSameProductOnly: false,
   usageType: "UNLIMITED",
   active: true,
   bulkEntriesText: "",
@@ -170,6 +173,7 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
       buyQuantity: coupon.buyQuantity?.toString() ?? emptyForm.buyQuantity,
       payQuantity: coupon.payQuantity?.toString() ?? emptyForm.payQuantity,
       freeUnitsCountForFreeShipping: coupon.freeUnitsCountForFreeShipping,
+      buyXPayYSameProductOnly: coupon.buyXPayYSameProductOnly,
       usageType: coupon.usageType,
       active: coupon.active,
       bulkEntriesText: "",
@@ -192,6 +196,7 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
           buyQuantity: form.buyQuantity,
           payQuantity: form.payQuantity,
           freeUnitsCountForFreeShipping: form.freeUnitsCountForFreeShipping,
+          buyXPayYSameProductOnly: form.buyXPayYSameProductOnly,
         }
       : {};
     const body = isBulkMode && isBuyXPayY
@@ -301,9 +306,9 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
               </li>
               <li>El descuento por pagar con transferencia sí se suma al cupón.</li>
               <li>
-                <span className="font-bold text-brand-ink">NxM:</span> cada N unidades del carrito (se pueden mezclar
-                productos) se pagan M; las unidades sin cargo son siempre las de menor precio. Podés elegir si esas
-                unidades suman o no para llegar al envío gratis.
+                <span className="font-bold text-brand-ink">NxM:</span> cada N unidades se pagan M; las unidades sin cargo
+                son siempre las de menor precio. En cada cupón elegís si se pueden combinar productos distintos o si
+                cuenta solo el mismo producto, y si las unidades gratis suman o no para llegar al envío gratis.
               </li>
             </ul>
           </div>
@@ -417,10 +422,33 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
               <div className="space-y-3 rounded-2xl bg-background px-4 py-3">
                 <p className="text-xs font-bold leading-5 text-brand-ink/60">
                   {hasValidBuyXPayY
-                    ? `${buyQuantityNumber}x${payQuantityNumber}: cada ${buyQuantityNumber} unidades se cobran ${payQuantityNumber}. ${
+                    ? `${buyQuantityNumber}x${payQuantityNumber}: cada ${buyQuantityNumber} unidades${
+                        form.buyXPayYSameProductOnly ? " del mismo producto" : ""
+                      } se cobran ${payQuantityNumber}. ${
                         buyQuantityNumber - payQuantityNumber === 1 ? "La unidad" : `Las ${buyQuantityNumber - payQuantityNumber} unidades`
                       } sin cargo ${buyQuantityNumber - payQuantityNumber === 1 ? "es la" : "son las"} de menor precio. Solo cuentan productos sin descuento propio.`
                     : "Llevás tiene que ser entre 2 y 20, y pagás tiene que ser menor (ej: 3x2, 2x1, 4x3)."}
+                </p>
+                <Field label="¿Qué productos se combinan?">
+                  <select
+                    value={form.buyXPayYSameProductOnly ? "same" : "mixed"}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, buyXPayYSameProductOnly: event.target.value === "same" }))
+                    }
+                    className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+                  >
+                    <option value="mixed">Se pueden mezclar productos distintos</option>
+                    <option value="same">Solo unidades del mismo producto</option>
+                  </select>
+                </Field>
+                <p className="text-xs leading-5 text-brand-ink/55">
+                  {hasValidBuyXPayY
+                    ? form.buyXPayYSameProductOnly
+                      ? `Ejemplo: ${buyQuantityNumber} cajas de Cacao activan el ${buyQuantityNumber}x${payQuantityNumber}; ${buyQuantityNumber} cajas de sabores distintos no.`
+                      : `Ejemplo: ${buyQuantityNumber} cajas de sabores distintos (o del mismo) activan el ${buyQuantityNumber}x${payQuantityNumber}.`
+                    : form.buyXPayYSameProductOnly
+                      ? "Cada producto arma sus propios grupos."
+                      : "Todas las unidades del carrito se agrupan juntas."}
                 </p>
                 <Checkbox
                   label="Las unidades sin cargo suman para el envío gratis"
@@ -743,12 +771,19 @@ function buildCouponGroups(coupons: CouponListItem[]): CouponGroup[] {
 function getCouponDiscountText(
   coupon: Pick<
     CouponListItem,
-    "discountType" | "discountPercentage" | "fixedDiscountArs" | "buyQuantity" | "payQuantity" | "freeUnitsCountForFreeShipping"
+    "discountType"
+    | "discountPercentage"
+    | "fixedDiscountArs"
+    | "buyQuantity"
+    | "payQuantity"
+    | "freeUnitsCountForFreeShipping"
+    | "buyXPayYSameProductOnly"
   >,
 ) {
   if (coupon.discountType === "BUY_X_PAY_Y") {
     const label = coupon.buyQuantity && coupon.payQuantity ? `${coupon.buyQuantity}x${coupon.payQuantity}` : "NxM";
-    return coupon.freeUnitsCountForFreeShipping ? `${label} · gratis suma envío` : `${label} · gratis no suma envío`;
+    const scope = coupon.buyXPayYSameProductOnly ? "mismo producto" : "mezcla productos";
+    return `${label} · ${scope} · ${coupon.freeUnitsCountForFreeShipping ? "gratis suma envío" : "gratis no suma envío"}`;
   }
 
   return coupon.discountType === "FIXED_AMOUNT"

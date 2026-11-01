@@ -356,6 +356,8 @@ model Coupon {
   payQuantity        Int?     @map("pay_quantity")
   // Whether the free units still count toward the free shipping threshold.
   freeUnitsCountForFreeShipping Boolean @default(true) @map("free_units_count_for_free_shipping")
+  // false: units of different products are grouped together; true: each product forms its own groups.
+  buyXPayYSameProductOnly Boolean @default(false) @map("buy_x_pay_y_same_product_only")
   usageType          CouponUsageType @default(UNLIMITED) @map("usage_type")
   active             Boolean  @default(true)
   createdAt          DateTime @default(now()) @map("created_at")

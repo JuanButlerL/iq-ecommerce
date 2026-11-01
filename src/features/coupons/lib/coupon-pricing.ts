@@ -25,6 +25,8 @@ export function calculateFixedCouponDiscount(subtotalArs: number, fixedDiscountA
 }
 
 export type CouponLine = {
+  // Needed when the coupon counts units per product; lines without it are treated as separate products.
+  productId?: string;
   unitPriceArs: number;
   quantity: number;
 };
@@ -60,6 +62,27 @@ export function calculateBuyXPayYCouponDiscount(lines: CouponLine[], buyQuantity
   return { discountArs, freeUnits };
 }
 
+/**
+ * Same rule, but each product forms its own groups: with a 3x2, 3 boxes of one flavor give one
+ * free box, while one box of three different flavors gives none.
+ */
+export function calculateBuyXPayYCouponDiscountPerProduct(lines: CouponLine[], buyQuantity: number, payQuantity: number) {
+  const linesByProduct = new Map<string, CouponLine[]>();
+
+  lines.forEach((line, index) => {
+    const key = line.productId ?? `line-${index}`;
+    linesByProduct.set(key, [...(linesByProduct.get(key) ?? []), line]);
+  });
+
+  return Array.from(linesByProduct.values()).reduce(
+    (total, productLines) => {
+      const result = calculateBuyXPayYCouponDiscount(productLines, buyQuantity, payQuantity);
+      return { discountArs: total.discountArs + result.discountArs, freeUnits: total.freeUnits + result.freeUnits };
+    },
+    { discountArs: 0, freeUnits: 0 },
+  );
+}
+
 export function getCouponDiscountLabel(input: {
   discountType: CouponDiscountType;
   discountPercentage?: number | null;
@@ -78,8 +101,10 @@ export function getCouponDiscountLabel(input: {
   return `${input.discountPercentage ?? 0}% OFF`;
 }
 
-export function buildBuyXPayYMinimumMessage(code: string, buyQuantity: number, payQuantity: number) {
-  return `El cupón ${code} es un ${formatBuyXPayYLabel(buyQuantity, payQuantity)}: sumá al menos ${buyQuantity} unidades sin descuento para usarlo.`;
+export function buildBuyXPayYMinimumMessage(code: string, buyQuantity: number, payQuantity: number, sameProductOnly = false) {
+  return sameProductOnly
+    ? `El cupón ${code} es un ${formatBuyXPayYLabel(buyQuantity, payQuantity)} por producto: sumá al menos ${buyQuantity} unidades del mismo producto (sin descuento propio) para usarlo.`
+    : `El cupón ${code} es un ${formatBuyXPayYLabel(buyQuantity, payQuantity)}: sumá al menos ${buyQuantity} unidades sin descuento para usarlo.`;
 }
 
 type CouponForSummary = Pick<
@@ -93,6 +118,7 @@ type CouponForSummary = Pick<
   | "buyQuantity"
   | "payQuantity"
   | "freeUnitsCountForFreeShipping"
+  | "buyXPayYSameProductOnly"
 >;
 
 /**
@@ -114,10 +140,15 @@ export function buildCouponSummary(coupon: CouponForSummary, subtotalArs: number
       throw new AppError(`El cupón ${coupon.code} no está bien configurado.`, 400);
     }
 
-    const result = calculateBuyXPayYCouponDiscount(eligibleLines, buyQuantity as number, payQuantity as number);
+    const result = coupon.buyXPayYSameProductOnly
+      ? calculateBuyXPayYCouponDiscountPerProduct(eligibleLines, buyQuantity as number, payQuantity as number)
+      : calculateBuyXPayYCouponDiscount(eligibleLines, buyQuantity as number, payQuantity as number);
 
     if (result.freeUnits === 0) {
-      throw new AppError(buildBuyXPayYMinimumMessage(coupon.code, buyQuantity as number, payQuantity as number), 400);
+      throw new AppError(
+        buildBuyXPayYMinimumMessage(coupon.code, buyQuantity as number, payQuantity as number, coupon.buyXPayYSameProductOnly),
+        400,
+      );
     }
 
     discountArs = Math.min(result.discountArs, subtotalArs);
@@ -140,6 +171,7 @@ export function buildCouponSummary(coupon: CouponForSummary, subtotalArs: number
     payQuantity,
     freeUnits,
     freeUnitsCountForFreeShipping,
+    sameProductOnly: isBuyXPayY ? coupon.buyXPayYSameProductOnly : false,
     // Amount taken off the free shipping threshold base. Only buy X pay Y coupons whose free
     // units must not count toward free shipping change it; other coupons never did.
     freeShippingDeductionArs: isBuyXPayY && !freeUnitsCountForFreeShipping ? discountArs : 0,

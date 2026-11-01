@@ -135,6 +135,7 @@ export async function getCouponPreview(payload: unknown) {
     })
   ).map((product) => applyProductDiscount(product));
   const eligibleLines = getCouponEligibleLines(products).map((product) => ({
+    productId: product.id,
     unitPriceArs: product.priceArs,
     quantity: quantities.get(product.id) ?? 0,
   }));
