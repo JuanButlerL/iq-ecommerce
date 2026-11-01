@@ -49,7 +49,9 @@ export async function GET() {
     for (const product of products) {
       const price = product.listPriceArs
         ? `${formatArs(product.priceArs)} (antes ${formatArs(product.listPriceArs)}, ${product.activeDiscountPercentage}% off)`
-        : formatArs(product.priceArs);
+        : product.activeBuyQuantity && product.activePayQuantity
+          ? `${formatArs(product.priceArs)} (promo ${product.activeBuyQuantity}x${product.activePayQuantity})`
+          : formatArs(product.priceArs);
       const stock = product.manualSoldOut ? " Sin stock por el momento." : "";
       lines.push(`- [${product.name}](${absoluteUrl(`/productos/${product.slug}`)}): ${sentence(product.shortDescription)} Precio: ${price}.${stock}`);
     }

@@ -37,6 +37,8 @@ type WelcomePopupCoupon = {
   discountType: CouponDiscountType;
   discountPercentage: number | null;
   fixedDiscountArs: number | null;
+  buyQuantity: number | null;
+  payQuantity: number | null;
   discountLabel: string;
 };
 
@@ -55,6 +57,8 @@ function toPopupCoupon(coupon: {
   discountType: CouponDiscountType;
   discountPercentage: number | null;
   fixedDiscountArs: number | null;
+  buyQuantity: number | null;
+  payQuantity: number | null;
 }): WelcomePopupCoupon {
   return {
     id: coupon.id,
@@ -63,10 +67,14 @@ function toPopupCoupon(coupon: {
     discountType: coupon.discountType,
     discountPercentage: coupon.discountPercentage,
     fixedDiscountArs: coupon.fixedDiscountArs,
+    buyQuantity: coupon.buyQuantity,
+    payQuantity: coupon.payQuantity,
     discountLabel: getCouponDiscountLabel({
       discountType: coupon.discountType,
       discountPercentage: coupon.discountPercentage,
       fixedDiscountArs: coupon.fixedDiscountArs,
+      buyQuantity: coupon.buyQuantity,
+      payQuantity: coupon.payQuantity,
     }),
   };
 }
@@ -95,6 +103,8 @@ export async function getWelcomePopupConfig() {
       discountType: coupon.discountType,
       discountPercentage: coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
       fixedDiscountArs: coupon.fixedDiscountArs ?? null,
+      buyQuantity: coupon.buyQuantity ?? null,
+      payQuantity: coupon.payQuantity ?? null,
     }),
   };
 }
@@ -293,6 +303,8 @@ async function sendWelcomeCouponEmail(input: {
       discountType: input.coupon.discountType,
       discountPercentage: input.coupon.discountPercentage,
       fixedDiscountArs: input.coupon.fixedDiscountArs,
+      buyQuantity: input.coupon.buyQuantity,
+      payQuantity: input.coupon.payQuantity,
       headline: welcomePopupCopy.emailCouponHeadline,
       message: welcomePopupCopy.emailCouponMessage,
     },

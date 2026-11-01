@@ -15,7 +15,7 @@ import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { PRESET_CART_PARAM } from "@/features/cart/lib/preset-cart";
 import { useCartStore } from "@/features/cart/store";
 import { ProductPrice } from "@/features/catalog/components/product-price";
-import type { ProductPricing } from "@/features/catalog/lib/product-discount";
+import { summarizeProductLines, type ProductPricing } from "@/features/catalog/lib/product-discount";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { formatArs } from "@/lib/utils/currency";
@@ -256,8 +256,13 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
     setCapturedEmail(storedEmail);
   }, [capturedEmail, recoveryToken]);
 
-  const subtotal = detailedItems.reduce((acc, item) => acc + item.product.priceArs * item.cart.quantity, 0);
-  const shippingQuote = calculateShippingQuote(subtotal, province, settings);
+  // Buy X pay Y product promos are resolved per line; free units may or may not count toward free shipping.
+  const productTotals = summarizeProductLines(
+    detailedItems.map((item) => ({ ...item.product, quantity: item.cart.quantity })),
+  );
+  const subtotal = productTotals.subtotalArs;
+  const freeShippingSubtotal = productTotals.freeShippingSubtotalArs;
+  const shippingQuote = calculateShippingQuote(subtotal, province, settings, freeShippingSubtotal);
   const hasRecoveryFreeShipping = Boolean(freeShippingToken) && recoveryCartSignature === cartSignature(items);
   const checkoutEmail = capturedEmail || email.trim();
   // The link only applies to the email it was generated for.
@@ -280,9 +285,9 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
 
   const checkoutHref = `/checkout?${checkoutParams.toString()}`;
   const amountToShippingDiscount = shippingQuote.shippingDiscountThresholdArs
-    ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
+    ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - freeShippingSubtotal)
     : 0;
-  const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - subtotal);
+  const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - freeShippingSubtotal);
   const oneMoreUnitReachesFreeShipping =
     amountToFreeShipping > 0 &&
     products.some((product) => {
@@ -456,6 +461,8 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
                     priceArs={product.priceArs}
                     listPriceArs={product.listPriceArs}
                     discountPercentage={product.activeDiscountPercentage}
+                    buyQuantity={product.activeBuyQuantity}
+                    payQuantity={product.activePayQuantity}
                     quantity={cart.quantity}
                   />
                 </p>
@@ -553,6 +560,8 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
                           priceArs={product.priceArs}
                           listPriceArs={product.listPriceArs}
                           discountPercentage={product.activeDiscountPercentage}
+                          buyQuantity={product.activeBuyQuantity}
+                          payQuantity={product.activePayQuantity}
                           showBadge={false}
                         />
                       </p>

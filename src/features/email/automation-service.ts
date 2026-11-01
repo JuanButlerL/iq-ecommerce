@@ -1,5 +1,5 @@
 ﻿import { randomUUID } from "crypto";
-import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
+import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, OrderStatus, PaymentStatus, Prisma, type CouponDiscountType } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
 import { getPostPurchaseCutoff, postPurchaseWhere } from "@/features/email/post-purchase-policy";
@@ -187,6 +187,8 @@ export async function processEmailAutomations(options: { automationId?: string; 
                   discountType: automation.coupon.discountType,
                   discountPercentage: automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
                   fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
+                  buyQuantity: automation.coupon.buyQuantity ?? null,
+                  payQuantity: automation.coupon.payQuantity ?? null,
                   headline: automation.couponHeadline,
                   message: automation.couponMessage,
                 }
@@ -367,6 +369,8 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         discountType: true,
         discountPercentage: true,
         fixedDiscountArs: true,
+        buyQuantity: true,
+        payQuantity: true,
         description: true,
       },
     }),
@@ -699,9 +703,11 @@ function getCartRecoveryLeadTrigger(lead: { status: string }) {
 type SerializableCouponPreview = {
   id: string;
   code: string;
-  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountType: CouponDiscountType;
   discountPercentage: number | null;
   fixedDiscountArs: number | null;
+  buyQuantity: number | null;
+  payQuantity: number | null;
   description: string | null;
 };
 
@@ -710,9 +716,11 @@ function serializeCouponPreview(
     | {
         id: string;
         code: string;
-        discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+        discountType: CouponDiscountType;
         discountPercentage: Prisma.Decimal | number | string | null;
         fixedDiscountArs: number | null;
+        buyQuantity: number | null;
+        payQuantity: number | null;
         description: string | null;
       }
     | null,

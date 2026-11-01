@@ -69,7 +69,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       url: productUrl,
       priceCurrency: "ARS",
       price: product.priceArs,
-      ...(product.activeDiscountPercentage && product.discountEndsAt
+      ...((product.activeDiscountPercentage || product.activeBuyQuantity) && product.discountEndsAt
         ? { priceValidUntil: product.discountEndsAt.toISOString().slice(0, 10) }
         : {}),
       availability: product.manualSoldOut ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
@@ -123,11 +123,19 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
                 priceArs={product.priceArs}
                 listPriceArs={product.listPriceArs}
                 discountPercentage={product.activeDiscountPercentage}
+                buyQuantity={product.activeBuyQuantity}
+                payQuantity={product.activePayQuantity}
               />
             </p>
             {product.listPriceArs ? (
               <p className="mt-2 text-sm font-bold text-emerald-700">
                 Ahorrás {formatArs(product.listPriceArs - product.priceArs)}
+              </p>
+            ) : null}
+            {product.activeBuyQuantity && product.activePayQuantity ? (
+              <p className="mt-2 text-sm font-bold text-emerald-700">
+                Promo {product.activeBuyQuantity}x{product.activePayQuantity}: llevando {product.activeBuyQuantity} pagás{" "}
+                {product.activePayQuantity}. Se aplica sola en el carrito.
               </p>
             ) : null}
           </div>

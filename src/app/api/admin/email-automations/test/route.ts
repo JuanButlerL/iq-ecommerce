@@ -65,6 +65,8 @@ export async function POST(request: Request) {
             discountPercentage:
               automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
             fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
+            buyQuantity: automation.coupon.buyQuantity ?? null,
+            payQuantity: automation.coupon.payQuantity ?? null,
             headline: automation.couponHeadline,
             message: automation.couponMessage,
           }

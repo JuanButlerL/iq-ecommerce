@@ -138,6 +138,12 @@ enum CouponUsageType {
 enum CouponDiscountType {
   PERCENTAGE
   FIXED_AMOUNT
+  BUY_X_PAY_Y
+}
+
+enum ProductDiscountType {
+  PERCENTAGE
+  BUY_X_PAY_Y
 }
 
 enum MarketingSourceCategory {
@@ -196,7 +202,13 @@ model Product {
   shortDescription String            @map("short_description")
   longDescription  String            @map("long_description")
   priceArs         Int               @map("price_ars")
+  discountType     ProductDiscountType @default(PERCENTAGE) @map("discount_type")
   discountPercentage Int?            @map("discount_percentage")
+  // Buy X pay Y promo (e.g. 3x2): every X units of this product the customer pays Y.
+  discountBuyQuantity Int?           @map("discount_buy_quantity")
+  discountPayQuantity Int?           @map("discount_pay_quantity")
+  // Whether the free units of the promo still count toward the free shipping threshold.
+  discountFreeUnitsCountForFreeShipping Boolean @default(true) @map("discount_free_units_count_for_free_shipping")
   discountStartsAt DateTime?         @map("discount_starts_at")
   discountEndsAt   DateTime?         @map("discount_ends_at")
   homeVarietyLabel String?           @map("home_variety_label")
@@ -339,6 +351,11 @@ model Coupon {
   discountType       CouponDiscountType @default(PERCENTAGE) @map("discount_type")
   discountPercentage Decimal? @map("discount_percentage") @db.Decimal(5, 2)
   fixedDiscountArs   Int?     @map("fixed_discount_ars")
+  // Buy X pay Y coupons (e.g. 3x2): every X eligible units the customer pays Y (cheapest ones free).
+  buyQuantity        Int?     @map("buy_quantity")
+  payQuantity        Int?     @map("pay_quantity")
+  // Whether the free units still count toward the free shipping threshold.
+  freeUnitsCountForFreeShipping Boolean @default(true) @map("free_units_count_for_free_shipping")
   usageType          CouponUsageType @default(UNLIMITED) @map("usage_type")
   active             Boolean  @default(true)
   createdAt          DateTime @default(now()) @map("created_at")
@@ -840,6 +857,9 @@ model OrderItem {
   unitPriceArs        Int      @map("unit_price_ars")
   quantity            Int
   lineTotalArs        Int      @map("line_total_ars")
+  // Units given for free by a product buy X pay Y promo (already excluded from lineTotalArs).
+  freeUnits           Int      @default(0) @map("free_units")
+  promoLabel          String?  @map("promo_label")
   createdAt           DateTime @default(now()) @map("created_at")
   order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)

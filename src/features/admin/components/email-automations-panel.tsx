@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import type { EmailAutomationTrigger, EmailSendStatus } from "@prisma/client";
+import type { CouponDiscountType, EmailAutomationTrigger, EmailSendStatus } from "@prisma/client";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -39,9 +39,11 @@ type AutomationItem = {
   coupon: {
     id: string;
     code: string;
-    discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+    discountType: CouponDiscountType;
     discountPercentage: unknown;
     fixedDiscountArs: number | null;
+    buyQuantity?: number | null;
+    payQuantity?: number | null;
     description: string | null;
   } | null;
   createdAt: Date;
@@ -125,9 +127,11 @@ type EmailAutomationsPanelProps = {
   coupons: Array<{
     id: string;
     code: string;
-    discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+    discountType: CouponDiscountType;
     discountPercentage: unknown;
     fixedDiscountArs: number | null;
+    buyQuantity?: number | null;
+    payQuantity?: number | null;
     description: string | null;
   }>;
   trackingSummary: {
@@ -865,6 +869,8 @@ export function EmailAutomationsPanel({ automations, recentLogs, cartLeads, coup
                               discountPercentage:
                                 coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
                               fixedDiscountArs: coupon.fixedDiscountArs,
+                              buyQuantity: coupon.buyQuantity,
+                              payQuantity: coupon.payQuantity,
                             })}
                           </option>
                         ))}

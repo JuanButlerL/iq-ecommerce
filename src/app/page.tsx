@@ -227,6 +227,8 @@ function ProductLandingCard({
               priceArs={product.priceArs}
               listPriceArs={product.listPriceArs}
               discountPercentage={product.activeDiscountPercentage}
+              buyQuantity={product.activeBuyQuantity}
+              payQuantity={product.activePayQuantity}
             />
             <span
               className="rounded-full px-4 py-2 text-sm font-extrabold text-white transition group-hover:translate-x-1"
@@ -359,6 +361,8 @@ function HomeFeaturedSlotCard({
                 priceArs={product.priceArs}
                 listPriceArs={product.listPriceArs}
                 discountPercentage={product.activeDiscountPercentage}
+                buyQuantity={product.activeBuyQuantity}
+                payQuantity={product.activePayQuantity}
               />
               {unitPriceLabel ? (
                 <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">

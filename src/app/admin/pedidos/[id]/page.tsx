@@ -95,6 +95,11 @@ export default async function AdminOrderDetailPage({
               <div key={item.id} className="flex items-center justify-between text-sm text-brand-ink/70">
                 <span>
                   {item.productNameSnapshot} x {item.quantity}
+                  {item.freeUnits > 0 ? (
+                    <span className="ml-2 text-xs font-bold text-emerald-700">
+                      Promo {item.promoLabel ?? "NxM"}: {item.freeUnits} sin cargo
+                    </span>
+                  ) : null}
                 </span>
                 <span>{formatArs(item.lineTotalArs)}</span>
               </div>
@@ -114,6 +119,8 @@ export default async function AdminOrderDetailPage({
                         discountType: order.coupon.discountType,
                         discountPercentage: order.discountPercentage == null ? null : Number(order.discountPercentage),
                         fixedDiscountArs: order.coupon.fixedDiscountArs,
+                        buyQuantity: order.coupon.buyQuantity,
+                        payQuantity: order.coupon.payQuantity,
                       })})`
                     : ""}
                 </span>
