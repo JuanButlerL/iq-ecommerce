@@ -14,6 +14,7 @@ import { ORIGINAL_HERO_IMAGE, ORIGINAL_HERO_IMAGE_CLASS, withHeroImageFraming } 
 import { getActiveHomeSlides } from "@/features/home-slides/queries";
 import { getStoreSettingsForClient } from "@/features/settings/queries";
 import { TestimonialsCarousel } from "@/features/testimonials/components/testimonials-carousel";
+import { NUTRITIONISTS_PATH } from "@/features/nutritionists/data";
 import { getActiveTestimonials } from "@/features/testimonials/queries";
 
 export const metadata: Metadata = {
@@ -683,7 +684,10 @@ export default async function HomePage() {
               </p>
               <p>
                 Trabajamos con nutricionistas para elegir snacks simples, reales y prácticos. Lo hicimos para nuestras
-                familias y ahora lo ponemos al alcance de otras.
+                familias y ahora lo ponemos al alcance de otras.{" "}
+                <Link href={NUTRITIONISTS_PATH} className="font-bold text-brand-pink hover:underline">
+                  Conocé al equipo de nutricionistas →
+                </Link>
               </p>
             </div>
             <div className="mt-9 grid gap-3">

@@ -1,6 +1,7 @@
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getPublishedFaqs } from "@/features/faq/queries";
 import { getNewsletterSitemapEntries } from "@/features/newsletter/queries";
+import { barBasics, listNutritionists, NUTRITIONISTS_PATH } from "@/features/nutritionists/data";
 import { getStoreSettings } from "@/features/settings/queries";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { absoluteUrl } from "@/lib/seo/json-ld";
@@ -57,6 +58,13 @@ export async function GET() {
     }
   }
 
+  lines.push(
+    "",
+    "## Respaldo profesional",
+    "",
+    `Las barritas ${siteConfig.name} fueron elegidas por un equipo de nutricionistas con matrícula nacional: ${listNutritionists()}. Porción de ${barBasics.portion}, recomendadas para chicos ${barBasics.recommendedAge}, vida útil de ${barBasics.shelfLife}. Más información: ${absoluteUrl(NUTRITIONISTS_PATH)}`,
+  );
+
   if (settings) {
     const shipping: string[] = [];
     if (settings.freeShippingThreshold > 0) {
@@ -83,7 +91,10 @@ export async function GET() {
     lines.pop();
   }
 
-  const pages = [`- [Productos](${absoluteUrl("/productos")})`];
+  const pages = [
+    `- [Productos](${absoluteUrl("/productos")})`,
+    `- [Nutricionistas](${absoluteUrl(NUTRITIONISTS_PATH)}): quiénes eligieron los productos`,
+  ];
   if (settings?.faqSectionEnabled) pages.push(`- [Preguntas frecuentes](${absoluteUrl("/preguntas-frecuentes")})`);
   if (newsletters.length > 0) pages.push(`- [Newsletter](${absoluteUrl("/newsletter")}): recetas, tips de nutrición y novedades`);
   // Same rule as the sitemap: only list the wholesale page when it's public.

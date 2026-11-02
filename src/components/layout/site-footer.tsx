@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Heart, Instagram, Mail, Newspaper, ShieldCheck } from "lucide-react";
+import { Heart, Instagram, Mail, Newspaper, ShieldCheck, Stethoscope } from "lucide-react";
 
 import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { Container } from "@/components/layout/container";
+import { NUTRITIONISTS_PATH } from "@/features/nutritionists/data";
 import { formatArgentinaMonthYear } from "@/lib/utils/datetime";
 import { siteConfig } from "@/lib/utils/site";
 import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
@@ -66,6 +67,10 @@ export function SiteFooter({ instagramUrl, contactEmail, whatsappNumber, newslet
               WhatsApp
             </Link>
           ) : null}
+          <Link href={NUTRITIONISTS_PATH} className="inline-flex items-center gap-2 hover:text-brand-pink">
+            <Stethoscope className="h-4 w-4" />
+            Nutricionistas
+          </Link>
           <Link href="/privacidad" className="inline-flex items-center gap-2 hover:text-brand-pink">
             <ShieldCheck className="h-4 w-4" />
             Política de privacidad

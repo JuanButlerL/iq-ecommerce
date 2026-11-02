@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getNewsletterSitemapEntries } from "@/features/newsletter/queries";
+import { NUTRITIONISTS_PATH } from "@/features/nutritionists/data";
 import { getStoreSettings } from "@/features/settings/queries";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { absoluteUrl } from "@/lib/seo/json-ld";
@@ -31,6 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.9,
     })),
+    { url: absoluteUrl(NUTRITIONISTS_PATH), changeFrequency: "monthly", priority: 0.7 },
     { url: absoluteUrl("/contacto"), changeFrequency: "yearly", priority: 0.3 },
     { url: absoluteUrl("/privacidad"), changeFrequency: "yearly", priority: 0.1 },
   ];
