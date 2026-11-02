@@ -32,6 +32,21 @@ echo $STAMP
 sudo mkdir -p /opt/iqkids/backups && sudo chmod 700 /opt/iqkids/backups
 ```
 
+Los bloques SQL de este documento no se pegan sueltos en la terminal: van a `psql`. Para eso, definir
+**una sola** de estas dos funciones en la misma sesión (`docker compose config --services` muestra si hay un
+servicio `db`):
+
+```bash
+# Opción A: la base corre en Docker (servicio db). Ajustar usuario/base si el compose usa otros.
+iqsql() { docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1; }
+
+# Opción B: base externa (Supabase u otra). Pegar la URL directa cuando la pida (no se ve en pantalla).
+read -rs PGURL && export PGURL && echo
+iqsql() { docker run --rm -i -e PGURL postgres:16 sh -c 'psql "$PGURL" -v ON_ERROR_STOP=1'; }
+```
+
+Probarla con `echo 'SELECT 1;' | iqsql`.
+
 ## 1. Preflight
 
 ```bash
@@ -44,12 +59,14 @@ df -h
 
 Conteos antes del pase (guardarlos):
 
-```sql
+```bash
+iqsql <<'SQL'
 SELECT 'products' AS entity, COUNT(*) FROM products
 UNION ALL SELECT 'coupons', COUNT(*) FROM coupons
 UNION ALL SELECT 'orders', COUNT(*) FROM orders
 UNION ALL SELECT 'order_items', COUNT(*) FROM order_items
 UNION ALL SELECT 'store_settings', COUNT(*) FROM store_settings;
+SQL
 ```
 
 ## 2. Backup obligatorio (antes de migrar)
@@ -60,12 +77,10 @@ UNION ALL SELECT 'store_settings', COUNT(*) FROM store_settings;
 docker compose exec -T db pg_dump -U postgres -d postgres -Fc > /opt/iqkids/backups/pre-nxm-$STAMP.dump
 ```
 
-**Si la base es externa (Supabase u otra)**, usar la URL directa sin dejarla en el historial:
+**Si la base es externa (Supabase u otra)**, con la `PGURL` cargada en el paso 0 (opción B):
 
 ```bash
-read -rs DIRECT_URL_VALUE && echo
-docker run --rm -e PGURL="$DIRECT_URL_VALUE" postgres:16 sh -c 'pg_dump "$PGURL" -Fc' > /opt/iqkids/backups/pre-nxm-$STAMP.dump
-unset DIRECT_URL_VALUE
+docker run --rm -e PGURL postgres:16 sh -c 'pg_dump "$PGURL" -Fc' > /opt/iqkids/backups/pre-nxm-$STAMP.dump
 ```
 
 Validar el backup (si falla, **no seguir**):
@@ -101,13 +116,16 @@ curl -fsS https://iqkids.com.ar/ > /dev/null && echo OK
 docker compose logs --since=10m app | grep -i error
 ```
 
-Repetir los conteos del preflight: tienen que dar exactamente lo mismo.
+Repetir los conteos del preflight (mismo bloque `iqsql` del paso 1): tienen que dar exactamente lo mismo.
+Al terminar, `unset PGURL` si usaste la opción B.
 
 Chequeo de columnas nuevas:
 
-```sql
+```bash
+iqsql <<'SQL'
 SELECT code, discount_type, buy_quantity, pay_quantity, free_units_count_for_free_shipping FROM coupons ORDER BY created_at DESC LIMIT 5;
 SELECT name, discount_type, discount_percentage, discount_buy_quantity, discount_pay_quantity FROM products;
+SQL
 ```
 
 ### Smoke test (5 minutos)
@@ -136,13 +154,15 @@ solo de código** y no se pierde ningún pedido.
 1. Si se llegaron a crear cupones NxM, primero guardarlos y pausarlos (el código anterior no conoce ese
    tipo de cupón y el listado de cupones del admin fallaría):
 
-   ```sql
-   BEGIN;
-   CREATE TABLE IF NOT EXISTS rollback_nxm_coupons AS SELECT * FROM coupons WHERE discount_type = 'BUY_X_PAY_Y';
-   UPDATE coupons SET active = false, discount_type = 'PERCENTAGE', discount_percentage = 0
-   WHERE discount_type = 'BUY_X_PAY_Y';
-   COMMIT;
-   ```
+```bash
+iqsql <<'SQL'
+BEGIN;
+CREATE TABLE IF NOT EXISTS rollback_nxm_coupons AS SELECT * FROM coupons WHERE discount_type = 'BUY_X_PAY_Y';
+UPDATE coupons SET active = false, discount_type = 'PERCENTAGE', discount_percentage = 0
+WHERE discount_type = 'BUY_X_PAY_Y';
+COMMIT;
+SQL
+```
 
    Los NxM por producto no necesitan nada: el código anterior simplemente no los aplica.
 
