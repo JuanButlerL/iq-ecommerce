@@ -10,11 +10,20 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { parseCouponPackUnits } from "@/features/coupons/lib/coupon-pricing";
 import { isWelcomePopupCoupon, stripWelcomePopupCouponMarker } from "@/features/coupons/lib/welcome-popup-coupon";
 import { formatArs } from "@/lib/utils/currency";
 
 type CouponsAdminPanelProps = {
   coupons: CouponListItem[];
+  products: CouponProductOption[];
+};
+
+type CouponProductOption = {
+  id: string;
+  name: string;
+  priceArs: number;
+  active: boolean;
 };
 
 type CouponListItem = {
@@ -28,6 +37,7 @@ type CouponListItem = {
   payQuantity: number | null;
   freeUnitsCountForFreeShipping: boolean;
   buyXPayYSameProductOnly: boolean;
+  buyXPayYPackUnits: unknown;
   usageType: CouponUsageType;
   active: boolean;
   createdAt: Date;
@@ -51,6 +61,8 @@ type CouponFormState = {
   payQuantity: string;
   freeUnitsCountForFreeShipping: boolean;
   buyXPayYSameProductOnly: boolean;
+  // productId -> units per pack as typed in the admin ("" = normal product).
+  packUnits: Record<string, string>;
   usageType: CouponUsageType;
   active: boolean;
   bulkEntriesText: string;
@@ -79,6 +91,7 @@ const emptyForm: CouponFormState = {
   payQuantity: "2",
   freeUnitsCountForFreeShipping: true,
   buyXPayYSameProductOnly: false,
+  packUnits: {},
   usageType: "UNLIMITED",
   active: true,
   bulkEntriesText: "",
@@ -102,7 +115,7 @@ const discountTypeLabels: Record<CouponDiscountType, string> = {
   BUY_X_PAY_Y: "NxM (2x1, 3x2...)",
 };
 
-export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
+export function CouponsAdminPanel({ coupons, products }: CouponsAdminPanelProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -174,6 +187,9 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
       payQuantity: coupon.payQuantity?.toString() ?? emptyForm.payQuantity,
       freeUnitsCountForFreeShipping: coupon.freeUnitsCountForFreeShipping,
       buyXPayYSameProductOnly: coupon.buyXPayYSameProductOnly,
+      packUnits: Object.fromEntries(
+        parseCouponPackUnits(coupon.buyXPayYPackUnits).map((entry) => [entry.productId, String(entry.unitsPerPack)]),
+      ),
       usageType: coupon.usageType,
       active: coupon.active,
       bulkEntriesText: "",
@@ -197,6 +213,9 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
           payQuantity: form.payQuantity,
           freeUnitsCountForFreeShipping: form.freeUnitsCountForFreeShipping,
           buyXPayYSameProductOnly: form.buyXPayYSameProductOnly,
+          buyXPayYPackUnits: Object.entries(form.packUnits)
+            .filter(([, value]) => value.trim() !== "")
+            .map(([productId, value]) => ({ productId, unitsPerPack: value.trim() })),
         }
       : {};
     const body = isBulkMode && isBuyXPayY
@@ -450,6 +469,62 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
                       ? "Cada producto arma sus propios grupos."
                       : "Todas las unidades del carrito se agrupan juntas."}
                 </p>
+                <div className="space-y-2 border-t border-brand-ink/8 pt-3">
+                  <p className="text-sm font-bold text-brand-ink/75">Productos que ya traen varias unidades (packs)</p>
+                  <p className="text-xs leading-5 text-brand-ink/55">
+                    Opcional. Si un producto es un pack (ej: &quot;3 display&quot;), poné cuántas unidades trae y cada pack cuenta
+                    como esa cantidad de unidades, a precio proporcional. Así, con un 3x2, llevando 1 pack de 3 se descuenta
+                    un tercio del precio. Si lo dejás vacío, el pack cuenta como 1 unidad y hay que llevar{" "}
+                    {hasValidBuyXPayY ? buyQuantityNumber : "N"} packs.
+                  </p>
+                  <div className="space-y-2">
+                    {products.map((product) => {
+                      const rawUnits = form.packUnits[product.id] ?? "";
+                      const units = Number(rawUnits);
+                      const validUnits = rawUnits.trim() !== "" && Number.isInteger(units) && units >= 2 && units <= 24;
+                      const freePerPack =
+                        validUnits && hasValidBuyXPayY
+                          ? (Math.floor(units / buyQuantityNumber) * (buyQuantityNumber - payQuantityNumber) * product.priceArs) / units
+                          : 0;
+
+                      return (
+                        <div key={product.id} className="grid grid-cols-[1fr_96px] items-center gap-3">
+                          <div className="min-w-0 text-sm text-brand-ink">
+                            <span className="font-bold">{product.name}</span>{" "}
+                            <span className="text-brand-ink/50">{formatArs(product.priceArs)}</span>
+                            {!product.active ? <span className="text-brand-ink/40"> · inactivo</span> : null}
+                            {validUnits && hasValidBuyXPayY ? (
+                              <span className="block text-xs font-bold text-emerald-700">
+                                {freePerPack > 0
+                                  ? `1 pack: descuento de ${formatArs(Math.round(freePerPack))}${
+                                      form.buyXPayYSameProductOnly ? "" : " (las unidades sueltas se pueden combinar con otros productos)"
+                                    }`
+                                  : `1 pack no llega a ${buyQuantityNumber} unidades: se combina con más unidades`}
+                              </span>
+                            ) : rawUnits.trim() !== "" ? (
+                              <span className="block text-xs font-bold text-red-600">Entre 2 y 24 unidades.</span>
+                            ) : null}
+                          </div>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="2"
+                            max="24"
+                            placeholder="Normal"
+                            aria-label={`Unidades por pack de ${product.name}`}
+                            value={rawUnits}
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                packUnits: { ...current.packUnits, [product.id]: event.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
                 <Checkbox
                   label="Las unidades sin cargo suman para el envío gratis"
                   checked={form.freeUnitsCountForFreeShipping}
@@ -778,12 +853,16 @@ function getCouponDiscountText(
     | "payQuantity"
     | "freeUnitsCountForFreeShipping"
     | "buyXPayYSameProductOnly"
+    | "buyXPayYPackUnits"
   >,
 ) {
   if (coupon.discountType === "BUY_X_PAY_Y") {
     const label = coupon.buyQuantity && coupon.payQuantity ? `${coupon.buyQuantity}x${coupon.payQuantity}` : "NxM";
     const scope = coupon.buyXPayYSameProductOnly ? "mismo producto" : "mezcla productos";
-    return `${label} · ${scope} · ${coupon.freeUnitsCountForFreeShipping ? "gratis suma envío" : "gratis no suma envío"}`;
+    const packs = parseCouponPackUnits(coupon.buyXPayYPackUnits).length;
+    return `${label} · ${scope}${packs ? ` · ${packs} pack${packs === 1 ? "" : "s"}` : ""} · ${
+      coupon.freeUnitsCountForFreeShipping ? "gratis suma envío" : "gratis no suma envío"
+    }`;
   }
 
   return coupon.discountType === "FIXED_AMOUNT"

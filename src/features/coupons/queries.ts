@@ -47,6 +47,14 @@ export async function getCouponsForClient() {
   }));
 }
 
+/** Products the coupon admin can mark as packs for NxM coupons. */
+export async function getCouponProductOptions() {
+  return prisma.product.findMany({
+    select: { id: true, name: true, priceArs: true, active: true },
+    orderBy: [{ active: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+}
+
 function normalizeTaxId(value?: string | null) {
   return value?.replace(/\D/g, "") ?? "";
 }

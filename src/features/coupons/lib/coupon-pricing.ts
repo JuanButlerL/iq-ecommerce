@@ -31,6 +31,63 @@ export type CouponLine = {
   quantity: number;
 };
 
+export const BUY_X_PAY_Y_MAX_UNITS_PER_PACK = 24;
+
+export type CouponPackUnits = Array<{ productId: string; unitsPerPack: number }>;
+
+/** Reads the coupon pack list stored as JSON, ignoring anything malformed. */
+export function parseCouponPackUnits(value: unknown): CouponPackUnits {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return [];
+    }
+
+    const { productId, unitsPerPack } = entry as { productId?: unknown; unitsPerPack?: unknown };
+
+    if (
+      typeof productId !== "string" ||
+      !productId ||
+      seen.has(productId) ||
+      typeof unitsPerPack !== "number" ||
+      !Number.isInteger(unitsPerPack) ||
+      unitsPerPack < 2 ||
+      unitsPerPack > BUY_X_PAY_Y_MAX_UNITS_PER_PACK
+    ) {
+      return [];
+    }
+
+    seen.add(productId);
+    return [{ productId, unitsPerPack }];
+  });
+}
+
+/**
+ * A pack product (e.g. "3 display") counts as `unitsPerPack` units at a proportional price, so a
+ * single pack of 3 with a 3x2 gets one display free (a third of its price). Products that are not
+ * in the list keep counting as one unit each.
+ */
+export function expandCouponPackLines(lines: CouponLine[], packUnits: CouponPackUnits): CouponLine[] {
+  if (!packUnits.length) {
+    return lines;
+  }
+
+  const unitsByProduct = new Map(packUnits.map((entry) => [entry.productId, entry.unitsPerPack]));
+
+  return lines.map((line) => {
+    const unitsPerPack = line.productId ? unitsByProduct.get(line.productId) : undefined;
+
+    return unitsPerPack
+      ? { ...line, unitPriceArs: line.unitPriceArs / unitsPerPack, quantity: line.quantity * unitsPerPack }
+      : line;
+  });
+}
+
 /**
  * Buy X pay Y over the whole eligible cart (products can be mixed). Units are sorted from the
  * most to the least expensive and grouped by X; in each complete group the X - Y cheapest units
@@ -119,7 +176,7 @@ type CouponForSummary = Pick<
   | "payQuantity"
   | "freeUnitsCountForFreeShipping"
   | "buyXPayYSameProductOnly"
->;
+> & { buyXPayYPackUnits?: unknown };
 
 /**
  * @param subtotalArs eligible subtotal (lines without a product promo)
@@ -140,9 +197,10 @@ export function buildCouponSummary(coupon: CouponForSummary, subtotalArs: number
       throw new AppError(`El cupón ${coupon.code} no está bien configurado.`, 400);
     }
 
+    const lines = expandCouponPackLines(eligibleLines, parseCouponPackUnits(coupon.buyXPayYPackUnits));
     const result = coupon.buyXPayYSameProductOnly
-      ? calculateBuyXPayYCouponDiscountPerProduct(eligibleLines, buyQuantity as number, payQuantity as number)
-      : calculateBuyXPayYCouponDiscount(eligibleLines, buyQuantity as number, payQuantity as number);
+      ? calculateBuyXPayYCouponDiscountPerProduct(lines, buyQuantity as number, payQuantity as number)
+      : calculateBuyXPayYCouponDiscount(lines, buyQuantity as number, payQuantity as number);
 
     if (result.freeUnits === 0) {
       throw new AppError(
@@ -151,7 +209,8 @@ export function buildCouponSummary(coupon: CouponForSummary, subtotalArs: number
       );
     }
 
-    discountArs = Math.min(result.discountArs, subtotalArs);
+    // Pack units can have fractional prices; the final discount is rounded to whole pesos.
+    discountArs = Math.min(Math.round(result.discountArs), subtotalArs);
     freeUnits = result.freeUnits;
   } else if (discountType === "FIXED_AMOUNT") {
     discountArs = calculateFixedCouponDiscount(subtotalArs, fixedDiscountArs ?? 0);

@@ -31,6 +31,23 @@ export const couponFormSchema = z
     freeUnitsCountForFreeShipping: z.boolean().default(true),
     // false: units of different products can be combined; true: each product counts on its own.
     buyXPayYSameProductOnly: z.boolean().default(false),
+    // Pack products (e.g. "3 display"): each unit counts as unitsPerPack units for the NxM.
+    buyXPayYPackUnits: z
+      .array(
+        z.object({
+          productId: z.string().uuid(),
+          unitsPerPack: z.coerce
+            .number()
+            .int("Las unidades por pack tienen que ser un número entero.")
+            .min(2, "Un pack tiene que tener al menos 2 unidades.")
+            .max(24, "Un pack puede tener como máximo 24 unidades."),
+        }),
+      )
+      .max(50)
+      .default([])
+      .refine((entries) => new Set(entries.map((entry) => entry.productId)).size === entries.length, {
+        message: "Cada producto pack puede cargarse una sola vez.",
+      }),
     usageType: z.enum(["UNLIMITED", "SINGLE_USE", "SINGLE_USE_PER_CUSTOMER"]).default("UNLIMITED"),
     active: z.coerce.boolean(),
   })

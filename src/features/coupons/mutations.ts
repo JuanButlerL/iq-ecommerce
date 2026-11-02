@@ -20,6 +20,7 @@ function buildDiscountPayload(input: {
   payQuantity?: number | null;
   freeUnitsCountForFreeShipping?: boolean;
   buyXPayYSameProductOnly?: boolean;
+  buyXPayYPackUnits?: Array<{ productId: string; unitsPerPack: number }>;
 }) {
   // Only buy X pay Y coupons keep quantities; switching type clears them so they never leak.
   if (input.discountType === "BUY_X_PAY_Y") {
@@ -31,7 +32,8 @@ function buildDiscountPayload(input: {
       payQuantity: input.payQuantity ?? undefined,
       freeUnitsCountForFreeShipping: input.freeUnitsCountForFreeShipping ?? true,
       buyXPayYSameProductOnly: input.buyXPayYSameProductOnly ?? false,
-    } as const;
+      buyXPayYPackUnits: input.buyXPayYPackUnits ?? [],
+    };
   }
 
   const noBuyXPayY = {
@@ -39,7 +41,8 @@ function buildDiscountPayload(input: {
     payQuantity: null,
     freeUnitsCountForFreeShipping: true,
     buyXPayYSameProductOnly: false,
-  } as const;
+    buyXPayYPackUnits: [],
+  };
 
   if (input.discountType === "PERCENTAGE") {
     return {
@@ -138,6 +141,7 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
     payQuantity: parsed.data.payQuantity,
     freeUnitsCountForFreeShipping: parsed.data.freeUnitsCountForFreeShipping,
     buyXPayYSameProductOnly: parsed.data.buyXPayYSameProductOnly,
+    buyXPayYPackUnits: parsed.data.buyXPayYPackUnits,
   };
 
   const requestedCodes = entries.length ? entries.map((entry) => entry.code) : codes;

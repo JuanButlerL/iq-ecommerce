@@ -259,6 +259,55 @@ test('per product grouping merges repeated lines of the same product', () => {
   assert.deepEqual({ ...result }, { discountArs: 2500, freeUnits: 3 });
 });
 
+const PACK_ID = '11111111-2222-4333-8444-555555555555';
+const pack = (unitsPerPack) => [{ productId: PACK_ID, unitsPerPack }];
+
+test('a 3 display pack with a 3x2 gets a third off with a single unit', () => {
+  const lines = [{ productId: PACK_ID, unitPriceArs: 71100, quantity: 1 }];
+  const summary = coupons.buildCouponSummary(coupon({ buyXPayYPackUnits: pack(3) }), 71100, lines);
+  assert.equal(summary.discountArs, 23700);
+  assert.equal(summary.freeUnits, 1);
+  const two = coupons.buildCouponSummary(coupon({ buyXPayYPackUnits: pack(3), buyXPayYSameProductOnly: true }), 142200, [
+    { productId: PACK_ID, unitPriceArs: 71100, quantity: 2 },
+  ]);
+  assert.equal(two.discountArs, 47400);
+});
+
+test('without the pack setting the pack counts as one unit and needs 3 packs', () => {
+  assert.throws(
+    () => coupons.buildCouponSummary(coupon(), 71100, [{ productId: PACK_ID, unitPriceArs: 71100, quantity: 1 }]),
+    /sumá al menos 3 unidades/,
+  );
+  const three = coupons.buildCouponSummary(coupon(), 213300, [{ productId: PACK_ID, unitPriceArs: 71100, quantity: 3 }]);
+  assert.equal(three.discountArs, 71100);
+});
+
+test('pack units mix with loose products and round to whole pesos', () => {
+  // 2x1 with a pack of 3 at 1000 (333.33 each) + 1 loose at 500: units 500, 333.33 x3 -> free 333.33 + 333.33.
+  const summary = coupons.buildCouponSummary(coupon({ buyQuantity: 2, payQuantity: 1, buyXPayYPackUnits: pack(3) }), 1500, [
+    { productId: PACK_ID, unitPriceArs: 1000, quantity: 1 },
+    { productId: 'loose', unitPriceArs: 500, quantity: 1 },
+  ]);
+  assert.equal(summary.discountArs, 667);
+  assert.equal(summary.freeUnits, 2);
+});
+
+test('malformed pack data is ignored', () => {
+  assert.deepEqual(
+    coupons.parseCouponPackUnits([
+      { productId: PACK_ID, unitsPerPack: 3 },
+      { productId: PACK_ID, unitsPerPack: 6 },
+      { productId: 'x', unitsPerPack: 1 },
+      { productId: 'y', unitsPerPack: 2.5 },
+      null,
+      'nope',
+    ]).map((entry) => ({ ...entry })),
+    [{ productId: PACK_ID, unitsPerPack: 3 }],
+  );
+  assert.equal(coupons.parseCouponPackUnits(null).length, 0);
+  assert.equal(coupons.parseCouponPackUnits({}).length, 0);
+});
+
 // ---------- free shipping threshold ----------
 
 const settings = {
@@ -301,6 +350,15 @@ test('coupon form accepts a valid NxM and rejects broken ones', () => {
   assert.equal(ok.data.buyQuantity, 3);
   assert.equal(ok.data.freeUnitsCountForFreeShipping, false);
   assert.equal(ok.data.buyXPayYSameProductOnly, false);
+  assert.equal(ok.data.buyXPayYPackUnits.length, 0);
+  const withPack = couponValidation.couponFormSchema.safeParse({ ...baseCoupon, buyQuantity: 3, payQuantity: 2, buyXPayYPackUnits: [{ productId: PACK_ID, unitsPerPack: '3' }] });
+  assert.equal(withPack.success, true);
+  assert.equal(withPack.data.buyXPayYPackUnits[0].unitsPerPack, 3);
+  assert.equal(couponValidation.couponFormSchema.safeParse({ ...baseCoupon, buyQuantity: 3, payQuantity: 2, buyXPayYPackUnits: [{ productId: PACK_ID, unitsPerPack: 1 }] }).success, false);
+  assert.equal(
+    couponValidation.couponFormSchema.safeParse({ ...baseCoupon, buyQuantity: 3, payQuantity: 2, buyXPayYPackUnits: [{ productId: PACK_ID, unitsPerPack: 3 }, { productId: PACK_ID, unitsPerPack: 6 }] }).success,
+    false,
+  );
   assert.equal(
     couponValidation.couponFormSchema.safeParse({ ...baseCoupon, buyQuantity: 3, payQuantity: 2, buyXPayYSameProductOnly: true }).data.buyXPayYSameProductOnly,
     true,

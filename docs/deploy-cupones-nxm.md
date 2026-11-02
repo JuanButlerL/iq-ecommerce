@@ -5,8 +5,12 @@ Release que agrega cupones NxM (2x1, 3x2, 4x3...) y NxM en descuentos por produc
 
 ## Qué cambia en la base
 
-Dos migraciones, **solo aditivas**. `202611011600_add_coupon_buy_x_pay_y_scope` agrega a `coupons` la
-columna `buy_x_pay_y_same_product_only` (default `false`, o sea "se pueden mezclar productos").
+Tres migraciones, **solo aditivas**. `prisma migrate deploy` aplica solo las que falten:
+
+- `202611020100_add_coupon_buy_x_pay_y_pack_units`: agrega a `coupons` la columna `buy_x_pay_y_pack_units`
+  (JSON, default `[]`), con los productos pack y cuántas unidades trae cada uno.
+- `202611011600_add_coupon_buy_x_pay_y_scope`: agrega a `coupons` la columna
+  `buy_x_pay_y_same_product_only` (default `false`, o sea "se pueden mezclar productos").
 `202611011200_add_buy_x_pay_y_promotions` hace lo siguiente:
 
 - agrega el valor `BUY_X_PAY_Y` al enum `CouponDiscountType`;
@@ -113,12 +117,16 @@ SELECT name, discount_type, discount_percentage, discount_buy_quantity, discount
 3. Con "Se pueden mezclar productos", 1 caja de cada sabor (3 en total) activa el 3x2. Cambiar a
    "Solo unidades del mismo producto": con esas mismas 3 cajas tiene que avisar que faltan unidades, y con
    3 cajas del mismo sabor tiene que funcionar.
-4. Con el tilde **tildado** y 3 cajas de $21.660, el envío tiene que salir gratis (cuenta $64.980).
-   Editar el cupón, **destildar**, volver a aplicarlo: el envío tiene que cobrarse (cuenta $43.320).
-5. Con 2 cajas el cupón tiene que avisar que faltan unidades.
-6. Admin → Descuentos: probar un NxM en un producto, ver la etiqueta en la tienda y el descuento en el carrito; después quitarlo.
-7. Probar que un cupón de porcentaje existente siga funcionando igual.
-8. Borrar o pausar `PRUEBA3X2`.
+4. En el mismo cupón, poner `3` en "unidades por pack" del producto "3 display". Con 1 sola unidad de ese
+   producto, el 3x2 tiene que descontar un tercio del precio ($23.700 sobre $71.100). Dejarlo vacío: ahí
+   tiene que pedir 3 unidades.
+5. Con el tilde **tildado**, 3 unidades de $23.700 cuentan $71.100 para el envío gratis. Editar el cupón,
+   **destildar** y volver a aplicarlo: ahora cuentan $47.400, lo que se paga. Si el umbral de envío gratis
+   queda entre esos dos montos, se ve el cambio de gratis a pago.
+6. Con 2 cajas el cupón tiene que avisar que faltan unidades.
+7. Admin → Descuentos: probar un NxM en un producto, ver la etiqueta en la tienda y el descuento en el carrito; después quitarlo.
+8. Probar que un cupón de porcentaje existente siga funcionando igual.
+9. Borrar o pausar `PRUEBA3X2`.
 
 ## 5. Plan de rollback
 

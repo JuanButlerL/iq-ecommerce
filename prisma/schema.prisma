@@ -358,6 +358,9 @@ model Coupon {
   freeUnitsCountForFreeShipping Boolean @default(true) @map("free_units_count_for_free_shipping")
   // false: units of different products are grouped together; true: each product forms its own groups.
   buyXPayYSameProductOnly Boolean @default(false) @map("buy_x_pay_y_same_product_only")
+  // Products that already bundle several units (e.g. "3 display"): [{ productId, unitsPerPack }].
+  // Each pack counts as unitsPerPack units, so one pack of 3 with a 3x2 gets a third off.
+  buyXPayYPackUnits Json @default("[]") @map("buy_x_pay_y_pack_units")
   usageType          CouponUsageType @default(UNLIMITED) @map("usage_type")
   active             Boolean  @default(true)
   createdAt          DateTime @default(now()) @map("created_at")
