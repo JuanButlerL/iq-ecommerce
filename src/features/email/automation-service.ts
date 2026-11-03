@@ -1,4 +1,4 @@
-﻿import { randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
@@ -662,6 +662,7 @@ async function getCandidatesForAutomation(
     const orders = await prisma.order.findMany({
       take: limit,
       where: {
+        channel: "RETAIL",
         createdAt: { gte: activatedAt, lte: readyAt },
         orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
       },

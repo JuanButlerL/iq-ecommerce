@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { MetaPixelPurchase } from "@/components/analytics/meta-pixel-purchase";
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
@@ -22,6 +22,11 @@ export default async function ConfirmationPage({
 
   if (!order) {
     notFound();
+  }
+
+  // Mercado Pago vuelve acá para todos los pedidos; los mayoristas tienen su propia página.
+  if (order.channel === "WHOLESALE") {
+    redirect(`/mayoristas/pedido/${order.publicOrderNumber}`);
   }
 
   const isMercadoPago = order.paymentMethod === "MERCADO_PAGO";

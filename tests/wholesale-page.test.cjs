@@ -34,24 +34,21 @@ test('rechaza un título de portada vacío', () => {
   assert.match(parsed.error.issues[0].message, /Portada · título/);
 });
 
-test('rechaza productos sin imagen y precios negativos', () => {
+test('rechaza productos sin imagen', () => {
   const content = clone();
   content.products.items[0].imageUrl = '';
   assert.equal(wholesaleContentSchema.safeParse(content).success, false);
-
-  const other = clone();
-  other.contact.orderItems[0].price = -5;
-  assert.equal(wholesaleContentSchema.safeParse(other).success, false);
 });
 
-test('exige al menos un producto en el pedido rápido y un mínimo >= 1', () => {
+test('el contenido guardado con precios de planes y pedido rápido sigue siendo válido y los descarta', () => {
   const content = clone();
-  content.contact.orderItems = [];
-  assert.equal(wholesaleContentSchema.safeParse(content).success, false);
-
-  const other = clone();
-  other.contact.minDisplays = 0;
-  assert.equal(wholesaleContentSchema.safeParse(other).success, false);
+  content.conditions.plans[0].price = 16000;
+  content.conditions.plans[0].priceUnit = '/ display';
+  Object.assign(content.contact, { orderEnabled: true, orderTitle: 'Pedido', minDisplays: 10, orderItems: [{ name: 'Maní', price: 16000 }] });
+  const parsed = wholesaleContentSchema.safeParse(content);
+  assert.equal(parsed.success, true, parsed.success ? '' : parsed.error.issues[0].message);
+  assert.equal('price' in parsed.data.conditions.plans[0], false);
+  assert.equal('orderItems' in parsed.data.contact, false);
 });
 
 test('permite listas vacías en secciones opcionales (se ocultan)', () => {
@@ -112,20 +109,25 @@ const access = load('src/features/wholesale/access.ts', {
   '@/lib/env': { env: { ADMIN_SESSION_SECRET: 'test-secret-1234567890' } },
 });
 
-test('contraseña de /mayoristas: la por defecto valida y una incorrecta no', () => {
-  const hash = DEFAULT_WHOLESALE_CONTENT.accessPasswordHash;
-  assert.equal(access.verifyWholesalePassword('juanocapo123.', hash), true);
-  assert.equal(access.verifyWholesalePassword('juanocapo123', hash), false);
+const passwordHash = access.hashWholesalePassword('unaClave123.');
+
+test('/mayoristas arranca sin contraseña: los precios son públicos', () => {
+  assert.equal(DEFAULT_WHOLESALE_CONTENT.accessPasswordHash, '');
+});
+
+test('contraseña de /mayoristas: valida la correcta y rechaza otra', () => {
+  assert.equal(access.verifyWholesalePassword('unaClave123.', passwordHash), true);
+  assert.equal(access.verifyWholesalePassword('unaClave123', passwordHash), false);
   assert.equal(access.verifyWholesalePassword('cualquiera', ''), false);
 });
 
 test('cambiar la contraseña invalida el token de acceso anterior', () => {
   const nuevo = access.hashWholesalePassword('otraClave99');
   assert.equal(access.verifyWholesalePassword('otraClave99', nuevo), true);
-  assert.notEqual(access.buildWholesaleAccessToken(nuevo), access.buildWholesaleAccessToken(DEFAULT_WHOLESALE_CONTENT.accessPasswordHash));
+  assert.notEqual(access.buildWholesaleAccessToken(nuevo), access.buildWholesaleAccessToken(passwordHash));
 });
 
 test('sin cookie no hay acceso si la página tiene contraseña', async () => {
-  assert.equal(await access.hasWholesaleAccess({ accessPasswordHash: DEFAULT_WHOLESALE_CONTENT.accessPasswordHash }), false);
+  assert.equal(await access.hasWholesaleAccess({ accessPasswordHash: passwordHash }), false);
   assert.equal(await access.hasWholesaleAccess({ accessPasswordHash: '' }), true);
 });

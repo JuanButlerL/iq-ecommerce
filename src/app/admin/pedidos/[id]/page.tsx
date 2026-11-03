@@ -6,12 +6,15 @@ import { Card } from "@/components/ui/card";
 import { RetrySyncButton } from "@/features/admin/components/retry-sync-button";
 import { OrderStatusForm } from "@/features/admin/components/order-status-form";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
+import { PAYMENT_METHOD_LABELS } from "@/features/orders/labels";
 import { getOrderDetail } from "@/features/orders/queries";
+import { TAX_CONDITION_LABELS, getInvoiceType } from "@/features/wholesale/tax-condition";
 import { requireAdminSection } from "@/lib/auth/admin";
 import { canAccessAdminSection } from "@/lib/auth/admin-permissions";
 import { env } from "@/lib/env";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArs } from "@/lib/utils/currency";
+import { formatCuit } from "@/lib/utils/cuit";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 
 export default async function AdminOrderDetailPage({
@@ -28,13 +31,15 @@ export default async function AdminOrderDetailPage({
     notFound();
   }
 
+  const isWholesale = order.channel === "WHOLESALE";
+  const taxIdLabel = isWholesale ? "CUIT" : "DNI";
   const latestProof = order.paymentProofs[0];
   const proofUrl = latestProof ? await createPaymentProofSignedUrl(latestProof.storagePath) : null;
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Pedido</p>
+        <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">{isWholesale ? "Pedido mayorista" : "Pedido"}</p>
         <h1 className="font-display text-5xl text-brand-ink">{order.publicOrderNumber}</h1>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
@@ -58,7 +63,7 @@ export default async function AdminOrderDetailPage({
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="space-y-2 p-5">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Metodo</p>
-          <p className="text-sm font-bold text-brand-ink">{order.paymentMethod}</p>
+          <p className="text-sm font-bold text-brand-ink">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</p>
         </Card>
         <Card className="space-y-2 p-5">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Provider</p>
@@ -76,12 +81,30 @@ export default async function AdminOrderDetailPage({
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <Card className="space-y-4 p-6">
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Datos del cliente</p>
+          {isWholesale ? (
+            <div className="space-y-2 rounded-[1.5rem] bg-background p-4 text-sm">
+              {order.deliveryAddressChanged ? (
+                <p className="rounded-xl bg-brand-yellow/50 px-3 py-2 font-bold text-brand-ink">La dirección de entrega es distinta a la del maestro de clientes.</p>
+              ) : null}
+              <p className="font-bold text-brand-ink">{order.customerBusinessName ?? "Sin razón social"}</p>
+              <p className="text-brand-ink/70">CUIT: {order.customerTaxId ? formatCuit(order.customerTaxId) : "No informado"}</p>
+              <p className="text-brand-ink/70">
+                Condición IVA: {order.customerTaxCondition ? TAX_CONDITION_LABELS[order.customerTaxCondition] : "No informada"}
+                {getInvoiceType(order.customerTaxCondition) ? ` · Factura ${getInvoiceType(order.customerTaxCondition)}` : ""}
+              </p>
+              {order.wholesaleCustomerId ? (
+                <Link href={`/admin/mayoristas/clientes/${order.wholesaleCustomerId}`} className="inline-block font-bold text-brand-pink hover:underline">
+                  Ver ficha del cliente
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
           <p className="text-brand-ink">
             {order.customerFirstName} {order.customerLastName}
           </p>
           <p className="text-brand-ink/70">{order.customerEmail}</p>
           <p className="text-brand-ink/70">{order.customerPhone}</p>
-          <p className="text-brand-ink/70">Documento / DNI: {order.customerTaxId ?? "No informado"}</p>
+          {isWholesale ? null : <p className="text-brand-ink/70">Documento / DNI: {order.customerTaxId ?? "No informado"}</p>}
           <p className="text-brand-ink/70">
             {[order.addressLine, order.addressNumber, order.addressWithoutNumber ? "sin altura" : null, order.addressExtra]
               .filter(Boolean)
@@ -90,6 +113,7 @@ export default async function AdminOrderDetailPage({
           <p className="text-brand-ink/70">
             {order.locality}, {order.province}, {order.postalCode}
           </p>
+          {isWholesale && order.notes ? <p className="whitespace-pre-line text-brand-ink/70">Comentarios: {order.notes}</p> : null}
           <div className="space-y-2 border-t border-brand-ink/10 pt-4">
             {order.items.map((item) => (
               <div key={item.id} className="flex items-center justify-between text-sm text-brand-ink/70">
@@ -118,6 +142,12 @@ export default async function AdminOrderDetailPage({
                     : ""}
                 </span>
                 <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
+              </div>
+            ) : null}
+            {order.extraDiscountArs > 0 ? (
+              <div className="flex items-center justify-between">
+                <span>Descuento especial CUIT ({Number(order.extraDiscountPercentage ?? 0)}%)</span>
+                <span className="font-bold text-green-700">- {formatArs(order.extraDiscountArs)}</span>
               </div>
             ) : null}
             {order.paymentMethodDiscountArs > 0 ? (
@@ -180,7 +210,7 @@ export default async function AdminOrderDetailPage({
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="rounded-[1.5rem] bg-background p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">DNI informado</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">{taxIdLabel} informado</p>
                     <p className="mt-2 font-bold text-brand-ink">{order.customerTaxId ?? latestProof.transferSenderName ?? "No informado"}</p>
                   </div>
                   <div className="rounded-[1.5rem] bg-background p-4">
@@ -207,7 +237,9 @@ export default async function AdminOrderDetailPage({
               <p className="text-sm text-brand-ink/50">
                 {order.paymentMethod === "MERCADO_PAGO"
                   ? "Este pedido se paga online. No requiere comprobante manual."
-                  : "Todavia no hay comprobante cargado."}
+                  : order.paymentMethod === "DEFERRED"
+                    ? "Pago diferido: se cobra después de la entrega."
+                    : "Todavia no hay comprobante cargado."}
               </p>
             )}
           </Card>

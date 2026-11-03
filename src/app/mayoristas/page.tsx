@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesaleContact } from "@/features/wholesale/components/wholesale-contact";
+import { WholesaleProductGrid } from "@/features/wholesale/components/wholesale-product-grid";
 import { WholesalePasswordGate } from "@/features/wholesale/components/wholesale-password-gate";
 import type { WholesaleSectionIntro } from "@/features/wholesale/content";
 import { getPublicWholesaleProducts } from "@/features/wholesale/products";
@@ -12,7 +12,6 @@ import { getWholesaleContent } from "@/features/wholesale/queries";
 import { getWholesaleSettings } from "@/features/wholesale/settings";
 import { getStoreSettings } from "@/features/settings/queries";
 import { cn } from "@/lib/utils/cn";
-import { formatArs } from "@/lib/utils/currency";
 
 const FALLBACK_WHATSAPP = "5491173933235";
 
@@ -80,12 +79,16 @@ export default async function WholesalePage() {
   const showProfiles = profiles.items.length > 0;
   const showReasons = reasons.items.length > 0;
   // Productos, precios y mínimo salen del admin mayorista (Productos y precios / Condiciones), no del contenido de la página.
-  const products = { ...productsIntro, items: wholesaleProducts };
-  const contact = {
-    ...content.contact,
-    minDisplays: wholesaleSettings.minDisplays,
-    orderItems: wholesaleProducts.filter((product) => !product.soldOut).map((product) => ({ name: product.name, price: product.priceArs })),
-  };
+  const products = wholesaleProducts.map((product) => ({
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    imageUrl: product.imageUrl,
+    imageAlt: product.imageAlt,
+    priceArs: product.priceArs,
+    unitsPerDisplay: product.unitsPerDisplay,
+    soldOut: product.soldOut,
+  }));
 
   return (
     <div className="overflow-hidden bg-white text-brand-ink">
@@ -123,8 +126,8 @@ export default async function WholesalePage() {
             <a href="#contacto" className={primaryCta}>
               {hero.primaryCta}
             </a>
-            {content.contact.orderEnabled ? (
-              <a href="#pedido" className={secondaryCta}>
+            {products.length > 0 ? (
+              <a href="#productos" className={secondaryCta}>
                 {hero.secondaryCta}
               </a>
             ) : null}
@@ -145,24 +148,10 @@ export default async function WholesalePage() {
         </div>
       ) : null}
 
-      {products.items.length > 0 ? (
+      {products.length > 0 ? (
         <Section id="productos">
-          <SectionHeading intro={products} />
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {products.items.map((product) => (
-              <div key={product.id} className="overflow-hidden rounded-[2rem] bg-white shadow-card">
-                <div className="relative aspect-[4/3] bg-white">
-                  {product.imageUrl ? (
-                    <Image src={product.imageUrl} alt={product.imageAlt || product.name} fill sizes="(min-width: 768px) 25vw, 50vw" className="object-contain" />
-                  ) : null}
-                </div>
-                <div className="px-4 pb-5 pt-3">
-                  <p className="font-display text-2xl leading-none text-brand-ink">{product.name}</p>
-                  {product.description ? <p className="mt-2 whitespace-pre-line text-sm leading-6 text-brand-ink/65">{product.description}</p> : null}
-                </div>
-              </div>
-            ))}
-          </div>
+          <SectionHeading intro={productsIntro} />
+          <WholesaleProductGrid products={products} minDisplays={wholesaleSettings.minDisplays} />
         </Section>
       ) : null}
 
@@ -224,12 +213,8 @@ export default async function WholesalePage() {
                   </div>
                 </div>
                 <div className="px-6 pb-6 pt-5">
-                  <p className={cn("font-display text-4xl leading-none", plan.highlighted ? "text-brand-ink" : "text-brand-pink")}>
-                    {formatArs(plan.price)}
-                    {plan.priceUnit ? <span className="ml-1 font-body text-sm font-normal text-brand-ink/55">{plan.priceUnit}</span> : null}
-                  </p>
                   {plan.rows.length > 0 ? (
-                    <dl className="mt-5 divide-y divide-brand-ink/10">
+                    <dl className="divide-y divide-brand-ink/10">
                       {plan.rows.map((row, rowIndex) => (
                         <div key={`${row.label}-${rowIndex}`} className="flex justify-between gap-3 py-2.5 text-sm">
                           <dt className="shrink-0 font-bold text-brand-ink/70">{row.label}</dt>
@@ -242,7 +227,7 @@ export default async function WholesalePage() {
                     </dl>
                   ) : null}
                   <a
-                    href="#contacto"
+                    href={products.length > 0 ? "#productos" : "#contacto"}
                     className={cn(
                       "mt-5 flex w-full items-center justify-center rounded-full px-6 py-3.5 text-sm font-extrabold transition",
                       plan.highlighted ? "bg-brand-cyan text-brand-ink hover:brightness-95" : "bg-brand-pink text-white shadow-soft hover:bg-[#ea737d]",
@@ -303,7 +288,7 @@ export default async function WholesalePage() {
 
       <Section id="contacto" className="bg-[#fff6f7]">
         <SectionHeading intro={content.contact} center />
-        <WholesaleContact whatsappNumber={whatsappNumber} content={contact} />
+        <WholesaleContact whatsappNumber={whatsappNumber} content={content.contact} />
       </Section>
 
       {faq.items.length > 0 ? (

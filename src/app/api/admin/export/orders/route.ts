@@ -1,4 +1,4 @@
-﻿import { OrderStatus, PaymentMethod, PaymentStatus, SyncStatus } from "@prisma/client";
+import { OrderStatus, PaymentMethod, PaymentStatus, SalesChannel, SyncStatus } from "@prisma/client";
 
 import { getOrders, type OrderFilters } from "@/features/orders/queries";
 import { assertAdminSection } from "@/lib/auth/admin";
@@ -61,6 +61,7 @@ export async function GET(request: Request) {
     orderStatus: getEnumValue(OrderStatus, searchParams.get("orderStatus")) as OrderFilters["orderStatus"],
     paymentStatus: getEnumValue(PaymentStatus, searchParams.get("paymentStatus")) as OrderFilters["paymentStatus"],
     paymentMethod: getEnumValue(PaymentMethod, searchParams.get("paymentMethod")) as OrderFilters["paymentMethod"],
+    channel: getEnumValue(SalesChannel, searchParams.get("channel")) as OrderFilters["channel"],
     syncStatus: getEnumValue(SyncStatus, searchParams.get("syncStatus")) as OrderFilters["syncStatus"],
     proofStatus: getProofStatus(searchParams.get("proofStatus")) as OrderFilters["proofStatus"],
     dateFrom,

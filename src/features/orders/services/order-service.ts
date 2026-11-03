@@ -401,7 +401,9 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     throw new AppError("Pedido no encontrado.", 404);
   }
 
-  if (order.paymentMethod !== PaymentMethod.BANK_TRANSFER) {
+  const isWholesale = order.channel === "WHOLESALE";
+  // Los pedidos mayoristas también aceptan el comprobante del eCheq.
+  if (order.paymentMethod !== PaymentMethod.BANK_TRANSFER && !(isWholesale && order.paymentMethod === PaymentMethod.ECHEQ)) {
     throw new AppError("Este pedido no requiere comprobante manual.", 400);
   }
 
@@ -439,7 +441,7 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
       data: {
         orderId: order.id,
         status: OrderStatus.PROOF_UPLOADED,
-        note: `Comprobante subido por el cliente${transferSenderName ? ` - DNI: ${transferSenderName}` : ""}${details.transferReference ? ` - Ref: ${details.transferReference}` : ""}.`,
+        note: `${order.paymentMethod === PaymentMethod.ECHEQ ? "Comprobante de eCheq" : "Comprobante"} subido por el cliente${transferSenderName ? ` - ${isWholesale ? "CUIT" : "DNI"}: ${transferSenderName}` : ""}${details.transferReference ? ` - Ref: ${details.transferReference}` : ""}.`,
         changedBy: "customer",
       },
     });
@@ -458,6 +460,14 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
 
     return null;
   });
+
+  // Recuperación de carrito, Meta y GA miden la tienda: los pedidos mayoristas no cuentan.
+  if (isWholesale) {
+    return {
+      orderNumber: order.publicOrderNumber,
+      syncResult,
+    };
+  }
 
   await markCartRecoveryConverted({
     id: order.id,

@@ -67,21 +67,6 @@ function TextField({
   );
 }
 
-function NumberField({ label, value, onChange, hint }: { label: string; value: number; onChange: (value: number) => void; hint?: ReactNode }) {
-  return (
-    <Field label={label} hint={hint}>
-      <Input
-        type="number"
-        inputMode="numeric"
-        min={0}
-        step={1}
-        value={Number.isFinite(value) ? value : ""}
-        onChange={(event) => onChange(Number.parseInt(event.target.value, 10) || 0)}
-      />
-    </Field>
-  );
-}
-
 function LinesField({ label, value, onChange, hint }: { label: string; value: string[]; onChange: (value: string[]) => void; hint?: ReactNode }) {
   // Se edita como texto libre y se convierte a lista al salir del campo, para no comerse los renglones vacíos mientras se escribe.
   const [draft, setDraft] = useState(value.join("\n"));
@@ -550,7 +535,7 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
         <ListEditor
           items={conditions.plans}
           onChange={(plans) => patch("conditions", { ...conditions, plans })}
-          createItem={() => ({ icon: "", title: "", subtitle: "", price: 0, priceUnit: "/ display (x12 barritas)", highlighted: false, rows: [], cta: "Quiero empezar →" })}
+          createItem={() => ({ icon: "", title: "", subtitle: "", highlighted: false, rows: [], cta: "Ver precios y hacer pedido →" })}
           addLabel="Agregar plan"
           itemTitle={(plan) => plan.title}
           max={3}
@@ -560,10 +545,6 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
                 <TextField label="Ícono" value={plan.icon} onChange={(icon) => update({ ...plan, icon })} />
                 <TextField label="Nombre" value={plan.title} onChange={(title) => update({ ...plan, title })} />
                 <TextField label="Bajada" value={plan.subtitle} onChange={(subtitle) => update({ ...plan, subtitle })} />
-                <div />
-                <NumberField label="Precio (ARS, IVA incluido)" value={plan.price} onChange={(price) => update({ ...plan, price })} />
-                <TextField label="Unidad del precio" value={plan.priceUnit} onChange={(priceUnit) => update({ ...plan, priceUnit })} />
-                <div />
                 <TextField label="Texto del botón" value={plan.cta} onChange={(cta) => update({ ...plan, cta })} />
                 <Checkbox label="Destacar en celeste" checked={plan.highlighted} onChange={(event) => update({ ...plan, highlighted: event.target.checked })} className="self-end pb-3" />
               </div>
@@ -645,7 +626,7 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
           onChange={(leadNotificationEmails) => patch("contact", { ...contact, leadNotificationEmails })}
           hint="Uno por renglón (hasta 5). Cada consulta nueva llega con todos los datos del formulario. Vacío = sin aviso."
         />
-        <SubTitle>Pestaña “Soy nuevo”</SubTitle>
+        <SubTitle>Formulario</SubTitle>
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label="Título" value={contact.leadTitle} onChange={(leadTitle) => patch("contact", { ...contact, leadTitle })} />
           <TextField label="Descripción" value={contact.leadDescription} onChange={(leadDescription) => patch("contact", { ...contact, leadDescription })} />
@@ -657,30 +638,12 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
             hint="Uno por renglón. Vacío = no se pregunta."
           />
         </div>
-        <SubTitle>Pestaña “Ya soy cliente”</SubTitle>
-        <Checkbox
-          label="Pedido rápido habilitado. Si está apagado, la pestaña muestra “Próximamente” con un botón a WhatsApp y se ocultan los accesos al pedido."
-          checked={contact.orderEnabled}
-          onChange={(event) => patch("contact", { ...contact, orderEnabled: event.target.checked })}
-        />
-        {contact.orderEnabled ? null : (
-          <TextField
-            label="Texto de “Próximamente”"
-            value={contact.orderComingSoonText}
-            onChange={(orderComingSoonText) => patch("contact", { ...contact, orderComingSoonText })}
-            multiline
-          />
-        )}
-        <div className="grid gap-4 md:grid-cols-2">
-          <TextField label="Título" value={contact.orderTitle} onChange={(orderTitle) => patch("contact", { ...contact, orderTitle })} />
-          <TextField label="Descripción" value={contact.orderDescription} onChange={(orderDescription) => patch("contact", { ...contact, orderDescription })} />
-        </div>
         <p className="text-sm text-brand-ink/60">
-          Los productos y precios del pedido rápido salen de{" "}
+          Los productos y precios de la tienda mayorista salen de{" "}
           <Link href="/admin/mayoristas/productos" className="font-bold text-brand-pink hover:underline">
             Productos y precios
           </Link>{" "}
-          y el mínimo de displays, de{" "}
+          y el mínimo y los medios de pago, de{" "}
           <Link href="/admin/mayoristas/condiciones" className="font-bold text-brand-pink hover:underline">
             Condiciones
           </Link>

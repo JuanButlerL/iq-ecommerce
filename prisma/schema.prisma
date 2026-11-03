@@ -39,6 +39,8 @@ enum TaxCondition {
 enum PaymentMethod {
   BANK_TRANSFER
   MERCADO_PAGO
+  ECHEQ
+  DEFERRED
 }
 
 enum PaymentProvider {
@@ -466,6 +468,7 @@ model WholesaleCustomer {
   createdAt               DateTime       @default(now()) @map("created_at")
   updatedAt               DateTime       @updatedAt @map("updated_at")
   lead                    WholesaleLead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  orders                  Order[]
 
   @@index([email], map: "wholesale_customers_email_idx")
   @@index([createdAt], map: "wholesale_customers_created_idx")
@@ -474,20 +477,21 @@ model WholesaleCustomer {
 
 // Productos que se venden por display en /mayoristas, con su propio precio.
 model WholesaleProduct {
-  id              String   @id @default(uuid()) @db.Uuid
+  id              String      @id @default(uuid()) @db.Uuid
   name            String
-  description     String   @default("")
-  imageUrl        String   @default("") @map("image_url")
-  imageAlt        String   @default("") @map("image_alt")
-  priceArs        Int      @map("price_ars")
-  unitsPerDisplay Int      @default(12) @map("units_per_display")
-  active          Boolean  @default(true)
-  soldOut         Boolean  @default(false) @map("sold_out")
-  sortOrder       Int      @default(0) @map("sort_order")
-  productId       String?  @map("product_id") @db.Uuid
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  description     String      @default("")
+  imageUrl        String      @default("") @map("image_url")
+  imageAlt        String      @default("") @map("image_alt")
+  priceArs        Int         @map("price_ars")
+  unitsPerDisplay Int         @default(12) @map("units_per_display")
+  active          Boolean     @default(true)
+  soldOut         Boolean     @default(false) @map("sold_out")
+  sortOrder       Int         @default(0) @map("sort_order")
+  productId       String?     @map("product_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  product         Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  orderItems      OrderItem[]
 
   @@index([active, sortOrder], map: "wholesale_products_active_sort_idx")
   @@map("wholesale_products")
@@ -888,9 +892,17 @@ model Order {
   reservationExpiresAt            DateTime?              @map("reservation_expires_at")
   marketingSessionId              String?                @map("marketing_session_id") @db.Uuid
   marketingVisitorId              String?                @map("marketing_visitor_id")
+  channel                         SalesChannel           @default(RETAIL)
+  wholesaleCustomerId             String?                @map("wholesale_customer_id") @db.Uuid
+  customerBusinessName            String?                @map("customer_business_name")
+  customerTaxCondition            TaxCondition?          @map("customer_tax_condition")
+  extraDiscountPercentage         Decimal?               @map("extra_discount_percentage") @db.Decimal(5, 2)
+  extraDiscountArs                Int                    @default(0) @map("extra_discount_ars")
+  deliveryAddressChanged          Boolean                @default(false) @map("delivery_address_changed")
   createdAt                       DateTime               @default(now()) @map("created_at")
   updatedAt                       DateTime               @updatedAt @map("updated_at")
   coupon                          Coupon?                @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  wholesaleCustomer               WholesaleCustomer?     @relation(fields: [wholesaleCustomerId], references: [id], onDelete: SetNull)
   marketingSession                MarketingSession?      @relation(fields: [marketingSessionId], references: [id], onDelete: SetNull)
   items                           OrderItem[]
   statusHistory                   OrderStatusHistory[]
@@ -910,20 +922,24 @@ model Order {
   @@index([marketingSessionId], map: "orders_marketing_session_idx")
   @@index([marketingVisitorId], map: "orders_marketing_visitor_idx")
   @@index([syncStatus], map: "orders_sync_status_idx")
+  @@index([channel, createdAt], map: "orders_channel_created_idx")
+  @@index([wholesaleCustomerId], map: "orders_wholesale_customer_idx")
   @@map("orders")
 }
 
 model OrderItem {
-  id                  String   @id @default(uuid()) @db.Uuid
-  orderId             String   @map("order_id") @db.Uuid
-  productId           String?  @map("product_id") @db.Uuid
-  productNameSnapshot String   @map("product_name_snapshot")
-  unitPriceArs        Int      @map("unit_price_ars")
+  id                  String            @id @default(uuid()) @db.Uuid
+  orderId             String            @map("order_id") @db.Uuid
+  productId           String?           @map("product_id") @db.Uuid
+  wholesaleProductId  String?           @map("wholesale_product_id") @db.Uuid
+  productNameSnapshot String            @map("product_name_snapshot")
+  unitPriceArs        Int               @map("unit_price_ars")
   quantity            Int
-  lineTotalArs        Int      @map("line_total_ars")
-  createdAt           DateTime @default(now()) @map("created_at")
-  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  lineTotalArs        Int               @map("line_total_ars")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  order               Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product             Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  wholesaleProduct    WholesaleProduct? @relation(fields: [wholesaleProductId], references: [id], onDelete: SetNull)
 
   @@index([orderId], map: "order_items_order_idx")
   @@map("order_items")

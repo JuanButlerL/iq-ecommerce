@@ -11,6 +11,8 @@ export function getPostPurchaseCutoff(value: string | undefined, activatedAt: Da
 export function postPurchaseWhere(automationId: string, cutoff: Date, readyAt: Date): Prisma.OrderWhereInput {
   const eventRange = { gte: cutoff, lte: readyAt };
   return {
+    // Los pedidos mayoristas tienen sus propios mails.
+    channel: "RETAIL",
     paymentStatus: { in: ["PROOF_UPLOADED", "PAID"] },
     orderStatus: { notIn: ["CANCELLED", "EXPIRED"] },
     // Errors and reservations require reconciliation, never automatic retries.

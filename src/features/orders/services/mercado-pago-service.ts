@@ -399,7 +399,8 @@ async function upsertMercadoPagoPayment(
     });
   }
 
-  if (transitionApplied && nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID") {
+  // Recuperación de carrito, Meta y GA miden la tienda: los pedidos mayoristas no cuentan.
+  if (transitionApplied && nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID" && order.channel !== "WHOLESALE") {
     await markCartRecoveryConverted({
       id: order.id,
       publicOrderNumber: order.publicOrderNumber,
