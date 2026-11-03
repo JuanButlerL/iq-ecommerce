@@ -221,6 +221,10 @@ export const env = {
     (process.env.NODE_ENV !== "production" ||
       (parsedEnv.ADMIN_LOCAL_PASSWORD !== "Cambiame123!" &&
         parsedEnv.ADMIN_SESSION_SECRET !== "iqkids-local-admin-secret")),
+  // Firma la cookie del navegador recordado del canal mayorista: en producción, sin un secreto propio sería falsificable.
+  canSignWholesaleDevices:
+    process.env.NODE_ENV !== "production" ||
+    (Boolean(parsedEnv.ADMIN_SESSION_SECRET) && parsedEnv.ADMIN_SESSION_SECRET !== "iqkids-local-admin-secret"),
   hasGoogleAnalytics: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID),
   hasGoogleMeasurementProtocol: Boolean(parsedEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID && parsedEnv.GA_MEASUREMENT_PROTOCOL_API_SECRET),
   hasGoogleTagManager: Boolean(parsedEnv.NEXT_PUBLIC_GTM_ID),

@@ -3,8 +3,9 @@ import { Prisma, type WholesaleCustomer, type WholesaleLead } from "@prisma/clie
 
 import { sendEmail } from "@/features/email/provider";
 import { getStoreSettings } from "@/features/settings/queries";
-import { trustWholesaleCustomer } from "@/features/wholesale/device";
+import { getTrustedWholesaleCustomerIds, trustWholesaleCustomer } from "@/features/wholesale/device";
 import { toArgentineWhatsappNumber } from "@/features/wholesale/lead-email";
+import { sendWholesaleNewDeviceNotice } from "@/features/wholesale/new-device-notice";
 import { isPaymentMethodEnabled } from "@/features/wholesale/orders";
 import { WHOLESALE_PAYMENT_METHOD_LABELS } from "@/features/wholesale/pricing";
 import { getWholesaleContent } from "@/features/wholesale/queries";
@@ -55,6 +56,11 @@ export async function registerWholesaleCustomer(payload: unknown, meta: RequestM
     }
     if (!existing.active) {
       throw new AppError("Tu cuenta mayorista está pausada. Escribinos por WhatsApp y lo resolvemos.", 403, true);
+    }
+
+    // Volver a registrarse con el mismo email + CUIT equivale a identificarse: si es otro navegador, se avisa al cliente.
+    if (!(await getTrustedWholesaleCustomerIds()).includes(existing.id)) {
+      sendWholesaleNewDeviceNotice(existing, { userAgent: meta.userAgent });
     }
 
     await trustWholesaleCustomer(existing.id);

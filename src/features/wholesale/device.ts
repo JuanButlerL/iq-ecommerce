@@ -14,8 +14,13 @@ function sign(payload: string) {
   return createHmac("sha256", `${env.ADMIN_SESSION_SECRET ?? ""}:wholesale-device`).update(payload).digest("base64url");
 }
 
+// En producción, sin secreto propio no se recuerda ningún navegador (la identificación avisa que no puede validar la cuenta).
+export function canRememberWholesaleDevices() {
+  return env.canSignWholesaleDevices;
+}
+
 function parse(value: string | undefined): string[] {
-  if (!value) return [];
+  if (!value || !canRememberWholesaleDevices()) return [];
 
   const [payload, signature] = value.split(".");
   if (!payload || !signature) return [];
@@ -40,6 +45,11 @@ export async function getTrustedWholesaleCustomerIds() {
 
 // Solo se puede llamar desde route handlers o server actions (escribe la cookie).
 export async function trustWholesaleCustomer(customerId: string) {
+  if (!canRememberWholesaleDevices()) {
+    console.error("wholesale device not remembered: ADMIN_SESSION_SECRET is missing or uses the example value");
+    return;
+  }
+
   const cookieStore = await cookies();
   const current = parse(cookieStore.get(WHOLESALE_DEVICE_COOKIE)?.value).filter((id) => id !== customerId);
   const ids = [customerId, ...current].slice(0, MAX_TRUSTED_CUSTOMERS);

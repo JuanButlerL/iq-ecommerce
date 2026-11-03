@@ -123,3 +123,34 @@ test('aviso interno de registro: asunto con negocio y tipo, solo filas completas
   assert.doesNotMatch(email.text, /Razón social/);
   assert.match(email.html, /admin\/mayoristas\/clientes\/abc/);
 });
+
+const deviceEmail = load('src/features/wholesale/new-device-email.ts');
+
+test('aviso de dispositivo nuevo: describe navegador y sistema de forma legible', () => {
+  const ua = {
+    chromeAndroid: 'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
+    safariIphone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+    edgeWindows: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0',
+    firefoxMac: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:131.0) Gecko/20100101 Firefox/131.0',
+  };
+  assert.equal(deviceEmail.describeUserAgent(ua.chromeAndroid), 'Chrome en Android');
+  assert.equal(deviceEmail.describeUserAgent(ua.safariIphone), 'Safari en iPhone');
+  assert.equal(deviceEmail.describeUserAgent(ua.edgeWindows), 'Edge en Windows');
+  assert.equal(deviceEmail.describeUserAgent(ua.firefoxMac), 'Firefox en Mac');
+  assert.equal(deviceEmail.describeUserAgent(null), 'un navegador desconocido');
+  assert.equal(deviceEmail.describeUserAgent('curl/8.0'), 'un navegador desconocido');
+});
+
+test('aviso de dispositivo nuevo: nombra la cuenta, el dispositivo y qué hacer si no fue el cliente', () => {
+  const email = deviceEmail.buildWholesaleNewDeviceEmail(
+    { contactName: 'Ana Pérez', businessName: 'Dietética <La Hoja>', cuit: '20-12345678-6', device: 'Chrome en Android', createdAt: new Date('2026-11-03T15:00:00Z') },
+    { whatsappUrl: 'https://wa.me/5491100000000' },
+  );
+  assert.match(email.subject, /otro dispositivo/);
+  assert.match(email.text, /Hola, Ana:/);
+  assert.match(email.text, /Dietética <La Hoja> \(CUIT 20-12345678-6\)/);
+  assert.match(email.text, /Chrome en Android/);
+  assert.match(email.text, /Si no fuiste vos/);
+  assert.match(email.html, /Dietética &lt;La Hoja&gt;/);
+  assert.doesNotMatch(email.html, /<La Hoja>/);
+});

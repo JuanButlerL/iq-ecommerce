@@ -1,6 +1,7 @@
 import type { WholesaleCustomer } from "@prisma/client";
 
-import { getTrustedWholesaleCustomerIds, trustWholesaleCustomer } from "@/features/wholesale/device";
+import { canRememberWholesaleDevices, getTrustedWholesaleCustomerIds, trustWholesaleCustomer } from "@/features/wholesale/device";
+import { sendWholesaleNewDeviceNotice } from "@/features/wholesale/new-device-notice";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { normalizeCuit } from "@/lib/utils/cuit";
@@ -76,7 +77,8 @@ function registerFailure(ip: string) {
   entry.count += 1;
 }
 
-export async function identifyWholesaleCustomer(payload: unknown, ip: string): Promise<WholesaleIdentifyResult> {
+export async function identifyWholesaleCustomer(payload: unknown, request: { ip: string; userAgent: string | null }): Promise<WholesaleIdentifyResult> {
+  const { ip } = request;
   const parsed = wholesaleIdentifySchema.safeParse(payload);
 
   if (!parsed.success) {
@@ -107,6 +109,15 @@ export async function identifyWholesaleCustomer(payload: unknown, ip: string): P
 
     if (!match.active) {
       throw new AppError("Tu cuenta mayorista está pausada. Escribinos por WhatsApp y lo resolvemos.", 403, true);
+    }
+
+    // Sin cookie firmable el pedido no podría confirmarse: mejor avisar ahora que fallar al final.
+    if (!canRememberWholesaleDevices()) {
+      throw new AppError("No podemos validar tu cuenta en este momento. Escribinos por WhatsApp y cargamos tu pedido.", 503, true);
+    }
+
+    if (!trustedIds.has(match.id)) {
+      sendWholesaleNewDeviceNotice(match, { userAgent: request.userAgent });
     }
 
     await trustWholesaleCustomer(match.id);

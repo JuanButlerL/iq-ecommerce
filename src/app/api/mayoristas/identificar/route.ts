@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";
     const payload = await request.json().catch(() => null);
 
-    return routeOk(await identifyWholesaleCustomer(payload, ip));
+    return routeOk(await identifyWholesaleCustomer(payload, { ip, userAgent: request.headers.get("user-agent") }));
   } catch (error) {
     return routeError(error);
   }
