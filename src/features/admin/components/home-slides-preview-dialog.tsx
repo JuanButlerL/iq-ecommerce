@@ -9,9 +9,20 @@ import { HOME_CAROUSEL_PREVIEW_PATH, type HomeCarouselPreviewMessage } from "@/f
 import { cn } from "@/lib/utils/cn";
 
 const viewports = {
-  desktop: { label: "Escritorio", width: 1440, icon: Monitor },
-  mobile: { label: "Celular", width: 390, icon: Smartphone },
+  desktop: { label: "Escritorio", icon: Monitor },
+  mobile: { label: "Celular", icon: Smartphone },
 } as const;
+
+const MOBILE_WIDTH = 390;
+// The carousel layout depends on the viewport width (its content is centered in a 1600px box),
+// so the desktop preview renders at the admin's own window width: the same width the home gets
+// on this screen. Below the lg breakpoint it wouldn't be a desktop layout anymore.
+const MIN_DESKTOP_WIDTH = 1024;
+
+function getWindowContentWidth() {
+  // clientWidth excludes the scrollbar, like the layout width of the real page.
+  return Math.max(MIN_DESKTOP_WIDTH, document.documentElement.clientWidth);
+}
 
 type Viewport = keyof typeof viewports;
 
@@ -37,9 +48,10 @@ export function HomeSlidesPreviewDialog({
   const [frameHeight, setFrameHeight] = useState(720);
   const [stageWidth, setStageWidth] = useState(0);
   const [isFrameReady, setIsFrameReady] = useState(false);
+  const [desktopWidth, setDesktopWidth] = useState(getWindowContentWidth);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const frameWidth = viewports[viewport].width;
+  const frameWidth = viewport === "desktop" ? desktopWidth : MOBILE_WIDTH;
   const scale = stageWidth > 0 ? Math.min(1, stageWidth / frameWidth) : 1;
 
   useEffect(() => {
@@ -70,6 +82,12 @@ export function HomeSlidesPreviewDialog({
     const observer = new ResizeObserver(() => setStageWidth(stage.clientWidth));
     observer.observe(stage);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const update = () => setDesktopWidth(getWindowContentWidth());
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
 
   useEffect(() => {
@@ -157,6 +175,12 @@ export function HomeSlidesPreviewDialog({
             />
           </div>
         </div>
+
+        <p className="text-xs text-brand-ink/55">
+          {viewport === "desktop"
+            ? `Se muestra con el ancho de tu ventana (${desktopWidth} px), igual que la home en esta pantalla. En pantallas más anchas el texto queda más centrado.`
+            : `Se muestra con el ancho de un celular típico (${MOBILE_WIDTH} px).`}
+        </p>
 
         {slides.length > 1 ? (
           <p className="text-xs text-brand-ink/55">
