@@ -3,7 +3,7 @@
 import type { ShippingRule, ShippingRuleProvince } from "@prisma/client";
 import { ShippingMode } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,9 +14,13 @@ import { ARGENTINA_PROVINCES, normalizeProvinceName } from "@/lib/constants/prov
 
 type ShippingRuleFormProps = {
   rule: ShippingRule & { provinces: ShippingRuleProvince[] };
+  title?: string;
+  intro?: ReactNode;
+  // El canal mayorista guarda por su propia ruta (con su permiso).
+  endpoint?: string;
 };
 
-export function ShippingRuleForm({ rule }: ShippingRuleFormProps) {
+export function ShippingRuleForm({ rule, title = "Reglas de envío", intro, endpoint = `/api/admin/shipping-rules/${rule.id}` }: ShippingRuleFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +75,8 @@ export function ShippingRuleForm({ rule }: ShippingRuleFormProps) {
   return (
     <Card className="space-y-5 p-4 md:p-6">
       <div>
-        <h1 className="font-display text-3xl text-brand-ink md:text-4xl">Reglas de envío</h1>
+        <h1 className="font-display text-3xl text-brand-ink md:text-4xl">{title}</h1>
+        {intro ? <div className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/70">{intro}</div> : null}
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
@@ -159,7 +164,7 @@ export function ShippingRuleForm({ rule }: ShippingRuleFormProps) {
         onClick={() => {
           setError(null);
           startTransition(async () => {
-            const response = await fetch(`/api/admin/shipping-rules/${rule.id}`, {
+            const response = await fetch(endpoint, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({

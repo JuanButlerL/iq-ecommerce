@@ -1,4 +1,5 @@
 import { cache } from "react";
+import type { SalesChannel } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 
@@ -32,8 +33,9 @@ export async function getStoreSettingsForClient() {
   };
 }
 
-export async function getShippingRules() {
+export async function getShippingRules(channel: SalesChannel = "RETAIL") {
   return prisma.shippingRule.findMany({
+    where: { channel },
     include: {
       provinces: {
         orderBy: {

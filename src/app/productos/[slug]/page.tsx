@@ -8,6 +8,7 @@ import { ProductGallery } from "@/features/catalog/components/product-gallery";
 import { ProductLongDescription } from "@/features/catalog/components/product-long-description";
 import { ProductPurchasePanel } from "@/features/catalog/components/product-purchase-panel";
 import { ProductCard } from "@/features/catalog/components/product-card";
+import { ProductPrice } from "@/features/catalog/components/product-price";
 import { getProductBySlug, getSimilarProducts } from "@/features/catalog/queries";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -64,7 +65,18 @@ export default async function ProductDetailPage({
 
           <div className="rounded-[2rem] bg-white p-5 shadow-card">
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Precio</p>
-            <p className="mt-2 text-3xl font-extrabold text-brand-pink md:text-4xl">{formatArs(product.priceArs)}</p>
+            <p className="mt-2 text-3xl font-extrabold text-brand-pink md:text-4xl">
+              <ProductPrice
+                priceArs={product.priceArs}
+                listPriceArs={product.listPriceArs}
+                discountPercentage={product.activeDiscountPercentage}
+              />
+            </p>
+            {product.listPriceArs ? (
+              <p className="mt-2 text-sm font-bold text-emerald-700">
+                Ahorrás {formatArs(product.listPriceArs - product.priceArs)}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2 border-t border-brand-ink/10 pt-4">

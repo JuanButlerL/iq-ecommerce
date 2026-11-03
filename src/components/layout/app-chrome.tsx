@@ -68,7 +68,11 @@ export function AppChrome({
           {showFloatingWhatsapp && whatsappNumber && !hideFloatingWhatsapp ? (
             <FloatingWhatsapp
               phone={whatsappNumber}
-              message="Hola! Quiero consultar por las barritas de IQ Kids."
+              message={
+                pathname.startsWith("/mayoristas")
+                  ? "Hola! Quiero info de venta mayorista de iQ Kids."
+                  : "Hola! Quiero consultar por las barritas de IQ Kids."
+              }
             />
           ) : null}
         </>

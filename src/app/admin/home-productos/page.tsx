@@ -10,7 +10,7 @@ function buildFallbackSlots(
   products: AdminProducts,
   slots: AdminHomeSlots,
 ) {
-  if (slots.length === 4) {
+  if (slots.length > 0) {
     return slots.map((slot: AdminHomeSlots[number]) => ({
       slotOrder: slot.slotOrder,
       productId: slot.productId,
@@ -79,6 +79,7 @@ export default async function AdminHomeProductsPage() {
         id: product.id,
         name: product.name,
         slug: product.slug,
+        shortDescription: product.shortDescription,
       }))}
       slots={buildFallbackSlots(products, slots)}
     />

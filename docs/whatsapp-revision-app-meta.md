@@ -106,6 +106,31 @@ Esta plantilla es la que después vamos a usar para los avisos reales, así que 
 4. Mostrar el teléfono del equipo recibiendo el mensaje (se puede filmar con otro celular o usar la cámara de la compu).
 5. Responder desde ese teléfono y mostrar que llega el evento al webhook. Opcional, pero suma.
 
+## Estado (09/10/2026)
+
+Revisión **enviada** el 09/10/2026 (`submission_id` `1498629215391923`) con `whatsapp_business_management` (video: alta de `pedido_despachado` desde el Explorador), `whatsapp_business_messaging` (video: envío y recepción en el celular) y `public_profile`. Meta indica que la mayoría se revisa en **hasta 20 días**.
+
+Datos cargados en el formulario:
+- Encargado del tratamiento: DigitalOcean, LLC (hosting y base de datos), Estados Unidos. El sitio resuelve a `162.243.244.166`.
+- Responsable: IKI FOODS, Argentina. Sin pedidos de autoridades en los últimos 12 meses; políticas: revisión de legalidad y minimización de datos.
+- Se agregó la plataforma **Sitio web** (`https://www.iqkids.com.ar/`) en Configuración básica, requisito para las instrucciones a revisores.
+
+**Aprobada el 23/10/2026**: `whatsapp_business_messaging`, `whatsapp_business_management` y `public_profile` quedaron con acceso avanzado (Revisión de la app → "Solicitud aprobada"). Al 29/10/2026 falta el registro de proveedor de tecnología (sección 4): la pantalla de Meta no cargaba.
+
+### Alta del 29/10/2026
+
+El canje del code fallaba con `100/36008` (redirect_uri distinto). PR #32 reintenta solo ante ese error con `redirect_uri` vacío y con la URL de la página; con la URL del admin Meta respondió `191` (dominio no autorizado). Se agregó en la app:
+
+- Configuración básica → Dominios de la app: `www.iqkids.com.ar` (ya estaba `iqkids.com.ar`).
+- Inicio de sesión con Facebook para empresas → URIs de redireccionamiento de OAuth válidos: `https://www.iqkids.com.ar/admin/whatsapp` y `https://iqkids.com.ar/admin/whatsapp` (modo estricto activo; ya estaba `https://www.iqkids.com.ar/`).
+- Dominios permitidos para el SDK de JavaScript: `https://iqkids.com.ar/` (ya estaba `https://www.iqkids.com.ar/`).
+
+PR #33 cambió el alta a un diálogo OAuth en la misma pestaña con `redirect_uri` propio: el canje del token **funciona** (`redirect_uri: https://www.iqkids.com.ar/admin/whatsapp`). Pero el número de logística no quedó en ninguna WABA:
+
+- Si Meta muestra "Anteriormente vinculaste bot_ia_iqkids… ¿continuar con tu configuración anterior?", **"Continuar"** reutiliza la autorización previa y no corre el alta (devuelve un token sin agregar el número).
+- **"Editar configuración"** corre el alta y responde otra vez "IKI FOODS no puede registrar clientes en este momento": falta el **registro de proveedor de tecnología**. Esa sección del panel de Meta no carga (error 1007 de Meta y `Failed to fetch` en la consola, 29/10/2026).
+- Sin canal privado: el formulario de errores falla igual, "Asistencia directa" no está habilitada para el portfolio y el soporte de desarrolladores deriva al foro. Se publicó la consulta el 29/10/2026: https://developers.facebook.com/community/threads/1443883247919632/
+
 ## 4. Después de la aprobación
 
 1. En Casos de uso → Conectar en WhatsApp → **Registro de proveedores de tecnología**, completar el registro.

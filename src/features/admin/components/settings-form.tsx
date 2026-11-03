@@ -188,7 +188,7 @@ export function SettingsForm({ settings, shippingRules }: SettingsFormProps) {
           <div>
             <span className="block text-sm font-bold text-brand-ink/75">CTA principal del home</span>
             <p className="mt-1 text-sm text-brand-ink/60">
-              Edita el boton rosa de la primera seccion. Si dejas los campos vacios, se usa el texto actual y el producto del primer slot.
+              El boton de cada portada se edita en Home carrusel. Estos campos solo se usan si no hay ningun slide activo. Si los dejas vacios, se usa el texto actual y el producto del primer slot.
             </p>
           </div>
           <div className="mt-4 grid gap-4 xl:grid-cols-2">

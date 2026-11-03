@@ -24,6 +24,18 @@ enum ShippingMode {
   PROVINCE
 }
 
+enum SalesChannel {
+  RETAIL
+  WHOLESALE
+}
+
+enum TaxCondition {
+  RESPONSABLE_INSCRIPTO
+  MONOTRIBUTO
+  EXENTO
+  CONSUMIDOR_FINAL
+}
+
 enum PaymentMethod {
   BANK_TRANSFER
   MERCADO_PAGO
@@ -175,42 +187,46 @@ enum MarketingEventType {
 }
 
 model AdminUser {
-  id             String    @id @default(uuid()) @db.Uuid
-  supabaseUserId String?   @unique @map("supabase_user_id") @db.Uuid
-  email          String    @unique
-  fullName       String    @map("full_name")
-  passwordHash   String?   @map("password_hash")
-  role           AdminRole @default(OPERATIONS)
-  allowedSections String[] @default([]) @map("allowed_sections")
-  active         Boolean   @default(true)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(uuid()) @db.Uuid
+  supabaseUserId  String?   @unique @map("supabase_user_id") @db.Uuid
+  email           String    @unique
+  fullName        String    @map("full_name")
+  passwordHash    String?   @map("password_hash")
+  role            AdminRole @default(OPERATIONS)
+  allowedSections String[]  @default([]) @map("allowed_sections")
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@map("admin_users")
 }
 
 model Product {
-  id               String            @id @default(uuid()) @db.Uuid
-  name             String
-  slug             String            @unique
-  shortDescription String            @map("short_description")
-  longDescription  String            @map("long_description")
-  priceArs         Int               @map("price_ars")
-  homeVarietyLabel String?           @map("home_variety_label")
-  colorTheme       ProductColorTheme @map("color_theme")
-  visualAccentHex  String?           @map("visual_accent_hex")
-  visualSurfaceHex String?           @map("visual_surface_hex")
-  visualTextHex    String?           @map("visual_text_hex")
-  active           Boolean           @default(true)
-  visible          Boolean           @default(true)
-  manualSoldOut    Boolean           @default(false) @map("manual_sold_out")
-  featured         Boolean           @default(false)
-  sortOrder        Int               @default(0) @map("sort_order")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  homeFeaturedSlots HomeFeaturedProductSlot[]
-  images           ProductImage[]
-  orderItems       OrderItem[]
+  id                 String                    @id @default(uuid()) @db.Uuid
+  name               String
+  slug               String                    @unique
+  shortDescription   String                    @map("short_description")
+  longDescription    String                    @map("long_description")
+  priceArs           Int                       @map("price_ars")
+  discountPercentage Int?                      @map("discount_percentage")
+  discountStartsAt   DateTime?                 @map("discount_starts_at")
+  discountEndsAt     DateTime?                 @map("discount_ends_at")
+  homeVarietyLabel   String?                   @map("home_variety_label")
+  colorTheme         ProductColorTheme         @map("color_theme")
+  visualAccentHex    String?                   @map("visual_accent_hex")
+  visualSurfaceHex   String?                   @map("visual_surface_hex")
+  visualTextHex      String?                   @map("visual_text_hex")
+  active             Boolean                   @default(true)
+  visible            Boolean                   @default(true)
+  manualSoldOut      Boolean                   @default(false) @map("manual_sold_out")
+  featured           Boolean                   @default(false)
+  sortOrder          Int                       @default(0) @map("sort_order")
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  updatedAt          DateTime                  @updatedAt @map("updated_at")
+  homeFeaturedSlots  HomeFeaturedProductSlot[]
+  images             ProductImage[]
+  wholesaleProducts  WholesaleProduct[]
+  orderItems         OrderItem[]
 
   @@index([active, visible, featured], map: "products_visibility_idx")
   @@index([sortOrder], map: "products_sort_idx")
@@ -218,34 +234,35 @@ model Product {
 }
 
 model ProductImage {
-  id         String   @id @default(uuid()) @db.Uuid
-  productId  String   @map("product_id") @db.Uuid
-  filePath   String   @map("file_path")
-  publicUrl  String   @map("public_url")
-  altText    String   @map("alt_text")
-  sortOrder  Int      @default(0) @map("sort_order")
-  isPrimary  Boolean  @default(false) @map("is_primary")
-  createdAt  DateTime @default(now()) @map("created_at")
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  filePath  String   @map("file_path")
+  publicUrl String   @map("public_url")
+  altText   String   @map("alt_text")
+  sortOrder Int      @default(0) @map("sort_order")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, sortOrder], map: "product_images_sort_idx")
   @@map("product_images")
 }
 
 model ShippingRule {
-  id                    String                 @id @default(uuid()) @db.Uuid
-  name                  String
-  description           String?
-  mode                  ShippingMode
-  flatPrice             Int?                   @map("flat_price")
-  discountThresholdArs  Int?                   @map("discount_threshold_ars")
-  discountPercentage    Int?                   @map("discount_percentage")
-  active                Boolean                @default(true)
-  isDefault             Boolean                @default(false) @map("is_default")
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  provinces             ShippingRuleProvince[]
-  storeSettings         StoreSettings[]
+  id                   String                 @id @default(uuid()) @db.Uuid
+  name                 String
+  description          String?
+  mode                 ShippingMode
+  flatPrice            Int?                   @map("flat_price")
+  discountThresholdArs Int?                   @map("discount_threshold_ars")
+  discountPercentage   Int?                   @map("discount_percentage")
+  active               Boolean                @default(true)
+  isDefault            Boolean                @default(false) @map("is_default")
+  channel              SalesChannel           @default(RETAIL)
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  provinces            ShippingRuleProvince[]
+  storeSettings        StoreSettings[]
 
   @@map("shipping_rules")
 }
@@ -267,78 +284,79 @@ model ShippingRuleProvince {
 }
 
 model StoreSettings {
-  id                     String        @id @default("default")
-  storeName              String        @map("store_name")
-  storeCurrency          String        @default("ARS") @map("store_currency")
-  whatsappNumber         String        @map("whatsapp_number")
-  instagramUrl           String?       @map("instagram_url")
-  contactEmail           String        @map("contact_email")
-  bankAlias              String        @map("bank_alias")
-  bankCbu                String        @map("bank_cbu")
-  bankName               String        @map("bank_name")
-  bankHolder             String        @map("bank_holder")
-  bankTaxId              String        @map("bank_tax_id")
-  minimumOrderAmount     Int           @map("minimum_order_amount")
-  freeShippingThreshold  Int           @map("free_shipping_threshold")
-  flatShippingPrice      Int           @default(0) @map("flat_shipping_price")
-  shippingMode           ShippingMode  @default(FLAT) @map("shipping_mode")
-  activeShippingRuleId   String?       @map("active_shipping_rule_id") @db.Uuid
-  checkoutMessage        String?       @map("checkout_message")
-  transferInstructions   String?       @map("transfer_instructions")
-  enableBankTransfer     Boolean       @default(true) @map("enable_bank_transfer")
-  enableMercadoPago      Boolean       @default(true) @map("enable_mercado_pago")
-  enableBankTransferDiscount Boolean   @default(false) @map("enable_bank_transfer_discount")
-  bankTransferDiscountPercentage Decimal @default(0) @map("bank_transfer_discount_percentage") @db.Decimal(5, 2)
-  orderReservationHours  Int?          @map("order_reservation_hours")
-  institutionalBanner    String?       @map("institutional_banner")
-  announcementBarEnabled Boolean       @default(false) @map("announcement_bar_enabled")
-  announcementBarText    String?       @map("announcement_bar_text")
-  faqSectionEnabled      Boolean       @default(false) @map("faq_section_enabled")
-  faqEyebrow             String?       @map("faq_eyebrow")
-  faqTitle               String?       @map("faq_title")
-  faqTitleAccent         String?       @map("faq_title_accent")
-  faqDescription         String?       @map("faq_description")
-  faqSupportTitle        String?       @map("faq_support_title")
-  faqSupportText         String?       @map("faq_support_text")
-  heroCtaLabel           String?       @map("hero_cta_label")
-  heroCtaUrl             String?       @map("hero_cta_url")
-  subscriptionSectionEnabled Boolean   @default(false) @map("subscription_section_enabled")
-  subscriptionCtaUrl     String?       @map("subscription_cta_url")
-  subscriptionHeroNote   String?       @map("subscription_hero_note")
-  subscriptionItemOne    String?       @map("subscription_item_one")
-  subscriptionItemTwo    String?       @map("subscription_item_two")
-  subscriptionItemThree  String?       @map("subscription_item_three")
-  purchaseSuccessMessage String?       @map("purchase_success_message")
-  requireTaxId           Boolean       @default(false) @map("require_tax_id")
-  newsletterSectionEnabled Boolean     @default(false) @map("newsletter_section_enabled")
-  newsletterEyebrow      String?       @map("newsletter_eyebrow")
-  newsletterTitle        String?       @map("newsletter_title")
-  newsletterDescription  String?       @map("newsletter_description")
-  newsletterSenderName   String        @default("IQ Kids") @map("newsletter_sender_name")
-  newsletterFromEmail    String        @default("no-reply@iqkids.com.ar") @map("newsletter_from_email")
-  newsletterReplyToEmail String?       @map("newsletter_reply_to_email")
-  newsletterTestRecipients String[]    @default([]) @map("newsletter_test_recipients")
-  newsletterDailyLimit   Int           @default(80) @map("newsletter_daily_limit")
-  showFloatingWhatsapp   Boolean       @default(true) @map("show_floating_whatsapp")
-  isStoreOpen            Boolean       @default(true) @map("is_store_open")
-  createdAt              DateTime      @default(now()) @map("created_at")
-  updatedAt              DateTime      @updatedAt @map("updated_at")
-  activeShippingRule     ShippingRule? @relation(fields: [activeShippingRuleId], references: [id], onDelete: SetNull)
+  id                             String        @id @default("default")
+  storeName                      String        @map("store_name")
+  storeCurrency                  String        @default("ARS") @map("store_currency")
+  whatsappNumber                 String        @map("whatsapp_number")
+  instagramUrl                   String?       @map("instagram_url")
+  contactEmail                   String        @map("contact_email")
+  bankAlias                      String        @map("bank_alias")
+  bankCbu                        String        @map("bank_cbu")
+  bankName                       String        @map("bank_name")
+  bankHolder                     String        @map("bank_holder")
+  bankTaxId                      String        @map("bank_tax_id")
+  minimumOrderAmount             Int           @map("minimum_order_amount")
+  freeShippingThreshold          Int           @map("free_shipping_threshold")
+  flatShippingPrice              Int           @default(0) @map("flat_shipping_price")
+  shippingMode                   ShippingMode  @default(FLAT) @map("shipping_mode")
+  activeShippingRuleId           String?       @map("active_shipping_rule_id") @db.Uuid
+  checkoutMessage                String?       @map("checkout_message")
+  transferInstructions           String?       @map("transfer_instructions")
+  enableBankTransfer             Boolean       @default(true) @map("enable_bank_transfer")
+  enableMercadoPago              Boolean       @default(true) @map("enable_mercado_pago")
+  enableBankTransferDiscount     Boolean       @default(false) @map("enable_bank_transfer_discount")
+  bankTransferDiscountPercentage Decimal       @default(0) @map("bank_transfer_discount_percentage") @db.Decimal(5, 2)
+  orderReservationHours          Int?          @map("order_reservation_hours")
+  institutionalBanner            String?       @map("institutional_banner")
+  announcementBarEnabled         Boolean       @default(false) @map("announcement_bar_enabled")
+  announcementBarText            String?       @map("announcement_bar_text")
+  faqSectionEnabled              Boolean       @default(false) @map("faq_section_enabled")
+  faqEyebrow                     String?       @map("faq_eyebrow")
+  faqTitle                       String?       @map("faq_title")
+  faqTitleAccent                 String?       @map("faq_title_accent")
+  faqDescription                 String?       @map("faq_description")
+  faqSupportTitle                String?       @map("faq_support_title")
+  faqSupportText                 String?       @map("faq_support_text")
+  heroCtaLabel                   String?       @map("hero_cta_label")
+  heroCtaUrl                     String?       @map("hero_cta_url")
+  heroCarouselIntervalSeconds    Int           @default(7) @map("hero_carousel_interval_seconds")
+  subscriptionSectionEnabled     Boolean       @default(false) @map("subscription_section_enabled")
+  subscriptionCtaUrl             String?       @map("subscription_cta_url")
+  subscriptionHeroNote           String?       @map("subscription_hero_note")
+  subscriptionItemOne            String?       @map("subscription_item_one")
+  subscriptionItemTwo            String?       @map("subscription_item_two")
+  subscriptionItemThree          String?       @map("subscription_item_three")
+  purchaseSuccessMessage         String?       @map("purchase_success_message")
+  requireTaxId                   Boolean       @default(false) @map("require_tax_id")
+  newsletterSectionEnabled       Boolean       @default(false) @map("newsletter_section_enabled")
+  newsletterEyebrow              String?       @map("newsletter_eyebrow")
+  newsletterTitle                String?       @map("newsletter_title")
+  newsletterDescription          String?       @map("newsletter_description")
+  newsletterSenderName           String        @default("IQ Kids") @map("newsletter_sender_name")
+  newsletterFromEmail            String        @default("no-reply@iqkids.com.ar") @map("newsletter_from_email")
+  newsletterReplyToEmail         String?       @map("newsletter_reply_to_email")
+  newsletterTestRecipients       String[]      @default([]) @map("newsletter_test_recipients")
+  newsletterDailyLimit           Int           @default(80) @map("newsletter_daily_limit")
+  showFloatingWhatsapp           Boolean       @default(true) @map("show_floating_whatsapp")
+  isStoreOpen                    Boolean       @default(true) @map("is_store_open")
+  createdAt                      DateTime      @default(now()) @map("created_at")
+  updatedAt                      DateTime      @updatedAt @map("updated_at")
+  activeShippingRule             ShippingRule? @relation(fields: [activeShippingRuleId], references: [id], onDelete: SetNull)
 
   @@map("store_settings")
 }
 
 model Coupon {
-  id                 String   @id @default(uuid()) @db.Uuid
-  code               String   @unique
+  id                 String             @id @default(uuid()) @db.Uuid
+  code               String             @unique
   description        String?
   discountType       CouponDiscountType @default(PERCENTAGE) @map("discount_type")
-  discountPercentage Decimal? @map("discount_percentage") @db.Decimal(5, 2)
-  fixedDiscountArs   Int?     @map("fixed_discount_ars")
-  usageType          CouponUsageType @default(UNLIMITED) @map("usage_type")
-  active             Boolean  @default(true)
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  discountPercentage Decimal?           @map("discount_percentage") @db.Decimal(5, 2)
+  fixedDiscountArs   Int?               @map("fixed_discount_ars")
+  usageType          CouponUsageType    @default(UNLIMITED) @map("usage_type")
+  active             Boolean            @default(true)
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
   orders             Order[]
   emailAutomations   EmailAutomation[]
 
@@ -347,17 +365,157 @@ model Coupon {
 }
 
 model Testimonial {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  roleLabel   String?  @map("role_label")
-  quote       String
-  active      Boolean  @default(true)
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  roleLabel String?  @map("role_label")
+  quote     String
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([active, sortOrder], map: "testimonials_active_sort_idx")
   @@map("testimonials")
+}
+
+model HomeSlide {
+  id             String    @id @default(uuid()) @db.Uuid
+  eyebrow        String?
+  title          String
+  mobileTitle    String?   @map("mobile_title")
+  subtitle       String?
+  badges         String[]  @default([])
+  ctaLabel       String?   @map("cta_label")
+  ctaUrl         String?   @map("cta_url")
+  imageUrl       String    @map("image_url")
+  mobileImageUrl String?   @map("mobile_image_url")
+  imageAlt       String?   @map("image_alt")
+  active         Boolean   @default(true)
+  // Optional publishing window; the home only shows the slide between these moments.
+  startsAt       DateTime? @map("starts_at")
+  endsAt         DateTime? @map("ends_at")
+  sortOrder      Int       @default(0) @map("sort_order")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([active, sortOrder], map: "home_slides_active_sort_idx")
+  @@map("home_slides")
+}
+
+model WholesalePage {
+  id        String   @id @default("default")
+  content   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("wholesale_page")
+}
+
+model WholesaleLead {
+  id                String              @id @default(uuid()) @db.Uuid
+  status            WholesaleLeadStatus @default(NEW)
+  name              String
+  phone             String
+  email             String
+  businessName      String?             @map("business_name")
+  businessType      String              @map("business_type")
+  cuit              String?
+  street            String
+  floor             String?
+  city              String
+  province          String
+  postalCode        String              @map("postal_code")
+  reference         String?
+  monthlyVolume     String?             @map("monthly_volume")
+  message           String?             @db.Text
+  adminNotes        String?             @map("admin_notes") @db.Text
+  ipAddress         String?             @map("ip_address")
+  userAgent         String?             @map("user_agent")
+  notifiedAt        DateTime?           @map("notified_at")
+  notificationError String?             @map("notification_error")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  customers         WholesaleCustomer[]
+
+  @@index([status, createdAt], map: "wholesale_leads_status_created_idx")
+  @@index([ipAddress, createdAt], map: "wholesale_leads_ip_created_idx")
+  @@map("wholesale_leads")
+}
+
+// Maestro de clientes mayoristas: un registro por CUIT. Un mismo email puede tener varios CUIT.
+model WholesaleCustomer {
+  id                      String         @id @default(uuid()) @db.Uuid
+  email                   String
+  phone                   String
+  contactName             String         @map("contact_name")
+  businessName            String?        @map("business_name")
+  legalName               String?        @map("legal_name")
+  businessType            String?        @map("business_type")
+  cuit                    String         @unique
+  taxCondition            TaxCondition?  @map("tax_condition")
+  street                  String
+  floor                   String?
+  city                    String
+  province                String
+  postalCode              String         @map("postal_code")
+  reference               String?
+  allowDeferredPayment    Boolean        @default(false) @map("allow_deferred_payment")
+  extraDiscountPercentage Decimal        @default(0) @map("extra_discount_percentage") @db.Decimal(5, 2)
+  active                  Boolean        @default(true)
+  adminNotes              String?        @map("admin_notes") @db.Text
+  leadId                  String?        @map("lead_id") @db.Uuid
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+  lead                    WholesaleLead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([email], map: "wholesale_customers_email_idx")
+  @@index([createdAt], map: "wholesale_customers_created_idx")
+  @@map("wholesale_customers")
+}
+
+// Productos que se venden por display en /mayoristas, con su propio precio.
+model WholesaleProduct {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String
+  description     String   @default("")
+  imageUrl        String   @default("") @map("image_url")
+  imageAlt        String   @default("") @map("image_alt")
+  priceArs        Int      @map("price_ars")
+  unitsPerDisplay Int      @default(12) @map("units_per_display")
+  active          Boolean  @default(true)
+  soldOut         Boolean  @default(false) @map("sold_out")
+  sortOrder       Int      @default(0) @map("sort_order")
+  productId       String?  @map("product_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([active, sortOrder], map: "wholesale_products_active_sort_idx")
+  @@map("wholesale_products")
+}
+
+// Condiciones de compra mayorista (una sola fila). Los datos bancarios son los de StoreSettings.
+model WholesaleSettings {
+  id                             String   @id @default("default")
+  minDisplays                    Int      @default(10) @map("min_displays")
+  enableMercadoPago              Boolean  @default(true) @map("enable_mercado_pago")
+  enableBankTransfer             Boolean  @default(true) @map("enable_bank_transfer")
+  enableEcheq                    Boolean  @default(true) @map("enable_echeq")
+  echeqMaxDays                   Int      @default(15) @map("echeq_max_days")
+  echeqInstructions              String?  @map("echeq_instructions")
+  enableBankTransferDiscount     Boolean  @default(false) @map("enable_bank_transfer_discount")
+  bankTransferDiscountPercentage Decimal  @default(0) @map("bank_transfer_discount_percentage") @db.Decimal(5, 2)
+  freeShippingThresholdArs       Int?     @map("free_shipping_threshold_ars")
+  orderNotificationEmails        String[] @default([]) @map("order_notification_emails")
+  updatedAt                      DateTime @updatedAt @map("updated_at")
+
+  @@map("wholesale_settings")
+}
+
+enum WholesaleLeadStatus {
+  NEW
+  CONTACTED
+  CLIENT
+  DISCARDED
 }
 
 model FrequentlyAskedQuestion {
@@ -392,37 +550,37 @@ model HomeFeaturedProductSlot {
 }
 
 model MarketingSession {
-  id             String                  @id @default(uuid()) @db.Uuid
-  visitorId      String                  @map("visitor_id")
-  sessionKey     String                  @unique @map("session_key")
-  entryPath      String                  @map("entry_path")
-  entryUrl       String?                 @map("entry_url")
-  referrerUrl    String?                 @map("referrer_url")
-  referrerHost   String?                 @map("referrer_host")
-  sourceCategory MarketingSourceCategory @default(DIRECT) @map("source_category")
-  sourcePlatform MarketingSourcePlatform @default(DIRECT) @map("source_platform")
-  sourceChannel  String                  @default("Direct") @map("source_channel")
-  sourceLabel    String                  @default("Direct") @map("source_label")
-  isPaid         Boolean                 @default(false) @map("is_paid")
-  utmSource      String?                 @map("utm_source")
-  utmMedium      String?                 @map("utm_medium")
-  utmCampaign    String?                 @map("utm_campaign")
-  utmContent     String?                 @map("utm_content")
-  utmTerm        String?                 @map("utm_term")
-  gclid          String?
-  fbclid         String?
-  ttclid         String?
-  msclkid        String?
-  landingQuery   Json?                   @map("landing_query")
-  gaClientId     String?                 @map("ga_client_id")
-  email          String?
-  firstSeenAt    DateTime                @default(now()) @map("first_seen_at")
-  lastSeenAt     DateTime                @default(now()) @map("last_seen_at")
-  createdAt      DateTime                @default(now()) @map("created_at")
-  updatedAt      DateTime                @updatedAt @map("updated_at")
+  id                String                  @id @default(uuid()) @db.Uuid
+  visitorId         String                  @map("visitor_id")
+  sessionKey        String                  @unique @map("session_key")
+  entryPath         String                  @map("entry_path")
+  entryUrl          String?                 @map("entry_url")
+  referrerUrl       String?                 @map("referrer_url")
+  referrerHost      String?                 @map("referrer_host")
+  sourceCategory    MarketingSourceCategory @default(DIRECT) @map("source_category")
+  sourcePlatform    MarketingSourcePlatform @default(DIRECT) @map("source_platform")
+  sourceChannel     String                  @default("Direct") @map("source_channel")
+  sourceLabel       String                  @default("Direct") @map("source_label")
+  isPaid            Boolean                 @default(false) @map("is_paid")
+  utmSource         String?                 @map("utm_source")
+  utmMedium         String?                 @map("utm_medium")
+  utmCampaign       String?                 @map("utm_campaign")
+  utmContent        String?                 @map("utm_content")
+  utmTerm           String?                 @map("utm_term")
+  gclid             String?
+  fbclid            String?
+  ttclid            String?
+  msclkid           String?
+  landingQuery      Json?                   @map("landing_query")
+  gaClientId        String?                 @map("ga_client_id")
+  email             String?
+  firstSeenAt       DateTime                @default(now()) @map("first_seen_at")
+  lastSeenAt        DateTime                @default(now()) @map("last_seen_at")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
   cartRecoveryLeads CartRecoveryLead[]
-  orders         Order[]
-  events         MarketingEvent[]
+  orders            Order[]
+  events            MarketingEvent[]
 
   @@index([email, firstSeenAt], map: "marketing_sessions_email_first_seen_idx")
   @@index([sourceCategory, sourcePlatform, firstSeenAt], map: "marketing_sessions_source_idx")
@@ -432,33 +590,33 @@ model MarketingSession {
 }
 
 model CartRecoveryLead {
-  id                   String    @id @default(uuid()) @db.Uuid
-  email                String
-  recoveryToken        String    @unique @map("recovery_token")
-  items                Json
-  subtotalArs          Int       @default(0) @map("subtotal_ars")
-  currency             String    @default("ARS")
-  province             String?
-  status               String    @default("CAPTURED")
-  checkoutOrderId      String?   @map("checkout_order_id") @db.Uuid
-  checkoutOrderNumber  String?   @map("checkout_order_number")
-  checkoutStartedAt    DateTime? @map("checkout_started_at")
-  convertedOrderId     String?   @map("converted_order_id") @db.Uuid
-  convertedOrderNumber String?   @map("converted_order_number")
-  convertedAt          DateTime? @map("converted_at")
-  freeShippingToken    String?   @unique @map("free_shipping_token")
-  freeShippingGrantedAt DateTime? @map("free_shipping_granted_at")
-  freeShippingExpiresAt DateTime? @map("free_shipping_expires_at")
-  freeShippingRedeemedAt DateTime? @map("free_shipping_redeemed_at")
-  freeShippingOrderId  String?   @map("free_shipping_order_id") @db.Uuid
-  userAgent            String?   @map("user_agent")
-  marketingSessionId   String?   @map("marketing_session_id") @db.Uuid
-  marketingVisitorId   String?   @map("marketing_visitor_id")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
-  marketingSession     MarketingSession? @relation(fields: [marketingSessionId], references: [id], onDelete: SetNull)
-  marketingEvents      MarketingEvent[]
-  emailLogs            EmailSendLog[]
+  id                     String            @id @default(uuid()) @db.Uuid
+  email                  String
+  recoveryToken          String            @unique @map("recovery_token")
+  items                  Json
+  subtotalArs            Int               @default(0) @map("subtotal_ars")
+  currency               String            @default("ARS")
+  province               String?
+  status                 String            @default("CAPTURED")
+  checkoutOrderId        String?           @map("checkout_order_id") @db.Uuid
+  checkoutOrderNumber    String?           @map("checkout_order_number")
+  checkoutStartedAt      DateTime?         @map("checkout_started_at")
+  convertedOrderId       String?           @map("converted_order_id") @db.Uuid
+  convertedOrderNumber   String?           @map("converted_order_number")
+  convertedAt            DateTime?         @map("converted_at")
+  freeShippingToken      String?           @unique @map("free_shipping_token")
+  freeShippingGrantedAt  DateTime?         @map("free_shipping_granted_at")
+  freeShippingExpiresAt  DateTime?         @map("free_shipping_expires_at")
+  freeShippingRedeemedAt DateTime?         @map("free_shipping_redeemed_at")
+  freeShippingOrderId    String?           @map("free_shipping_order_id") @db.Uuid
+  userAgent              String?           @map("user_agent")
+  marketingSessionId     String?           @map("marketing_session_id") @db.Uuid
+  marketingVisitorId     String?           @map("marketing_visitor_id")
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime          @updatedAt @map("updated_at")
+  marketingSession       MarketingSession? @relation(fields: [marketingSessionId], references: [id], onDelete: SetNull)
+  marketingEvents        MarketingEvent[]
+  emailLogs              EmailSendLog[]
 
   @@index([email], map: "cart_recovery_leads_email_idx")
   @@index([status], map: "cart_recovery_leads_status_idx")
@@ -469,17 +627,17 @@ model CartRecoveryLead {
 }
 
 model NewsletterSubscriber {
-  id             String                   @id @default(uuid()) @db.Uuid
-  email          String                   @unique
+  id             String                     @id @default(uuid()) @db.Uuid
+  email          String                     @unique
   status         NewsletterSubscriberStatus @default(SUBSCRIBED)
-  consentSource  NewsletterConsentSource  @map("consent_source")
-  consentVersion String                   @map("consent_version")
-  consentedAt    DateTime                 @map("consented_at")
-  unsubscribedAt DateTime?                @map("unsubscribed_at")
-  createdAt      DateTime                 @default(now()) @map("created_at")
-  updatedAt      DateTime                 @updatedAt @map("updated_at")
+  consentSource  NewsletterConsentSource    @map("consent_source")
+  consentVersion String                     @map("consent_version")
+  consentedAt    DateTime                   @map("consented_at")
+  unsubscribedAt DateTime?                  @map("unsubscribed_at")
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
 
-  deliveries     NewsletterDelivery[]
+  deliveries NewsletterDelivery[]
 
   @@index([status, consentedAt], map: "newsletter_subscribers_status_consented_idx")
   @@map("newsletter_subscribers")
@@ -575,30 +733,30 @@ model NewsletterAuditEvent {
 }
 
 model EmailAutomation {
-  id             String                 @id @default(uuid()) @db.Uuid
-  name           String
-  trigger        EmailAutomationTrigger
-  active         Boolean                @default(false)
-  activatedAt    DateTime?              @map("activated_at")
-  delayHours     Int                    @default(24) @map("delay_hours")
-  subject        String
-  previewText    String?                @map("preview_text")
-  bodyText       String                 @map("body_text") @db.Text
-  ctaLabel       String?                @map("cta_label")
-  ctaUrlTemplate String?                @map("cta_url_template")
-  senderName     String                 @default("IQ Kids") @map("sender_name")
-  fromEmail      String                 @default("no-reply@iqkids.com.ar") @map("from_email")
-  replyToEmail   String?                @map("reply_to_email")
-  bccEmail       String?                @map("bcc_email")
-  couponId       String?                @map("coupon_id") @db.Uuid
-  couponHeadline String?                @map("coupon_headline")
-  couponMessage  String?                @map("coupon_message") @db.Text
-  cartRecoveryFreeShippingEnabled Boolean @default(false) @map("cart_recovery_free_shipping_enabled")
-  cartRecoveryFreeShippingMessage String? @map("cart_recovery_free_shipping_message") @db.Text
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @updatedAt @map("updated_at")
-  coupon         Coupon?                @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  logs           EmailSendLog[]
+  id                              String                 @id @default(uuid()) @db.Uuid
+  name                            String
+  trigger                         EmailAutomationTrigger
+  active                          Boolean                @default(false)
+  activatedAt                     DateTime?              @map("activated_at")
+  delayHours                      Int                    @default(24) @map("delay_hours")
+  subject                         String
+  previewText                     String?                @map("preview_text")
+  bodyText                        String                 @map("body_text") @db.Text
+  ctaLabel                        String?                @map("cta_label")
+  ctaUrlTemplate                  String?                @map("cta_url_template")
+  senderName                      String                 @default("IQ Kids") @map("sender_name")
+  fromEmail                       String                 @default("no-reply@iqkids.com.ar") @map("from_email")
+  replyToEmail                    String?                @map("reply_to_email")
+  bccEmail                        String?                @map("bcc_email")
+  couponId                        String?                @map("coupon_id") @db.Uuid
+  couponHeadline                  String?                @map("coupon_headline")
+  couponMessage                   String?                @map("coupon_message") @db.Text
+  cartRecoveryFreeShippingEnabled Boolean                @default(false) @map("cart_recovery_free_shipping_enabled")
+  cartRecoveryFreeShippingMessage String?                @map("cart_recovery_free_shipping_message") @db.Text
+  createdAt                       DateTime               @default(now()) @map("created_at")
+  updatedAt                       DateTime               @updatedAt @map("updated_at")
+  coupon                          Coupon?                @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  logs                            EmailSendLog[]
 
   @@index([active, trigger], map: "email_automations_active_trigger_idx")
   @@index([couponId], map: "email_automations_coupon_idx")
@@ -606,37 +764,37 @@ model EmailAutomation {
 }
 
 model EmailSendLog {
-  id                 String                 @id @default(uuid()) @db.Uuid
-  automationId       String                 @map("automation_id") @db.Uuid
-  trigger            EmailAutomationTrigger
-  status             EmailSendStatus
-  recipientEmail     String                 @map("recipient_email")
-  subject            String
-  targetType         String                 @map("target_type")
-  targetId           String                 @map("target_id")
-  orderId            String?                @map("order_id") @db.Uuid
-  cartRecoveryLeadId String?                @map("cart_recovery_lead_id") @db.Uuid
-  providerMessageId  String?                @map("provider_message_id")
-  ctaUrl             String?                @map("cta_url")
-  clickToken         String?                @unique @map("click_token")
-  openToken          String?                @unique @map("open_token")
-  unsubscribeToken   String?                @unique @map("unsubscribe_token")
-  openCount          Int                    @default(0) @map("open_count")
-  firstOpenedAt      DateTime?              @map("first_opened_at")
-  lastOpenedAt       DateTime?              @map("last_opened_at")
-  clickCount         Int                    @default(0) @map("click_count")
-  firstClickedAt     DateTime?              @map("first_clicked_at")
-  lastClickedAt      DateTime?              @map("last_clicked_at")
-  convertedOrderId   String?                @map("converted_order_id") @db.Uuid
-  convertedOrderNumber String?              @map("converted_order_number")
-  convertedAt        DateTime?              @map("converted_at")
-  errorMessage       String?                @map("error_message")
-  sentAt             DateTime?              @map("sent_at")
-  createdAt          DateTime               @default(now()) @map("created_at")
-  automation         EmailAutomation        @relation(fields: [automationId], references: [id], onDelete: Cascade)
-  order              Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  convertedOrder     Order?                 @relation("EmailLogConvertedOrder", fields: [convertedOrderId], references: [id], onDelete: SetNull)
-  cartRecoveryLead   CartRecoveryLead?      @relation(fields: [cartRecoveryLeadId], references: [id], onDelete: SetNull)
+  id                   String                 @id @default(uuid()) @db.Uuid
+  automationId         String                 @map("automation_id") @db.Uuid
+  trigger              EmailAutomationTrigger
+  status               EmailSendStatus
+  recipientEmail       String                 @map("recipient_email")
+  subject              String
+  targetType           String                 @map("target_type")
+  targetId             String                 @map("target_id")
+  orderId              String?                @map("order_id") @db.Uuid
+  cartRecoveryLeadId   String?                @map("cart_recovery_lead_id") @db.Uuid
+  providerMessageId    String?                @map("provider_message_id")
+  ctaUrl               String?                @map("cta_url")
+  clickToken           String?                @unique @map("click_token")
+  openToken            String?                @unique @map("open_token")
+  unsubscribeToken     String?                @unique @map("unsubscribe_token")
+  openCount            Int                    @default(0) @map("open_count")
+  firstOpenedAt        DateTime?              @map("first_opened_at")
+  lastOpenedAt         DateTime?              @map("last_opened_at")
+  clickCount           Int                    @default(0) @map("click_count")
+  firstClickedAt       DateTime?              @map("first_clicked_at")
+  lastClickedAt        DateTime?              @map("last_clicked_at")
+  convertedOrderId     String?                @map("converted_order_id") @db.Uuid
+  convertedOrderNumber String?                @map("converted_order_number")
+  convertedAt          DateTime?              @map("converted_at")
+  errorMessage         String?                @map("error_message")
+  sentAt               DateTime?              @map("sent_at")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  automation           EmailAutomation        @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  order                Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  convertedOrder       Order?                 @relation("EmailLogConvertedOrder", fields: [convertedOrderId], references: [id], onDelete: SetNull)
+  cartRecoveryLead     CartRecoveryLead?      @relation(fields: [cartRecoveryLeadId], references: [id], onDelete: SetNull)
 
   @@unique([automationId, targetType, targetId], map: "email_send_logs_automation_target_key")
   @@index([recipientEmail, createdAt], map: "email_send_logs_recipient_created_idx")
@@ -670,80 +828,80 @@ model MarketingEvent {
 }
 
 model ShortLink {
-  id          String   @id @default(uuid()) @db.Uuid
-  slug        String   @unique
-  targetUrl   String   @map("target_url") @db.Text
-  title       String?
-  description String?
-  active      Boolean  @default(true)
-  clickCount  Int      @default(0) @map("click_count")
+  id            String    @id @default(uuid()) @db.Uuid
+  slug          String    @unique
+  targetUrl     String    @map("target_url") @db.Text
+  title         String?
+  description   String?
+  active        Boolean   @default(true)
+  clickCount    Int       @default(0) @map("click_count")
   lastClickedAt DateTime? @map("last_clicked_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@index([active, slug], map: "short_links_active_slug_idx")
   @@map("short_links")
 }
 
 model Order {
-  id                    String               @id @default(uuid()) @db.Uuid
-  publicOrderNumber     String               @unique @map("public_order_number")
-  checkoutRequestKey    String?              @unique @map("checkout_request_key")
-  customerFirstName     String               @map("customer_first_name")
-  customerLastName      String               @map("customer_last_name")
-  customerEmail         String               @map("customer_email")
-  customerPhone         String               @map("customer_phone")
-  customerTaxId         String?              @map("customer_tax_id")
-  province              String
-  locality              String
-  postalCode            String               @map("postal_code")
-  addressLine           String               @map("address_line")
-  addressNumber         String?              @map("address_number")
-  addressWithoutNumber  Boolean?             @map("address_without_number")
-  addressExtra          String?              @map("address_extra")
-  notes                 String?
-  newsletterOptIn       Boolean?             @map("newsletter_opt_in")
-  newsletterOptInAt     DateTime?            @map("newsletter_opt_in_at")
-  couponId              String?              @map("coupon_id") @db.Uuid
-  couponCode            String?              @map("coupon_code")
-  discountPercentage    Decimal?             @map("discount_percentage") @db.Decimal(5, 2)
-  discountArs           Int                  @default(0) @map("discount_ars")
-  paymentMethodDiscountPercentage Decimal?   @map("payment_method_discount_percentage") @db.Decimal(5, 2)
-  paymentMethodDiscountArs Int               @default(0) @map("payment_method_discount_ars")
-  subtotalArs           Int                  @map("subtotal_ars")
-  shippingArs           Int                  @map("shipping_ars")
-  totalArs              Int                  @map("total_ars")
-  currency              String               @default("ARS")
-  paymentMethod         PaymentMethod        @default(BANK_TRANSFER) @map("payment_method")
-  paymentProvider       PaymentProvider      @default(MANUAL_TRANSFER) @map("payment_provider")
-  paymentProviderReference String?           @map("payment_provider_reference")
-  paymentProviderStatus String?              @map("payment_provider_status")
-  paymentProviderStatusDetail String?        @map("payment_provider_status_detail")
-  paymentStatus         PaymentStatus        @default(PENDING) @map("payment_status")
-  paymentInitiatedAt    DateTime?            @map("payment_initiated_at")
-  paidAt                DateTime?            @map("paid_at")
-  orderStatus           OrderStatus          @default(PENDING_PAYMENT) @map("order_status")
-  syncStatus            SyncStatus           @default(PENDING) @map("sync_status")
-  syncLastError         String?              @map("sync_last_error")
-  syncedAt              DateTime?            @map("synced_at")
-  source                OrderSource          @default(WEB)
-  reservationExpiresAt  DateTime?            @map("reservation_expires_at")
-  marketingSessionId    String?              @map("marketing_session_id") @db.Uuid
-  marketingVisitorId    String?              @map("marketing_visitor_id")
-  createdAt             DateTime             @default(now()) @map("created_at")
-  updatedAt             DateTime             @updatedAt @map("updated_at")
-  coupon                Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
-  marketingSession      MarketingSession?    @relation(fields: [marketingSessionId], references: [id], onDelete: SetNull)
-  items                 OrderItem[]
-  statusHistory         OrderStatusHistory[]
-  paymentProofs         PaymentProof[]
-  mercadoPagoPreference MercadoPagoPreference?
-  mercadoPagoPayments   MercadoPagoPayment[]
-  paymentWebhookEvents  PaymentWebhookEvent[]
-  syncJobs              SyncJob[]
-  emailLogs             EmailSendLog[]
-  convertedEmailLogs    EmailSendLog[]      @relation("EmailLogConvertedOrder")
-  marketingEvents       MarketingEvent[]
+  id                              String                 @id @default(uuid()) @db.Uuid
+  publicOrderNumber               String                 @unique @map("public_order_number")
+  checkoutRequestKey              String?                @unique @map("checkout_request_key")
+  customerFirstName               String                 @map("customer_first_name")
+  customerLastName                String                 @map("customer_last_name")
+  customerEmail                   String                 @map("customer_email")
+  customerPhone                   String                 @map("customer_phone")
+  customerTaxId                   String?                @map("customer_tax_id")
+  province                        String
+  locality                        String
+  postalCode                      String                 @map("postal_code")
+  addressLine                     String                 @map("address_line")
+  addressNumber                   String?                @map("address_number")
+  addressWithoutNumber            Boolean?               @map("address_without_number")
+  addressExtra                    String?                @map("address_extra")
+  notes                           String?
+  newsletterOptIn                 Boolean?               @map("newsletter_opt_in")
+  newsletterOptInAt               DateTime?              @map("newsletter_opt_in_at")
+  couponId                        String?                @map("coupon_id") @db.Uuid
+  couponCode                      String?                @map("coupon_code")
+  discountPercentage              Decimal?               @map("discount_percentage") @db.Decimal(5, 2)
+  discountArs                     Int                    @default(0) @map("discount_ars")
+  paymentMethodDiscountPercentage Decimal?               @map("payment_method_discount_percentage") @db.Decimal(5, 2)
+  paymentMethodDiscountArs        Int                    @default(0) @map("payment_method_discount_ars")
+  subtotalArs                     Int                    @map("subtotal_ars")
+  shippingArs                     Int                    @map("shipping_ars")
+  totalArs                        Int                    @map("total_ars")
+  currency                        String                 @default("ARS")
+  paymentMethod                   PaymentMethod          @default(BANK_TRANSFER) @map("payment_method")
+  paymentProvider                 PaymentProvider        @default(MANUAL_TRANSFER) @map("payment_provider")
+  paymentProviderReference        String?                @map("payment_provider_reference")
+  paymentProviderStatus           String?                @map("payment_provider_status")
+  paymentProviderStatusDetail     String?                @map("payment_provider_status_detail")
+  paymentStatus                   PaymentStatus          @default(PENDING) @map("payment_status")
+  paymentInitiatedAt              DateTime?              @map("payment_initiated_at")
+  paidAt                          DateTime?              @map("paid_at")
+  orderStatus                     OrderStatus            @default(PENDING_PAYMENT) @map("order_status")
+  syncStatus                      SyncStatus             @default(PENDING) @map("sync_status")
+  syncLastError                   String?                @map("sync_last_error")
+  syncedAt                        DateTime?              @map("synced_at")
+  source                          OrderSource            @default(WEB)
+  reservationExpiresAt            DateTime?              @map("reservation_expires_at")
+  marketingSessionId              String?                @map("marketing_session_id") @db.Uuid
+  marketingVisitorId              String?                @map("marketing_visitor_id")
+  createdAt                       DateTime               @default(now()) @map("created_at")
+  updatedAt                       DateTime               @updatedAt @map("updated_at")
+  coupon                          Coupon?                @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  marketingSession                MarketingSession?      @relation(fields: [marketingSessionId], references: [id], onDelete: SetNull)
+  items                           OrderItem[]
+  statusHistory                   OrderStatusHistory[]
+  paymentProofs                   PaymentProof[]
+  mercadoPagoPreference           MercadoPagoPreference?
+  mercadoPagoPayments             MercadoPagoPayment[]
+  paymentWebhookEvents            PaymentWebhookEvent[]
+  syncJobs                        SyncJob[]
+  emailLogs                       EmailSendLog[]
+  convertedEmailLogs              EmailSendLog[]         @relation("EmailLogConvertedOrder")
+  marketingEvents                 MarketingEvent[]
 
   @@index([couponId], map: "orders_coupon_idx")
   @@index([createdAt], map: "orders_created_at_idx")
@@ -837,41 +995,41 @@ model SyncLog {
 }
 
 model MercadoPagoPreference {
-  id               String   @id @default(uuid()) @db.Uuid
-  orderId          String   @unique @map("order_id") @db.Uuid
-  preferenceId     String   @unique @map("preference_id")
-  externalReference String  @unique @map("external_reference")
-  initPoint        String   @map("init_point")
-  sandboxInitPoint String?  @map("sandbox_init_point")
-  expiresAt        DateTime? @map("expires_at")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                String    @id @default(uuid()) @db.Uuid
+  orderId           String    @unique @map("order_id") @db.Uuid
+  preferenceId      String    @unique @map("preference_id")
+  externalReference String    @unique @map("external_reference")
+  initPoint         String    @map("init_point")
+  sandboxInitPoint  String?   @map("sandbox_init_point")
+  expiresAt         DateTime? @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId], map: "mercado_pago_preferences_order_idx")
   @@map("mercado_pago_preferences")
 }
 
 model MercadoPagoPayment {
-  id                  String    @id @default(uuid()) @db.Uuid
-  orderId             String    @map("order_id") @db.Uuid
-  mercadoPagoPaymentId String   @unique @map("mercado_pago_payment_id")
-  merchantOrderId     String?   @map("merchant_order_id")
-  preferenceId        String?   @map("preference_id")
-  externalReference   String?   @map("external_reference")
-  liveMode            Boolean?  @map("live_mode")
-  status              String
-  statusDetail        String?   @map("status_detail")
-  transactionAmount   Int?      @map("transaction_amount")
-  currencyId          String?   @map("currency_id")
-  payerEmail          String?   @map("payer_email")
-  dateCreated         DateTime? @map("date_created")
-  dateApproved        DateTime? @map("date_approved")
-  dateLastUpdated     DateTime? @map("date_last_updated")
-  rawData             Json?     @map("raw_data")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-  order               Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(uuid()) @db.Uuid
+  orderId              String    @map("order_id") @db.Uuid
+  mercadoPagoPaymentId String    @unique @map("mercado_pago_payment_id")
+  merchantOrderId      String?   @map("merchant_order_id")
+  preferenceId         String?   @map("preference_id")
+  externalReference    String?   @map("external_reference")
+  liveMode             Boolean?  @map("live_mode")
+  status               String
+  statusDetail         String?   @map("status_detail")
+  transactionAmount    Int?      @map("transaction_amount")
+  currencyId           String?   @map("currency_id")
+  payerEmail           String?   @map("payer_email")
+  dateCreated          DateTime? @map("date_created")
+  dateApproved         DateTime? @map("date_approved")
+  dateLastUpdated      DateTime? @map("date_last_updated")
+  rawData              Json?     @map("raw_data")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  order                Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt], map: "mercado_pago_payments_order_idx")
   @@index([preferenceId], map: "mercado_pago_payments_preference_idx")
@@ -879,26 +1037,26 @@ model MercadoPagoPayment {
 }
 
 model PaymentWebhookEvent {
-  id                  String                         @id @default(uuid()) @db.Uuid
-  orderId             String?                        @map("order_id") @db.Uuid
-  provider            PaymentProvider
-  webhookEventId      String                         @unique @map("webhook_event_id")
-  topic               String
-  action              String?
-  resourceId          String?                        @map("resource_id")
-  requestId           String?                        @map("request_id")
-  signatureTs         String?                        @map("signature_ts")
-  signatureV1         String?                        @map("signature_v1")
-  processingStatus    PaymentWebhookProcessingStatus @default(RECEIVED) @map("processing_status")
-  processedAt         DateTime?                      @map("processed_at")
-  paymentReference    String?                        @map("payment_reference")
-  errorMessage        String?                        @map("error_message")
-  queryParams         Json?                          @map("query_params")
-  headers             Json?                          @map("headers")
-  payload             Json?                          @map("payload")
-  createdAt           DateTime                       @default(now()) @map("created_at")
-  updatedAt           DateTime                       @updatedAt @map("updated_at")
-  order               Order?                         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  id               String                         @id @default(uuid()) @db.Uuid
+  orderId          String?                        @map("order_id") @db.Uuid
+  provider         PaymentProvider
+  webhookEventId   String                         @unique @map("webhook_event_id")
+  topic            String
+  action           String?
+  resourceId       String?                        @map("resource_id")
+  requestId        String?                        @map("request_id")
+  signatureTs      String?                        @map("signature_ts")
+  signatureV1      String?                        @map("signature_v1")
+  processingStatus PaymentWebhookProcessingStatus @default(RECEIVED) @map("processing_status")
+  processedAt      DateTime?                      @map("processed_at")
+  paymentReference String?                        @map("payment_reference")
+  errorMessage     String?                        @map("error_message")
+  queryParams      Json?                          @map("query_params")
+  headers          Json?                          @map("headers")
+  payload          Json?                          @map("payload")
+  createdAt        DateTime                       @default(now()) @map("created_at")
+  updatedAt        DateTime                       @updatedAt @map("updated_at")
+  order            Order?                         @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([orderId, createdAt], map: "payment_webhook_events_order_idx")
   @@index([provider, resourceId], map: "payment_webhook_events_resource_idx")

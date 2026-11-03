@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, BarChart3, CircleHelp, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, RefreshCcw, Settings, ShoppingBag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, CircleHelp, GalleryHorizontalEnd, Inbox, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, Receipt, RefreshCcw, Settings, ShoppingBag, Store, Tag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -7,22 +7,30 @@ import { getAdminSession } from "@/lib/auth/admin";
 import { env } from "@/lib/env";
 
 const navigation = [
-  { section: "dashboard", href: "/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, prefetch: false },
-  { section: "products", href: "/admin/productos", label: "Productos", icon: <Package className="h-4 w-4" /> },
-  { section: "home-products", href: "/admin/home-productos", label: "Home productos", icon: <LayoutTemplate className="h-4 w-4" /> },
-  { section: "settings", href: "/admin/configuracion", label: "Configuracion", icon: <Settings className="h-4 w-4" /> },
-  { section: "coupons", href: "/admin/cupones", label: "Cupones", icon: <BadgePercent className="h-4 w-4" /> },
-  { section: "testimonials", href: "/admin/testimonios", label: "Testimonios", icon: <MessageSquareQuote className="h-4 w-4" /> },
-  { section: "faq", href: "/admin/preguntas-frecuentes", label: "Preguntas frecuentes", icon: <CircleHelp className="h-4 w-4" /> },
-  { section: "shipping", href: "/admin/envios", label: "Envios", icon: <Truck className="h-4 w-4" /> },
-  { section: "orders", href: "/admin/pedidos", label: "Pedidos", icon: <ShoppingBag className="h-4 w-4" />, prefetch: false },
-  { section: "marketing", href: "/admin/marketing", label: "Marketing", icon: <BarChart3 className="h-4 w-4" />, prefetch: false },
-  { section: "emails", href: "/admin/emails", label: "Emails", icon: <Mail className="h-4 w-4" />, prefetch: false },
-  { section: "newsletter", href: "/admin/newsletter", label: "Newsletter", icon: <Newspaper className="h-4 w-4" />, prefetch: false },
-  { section: "links", href: "/admin/links", label: "Links", icon: <Link2 className="h-4 w-4" /> },
-  { section: "sync", href: "/admin/sync", label: "Sync", icon: <RefreshCcw className="h-4 w-4" /> },
-  { section: "users", href: "/admin/usuarios", label: "Usuarios", icon: <Users className="h-4 w-4" /> },
-  { section: "whatsapp", href: "/admin/whatsapp", label: "WhatsApp", icon: <MessageCircle className="h-4 w-4" />, prefetch: false },
+  { group: "Ventas", section: "dashboard", href: "/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, prefetch: false },
+  { group: "Ventas", section: "orders", href: "/admin/pedidos", label: "Pedidos", icon: <ShoppingBag className="h-4 w-4" />, prefetch: false },
+  { group: "Minorista", section: "products", href: "/admin/productos", label: "Productos", icon: <Package className="h-4 w-4" />, matchPrefix: true },
+  { group: "Minorista", section: "discounts", href: "/admin/descuentos", label: "Descuentos", icon: <Tag className="h-4 w-4" /> },
+  { group: "Minorista", section: "coupons", href: "/admin/cupones", label: "Cupones", icon: <BadgePercent className="h-4 w-4" /> },
+  { group: "Minorista", section: "shipping", href: "/admin/envios", label: "Envios", icon: <Truck className="h-4 w-4" /> },
+  { group: "Minorista", section: "home-carousel", href: "/admin/home-carrusel", label: "Home carrusel", icon: <GalleryHorizontalEnd className="h-4 w-4" /> },
+  { group: "Minorista", section: "home-products", href: "/admin/home-productos", label: "Home productos", icon: <LayoutTemplate className="h-4 w-4" /> },
+  { group: "Minorista", section: "testimonials", href: "/admin/testimonios", label: "Testimonios", icon: <MessageSquareQuote className="h-4 w-4" /> },
+  { group: "Minorista", section: "faq", href: "/admin/preguntas-frecuentes", label: "Preguntas frecuentes", icon: <CircleHelp className="h-4 w-4" /> },
+  { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/clientes", label: "Clientes", icon: <Users className="h-4 w-4" />, prefetch: false, matchPrefix: true },
+  { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/consultas", label: "Consultas", icon: <Inbox className="h-4 w-4" />, prefetch: false },
+  { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/productos", label: "Productos y precios", icon: <Package className="h-4 w-4" /> },
+  { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/envios", label: "Envios", icon: <Truck className="h-4 w-4" /> },
+  { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/condiciones", label: "Condiciones", icon: <Receipt className="h-4 w-4" /> },
+  { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/landing", label: "Landing", icon: <Store className="h-4 w-4" />, matchPrefix: true },
+  { group: "Marketing", section: "marketing", href: "/admin/marketing", label: "Marketing", icon: <BarChart3 className="h-4 w-4" />, prefetch: false },
+  { group: "Marketing", section: "emails", href: "/admin/emails", label: "Emails", icon: <Mail className="h-4 w-4" />, prefetch: false },
+  { group: "Marketing", section: "newsletter", href: "/admin/newsletter", label: "Newsletter", icon: <Newspaper className="h-4 w-4" />, prefetch: false },
+  { group: "Marketing", section: "links", href: "/admin/links", label: "Links", icon: <Link2 className="h-4 w-4" /> },
+  { group: "Sistema", section: "settings", href: "/admin/configuracion", label: "Configuracion", icon: <Settings className="h-4 w-4" /> },
+  { group: "Sistema", section: "users", href: "/admin/usuarios", label: "Usuarios", icon: <Users className="h-4 w-4" /> },
+  { group: "Sistema", section: "whatsapp", href: "/admin/whatsapp", label: "WhatsApp", icon: <MessageCircle className="h-4 w-4" />, prefetch: false },
+  { group: "Sistema", section: "sync", href: "/admin/sync", label: "Sync", icon: <RefreshCcw className="h-4 w-4" /> },
 ];
 
 export default async function AdminLayout({

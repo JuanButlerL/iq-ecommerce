@@ -1,7 +1,7 @@
 "use client";
 
 import type { CouponDiscountType, CouponUsageType } from "@prisma/client";
-import { ChevronDown, ChevronUp, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Info, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 
@@ -239,6 +239,27 @@ export function CouponsAdminPanel({ coupons }: CouponsAdminPanelProps) {
           Crea códigos con porcentaje o monto fijo, con uso ilimitado, un uso total o un uso por DNI.
         </p>
       </div>
+
+      <Card className="border border-brand-ink/10 bg-background p-4 md:p-5">
+        <div className="flex items-start gap-3">
+          <div className="rounded-full bg-white p-2 text-brand-ink/60 shadow-sm">
+            <Info className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-brand-ink/60">Reglas de uso</p>
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-sm leading-6 text-brand-ink/70">
+              <li>
+                <span className="font-bold text-brand-ink">Los cupones no son acumulables:</span> se puede aplicar un solo
+                cupón por compra.
+              </li>
+              <li>
+                Tampoco se suman a los descuentos por producto: el cupón se calcula solo sobre los productos sin descuento.
+              </li>
+              <li>El descuento por pagar con transferencia sí se suma al cupón.</li>
+            </ul>
+          </div>
+        </div>
+      </Card>
 
       <Card className="border border-brand-pink/15 bg-brand-pinkSoft/30 p-4 md:p-5">
         <div className="flex items-start gap-3">
