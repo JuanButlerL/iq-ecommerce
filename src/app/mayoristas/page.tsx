@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { hasWholesaleAccess } from "@/features/wholesale/access";
@@ -57,7 +58,7 @@ function Section({ id, className, children }: { id?: string; className?: string;
   );
 }
 
-export default async function WholesalePage() {
+export default async function WholesalePage({ searchParams }: { searchParams: Promise<{ bienvenida?: string }> }) {
   const [content, settings, wholesaleProducts, wholesaleSettings] = await Promise.all([
     getWholesaleContent(),
     getStoreSettings(),
@@ -73,6 +74,8 @@ export default async function WholesalePage() {
     return <WholesalePasswordGate />;
   }
 
+  // Vuelta desde /mayoristas/registro: el navegador ya quedó recordado y puede comprar.
+  const justRegistered = (await searchParams).bienvenida === "1";
   const whatsappNumber = content.whatsappNumber || settings?.whatsappNumber || FALLBACK_WHATSAPP;
   const { hero, products: productsIntro, profiles, reasons, conditions, steps, testimonials, faq } = content;
   // Las secciones alternan fondo blanco y rosado; las que no tienen elementos no se muestran.
@@ -123,9 +126,9 @@ export default async function WholesalePage() {
             </div>
           ) : null}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <a href="#contacto" className={primaryCta}>
+            <Link href="/mayoristas/registro" className={primaryCta}>
               {hero.primaryCta}
-            </a>
+            </Link>
             {products.length > 0 ? (
               <a href="#productos" className={secondaryCta}>
                 {hero.secondaryCta}
@@ -150,6 +153,14 @@ export default async function WholesalePage() {
 
       {products.length > 0 ? (
         <Section id="productos">
+          {justRegistered ? (
+            <div role="status" className="mb-8 rounded-[2rem] bg-brand-mint/40 px-6 py-5 text-brand-ink">
+              <p className="text-base font-extrabold">¡Listo, ya estás registrado!</p>
+              <p className="mt-1 text-sm leading-6 text-brand-ink/70">
+                Armá tu pedido: el mínimo es de {wholesaleSettings.minDisplays} displays y podés combinar sabores. Tus datos ya quedan cargados en el checkout.
+              </p>
+            </div>
+          ) : null}
           <SectionHeading intro={productsIntro} />
           <WholesaleProductGrid products={products} minDisplays={wholesaleSettings.minDisplays} />
         </Section>
@@ -227,7 +238,7 @@ export default async function WholesalePage() {
                     </dl>
                   ) : null}
                   <a
-                    href={products.length > 0 ? "#productos" : "#contacto"}
+                    href={products.length > 0 ? "#productos" : "/mayoristas/registro"}
                     className={cn(
                       "mt-5 flex w-full items-center justify-center rounded-full px-6 py-3.5 text-sm font-extrabold transition",
                       plan.highlighted ? "bg-brand-cyan text-brand-ink hover:brightness-95" : "bg-brand-pink text-white shadow-soft hover:bg-[#ea737d]",

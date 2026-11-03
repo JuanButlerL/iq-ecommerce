@@ -49,7 +49,7 @@ export type WholesaleContent = {
   contact: WholesaleSectionIntro & {
     leadTitle: string;
     leadDescription: string;
-    // Casillas que reciben un aviso por cada consulta nueva. Vacío = sin aviso.
+    // Casillas que reciben un aviso por cada registro nuevo. Vacío = sin aviso.
     leadNotificationEmails: string[];
     businessTypes: string[];
     monthlyVolumes: string[];
@@ -78,7 +78,7 @@ export const DEFAULT_WHOLESALE_CONTENT: WholesaleContent = {
       { label: "Precio mayorista", accent: true },
       { label: "Respuesta en 24 h", accent: true },
     ],
-    primaryCta: "Quiero precio mayorista →",
+    primaryCta: "Quiero vender iQ Kids →",
     secondaryCta: "Ver precios y hacer pedido",
   },
   stats: [
@@ -174,9 +174,9 @@ export const DEFAULT_WHOLESALE_CONTENT: WholesaleContent = {
   contact: {
     eyebrow: "Contacto mayorista",
     title: "¿Querés vender iQ Kids o reponer tu stock?",
-    description: "¿Tenés dudas antes de tu primer pedido? Dejanos tus datos y te contactamos en menos de 24 horas.",
-    leadTitle: "Hablemos de tu negocio",
-    leadDescription: "Completá tus datos y te contactamos en menos de 24 horas. Sin compromiso.",
+    description: "Registrá tu negocio una sola vez y comprá online a precio mayorista. ¿Tenés dudas? Escribinos y te respondemos en menos de 24 horas.",
+    leadTitle: "Registrá tu negocio",
+    leadDescription: "Cargás tus datos una sola vez y ya podés hacer tu primer pedido.",
     leadNotificationEmails: ["nicolas@ikifoods.com.ar"],
     businessTypes: [
       "Dietética",

@@ -619,14 +619,14 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
       {is("pedido") ? (
         <AdminSection>
         <IntroFields value={contact} onChange={(intro) => patch("contact", { ...contact, ...intro })} />
-        <SubTitle>Aviso de consultas nuevas</SubTitle>
+        <SubTitle>Aviso de registros nuevos</SubTitle>
         <LinesField
           label="Emails que reciben el aviso"
           value={contact.leadNotificationEmails}
           onChange={(leadNotificationEmails) => patch("contact", { ...contact, leadNotificationEmails })}
-          hint="Uno por renglón (hasta 5). Cada consulta nueva llega con todos los datos del formulario. Vacío = sin aviso."
+          hint="Uno por renglón (hasta 5). Cada cliente que se registra en /mayoristas/registro llega con todos sus datos. Vacío = sin aviso."
         />
-        <SubTitle>Formulario</SubTitle>
+        <SubTitle>Bloque de registro y formulario</SubTitle>
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label="Título" value={contact.leadTitle} onChange={(leadTitle) => patch("contact", { ...contact, leadTitle })} />
           <TextField label="Descripción" value={contact.leadDescription} onChange={(leadDescription) => patch("contact", { ...contact, leadDescription })} />
