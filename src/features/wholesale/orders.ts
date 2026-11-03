@@ -25,6 +25,16 @@ import { wholesaleOrderSchema, type WholesaleOrderInput } from "@/lib/validation
 
 type CreatedWholesaleOrder = { id: string; publicOrderNumber: string; paymentMethod: PaymentMethod };
 
+// Lo que el pedido necesita del cliente. Un cliente nuevo todavía no existe: se da de alta junto con el pedido.
+type OrderCustomer = Pick<
+  WholesaleCustomer,
+  "email" | "cuit" | "legalName" | "businessName" | "taxCondition" | "allowDeferredPayment" | "street" | "floor" | "city" | "province" | "postalCode"
+> & { id: string | null; extraDiscountPercentage: number | Prisma.Decimal };
+
+type ResolvedCustomer =
+  | { isNewCustomer: false; customer: WholesaleCustomer; createData: null }
+  | { isNewCustomer: true; customer: OrderCustomer; createData: Prisma.WholesaleCustomerUncheckedCreateInput };
+
 // Mercado Pago necesita estar habilitado en Condiciones y configurado en el servidor.
 export function isPaymentMethodEnabled(method: WholesalePaymentMethod, settings: Pick<WholesaleSettingsData, "enableMercadoPago" | "enableBankTransfer" | "enableEcheq">) {
   if (method === "MERCADO_PAGO") return settings.enableMercadoPago && canUseMercadoPagoCheckout();
@@ -79,7 +89,7 @@ export async function createWholesaleOrder(payload: unknown) {
     throw new AppError(`El pedido mínimo es de ${settings.minDisplays} displays (podés combinar productos).`, 400, true);
   }
 
-  const { customer, isNewCustomer } = await resolveCustomer(input);
+  const { customer, isNewCustomer, createData } = await resolveCustomer(input);
   const deliveryAddressChanged = !isNewCustomer && !isSameDeliveryAddress(customer, input.delivery);
 
   if (input.paymentMethod === "DEFERRED") {
@@ -103,11 +113,13 @@ export async function createWholesaleOrder(payload: unknown) {
   });
   const { firstName, lastName } = splitName(input.delivery.contactName);
   const paymentMethod = input.paymentMethod as PaymentMethod;
-  let created: CreatedWholesaleOrder | null = null;
+  let created: (CreatedWholesaleOrder & { customerId: string }) | null = null;
 
   for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
     try {
       created = await prisma.$transaction(async (tx) => {
+        // Si el pedido no llega a crearse, el cliente nuevo tampoco queda en el maestro.
+        const customerId = createData ? (await tx.wholesaleCustomer.create({ data: createData })).id : customer.id!;
         const prefix = buildOrderNumberPrefix();
         const latest = await tx.order.findFirst({
           where: { publicOrderNumber: { startsWith: prefix } },
@@ -119,7 +131,7 @@ export async function createWholesaleOrder(payload: unknown) {
             publicOrderNumber: buildNextOrderNumber(prefix, latest?.publicOrderNumber),
             checkoutRequestKey: input.checkoutRequestKey,
             channel: "WHOLESALE",
-            wholesaleCustomerId: customer.id,
+            wholesaleCustomerId: customerId,
             customerFirstName: firstName,
             customerLastName: lastName,
             customerEmail: customer.email,
@@ -179,14 +191,18 @@ export async function createWholesaleOrder(payload: unknown) {
         });
 
         // La condición frente al IVA declarada en el pedido queda como la vigente del cliente.
-        if (customer.taxCondition !== input.taxCondition) {
-          await tx.wholesaleCustomer.update({ where: { id: customer.id }, data: { taxCondition: input.taxCondition } });
+        if (!createData && customer.taxCondition !== input.taxCondition) {
+          await tx.wholesaleCustomer.update({ where: { id: customerId }, data: { taxCondition: input.taxCondition } });
         }
 
-        return { id: order.id, publicOrderNumber: order.publicOrderNumber, paymentMethod: order.paymentMethod };
+        return { id: order.id, publicOrderNumber: order.publicOrderNumber, paymentMethod: order.paymentMethod, customerId };
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        // Otro pedido dio de alta el mismo CUIT en paralelo.
+        if (String(error.meta?.target ?? "").includes("cuit")) {
+          throw new AppError("Ese CUIT ya está registrado. Escribinos por WhatsApp y lo resolvemos.", 409, true);
+        }
         const duplicated = await prisma.order.findUnique({
           where: { checkoutRequestKey: input.checkoutRequestKey },
           select: { id: true, publicOrderNumber: true, paymentMethod: true },
@@ -203,7 +219,7 @@ export async function createWholesaleOrder(payload: unknown) {
   }
 
   if (isNewCustomer) {
-    await trustWholesaleCustomer(customer.id);
+    await trustWholesaleCustomer(created.customerId);
   }
 
   await syncOrder(created.id).catch(async (syncError) => {
@@ -252,7 +268,7 @@ export async function createWholesaleOrder(payload: unknown) {
 }
 
 // Cliente existente: solo si este navegador ya lo identificó (email + CUIT). Cliente nuevo: se da de alta con pago anticipado.
-async function resolveCustomer(input: WholesaleOrderInput): Promise<{ customer: WholesaleCustomer; isNewCustomer: boolean }> {
+async function resolveCustomer(input: WholesaleOrderInput): Promise<ResolvedCustomer> {
   if (input.customer.mode === "existing") {
     const trustedIds = await getTrustedWholesaleCustomerIds();
     const customer = trustedIds.includes(input.customer.customerId)
@@ -266,7 +282,7 @@ async function resolveCustomer(input: WholesaleOrderInput): Promise<{ customer: 
       throw new AppError("Tu cuenta mayorista está pausada. Escribinos por WhatsApp y lo resolvemos.", 403, true);
     }
 
-    return { customer, isNewCustomer: false };
+    return { customer, isNewCustomer: false, createData: null };
   }
 
   const { email, cuit, legalName, businessName, businessType } = input.customer;
@@ -282,32 +298,28 @@ async function resolveCustomer(input: WholesaleOrderInput): Promise<{ customer: 
     throw new AppError("Ese CUIT ya está registrado con otro email. Escribinos por WhatsApp y lo resolvemos.", 409, true);
   }
 
-  try {
-    const customer = await prisma.wholesaleCustomer.create({
-      data: {
-        email,
-        cuit,
-        legalName,
-        businessName,
-        businessType,
-        taxCondition: input.taxCondition,
-        contactName: input.delivery.contactName,
-        phone: input.delivery.phone,
-        street: input.delivery.street,
-        floor: input.delivery.floor,
-        city: input.delivery.city,
-        province: input.delivery.province,
-        postalCode: input.delivery.postalCode,
-        reference: input.delivery.reference,
-      },
-    });
-    return { customer, isNewCustomer: true };
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new AppError("Ese CUIT ya está registrado. Escribinos por WhatsApp y lo resolvemos.", 409, true);
-    }
-    throw error;
-  }
+  const createData = {
+    email,
+    cuit,
+    legalName,
+    businessName,
+    businessType,
+    taxCondition: input.taxCondition,
+    contactName: input.delivery.contactName,
+    phone: input.delivery.phone,
+    street: input.delivery.street,
+    floor: input.delivery.floor,
+    city: input.delivery.city,
+    province: input.delivery.province,
+    postalCode: input.delivery.postalCode,
+    reference: input.delivery.reference,
+  };
+
+  return {
+    isNewCustomer: true,
+    customer: { ...createData, id: null, allowDeferredPayment: false, extraDiscountPercentage: 0 },
+    createData,
+  };
 }
 
 async function buildResponse(order: CreatedWholesaleOrder) {
