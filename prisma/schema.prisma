@@ -24,9 +24,23 @@ enum ShippingMode {
   PROVINCE
 }
 
+enum SalesChannel {
+  RETAIL
+  WHOLESALE
+}
+
+enum TaxCondition {
+  RESPONSABLE_INSCRIPTO
+  MONOTRIBUTO
+  EXENTO
+  CONSUMIDOR_FINAL
+}
+
 enum PaymentMethod {
   BANK_TRANSFER
   MERCADO_PAGO
+  ECHEQ
+  DEFERRED
 }
 
 enum PaymentProvider {
@@ -226,6 +240,7 @@ model Product {
   homeFeaturedSlots HomeFeaturedProductSlot[]
   images           ProductImage[]
   orderItems       OrderItem[]
+  wholesaleProducts  WholesaleProduct[]
 
   @@index([active, visible, featured], map: "products_visibility_idx")
   @@index([sortOrder], map: "products_sort_idx")
@@ -261,6 +276,7 @@ model ShippingRule {
   updatedAt             DateTime               @updatedAt @map("updated_at")
   provinces             ShippingRuleProvince[]
   storeSettings         StoreSettings[]
+  channel              SalesChannel           @default(RETAIL)
 
   @@map("shipping_rules")
 }
@@ -444,10 +460,83 @@ model WholesaleLead {
   notificationError String?             @map("notification_error")
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
+  customers         WholesaleCustomer[]
 
   @@index([status, createdAt], map: "wholesale_leads_status_created_idx")
   @@index([ipAddress, createdAt], map: "wholesale_leads_ip_created_idx")
   @@map("wholesale_leads")
+}
+
+// Maestro de clientes mayoristas: un registro por CUIT. Un mismo email puede tener varios CUIT.
+model WholesaleCustomer {
+  id                      String         @id @default(uuid()) @db.Uuid
+  email                   String
+  phone                   String
+  contactName             String         @map("contact_name")
+  businessName            String?        @map("business_name")
+  legalName               String?        @map("legal_name")
+  businessType            String?        @map("business_type")
+  cuit                    String         @unique
+  taxCondition            TaxCondition?  @map("tax_condition")
+  street                  String
+  floor                   String?
+  city                    String
+  province                String
+  postalCode              String         @map("postal_code")
+  reference               String?
+  allowDeferredPayment    Boolean        @default(false) @map("allow_deferred_payment")
+  extraDiscountPercentage Decimal        @default(0) @map("extra_discount_percentage") @db.Decimal(5, 2)
+  active                  Boolean        @default(true)
+  adminNotes              String?        @map("admin_notes") @db.Text
+  leadId                  String?        @map("lead_id") @db.Uuid
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+  lead                    WholesaleLead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  orders                  Order[]
+
+  @@index([email], map: "wholesale_customers_email_idx")
+  @@index([createdAt], map: "wholesale_customers_created_idx")
+  @@map("wholesale_customers")
+}
+
+// Productos que se venden por display en /mayoristas, con su propio precio.
+model WholesaleProduct {
+  id              String      @id @default(uuid()) @db.Uuid
+  name            String
+  description     String      @default("")
+  imageUrl        String      @default("") @map("image_url")
+  imageAlt        String      @default("") @map("image_alt")
+  priceArs        Int         @map("price_ars")
+  unitsPerDisplay Int         @default(12) @map("units_per_display")
+  active          Boolean     @default(true)
+  soldOut         Boolean     @default(false) @map("sold_out")
+  sortOrder       Int         @default(0) @map("sort_order")
+  productId       String?     @map("product_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  product         Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  orderItems      OrderItem[]
+
+  @@index([active, sortOrder], map: "wholesale_products_active_sort_idx")
+  @@map("wholesale_products")
+}
+
+// Condiciones de compra mayorista (una sola fila). Los datos bancarios son los de StoreSettings.
+model WholesaleSettings {
+  id                             String   @id @default("default")
+  minDisplays                    Int      @default(10) @map("min_displays")
+  enableMercadoPago              Boolean  @default(true) @map("enable_mercado_pago")
+  enableBankTransfer             Boolean  @default(true) @map("enable_bank_transfer")
+  enableEcheq                    Boolean  @default(true) @map("enable_echeq")
+  echeqMaxDays                   Int      @default(15) @map("echeq_max_days")
+  echeqInstructions              String?  @map("echeq_instructions")
+  enableBankTransferDiscount     Boolean  @default(false) @map("enable_bank_transfer_discount")
+  bankTransferDiscountPercentage Decimal  @default(0) @map("bank_transfer_discount_percentage") @db.Decimal(5, 2)
+  freeShippingThresholdArs       Int?     @map("free_shipping_threshold_ars")
+  orderNotificationEmails        String[] @default([]) @map("order_notification_emails")
+  updatedAt                      DateTime @updatedAt @map("updated_at")
+
+  @@map("wholesale_settings")
 }
 
 enum WholesaleLeadStatus {
@@ -843,6 +932,14 @@ model Order {
   convertedEmailLogs    EmailSendLog[]      @relation("EmailLogConvertedOrder")
   freeShippingLinks     FreeShippingLink[]
   marketingEvents       MarketingEvent[]
+  channel                         SalesChannel           @default(RETAIL)
+  wholesaleCustomerId             String?                @map("wholesale_customer_id") @db.Uuid
+  customerBusinessName            String?                @map("customer_business_name")
+  customerTaxCondition            TaxCondition?          @map("customer_tax_condition")
+  extraDiscountPercentage         Decimal?               @map("extra_discount_percentage") @db.Decimal(5, 2)
+  extraDiscountArs                Int                    @default(0) @map("extra_discount_ars")
+  deliveryAddressChanged          Boolean                @default(false) @map("delivery_address_changed")
+  wholesaleCustomer               WholesaleCustomer?     @relation(fields: [wholesaleCustomerId], references: [id], onDelete: SetNull)
 
   @@index([couponId], map: "orders_coupon_idx")
   @@index([createdAt], map: "orders_created_at_idx")
@@ -852,6 +949,8 @@ model Order {
   @@index([marketingVisitorId], map: "orders_marketing_visitor_idx")
   @@index([syncStatus], map: "orders_sync_status_idx")
   @@map("orders")
+  @@index([channel, createdAt], map: "orders_channel_created_idx")
+  @@index([wholesaleCustomerId], map: "orders_wholesale_customer_idx")
 }
 
 model OrderItem {
@@ -868,6 +967,8 @@ model OrderItem {
   createdAt           DateTime @default(now()) @map("created_at")
   order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  wholesaleProductId  String?           @map("wholesale_product_id") @db.Uuid
+  wholesaleProduct    WholesaleProduct? @relation(fields: [wholesaleProductId], references: [id], onDelete: SetNull)
 
   @@index([orderId], map: "order_items_order_idx")
   @@map("order_items")

@@ -1,6 +1,7 @@
-﻿import { cache } from "react";
-import { OrderStatus, PaymentMethod, PaymentStatus, Prisma, SyncStatus } from "@prisma/client";
+import { cache } from "react";
+import { OrderStatus, PaymentMethod, PaymentStatus, Prisma, SalesChannel, SyncStatus } from "@prisma/client";
 
+import { PAYMENT_METHOD_LABELS } from "@/features/orders/labels";
 import { prisma } from "@/lib/db/prisma";
 import {
   addArgentinaDays,
@@ -19,6 +20,7 @@ export type OrderFilters = {
   orderStatus?: OrderStatus | "ALL";
   paymentStatus?: PaymentStatus | "ALL";
   paymentMethod?: PaymentMethod | "ALL";
+  channel?: SalesChannel | "ALL";
   syncStatus?: SyncStatus | "ALL";
   proofStatus?: "ALL" | "WITH_PROOF" | "WITHOUT_PROOF";
   operationalStatus?: "ALL" | "TO_COLLECT" | "PROOF_REVIEW" | "TO_PREPARE" | "SYNC_ISSUES" | "CANCELLED";
@@ -408,7 +410,7 @@ export const getAdminDashboardAnalyticsByStatus = cache(async (
     }
 
     const payment = paymentMap.get(order.paymentMethod) ?? {
-      name: order.paymentMethod === PaymentMethod.MERCADO_PAGO ? "Mercado Pago" : "Transferencia",
+      name: PAYMENT_METHOD_LABELS[order.paymentMethod],
       orders: 0,
       revenue: 0,
     };
@@ -535,7 +537,15 @@ function buildOrdersWhere(filters: OrderFilters = {}): Prisma.OrderWhereInput {
         : {}),
       ...(filters.operationalStatus === "TO_COLLECT"
         ? {
-            orderStatus: OrderStatus.PENDING_PAYMENT,
+            // El pago diferido (mayorista) se cobra recién después de despachar.
+            AND: [
+              {
+                OR: [
+                  { orderStatus: OrderStatus.PENDING_PAYMENT, paymentMethod: { not: PaymentMethod.DEFERRED } },
+                  { orderStatus: { in: [OrderStatus.SHIPPED, OrderStatus.DELIVERED] }, paymentMethod: PaymentMethod.DEFERRED },
+                ],
+              },
+            ],
             paymentStatus: PaymentStatus.PENDING,
           }
         : {}),
@@ -547,8 +557,18 @@ function buildOrdersWhere(filters: OrderFilters = {}): Prisma.OrderWhereInput {
         : {}),
       ...(filters.operationalStatus === "TO_PREPARE"
         ? {
-            paymentStatus: { in: [PaymentStatus.PAID, PaymentStatus.PROOF_UPLOADED] },
-            orderStatus: { in: [OrderStatus.PAID, OrderStatus.PROOF_UPLOADED, OrderStatus.PREPARING] },
+            // Los pedidos con pago diferido se preparan sin esperar el cobro.
+            AND: [
+              {
+                OR: [
+                  {
+                    paymentStatus: { in: [PaymentStatus.PAID, PaymentStatus.PROOF_UPLOADED] },
+                    orderStatus: { in: [OrderStatus.PAID, OrderStatus.PROOF_UPLOADED, OrderStatus.PREPARING] },
+                  },
+                  { paymentMethod: PaymentMethod.DEFERRED, orderStatus: { in: [OrderStatus.PENDING_PAYMENT, OrderStatus.PREPARING] } },
+                ],
+              },
+            ],
           }
         : {}),
       ...(filters.operationalStatus === "SYNC_ISSUES"
@@ -568,6 +588,7 @@ function buildOrdersWhere(filters: OrderFilters = {}): Prisma.OrderWhereInput {
         ? { paymentStatus: filters.paymentStatus }
         : {}),
       ...(filters.paymentMethod && filters.paymentMethod !== "ALL" ? { paymentMethod: filters.paymentMethod } : {}),
+      ...(filters.channel && filters.channel !== "ALL" ? { channel: filters.channel } : {}),
       ...(filters.syncStatus && filters.syncStatus !== "ALL" ? { syncStatus: filters.syncStatus } : {}),
       ...(filters.proofStatus === "WITH_PROOF" ? { paymentProofs: { some: {} } } : {}),
       ...(filters.proofStatus === "WITHOUT_PROOF" ? { paymentProofs: { none: {} } } : {}),

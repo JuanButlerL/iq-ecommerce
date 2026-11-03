@@ -672,6 +672,7 @@ async function getCandidatesForAutomation(
     const orders = await prisma.order.findMany({
       take: limit,
       where: {
+        channel: "RETAIL",
         createdAt: { gte: activatedAt, lte: readyAt },
         orderStatus: { notIn: [OrderStatus.CANCELLED, OrderStatus.EXPIRED] },
       },

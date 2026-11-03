@@ -54,7 +54,7 @@ function matches(row, where) {
   });
 }
 function order(id, extra = {}) {
-  return { id, createdAt: after, paidAt: after, paymentProofs: [], paymentStatus: 'PAID', orderStatus: 'PAID', customerEmail: `${id}@example.invalid`, customerFirstName: 'Test', publicOrderNumber: id, totalArs: 100, ...extra };
+  return { id, channel: 'RETAIL', createdAt: after, paidAt: after, paymentProofs: [], paymentStatus: 'PAID', orderStatus: 'PAID', customerEmail: `${id}@example.invalid`, customerFirstName: 'Test', publicOrderNumber: id, totalArs: 100, ...extra };
 }
 function harness(orders, options = {}) {
   const logs = [...(options.logs || [])];
@@ -131,7 +131,7 @@ test('batch limit progresses through more than 100 NEW orders', async () => {
   assert.equal((await h.run())[0].sent, 0);
   assert.equal(h.calls.length, 105);
 });
-test('historical, cancelled, unpaid and not-yet-due orders never send', async () => {
+test('historical, cancelled, unpaid, wholesale and not-yet-due orders never send', async () => {
   const future = new Date(now + 86400000);
   const h = harness([
     order('old', { paidAt: before }),
@@ -139,6 +139,7 @@ test('historical, cancelled, unpaid and not-yet-due orders never send', async ()
     order('old-paid-new-proof', { paidAt: before, paymentProofs: [{ uploadedAt: after }] }),
     order('cancelled', { orderStatus: 'CANCELLED' }),
     order('unpaid', { paymentStatus: 'PENDING', paidAt: null }),
+    order('wholesale', { channel: 'WHOLESALE' }),
     order('later', { paidAt: future }),
     order('newer-proof-later', { paidAt: null, paymentProofs: [{ uploadedAt: after }, { uploadedAt: future }] }),
     order('new-proof', { paidAt: null, paymentProofs: [{ uploadedAt: after }] }),

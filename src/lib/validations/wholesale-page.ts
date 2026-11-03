@@ -9,13 +9,6 @@ const requiredText = (field: string, max: number) =>
 const list = <T extends z.ZodTypeAny>(item: T, field: string, max: number) =>
   z.array(item).max(max, `${field}: máximo ${max} elementos.`);
 
-const price = (field: string) =>
-  z.coerce
-    .number({ invalid_type_error: `${field}: ingresá un número.` })
-    .int(`${field}: sin decimales.`)
-    .min(0, `${field}: no puede ser negativo.`)
-    .max(100_000_000, `${field}: valor demasiado alto.`);
-
 // Internal paths ("/mayoristas/x.jpg", "/uploads/...") or absolute http(s) URLs.
 const imageUrl = z
   .string()
@@ -79,8 +72,6 @@ export const wholesaleContentSchema = z.object({
         icon: text("Condiciones · ícono", 16),
         title: requiredText("Condiciones · nombre del plan", 60),
         subtitle: text("Condiciones · bajada", 160),
-        price: price("Condiciones · precio"),
-        priceUnit: text("Condiciones · unidad del precio", 60),
         highlighted: z.boolean(),
         rows: list(
           z.object({
@@ -125,21 +116,6 @@ export const wholesaleContentSchema = z.object({
     ).default(["nicolas@ikifoods.com.ar"]),
     businessTypes: list(requiredText("Tipos de negocio", 60), "Tipos de negocio", 20).min(1, "Cargá al menos un tipo de negocio."),
     monthlyVolumes: list(requiredText("Cantidad estimada", 60), "Cantidad estimada", 10),
-    // Con default para no invalidar contenido guardado antes de que existieran estos campos.
-    orderEnabled: z.boolean().default(false),
-    orderComingSoonText: text("Pedido rápido · texto de próximamente", 300).default("Muy pronto vas a poder armar tu pedido desde acá. Mientras tanto, escribinos por WhatsApp y lo cargamos por vos."),
-    orderTitle: requiredText("Pedido rápido · título", 80),
-    orderDescription: text("Pedido rápido · descripción", 300),
-    minDisplays: z.coerce
-      .number({ invalid_type_error: "Pedido mínimo: ingresá un número." })
-      .int("Pedido mínimo: sin decimales.")
-      .min(1, "Pedido mínimo: al menos 1 display.")
-      .max(10_000, "Pedido mínimo: valor demasiado alto."),
-    orderItems: list(
-      z.object({ name: requiredText("Pedido rápido · producto", 60), price: price("Pedido rápido · precio") }),
-      "Pedido rápido · productos",
-      12,
-    ).min(1, "Cargá al menos un producto en el pedido rápido."),
   }),
   faq: z.object({
     ...sectionIntro("Preguntas frecuentes"),

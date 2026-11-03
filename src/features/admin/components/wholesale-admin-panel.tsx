@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronUp, ExternalLink, ImagePlus, Loader2, Plus, RotateCcw, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useId, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
@@ -62,21 +63,6 @@ function TextField({
       ) : (
         <Input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
       )}
-    </Field>
-  );
-}
-
-function NumberField({ label, value, onChange, hint }: { label: string; value: number; onChange: (value: number) => void; hint?: ReactNode }) {
-  return (
-    <Field label={label} hint={hint}>
-      <Input
-        type="number"
-        inputMode="numeric"
-        min={0}
-        step={1}
-        value={Number.isFinite(value) ? value : ""}
-        onChange={(event) => onChange(Number.parseInt(event.target.value, 10) || 0)}
-      />
     </Field>
   );
 }
@@ -182,7 +168,7 @@ function ListEditor<T>({
   );
 }
 
-function ImageField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function ImageField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const inputId = useId();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -336,7 +322,7 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
     <div key={formKey} className="space-y-6 pb-28">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Mayoristas</p>
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Mayorista · Landing</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-5xl">{section.title}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/70 md:text-base">
             {section.description} Si una lista queda vacía, esa parte no se muestra en la página.
@@ -352,6 +338,24 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
           <ExternalLink className="h-4 w-4" />
         </a>
       </div>
+
+      <nav aria-label="Secciones de la landing" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {WHOLESALE_ADMIN_SECTIONS.map((item) => (
+          <Link
+            key={item.id}
+            href={item.href}
+            onClick={(event) => {
+              if (dirty && !window.confirm("Tenés cambios sin guardar en esta pestaña. ¿Salir igual?")) event.preventDefault();
+            }}
+            className={cn(
+              "shrink-0 rounded-full px-4 py-2 text-sm font-extrabold transition",
+              item.id === section.id ? "bg-brand-ink text-white" : "bg-white text-brand-ink ring-1 ring-brand-ink/10 hover:ring-brand-pink/40",
+            )}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
 
       {is("general") ? (
         <AdminSection title="General" description="Publicación, SEO, WhatsApp y barra superior.">
@@ -466,27 +470,13 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
       {is("productos") ? (
         <AdminSection>
         <IntroFields value={products} onChange={(intro) => patch("products", { ...products, ...intro })} />
-        <SubTitle>Productos</SubTitle>
-        <ListEditor
-          items={products.items}
-          onChange={(items) => patch("products", { ...products, items })}
-          createItem={() => ({ name: "", description: "", imageUrl: "", imageAlt: "" })}
-          addLabel="Agregar producto"
-          itemTitle={(product) => product.name}
-          max={12}
-          renderItem={(product, update) => (
-            <div className="grid gap-4">
-              <ImageField value={product.imageUrl} onChange={(imageUrl) => update({ ...product, imageUrl })} />
-              <div className="grid gap-3 md:grid-cols-2">
-                <TextField label="Nombre" value={product.name} onChange={(name) => update({ ...product, name })} />
-                <TextField label="Texto alternativo de la foto" value={product.imageAlt} onChange={(imageAlt) => update({ ...product, imageAlt })} hint="Para accesibilidad y Google." />
-                <div className="md:col-span-2">
-                  <TextField label="Descripción" value={product.description} onChange={(description) => update({ ...product, description })} />
-                </div>
-              </div>
-            </div>
-          )}
-        />
+        <p className="text-sm text-brand-ink/60">
+          Los productos, fotos y precios se editan en{" "}
+          <Link href="/admin/mayoristas/productos" className="font-bold text-brand-pink hover:underline">
+            Productos y precios
+          </Link>
+          .
+        </p>
       </AdminSection>
       ) : null}
 
@@ -545,7 +535,7 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
         <ListEditor
           items={conditions.plans}
           onChange={(plans) => patch("conditions", { ...conditions, plans })}
-          createItem={() => ({ icon: "", title: "", subtitle: "", price: 0, priceUnit: "/ display (x12 barritas)", highlighted: false, rows: [], cta: "Quiero empezar →" })}
+          createItem={() => ({ icon: "", title: "", subtitle: "", highlighted: false, rows: [], cta: "Ver precios y hacer pedido →" })}
           addLabel="Agregar plan"
           itemTitle={(plan) => plan.title}
           max={3}
@@ -555,10 +545,6 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
                 <TextField label="Ícono" value={plan.icon} onChange={(icon) => update({ ...plan, icon })} />
                 <TextField label="Nombre" value={plan.title} onChange={(title) => update({ ...plan, title })} />
                 <TextField label="Bajada" value={plan.subtitle} onChange={(subtitle) => update({ ...plan, subtitle })} />
-                <div />
-                <NumberField label="Precio (ARS, IVA incluido)" value={plan.price} onChange={(price) => update({ ...plan, price })} />
-                <TextField label="Unidad del precio" value={plan.priceUnit} onChange={(priceUnit) => update({ ...plan, priceUnit })} />
-                <div />
                 <TextField label="Texto del botón" value={plan.cta} onChange={(cta) => update({ ...plan, cta })} />
                 <Checkbox label="Destacar en celeste" checked={plan.highlighted} onChange={(event) => update({ ...plan, highlighted: event.target.checked })} className="self-end pb-3" />
               </div>
@@ -633,14 +619,14 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
       {is("pedido") ? (
         <AdminSection>
         <IntroFields value={contact} onChange={(intro) => patch("contact", { ...contact, ...intro })} />
-        <SubTitle>Aviso de consultas nuevas</SubTitle>
+        <SubTitle>Aviso de registros nuevos</SubTitle>
         <LinesField
           label="Emails que reciben el aviso"
           value={contact.leadNotificationEmails}
           onChange={(leadNotificationEmails) => patch("contact", { ...contact, leadNotificationEmails })}
-          hint="Uno por renglón (hasta 5). Cada consulta nueva llega con todos los datos del formulario. Vacío = sin aviso."
+          hint="Uno por renglón (hasta 5). Cada cliente que se registra en /mayoristas/registro llega con todos sus datos. Vacío = sin aviso."
         />
-        <SubTitle>Pestaña “Soy nuevo”</SubTitle>
+        <SubTitle>Bloque de registro y formulario</SubTitle>
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label="Título" value={contact.leadTitle} onChange={(leadTitle) => patch("contact", { ...contact, leadTitle })} />
           <TextField label="Descripción" value={contact.leadDescription} onChange={(leadDescription) => patch("contact", { ...contact, leadDescription })} />
@@ -652,47 +638,17 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
             hint="Uno por renglón. Vacío = no se pregunta."
           />
         </div>
-        <SubTitle>Pestaña “Ya soy cliente”</SubTitle>
-        <Checkbox
-          label="Pedido rápido habilitado. Si está apagado, la pestaña muestra “Próximamente” con un botón a WhatsApp y se ocultan los accesos al pedido."
-          checked={contact.orderEnabled}
-          onChange={(event) => patch("contact", { ...contact, orderEnabled: event.target.checked })}
-        />
-        {contact.orderEnabled ? null : (
-          <TextField
-            label="Texto de “Próximamente”"
-            value={contact.orderComingSoonText}
-            onChange={(orderComingSoonText) => patch("contact", { ...contact, orderComingSoonText })}
-            multiline
-          />
-        )}
-        <div className="grid gap-4 md:grid-cols-2">
-          <TextField label="Título" value={contact.orderTitle} onChange={(orderTitle) => patch("contact", { ...contact, orderTitle })} />
-          <NumberField
-            label="Pedido mínimo (displays)"
-            value={contact.minDisplays}
-            onChange={(minDisplays) => patch("contact", { ...contact, minDisplays })}
-            hint="El botón de enviar se habilita al llegar a este mínimo."
-          />
-          <div className="md:col-span-2">
-            <TextField label="Descripción" value={contact.orderDescription} onChange={(orderDescription) => patch("contact", { ...contact, orderDescription })} />
-          </div>
-        </div>
-        <SubTitle>Productos del pedido rápido</SubTitle>
-        <ListEditor
-          items={contact.orderItems}
-          onChange={(orderItems) => patch("contact", { ...contact, orderItems })}
-          createItem={() => ({ name: "", price: conditions.plans[0]?.price ?? 0 })}
-          addLabel="Agregar producto"
-          itemTitle={(item) => item.name}
-          max={12}
-          renderItem={(item, update) => (
-            <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-              <TextField label="Nombre" value={item.name} onChange={(name) => update({ ...item, name })} />
-              <NumberField label="Precio por display (ARS)" value={item.price} onChange={(price) => update({ ...item, price })} />
-            </div>
-          )}
-        />
+        <p className="text-sm text-brand-ink/60">
+          Los productos y precios de la tienda mayorista salen de{" "}
+          <Link href="/admin/mayoristas/productos" className="font-bold text-brand-pink hover:underline">
+            Productos y precios
+          </Link>{" "}
+          y el mínimo y los medios de pago, de{" "}
+          <Link href="/admin/mayoristas/condiciones" className="font-bold text-brand-pink hover:underline">
+            Condiciones
+          </Link>
+          .
+        </p>
       </AdminSection>
       ) : null}
 

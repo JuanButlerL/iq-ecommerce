@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesaleContact } from "@/features/wholesale/components/wholesale-contact";
+import { WholesaleProductGrid } from "@/features/wholesale/components/wholesale-product-grid";
 import { WholesalePasswordGate } from "@/features/wholesale/components/wholesale-password-gate";
 import type { WholesaleSectionIntro } from "@/features/wholesale/content";
+import { getPublicWholesaleProducts } from "@/features/wholesale/products";
 import { getWholesaleContent } from "@/features/wholesale/queries";
+import { getWholesaleSettings } from "@/features/wholesale/settings";
 import { getStoreSettings } from "@/features/settings/queries";
 import { cn } from "@/lib/utils/cn";
-import { formatArs } from "@/lib/utils/currency";
 
 const FALLBACK_WHATSAPP = "5491173933235";
 
@@ -56,8 +58,13 @@ function Section({ id, className, children }: { id?: string; className?: string;
   );
 }
 
-export default async function WholesalePage() {
-  const [content, settings] = await Promise.all([getWholesaleContent(), getStoreSettings()]);
+export default async function WholesalePage({ searchParams }: { searchParams: Promise<{ bienvenida?: string }> }) {
+  const [content, settings, wholesaleProducts, wholesaleSettings] = await Promise.all([
+    getWholesaleContent(),
+    getStoreSettings(),
+    getPublicWholesaleProducts(),
+    getWholesaleSettings(),
+  ]);
 
   if (!content.enabled) {
     notFound();
@@ -67,11 +74,24 @@ export default async function WholesalePage() {
     return <WholesalePasswordGate />;
   }
 
+  // Vuelta desde /mayoristas/registro: el navegador ya quedó recordado y puede comprar.
+  const justRegistered = (await searchParams).bienvenida === "1";
   const whatsappNumber = content.whatsappNumber || settings?.whatsappNumber || FALLBACK_WHATSAPP;
-  const { hero, products, profiles, reasons, conditions, steps, testimonials, faq } = content;
+  const { hero, products: productsIntro, profiles, reasons, conditions, steps, testimonials, faq } = content;
   // Las secciones alternan fondo blanco y rosado; las que no tienen elementos no se muestran.
   const showProfiles = profiles.items.length > 0;
   const showReasons = reasons.items.length > 0;
+  // Productos, precios y mínimo salen del admin mayorista (Productos y precios / Condiciones), no del contenido de la página.
+  const products = wholesaleProducts.map((product) => ({
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    imageUrl: product.imageUrl,
+    imageAlt: product.imageAlt,
+    priceArs: product.priceArs,
+    unitsPerDisplay: product.unitsPerDisplay,
+    soldOut: product.soldOut,
+  }));
 
   return (
     <div className="overflow-hidden bg-white text-brand-ink">
@@ -106,11 +126,11 @@ export default async function WholesalePage() {
             </div>
           ) : null}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <a href="#contacto" className={primaryCta}>
+            <Link href="/mayoristas/registro" className={primaryCta}>
               {hero.primaryCta}
-            </a>
-            {content.contact.orderEnabled ? (
-              <a href="#pedido" className={secondaryCta}>
+            </Link>
+            {products.length > 0 ? (
+              <a href="#productos" className={secondaryCta}>
                 {hero.secondaryCta}
               </a>
             ) : null}
@@ -131,22 +151,18 @@ export default async function WholesalePage() {
         </div>
       ) : null}
 
-      {products.items.length > 0 ? (
+      {products.length > 0 ? (
         <Section id="productos">
-          <SectionHeading intro={products} />
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {products.items.map((product, index) => (
-              <div key={`${product.name}-${index}`} className="overflow-hidden rounded-[2rem] bg-white shadow-card">
-                <div className="relative aspect-[4/3] bg-white">
-                  <Image src={product.imageUrl} alt={product.imageAlt || product.name} fill sizes="(min-width: 768px) 25vw, 50vw" className="object-contain" />
-                </div>
-                <div className="px-4 pb-5 pt-3">
-                  <p className="font-display text-2xl leading-none text-brand-ink">{product.name}</p>
-                  {product.description ? <p className="mt-2 whitespace-pre-line text-sm leading-6 text-brand-ink/65">{product.description}</p> : null}
-                </div>
-              </div>
-            ))}
-          </div>
+          {justRegistered ? (
+            <div role="status" className="mb-8 rounded-[2rem] bg-brand-mint/40 px-6 py-5 text-brand-ink">
+              <p className="text-base font-extrabold">¡Listo, ya estás registrado!</p>
+              <p className="mt-1 text-sm leading-6 text-brand-ink/70">
+                Armá tu pedido: el mínimo es de {wholesaleSettings.minDisplays} displays y podés combinar sabores. Tus datos ya quedan cargados en el checkout.
+              </p>
+            </div>
+          ) : null}
+          <SectionHeading intro={productsIntro} />
+          <WholesaleProductGrid products={products} minDisplays={wholesaleSettings.minDisplays} />
         </Section>
       ) : null}
 
@@ -208,12 +224,8 @@ export default async function WholesalePage() {
                   </div>
                 </div>
                 <div className="px-6 pb-6 pt-5">
-                  <p className={cn("font-display text-4xl leading-none", plan.highlighted ? "text-brand-ink" : "text-brand-pink")}>
-                    {formatArs(plan.price)}
-                    {plan.priceUnit ? <span className="ml-1 font-body text-sm font-normal text-brand-ink/55">{plan.priceUnit}</span> : null}
-                  </p>
                   {plan.rows.length > 0 ? (
-                    <dl className="mt-5 divide-y divide-brand-ink/10">
+                    <dl className="divide-y divide-brand-ink/10">
                       {plan.rows.map((row, rowIndex) => (
                         <div key={`${row.label}-${rowIndex}`} className="flex justify-between gap-3 py-2.5 text-sm">
                           <dt className="shrink-0 font-bold text-brand-ink/70">{row.label}</dt>
@@ -226,7 +238,7 @@ export default async function WholesalePage() {
                     </dl>
                   ) : null}
                   <a
-                    href="#contacto"
+                    href={products.length > 0 ? "#productos" : "/mayoristas/registro"}
                     className={cn(
                       "mt-5 flex w-full items-center justify-center rounded-full px-6 py-3.5 text-sm font-extrabold transition",
                       plan.highlighted ? "bg-brand-cyan text-brand-ink hover:brightness-95" : "bg-brand-pink text-white shadow-soft hover:bg-[#ea737d]",

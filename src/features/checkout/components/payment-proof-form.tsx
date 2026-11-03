@@ -11,7 +11,12 @@ import { useCartStore } from "@/features/cart/store";
 type PaymentProofFormProps = {
   orderNumber: string;
   amount: string;
-  alias: string;
+  alias?: string;
+  // Filas extra para copiar (CBU, titular, CUIT...).
+  extraRows?: { label: string; value: string }[];
+  // Por defecto vuelve a la confirmación de la tienda y vacía su carrito; el canal mayorista usa su propia página.
+  successHref?: string;
+  clearRetailCart?: boolean;
 };
 
 type RowCardProps = {
@@ -54,7 +59,7 @@ function RowCard({ label, value, copyable = false, children }: RowCardProps) {
   );
 }
 
-export function PaymentProofForm({ orderNumber, amount, alias }: PaymentProofFormProps) {
+export function PaymentProofForm({ orderNumber, amount, alias, extraRows = [], successHref, clearRetailCart = true }: PaymentProofFormProps) {
   const router = useRouter();
   const clearCart = useCartStore((state) => state.clear);
   const [file, setFile] = useState<File | null>(null);
@@ -104,8 +109,11 @@ export function PaymentProofForm({ orderNumber, amount, alias }: PaymentProofFor
         return;
       }
 
-      clearCart();
-      router.push(`/checkout/confirmacion/${orderNumber}`);
+      if (clearRetailCart) {
+        clearCart();
+      }
+      router.push(successHref ?? `/checkout/confirmacion/${orderNumber}`);
+      router.refresh();
     });
   };
 
@@ -114,7 +122,10 @@ export function PaymentProofForm({ orderNumber, amount, alias }: PaymentProofFor
       <div className="rounded-[1.8rem] border border-brand-ink/8 bg-white p-4 shadow-[0_18px_44px_rgba(44,34,65,0.06)] sm:p-5 md:p-6">
         <div className="grid gap-4">
           <RowCard label="Monto" value={amount} copyable />
-          <RowCard label="Alias" value={alias} copyable />
+          {alias ? <RowCard label="Alias" value={alias} copyable /> : null}
+          {extraRows.map((row) => (
+            <RowCard key={row.label} label={row.label} value={row.value} copyable />
+          ))}
 
           <label className="block cursor-pointer rounded-[1.25rem] border border-dashed border-brand-pink/25 bg-[#fffafa] px-4 py-3">
             <div className="flex items-center gap-3">

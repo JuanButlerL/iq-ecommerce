@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Download, Mail, MailWarning } from "lucide-react";
+import { Download, Mail, MailWarning, UserPlus, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -34,6 +34,7 @@ type LeadItem = {
   adminNotes: string;
   notified: boolean;
   notificationError: string | null;
+  customerId: string | null;
 };
 
 type WholesaleLeadsPanelProps = {
@@ -121,6 +122,13 @@ function LeadCard({ lead }: { lead: LeadItem }) {
           >
             <WhatsappIcon className="h-4 w-4" /> WhatsApp
           </a>
+          <Link
+            href={lead.customerId ? `/admin/mayoristas/clientes/${lead.customerId}` : `/admin/mayoristas/clientes/nuevo?consulta=${lead.id}`}
+            className="inline-flex items-center gap-2 rounded-full bg-brand-ink px-4 py-2 text-sm font-extrabold text-white hover:bg-brand-ink/85"
+          >
+            {lead.customerId ? <UserRound className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+            {lead.customerId ? "Ver cliente" : "Crear cliente"}
+          </Link>
           <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 hover:ring-brand-pink/40">
             <Mail className="h-4 w-4" /> Email
           </a>
@@ -189,7 +197,7 @@ export function WholesaleLeadsPanel({ leads, status, counts, notificationEmails 
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Mayoristas</p>
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Mayorista</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-5xl">Consultas</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/70 md:text-base">
             Lo que se completa en “Soy nuevo” de /mayoristas.{" "}
@@ -198,7 +206,7 @@ export function WholesaleLeadsPanel({ leads, status, counts, notificationEmails 
             ) : (
               <>No hay casillas configuradas para el aviso por email.</>
             )}{" "}
-            <Link href="/admin/mayoristas/pedido" className="font-bold text-brand-pink hover:underline">
+            <Link href="/admin/mayoristas/landing/pedido" className="font-bold text-brand-pink hover:underline">
               Cambiar
             </Link>
           </p>

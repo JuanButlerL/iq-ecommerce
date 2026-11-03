@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { OrderStatus, PaymentMethod, PaymentStatus, SyncStatus } from "@prisma/client";
+import { OrderStatus, PaymentMethod, PaymentStatus, SalesChannel, SyncStatus } from "@prisma/client";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PAYMENT_METHOD_LABELS, SALES_CHANNEL_LABELS } from "@/features/orders/labels";
 import { getOrdersPage, type OrderFilters } from "@/features/orders/queries";
 import { requireAdminSection } from "@/lib/auth/admin";
 import { formatArgentinaDateTime, parseArgentinaDateParam } from "@/lib/utils/datetime";
@@ -13,6 +14,7 @@ type SearchParams = {
   orderStatus?: string;
   paymentStatus?: string;
   paymentMethod?: string;
+  channel?: string;
   syncStatus?: string;
   proofStatus?: OrderFilters["proofStatus"];
   dateFrom?: string;
@@ -64,12 +66,20 @@ function buildQuery(params: SearchParams, overrides: Record<string, string | num
 
 const operationalFilters: Array<{ value: NonNullable<OrderFilters["operationalStatus"]>; label: string; hint: string }> = [
   { value: "ALL", label: "Todos", hint: "Ultimos movimientos" },
-  { value: "TO_COLLECT", label: "A cobrar", hint: "Transferencias sin comprobante" },
+  { value: "TO_COLLECT", label: "A cobrar", hint: "Sin pago ni comprobante" },
   { value: "PROOF_REVIEW", label: "Comprobante", hint: "Pendientes de validar" },
-  { value: "TO_PREPARE", label: "Para preparar", hint: "Pagos confirmados" },
+  { value: "TO_PREPARE", label: "Para preparar", hint: "Pagados o pago diferido" },
   { value: "SYNC_ISSUES", label: "Sync", hint: "Pendiente o error" },
   { value: "CANCELLED", label: "Cancelados", hint: "Cancelados o expirados" },
 ];
+
+function ChannelBadge() {
+  return (
+    <span className="mr-1.5 inline-block rounded-full bg-brand-cyan/25 px-2 py-0.5 align-middle text-[10px] font-extrabold uppercase tracking-[0.08em] text-brand-ink">
+      {SALES_CHANNEL_LABELS.WHOLESALE}
+    </span>
+  );
+}
 
 function statusLabel(value: string) {
   return value.replace(/_/g, " ");
@@ -89,6 +99,7 @@ export default async function AdminOrdersPage({
     orderStatus: getEnumValue(OrderStatus, resolvedSearchParams.orderStatus) as OrderFilters["orderStatus"],
     paymentStatus: getEnumValue(PaymentStatus, resolvedSearchParams.paymentStatus) as OrderFilters["paymentStatus"],
     paymentMethod: getEnumValue(PaymentMethod, resolvedSearchParams.paymentMethod) as OrderFilters["paymentMethod"],
+    channel: getEnumValue(SalesChannel, resolvedSearchParams.channel) as OrderFilters["channel"],
     syncStatus: getEnumValue(SyncStatus, resolvedSearchParams.syncStatus) as OrderFilters["syncStatus"],
     proofStatus: getProofStatus(resolvedSearchParams.proofStatus),
     dateFrom: parseArgentinaDateParam(resolvedSearchParams.dateFrom ?? null),
@@ -114,14 +125,14 @@ export default async function AdminOrdersPage({
       </div>
       <Card className="p-4 md:p-6">
         <form className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
+          <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
             <label>
               <span className="mb-2 block text-sm font-bold text-brand-ink/75">Buscar</span>
               <input
                 type="search"
                 name="search"
                 defaultValue={resolvedSearchParams.search ?? ""}
-                placeholder="Pedido, cliente, email, telefono o DNI"
+                placeholder="Pedido, cliente, email, telefono, DNI o CUIT"
                 className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
               />
             </label>
@@ -149,6 +160,21 @@ export default async function AdminOrdersPage({
                 <option value="ALL">Todos</option>
                 <option value="WITH_PROOF">Con comprobante</option>
                 <option value="WITHOUT_PROOF">Sin comprobante</option>
+              </select>
+            </label>
+            <label>
+              <span className="mb-2 block text-sm font-bold text-brand-ink/75">Canal</span>
+              <select
+                name="channel"
+                defaultValue={filters.channel ?? "ALL"}
+                className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm font-bold text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+              >
+                <option value="ALL">Todos</option>
+                {Object.values(SalesChannel).map((channel) => (
+                  <option key={channel} value={channel}>
+                    {SALES_CHANNEL_LABELS[channel]}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -220,8 +246,11 @@ export default async function AdminOrdersPage({
               className="h-12 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 text-sm text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
             >
               <option value="ALL">Todos</option>
-              <option value={PaymentMethod.BANK_TRANSFER}>Transferencia</option>
-              <option value={PaymentMethod.MERCADO_PAGO}>Mercado Pago</option>
+              {Object.values(PaymentMethod).map((method) => (
+                <option key={method} value={method}>
+                  {PAYMENT_METHOD_LABELS[method]}
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -269,7 +298,8 @@ export default async function AdminOrdersPage({
                   <p className="font-bold text-brand-ink">{order.publicOrderNumber}</p>
                   <p className="text-xs font-semibold text-brand-ink/45">{formatArgentinaDateTime(order.createdAt)}</p>
                   <p className="truncate text-sm text-brand-ink/65">
-                    {order.customerFirstName} {order.customerLastName}
+                    {order.channel === "WHOLESALE" ? <ChannelBadge /> : null}
+                    {order.customerBusinessName || `${order.customerFirstName} ${order.customerLastName}`}
                   </p>
                 </div>
                 <p className="text-sm font-bold text-brand-pink">${order.totalArs.toLocaleString("es-AR")}</p>
@@ -277,7 +307,7 @@ export default async function AdminOrdersPage({
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-brand-ink/50">
                 <span>{order.orderStatus}</span>
                 <span>{order.paymentStatus}</span>
-                <span>{order.paymentMethod}</span>
+                <span>{PAYMENT_METHOD_LABELS[order.paymentMethod]}</span>
                 <span>{order.paymentProviderStatus ?? "Sin pago"}</span>
                 <span>Sync: {order.syncStatus}</span>
                 <span>{order.paymentProofs[0] ? "Con comprobante" : "Sin comprobante"}</span>
@@ -311,11 +341,12 @@ export default async function AdminOrdersPage({
                   </td>
                   <td className="py-3 text-brand-ink/70">{formatArgentinaDateTime(order.createdAt)}</td>
                   <td className="py-3 text-brand-ink/70">
-                    {order.customerFirstName} {order.customerLastName}
+                    {order.channel === "WHOLESALE" ? <ChannelBadge /> : null}
+                    {order.customerBusinessName || `${order.customerFirstName} ${order.customerLastName}`}
                   </td>
                   <td className="py-3 text-brand-ink/70">{order.orderStatus}</td>
                   <td className="py-3 text-brand-ink/70">{order.paymentStatus}</td>
-                  <td className="py-3 text-brand-ink/70">{order.paymentMethod}</td>
+                  <td className="py-3 text-brand-ink/70">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</td>
                   <td className="py-3 text-brand-ink/70">{order.paymentProviderStatus ?? "-"}</td>
                   <td className="py-3 text-brand-ink/70">{order.paymentProofs[0] ? "Cargado" : "Pendiente"}</td>
                   <td className="py-3 text-brand-ink/70">{order.syncStatus}</td>

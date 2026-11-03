@@ -15,7 +15,13 @@ type NavigationItem = {
   label: string;
   icon: ReactNode;
   prefetch?: boolean;
+  // También queda activo en las subpáginas (detalle, pestañas).
+  matchPrefix?: boolean;
 };
+
+function isNavigationItemActive(item: NavigationItem, pathname: string) {
+  return pathname === item.href || Boolean(item.matchPrefix && pathname.startsWith(`${item.href}/`));
+}
 
 type AdminShellProps = {
   children: ReactNode;
@@ -85,7 +91,7 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
 
   // Navigating into a collapsed group opens it, so the current page is always listed.
   useEffect(() => {
-    const activeGroup = navigation.find((item) => item.href === pathname)?.group;
+    const activeGroup = navigation.find((item) => isNavigationItemActive(item, pathname))?.group;
 
     if (activeGroup) {
       updateCollapsedGroups((current) =>
@@ -119,7 +125,7 @@ export function AdminShell({ children, navigation }: AdminShellProps) {
           {isExpanded ? (
             <div id={listId} className="mt-1 space-y-1">
               {group.items.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = isNavigationItemActive(item, pathname);
 
                 return (
                   <Link

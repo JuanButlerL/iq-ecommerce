@@ -32,6 +32,11 @@ export default async function MercadoPagoReturnPage({
     notFound();
   }
 
+  // Los pedidos mayoristas muestran el estado (y el link para reintentar) en su propia página.
+  if (order.channel === "WHOLESALE") {
+    redirect(`/mayoristas/pedido/${order.publicOrderNumber}`);
+  }
+
   if (order.paymentStatus === "PAID") {
     redirect(`/checkout/confirmacion/${order.publicOrderNumber}`);
   }

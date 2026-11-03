@@ -37,6 +37,7 @@ export default async function AdminWholesaleLeadsPage({ searchParams }: { search
         adminNotes: lead.adminNotes ?? "",
         notified: Boolean(lead.notifiedAt),
         notificationError: lead.notificationError,
+        customerId: lead.customers[0]?.id ?? null,
       }))}
     />
   );

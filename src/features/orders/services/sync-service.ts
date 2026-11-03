@@ -61,7 +61,7 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     total: order.totalArs,
     medio_pago: order.paymentMethod,
     comprobante_url: proofUrl ?? "",
-    fuente: order.source,
+    fuente: order.channel === "WHOLESALE" ? "MAYORISTA" : order.source,
     created_at: formatArgentinaDateTime(order.createdAt),
   };
 

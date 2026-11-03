@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { SalesChannel } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
@@ -11,7 +12,7 @@ type ShippingRulePayload = {
   provinces: unknown[];
 };
 
-export async function saveShippingRule(payload: ShippingRulePayload, ruleId?: string) {
+export async function saveShippingRule(payload: ShippingRulePayload, ruleId?: string, channel: SalesChannel = "RETAIL") {
   const parsedRule = shippingRuleSchema.safeParse(payload.rule);
   const parsedProvinces = payload.provinces.map((province) => shippingProvinceSchema.safeParse(province));
 
@@ -28,6 +29,13 @@ export async function saveShippingRule(payload: ShippingRulePayload, ruleId?: st
   });
 
   if (ruleId) {
+    // Cada canal edita solo su propia tabla de envíos.
+    const existingRule = await prisma.shippingRule.findUnique({ where: { id: ruleId }, select: { channel: true } });
+
+    if (!existingRule || existingRule.channel !== channel) {
+      throw new AppError("La regla de envío no existe.", 404);
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.shippingRule.update({
         where: { id: ruleId },
@@ -48,7 +56,7 @@ export async function saveShippingRule(payload: ShippingRulePayload, ruleId?: st
   } else {
     await prisma.$transaction(async (tx) => {
       const createdRule = await tx.shippingRule.create({
-        data: parsedRule.data,
+        data: { ...parsedRule.data, channel },
       });
 
       await tx.shippingRuleProvince.createMany({
@@ -60,6 +68,6 @@ export async function saveShippingRule(payload: ShippingRulePayload, ruleId?: st
     });
   }
 
-  revalidatePath("/admin/envios");
-  revalidatePath("/checkout");
+  revalidatePath(channel === "WHOLESALE" ? "/admin/mayoristas/envios" : "/admin/envios");
+  revalidatePath(channel === "WHOLESALE" ? "/mayoristas" : "/checkout");
 }
