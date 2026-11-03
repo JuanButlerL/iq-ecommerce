@@ -16,6 +16,7 @@ import {
 import { getWholesaleSettings, getWholesaleShippingRule, type WholesaleSettingsData } from "@/features/wholesale/settings";
 import { TAX_CONDITION_LABELS, getInvoiceType } from "@/features/wholesale/tax-condition";
 import { prisma } from "@/lib/db/prisma";
+import { canUseMercadoPagoCheckout } from "@/lib/integrations/mercadopago/client";
 import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors/app-error";
 import { formatCuit } from "@/lib/utils/cuit";
@@ -24,8 +25,9 @@ import { wholesaleOrderSchema, type WholesaleOrderInput } from "@/lib/validation
 
 type CreatedWholesaleOrder = { id: string; publicOrderNumber: string; paymentMethod: PaymentMethod };
 
-export function isPaymentMethodEnabled(method: WholesalePaymentMethod, settings: WholesaleSettingsData) {
-  if (method === "MERCADO_PAGO") return settings.enableMercadoPago;
+// Mercado Pago necesita estar habilitado en Condiciones y configurado en el servidor.
+export function isPaymentMethodEnabled(method: WholesalePaymentMethod, settings: Pick<WholesaleSettingsData, "enableMercadoPago" | "enableBankTransfer" | "enableEcheq">) {
+  if (method === "MERCADO_PAGO") return settings.enableMercadoPago && canUseMercadoPagoCheckout();
   if (method === "BANK_TRANSFER") return settings.enableBankTransfer;
   if (method === "ECHEQ") return settings.enableEcheq;
   return true;

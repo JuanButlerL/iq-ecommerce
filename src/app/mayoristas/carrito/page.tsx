@@ -6,6 +6,7 @@ import { WholesaleCheckout } from "@/features/wholesale/components/wholesale-che
 import { getTrustedWholesaleCustomerIds } from "@/features/wholesale/device";
 import { toWholesaleCustomerProfile } from "@/features/wholesale/identify";
 import { getPublicWholesaleProducts } from "@/features/wholesale/products";
+import { isPaymentMethodEnabled } from "@/features/wholesale/orders";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { getWholesaleSettings, getWholesaleShippingRule } from "@/features/wholesale/settings";
 import { prisma } from "@/lib/db/prisma";
@@ -51,7 +52,7 @@ export default async function WholesaleCartPage() {
       }))}
       settings={{
         minDisplays: settings.minDisplays,
-        enableMercadoPago: settings.enableMercadoPago,
+        enableMercadoPago: isPaymentMethodEnabled("MERCADO_PAGO", settings),
         enableBankTransfer: settings.enableBankTransfer,
         enableEcheq: settings.enableEcheq,
         echeqInstructions: settings.echeqInstructions,

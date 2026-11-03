@@ -6,6 +6,7 @@ import { WhatsappIcon } from "@/components/icons/whatsapp-icon";
 import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesalePasswordGate } from "@/features/wholesale/components/wholesale-password-gate";
 import { WholesaleRegistrationForm } from "@/features/wholesale/components/wholesale-registration-form";
+import { isPaymentMethodEnabled } from "@/features/wholesale/orders";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { getWholesaleSettings } from "@/features/wholesale/settings";
 import { getStoreSettings } from "@/features/settings/queries";
@@ -38,7 +39,7 @@ export default async function WholesaleRegistrationPage() {
 
   const whatsappNumber = content.whatsappNumber || settings?.whatsappNumber || FALLBACK_WHATSAPP;
   const paymentMethods = [
-    wholesaleSettings.enableMercadoPago ? "Mercado Pago" : null,
+    isPaymentMethodEnabled("MERCADO_PAGO", wholesaleSettings) ? "Mercado Pago" : null,
     wholesaleSettings.enableBankTransfer ? "transferencia" : null,
     wholesaleSettings.enableEcheq ? "eCheq" : null,
   ].filter((method): method is string => Boolean(method));
