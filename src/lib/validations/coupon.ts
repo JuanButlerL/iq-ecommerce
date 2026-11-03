@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { BUY_X_PAY_Y_MAX_BUY_QUANTITY, isValidBuyXPayY } from "@/features/catalog/lib/product-discount";
+
 export const couponCodeSchema = z
   .string()
   .trim()
@@ -20,14 +22,57 @@ export const couponFormSchema = z
     entries: z.array(couponBulkEntrySchema).max(200).optional(),
     description: z.string().max(160).optional().or(z.literal("")),
     welcomePopupEnabled: z.coerce.boolean().default(false),
-    discountType: z.enum(["PERCENTAGE", "FIXED_AMOUNT"]).default("PERCENTAGE"),
+    discountType: z.enum(["PERCENTAGE", "FIXED_AMOUNT", "BUY_X_PAY_Y"]).default("PERCENTAGE"),
     discountPercentage: z.coerce.number().min(0.01).max(100).optional(),
     fixedDiscountArs: z.coerce.number().int().min(1).optional(),
+    // Buy X pay Y (e.g. 3x2): buyQuantity = 3, payQuantity = 2.
+    buyQuantity: z.coerce.number().int().min(2).max(BUY_X_PAY_Y_MAX_BUY_QUANTITY).optional(),
+    payQuantity: z.coerce.number().int().min(1).max(BUY_X_PAY_Y_MAX_BUY_QUANTITY - 1).optional(),
+    freeUnitsCountForFreeShipping: z.boolean().default(true),
+    // false: units of different products can be combined; true: each product counts on its own.
+    buyXPayYSameProductOnly: z.boolean().default(false),
+    // Pack products (e.g. "3 display"): each unit counts as unitsPerPack units for the NxM.
+    buyXPayYPackUnits: z
+      .array(
+        z.object({
+          productId: z.string().uuid(),
+          unitsPerPack: z.coerce
+            .number()
+            .int("Las unidades por pack tienen que ser un número entero.")
+            .min(2, "Un pack tiene que tener al menos 2 unidades.")
+            .max(24, "Un pack puede tener como máximo 24 unidades."),
+        }),
+      )
+      .max(50)
+      .default([])
+      .refine((entries) => new Set(entries.map((entry) => entry.productId)).size === entries.length, {
+        message: "Cada producto pack puede cargarse una sola vez.",
+      }),
     usageType: z.enum(["UNLIMITED", "SINGLE_USE", "SINGLE_USE_PER_CUSTOMER"]).default("UNLIMITED"),
     active: z.coerce.boolean(),
   })
   .superRefine((data, ctx) => {
     const hasBulkEntries = Boolean(data.entries?.length);
+
+    if (data.discountType === "BUY_X_PAY_Y") {
+      if (!isValidBuyXPayY(data.buyQuantity, data.payQuantity)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["buyQuantity"],
+          message: `Configurá un NxM válido: llevás entre 2 y ${BUY_X_PAY_Y_MAX_BUY_QUANTITY} unidades y pagás menos de las que llevás (ej: 3x2).`,
+        });
+      }
+
+      if (hasBulkEntries) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["entries"],
+          message: "Para cupones NxM la carga masiva es una lista de códigos, uno por línea.",
+        });
+      }
+
+      return;
+    }
 
     if (data.discountType === "PERCENTAGE") {
       if (!hasBulkEntries && (!data.discountPercentage || data.discountPercentage <= 0)) {
@@ -78,6 +123,16 @@ export const couponPreviewSchema = z.object({
   code: couponCodeSchema,
   subtotalArs: z.coerce.number().int().min(1),
   taxId: z.string().trim().max(20).optional().or(z.literal("")),
+  // Cart lines, so the server can price buy X pay Y coupons from the catalog (never from the client).
+  items: z
+    .array(
+      z.object({
+        productId: z.string().uuid(),
+        quantity: z.coerce.number().int().min(1).max(99),
+      }),
+    )
+    .max(50)
+    .optional(),
 });
 
 export type CouponFormInput = z.infer<typeof couponFormSchema>;

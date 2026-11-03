@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { HashScrollHandler } from "@/components/hash-scroll-handler";
@@ -9,10 +10,16 @@ import { HOME_PRODUCTS_GRID_LIMIT } from "@/features/catalog/lib/home-products";
 import { getVisibleProducts } from "@/features/catalog/queries";
 import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
 import { HomeHeroCarousel, type HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
+import { ORIGINAL_HERO_IMAGE, ORIGINAL_HERO_IMAGE_CLASS, withHeroImageFraming } from "@/features/home-slides/lib/hero-slides";
 import { getActiveHomeSlides } from "@/features/home-slides/queries";
 import { getStoreSettingsForClient } from "@/features/settings/queries";
 import { TestimonialsCarousel } from "@/features/testimonials/components/testimonials-carousel";
+import { NUTRITIONISTS_PATH } from "@/features/nutritionists/data";
 import { getActiveTestimonials } from "@/features/testimonials/queries";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 type ProductItem = Awaited<ReturnType<typeof getVisibleProducts>>[number];
 type HomeProductCardItem = {
@@ -23,11 +30,6 @@ type HomeProductCardItem = {
   description: string;
   buttonLabel: string;
 };
-
-// The original hero photo needs its own framing to keep the people visible next to the text.
-const ORIGINAL_HERO_IMAGE = "/redesign/hero-home.jpg";
-const ORIGINAL_HERO_IMAGE_CLASS =
-  "absolute inset-0 h-full w-full object-cover object-[72%_center] sm:object-[76%_center] lg:left-0 lg:w-[118%] lg:max-w-none lg:object-left xl:w-[116%]";
 
 // Keep the section ready while its final content and imagery are being defined.
 const SHOW_PROCESS_SECTION = false;
@@ -226,6 +228,8 @@ function ProductLandingCard({
               priceArs={product.priceArs}
               listPriceArs={product.listPriceArs}
               discountPercentage={product.activeDiscountPercentage}
+              buyQuantity={product.activeBuyQuantity}
+              payQuantity={product.activePayQuantity}
             />
             <span
               className="rounded-full px-4 py-2 text-sm font-extrabold text-white transition group-hover:translate-x-1"
@@ -358,6 +362,8 @@ function HomeFeaturedSlotCard({
                 priceArs={product.priceArs}
                 listPriceArs={product.listPriceArs}
                 discountPercentage={product.activeDiscountPercentage}
+                buyQuantity={product.activeBuyQuantity}
+                payQuantity={product.activePayQuantity}
               />
               {unitPriceLabel ? (
                 <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">
@@ -401,9 +407,7 @@ export default async function HomePage() {
   // With no active slides the home falls back to the original hero.
   const heroSlides: HomeHeroSlide[] =
     homeSlides.length > 0
-      ? homeSlides.map((slide) =>
-          slide.imageUrl === ORIGINAL_HERO_IMAGE ? { ...slide, imageClassName: ORIGINAL_HERO_IMAGE_CLASS } : slide,
-        )
+      ? homeSlides.map(withHeroImageFraming)
       : [
           {
             id: "default-hero",
@@ -680,7 +684,10 @@ export default async function HomePage() {
               </p>
               <p>
                 Trabajamos con nutricionistas para elegir snacks simples, reales y prácticos. Lo hicimos para nuestras
-                familias y ahora lo ponemos al alcance de otras.
+                familias y ahora lo ponemos al alcance de otras.{" "}
+                <Link href={NUTRITIONISTS_PATH} className="font-bold text-brand-pink hover:underline">
+                  Conocé al equipo de nutricionistas →
+                </Link>
               </p>
             </div>
             <div className="mt-9 grid gap-3">

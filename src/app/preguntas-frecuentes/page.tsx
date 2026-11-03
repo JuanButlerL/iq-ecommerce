@@ -9,8 +9,9 @@ import { getStoreSettings } from "@/features/settings/queries";
 import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
 
 export const metadata: Metadata = {
-  title: "Preguntas frecuentes | IQ Kids",
+  title: "Preguntas frecuentes",
   description: "Respuestas claras sobre productos, compras, pagos y envíos de IQ Kids.",
+  alternates: { canonical: "/preguntas-frecuentes" },
 };
 
 export default async function FrequentlyAskedQuestionsPage() {

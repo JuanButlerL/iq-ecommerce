@@ -70,6 +70,8 @@ export function ProductCard({ product }: ProductCardProps) {
               priceArs={product.priceArs}
               listPriceArs={product.listPriceArs}
               discountPercentage={product.activeDiscountPercentage}
+              buyQuantity={product.activeBuyQuantity}
+              payQuantity={product.activePayQuantity}
             />
           </p>
           <Link href={`/productos/${product.slug}`}>

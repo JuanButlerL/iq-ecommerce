@@ -1,7 +1,17 @@
 import { cache } from "react";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 
-import { assertCouponIsApplicable, buildCouponSummary, normalizeCouponCode } from "@/features/coupons/lib/coupon-pricing";
+import {
+  applyProductDiscount,
+  COUPON_EXCLUDES_DISCOUNTED_MESSAGE,
+  getCouponEligibleLines,
+} from "@/features/catalog/lib/product-discount";
+import {
+  assertCouponIsApplicable,
+  buildCouponSummary,
+  normalizeCouponCode,
+  type CouponLine,
+} from "@/features/coupons/lib/coupon-pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { couponPreviewSchema } from "@/lib/validations/coupon";
@@ -35,6 +45,14 @@ export async function getCouponsForClient() {
     fixedDiscountArs: coupon.fixedDiscountArs ?? null,
     discountPercentage: coupon.discountPercentage == null ? null : Number(coupon.discountPercentage),
   }));
+}
+
+/** Products the coupon admin can mark as packs for NxM coupons. */
+export async function getCouponProductOptions() {
+  return prisma.product.findMany({
+    select: { id: true, name: true, priceArs: true, active: true },
+    orderBy: [{ active: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+  });
 }
 
 function normalizeTaxId(value?: string | null) {
@@ -92,6 +110,11 @@ export async function assertCouponUsageIsAvailable(
   }
 }
 
+/**
+ * Coupon preview for the checkout. When the cart lines are sent, prices are resolved from the
+ * catalog so buy X pay Y coupons can be calculated; older clients that only send the eligible
+ * subtotal keep working for percentage and fixed amount coupons.
+ */
 export async function getCouponPreview(payload: unknown) {
   const parsed = couponPreviewSchema.safeParse(payload);
 
@@ -99,7 +122,53 @@ export async function getCouponPreview(payload: unknown) {
     throw new AppError("Cupón inválido.", 400);
   }
 
-  const couponCode = normalizeCouponCode(parsed.data.code);
+  if (!parsed.data.items?.length) {
+    return getCouponPreviewForLines({
+      code: parsed.data.code,
+      taxId: parsed.data.taxId,
+      subtotalArs: parsed.data.subtotalArs,
+      eligibleLines: null,
+    });
+  }
+
+  const quantities = new Map<string, number>();
+
+  for (const item of parsed.data.items) {
+    quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
+  }
+
+  const products = (
+    await prisma.product.findMany({
+      where: { id: { in: Array.from(quantities.keys()) }, active: true, visible: true },
+    })
+  ).map((product) => applyProductDiscount(product));
+  const eligibleLines = getCouponEligibleLines(products).map((product) => ({
+    productId: product.id,
+    unitPriceArs: product.priceArs,
+    quantity: quantities.get(product.id) ?? 0,
+  }));
+  const subtotalArs = eligibleLines.reduce((total, line) => total + line.unitPriceArs * line.quantity, 0);
+
+  if (subtotalArs <= 0) {
+    throw new AppError(COUPON_EXCLUDES_DISCOUNTED_MESSAGE, 400);
+  }
+
+  return getCouponPreviewForLines({
+    code: parsed.data.code,
+    taxId: parsed.data.taxId,
+    subtotalArs,
+    eligibleLines,
+  });
+}
+
+/** Server-side coupon pricing over already resolved eligible lines (used by order creation). */
+export async function getCouponPreviewForLines(input: {
+  code: string;
+  taxId?: string | null;
+  subtotalArs: number;
+  eligibleLines: CouponLine[] | null;
+}) {
+  const couponCode = normalizeCouponCode(input.code);
   const coupon = await prisma.coupon.findUnique({
     where: { code: couponCode },
   });
@@ -110,7 +179,11 @@ export async function getCouponPreview(payload: unknown) {
     throw new AppError(`El cupón ${couponCode} no existe o no está activo.`, 400);
   }
 
-  await assertCouponUsageIsAvailable(coupon, parsed.data.taxId);
+  if (coupon.discountType === "BUY_X_PAY_Y" && !input.eligibleLines) {
+    throw new AppError("Actualizá la página para aplicar este cupón.", 400);
+  }
 
-  return buildCouponSummary(coupon, parsed.data.subtotalArs);
+  await assertCouponUsageIsAvailable(coupon, input.taxId);
+
+  return buildCouponSummary(coupon, input.subtotalArs, input.eligibleLines ?? []);
 }

@@ -21,6 +21,7 @@ type AppChromeProps = {
   subscriptionSectionEnabled?: boolean | null;
   faqSectionEnabled?: boolean | null;
   newsletterSectionEnabled?: boolean | null;
+  lastUpdatedAt?: string;
 };
 
 export function AppChrome({
@@ -34,6 +35,7 @@ export function AppChrome({
   subscriptionSectionEnabled,
   faqSectionEnabled,
   newsletterSectionEnabled,
+  lastUpdatedAt,
 }: AppChromeProps) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
@@ -64,6 +66,7 @@ export function AppChrome({
             contactEmail={contactEmail ?? undefined}
             whatsappNumber={whatsappNumber ?? undefined}
             newsletterSectionEnabled={newsletterSectionEnabled}
+            lastUpdatedAt={lastUpdatedAt}
           />
           {showFloatingWhatsapp && whatsappNumber && !hideFloatingWhatsapp ? (
             <FloatingWhatsapp

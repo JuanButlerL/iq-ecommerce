@@ -12,14 +12,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
+import { PRESET_CART_PARAM } from "@/features/cart/lib/preset-cart";
 import { useCartStore } from "@/features/cart/store";
 import { ProductPrice } from "@/features/catalog/components/product-price";
-import type { ProductPricing } from "@/features/catalog/lib/product-discount";
+import { summarizeProductLines, type ProductPricing } from "@/features/catalog/lib/product-discount";
 import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { formatArs } from "@/lib/utils/currency";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
+import { FREE_SHIPPING_LINK_PARAM, FREE_SHIPPING_LINK_STORAGE_KEY } from "@/features/free-shipping-links/constants";
+import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 import { getBrowserMarketingContext } from "@/lib/marketing/client";
 import { WELCOME_POPUP_EMAIL_STORAGE_KEY } from "@/lib/marketing/welcome-popup-copy";
 
@@ -33,6 +36,14 @@ type CartPageProps = {
   products: ProductWithImages[];
   settings: SettingsWithRule;
   recoveryToken?: string;
+  freeShippingLinkToken?: string;
+  presetItems?: Array<{ productId: string; quantity: number }>;
+};
+
+type FreeShippingLink = {
+  token: string;
+  email: string;
+  expiresAt: string;
 };
 
 const cartFallbackImageMap: Record<string, string> = {
@@ -48,7 +59,7 @@ function cartSignature(items: Array<{ productId: string; quantity: number }>) {
     .join("|");
 }
 
-export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
+export function CartPage({ products, settings, recoveryToken, freeShippingLinkToken, presetItems = [] }: CartPageProps) {
   const router = useRouter();
   const emailInputRef = useRef<HTMLInputElement>(null);
   const items = useCartStore((state) => state.items);
@@ -64,6 +75,7 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
   const [isRecoveringCart, setIsRecoveringCart] = useState(Boolean(recoveryToken));
   const [freeShippingToken, setFreeShippingToken] = useState<string | null>(null);
   const [recoveryCartSignature, setRecoveryCartSignature] = useState("");
+  const [freeShippingLink, setFreeShippingLink] = useState<FreeShippingLink | null>(null);
 
   const detailedItems = useMemo(
     () =>
@@ -86,6 +98,31 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
         !selectedProductIds.has(product.id),
     );
   }, [items, products]);
+
+  // Pre-filled cart link (ads): replace the cart once, after the saved cart was
+  // read from the browser, then drop the parameter so a reload does not re-apply it.
+  const presetApplied = useRef(false);
+  useEffect(() => {
+    if (presetApplied.current || presetItems.length === 0) {
+      return;
+    }
+
+    const apply = () => {
+      if (presetApplied.current) return;
+      presetApplied.current = true;
+      replaceItems(presetItems);
+      const url = new URL(window.location.href);
+      url.searchParams.delete(PRESET_CART_PARAM);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    };
+
+    if (useCartStore.persist.hasHydrated()) {
+      apply();
+      return;
+    }
+
+    return useCartStore.persist.onFinishHydration(apply);
+  }, [presetItems, replaceItems]);
 
   useEffect(() => {
     if (!recoveryToken) {
@@ -140,6 +177,70 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     };
   }, [recoveryToken, replaceItems]);
 
+  // Free shipping link from the admin: keep the token in the browser while the
+  // customer picks products, and check it is still valid before showing it.
+  useEffect(() => {
+    let storedToken: string | null = null;
+
+    try {
+      storedToken = window.localStorage.getItem(FREE_SHIPPING_LINK_STORAGE_KEY);
+
+      if (freeShippingLinkToken) {
+        window.localStorage.setItem(FREE_SHIPPING_LINK_STORAGE_KEY, freeShippingLinkToken);
+      }
+    } catch {
+      // Storage unavailable: the link still works for this visit.
+    }
+
+    if (freeShippingLinkToken) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete(FREE_SHIPPING_LINK_PARAM);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    const token = freeShippingLinkToken ?? storedToken;
+
+    if (!token) {
+      return;
+    }
+
+    let isMounted = true;
+    const linkToken = token;
+
+    async function loadFreeShippingLink() {
+      try {
+        const response = await fetch(`/api/free-shipping-links/${encodeURIComponent(linkToken)}`);
+        const payload = await response.json();
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!response.ok) {
+          try {
+            window.localStorage.removeItem(FREE_SHIPPING_LINK_STORAGE_KEY);
+          } catch {}
+
+          if (freeShippingLinkToken) {
+            setCaptureError(payload.error || "El link de envío gratis venció o ya fue usado.");
+          }
+          return;
+        }
+
+        setFreeShippingLink({ token: linkToken, email: payload.data.email, expiresAt: payload.data.expiresAt });
+        setEmail((current) => current || payload.data.email);
+      } catch {
+        // Network error: the checkout validates the link again anyway.
+      }
+    }
+
+    void loadFreeShippingLink();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [freeShippingLinkToken]);
+
   useEffect(() => {
     if (recoveryToken || capturedEmail) {
       return;
@@ -155,26 +256,38 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
     setCapturedEmail(storedEmail);
   }, [capturedEmail, recoveryToken]);
 
-  const subtotal = detailedItems.reduce((acc, item) => acc + item.product.priceArs * item.cart.quantity, 0);
-  const shippingQuote = calculateShippingQuote(subtotal, province, settings);
+  // Buy X pay Y product promos are resolved per line; free units may or may not count toward free shipping.
+  const productTotals = summarizeProductLines(
+    detailedItems.map((item) => ({ ...item.product, quantity: item.cart.quantity })),
+  );
+  const subtotal = productTotals.subtotalArs;
+  const freeShippingSubtotal = productTotals.freeShippingSubtotalArs;
+  const shippingQuote = calculateShippingQuote(subtotal, province, settings, freeShippingSubtotal);
   const hasRecoveryFreeShipping = Boolean(freeShippingToken) && recoveryCartSignature === cartSignature(items);
-  const displayedShippingArs = hasRecoveryFreeShipping ? 0 : shippingQuote.shippingArs;
+  const checkoutEmail = capturedEmail || email.trim();
+  // The link only applies to the email it was generated for.
+  const hasLinkFreeShipping =
+    !hasRecoveryFreeShipping &&
+    Boolean(freeShippingLink) &&
+    (email.trim() || checkoutEmail).toLowerCase() === freeShippingLink?.email;
+  const displayedShippingArs = hasRecoveryFreeShipping || hasLinkFreeShipping ? 0 : shippingQuote.shippingArs;
   const total = subtotal + displayedShippingArs;
   const checkoutParams = new URLSearchParams({ province });
-  const checkoutEmail = capturedEmail || email.trim();
 
   if (checkoutEmail) {
     checkoutParams.set("email", checkoutEmail);
   }
   if (hasRecoveryFreeShipping && freeShippingToken) {
     checkoutParams.set("recoveryBenefit", freeShippingToken);
+  } else if (freeShippingLink) {
+    checkoutParams.set("recoveryBenefit", freeShippingLink.token);
   }
 
   const checkoutHref = `/checkout?${checkoutParams.toString()}`;
   const amountToShippingDiscount = shippingQuote.shippingDiscountThresholdArs
-    ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
+    ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - freeShippingSubtotal)
     : 0;
-  const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - subtotal);
+  const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - freeShippingSubtotal);
   const oneMoreUnitReachesFreeShipping =
     amountToFreeShipping > 0 &&
     products.some((product) => {
@@ -289,7 +402,14 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
   }
 
   if (detailedItems.length === 0) {
-    return (
+    return freeShippingLink ? (
+      <EmptyState
+        title="Tenés envío gratis"
+        description={`Elegí tus barritas y comprá con ${freeShippingLink.email}. El envío es gratis hasta el ${formatArgentinaDateTime(new Date(freeShippingLink.expiresAt))}`}
+        actionHref="/#productos"
+        actionLabel="Ver productos"
+      />
+    ) : (
       <EmptyState
         title="Tu carrito está vacío"
         description="Elegí una de nuestras barritas y avanzá con un checkout rápido por transferencia."
@@ -341,6 +461,8 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
                     priceArs={product.priceArs}
                     listPriceArs={product.listPriceArs}
                     discountPercentage={product.activeDiscountPercentage}
+                    buyQuantity={product.activeBuyQuantity}
+                    payQuantity={product.activePayQuantity}
                     quantity={cart.quantity}
                   />
                 </p>
@@ -438,6 +560,8 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
                           priceArs={product.priceArs}
                           listPriceArs={product.listPriceArs}
                           discountPercentage={product.activeDiscountPercentage}
+                          buyQuantity={product.activeBuyQuantity}
+                          payQuantity={product.activePayQuantity}
                           showBadge={false}
                         />
                       </p>
@@ -508,6 +632,8 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
               <span>Envío estimado</span>
               {hasRecoveryFreeShipping ? (
                 <span className="font-bold text-emerald-700">Bonificado</span>
+              ) : hasLinkFreeShipping ? (
+                <span className="font-bold text-emerald-700">Gratis</span>
               ) : shippingQuote.freeShippingReached ? (
                 <span className="font-bold text-emerald-700">Gratis</span>
               ) : shippingQuote.shippingDiscountReached ? (
@@ -559,10 +685,16 @@ export function CartPage({ products, settings, recoveryToken }: CartPageProps) {
             </div>
           ) : null}
         </div>
-        <p className="text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p>
+        {hasLinkFreeShipping ? null : <p className="text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p>}
         {hasRecoveryFreeShipping ? (
           <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
             Recuperaste este carrito con envío bonificado. Se mantiene solo para este producto y este email al finalizar la compra.
+          </p>
+        ) : freeShippingLink ? (
+          <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
+            {hasLinkFreeShipping
+              ? `Tenés envío gratis con este email. Se aplica al finalizar la compra, hasta el ${formatArgentinaDateTime(new Date(freeShippingLink.expiresAt))}`
+              : `Tu envío gratis es para ${freeShippingLink.email}. Usá ese email para que se aplique.`}
           </p>
         ) : null}
         <div className="pt-2">

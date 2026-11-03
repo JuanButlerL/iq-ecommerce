@@ -21,7 +21,7 @@ export async function saveHomeSlide(payload: unknown, slideId?: string) {
 
   const data = {
     eyebrow: parsed.data.eyebrow || null,
-    title: parsed.data.title,
+    title: parsed.data.title ?? "",
     mobileTitle: parsed.data.mobileTitle || null,
     subtitle: parsed.data.subtitle || null,
     badges: parsed.data.badges,
@@ -30,6 +30,7 @@ export async function saveHomeSlide(payload: unknown, slideId?: string) {
     imageUrl: parsed.data.imageUrl,
     mobileImageUrl: parsed.data.mobileImageUrl || null,
     imageAlt: parsed.data.imageAlt || null,
+    imageOverlay: parsed.data.imageOverlay,
     active: parsed.data.active,
     startsAt: parseArgentinaDateTime(parsed.data.startsAt),
     endsAt: parseArgentinaDateTime(parsed.data.endsAt),

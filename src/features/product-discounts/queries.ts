@@ -22,8 +22,12 @@ export async function getAdminProductDiscounts() {
     visible: product.visible,
     imageUrl: product.images[0]?.publicUrl ?? null,
     priceArs: product.priceArs,
-    discountPercentage: product.discountPercentage,
-    discountedPriceArs: product.discountPercentage
+    discountType: product.discountType,
+    discountPercentage: product.discountType === "PERCENTAGE" ? product.discountPercentage : null,
+    buyQuantity: product.discountType === "BUY_X_PAY_Y" ? product.discountBuyQuantity : null,
+    payQuantity: product.discountType === "BUY_X_PAY_Y" ? product.discountPayQuantity : null,
+    freeUnitsCountForFreeShipping: product.discountFreeUnitsCountForFreeShipping,
+    discountedPriceArs: product.discountType === "PERCENTAGE" && product.discountPercentage
       ? calculateDiscountedPrice(product.priceArs, product.discountPercentage)
       : null,
     startsOn: product.discountStartsAt ? getArgentinaDateKey(product.discountStartsAt) : "",

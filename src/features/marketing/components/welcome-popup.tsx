@@ -17,7 +17,7 @@ type PopupCoupon = {
   id: string;
   code: string;
   description?: string | null;
-  discountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountType?: "PERCENTAGE" | "FIXED_AMOUNT" | "BUY_X_PAY_Y";
   discountPercentage?: number | null;
   fixedDiscountArs?: number | null;
   discountLabel: string;

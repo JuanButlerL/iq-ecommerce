@@ -1,5 +1,5 @@
-import { randomUUID } from "crypto";
-import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
+﻿import { randomUUID } from "crypto";
+import { EmailAutomationTrigger, EmailSendStatus, NewsletterSubscriberStatus, OrderStatus, PaymentStatus, Prisma, type CouponDiscountType } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
 import { getPostPurchaseCutoff, postPurchaseWhere } from "@/features/email/post-purchase-policy";
@@ -160,7 +160,7 @@ export async function processEmailAutomations(options: { automationId?: string; 
           automation.cartRecoveryFreeShippingEnabled &&
           candidate.cartRecoveryLeadId &&
           ctaUrl === candidate.variables.recoveryUrl
-            ? await grantCartRecoveryFreeShippingBenefit(candidate.cartRecoveryLeadId)
+            ? await grantCartRecoveryFreeShippingBenefit(candidate.cartRecoveryLeadId, automation.cartRecoveryFreeShippingProductIds)
             : null;
 
         if (freeShippingBenefit?.created && candidate.cartRecoveryLeadId) {
@@ -187,6 +187,8 @@ export async function processEmailAutomations(options: { automationId?: string; 
                   discountType: automation.coupon.discountType,
                   discountPercentage: automation.coupon.discountPercentage == null ? null : Number(automation.coupon.discountPercentage),
                   fixedDiscountArs: automation.coupon.fixedDiscountArs ?? null,
+                  buyQuantity: automation.coupon.buyQuantity ?? null,
+                  payQuantity: automation.coupon.payQuantity ?? null,
                   headline: automation.couponHeadline,
                   message: automation.couponMessage,
                 }
@@ -294,7 +296,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         }
       : {};
 
-  const [automations, recentLogs, cartLeads, coupons, newsletterSubscribers] = await Promise.all([
+  const [automations, recentLogs, cartLeads, coupons, newsletterSubscribers, products] = await Promise.all([
     prisma.emailAutomation.findMany({
       where: {
         id: { not: WELCOME_POPUP_IMMEDIATE_AUTOMATION_ID },
@@ -313,7 +315,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       orderBy: { createdAt: "desc" },
       include: {
         automation: {
-          select: { name: true },
+          select: { name: true, ctaLabel: true },
         },
         convertedOrder: {
           select: {
@@ -367,11 +369,18 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
         discountType: true,
         discountPercentage: true,
         fixedDiscountArs: true,
+        buyQuantity: true,
+        payQuantity: true,
         description: true,
       },
     }),
     prisma.newsletterSubscriber.count({
       where: { status: NewsletterSubscriberStatus.SUBSCRIBED },
+    }),
+    prisma.product.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, visible: true },
     }),
   ]);
 
@@ -438,6 +447,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       sent: recentLogs.filter((log) => log.status === EmailSendStatus.SENT).length,
     },
     newsletterSubscribers,
+    products,
     emailEnabled: env.canSendEmail,
   };
 }
@@ -694,9 +704,11 @@ function getCartRecoveryLeadTrigger(lead: { status: string }) {
 type SerializableCouponPreview = {
   id: string;
   code: string;
-  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountType: CouponDiscountType;
   discountPercentage: number | null;
   fixedDiscountArs: number | null;
+  buyQuantity: number | null;
+  payQuantity: number | null;
   description: string | null;
 };
 
@@ -705,9 +717,11 @@ function serializeCouponPreview(
     | {
         id: string;
         code: string;
-        discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+        discountType: CouponDiscountType;
         discountPercentage: Prisma.Decimal | number | string | null;
         fixedDiscountArs: number | null;
+        buyQuantity: number | null;
+        payQuantity: number | null;
         description: string | null;
       }
     | null,

@@ -76,7 +76,7 @@ export function NewsletterImportButton({ existingTitles }: { existingTitles: str
     }
 
     if (parsed.length === 0) {
-      setError("No encontramos newsletters en esos archivos. El importador reconoce los HTML de la agencia (un email por bloque, con asunto, encabezado y cuerpo).");
+      setError("No encontramos newsletters en esos archivos. El importador reconoce los HTML de la agencia (un email por bloque, con asunto, encabezado y cuerpo) y las vistas previas de emails con pestañas (asunto y preheader en la cabecera de cada email).");
       return;
     }
 

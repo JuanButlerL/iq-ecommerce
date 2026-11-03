@@ -20,6 +20,11 @@ export const emailAutomationSchema = z.object({
   couponMessage: z.string().trim().max(600).optional().or(z.literal("")),
   cartRecoveryFreeShippingEnabled: z.boolean().default(false),
   cartRecoveryFreeShippingMessage: z.string().trim().max(600).optional().or(z.literal("")),
+  cartRecoveryFreeShippingProductIds: z
+    .array(z.string().uuid())
+    .max(100)
+    .default([])
+    .transform((ids) => Array.from(new Set(ids))),
 }).superRefine((value, context) => {
   if (!value.cartRecoveryFreeShippingEnabled) return;
 
@@ -33,5 +38,9 @@ export const emailAutomationSchema = z.object({
 
   if (!value.cartRecoveryFreeShippingMessage) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["cartRecoveryFreeShippingMessage"], message: "Escribí el mensaje del envío bonificado." });
+  }
+
+  if (value.cartRecoveryFreeShippingProductIds.length === 0) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["cartRecoveryFreeShippingProductIds"], message: "Elegí al menos un producto para el envío bonificado." });
   }
 });

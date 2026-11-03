@@ -1,7 +1,8 @@
 import { createBlockId, isSafeLinkUrl, stripInline, type NewsletterBlock, type NewsletterContent, type NewsletterStepMarker } from "@/features/newsletter/content";
 
 // Converts the "newsletter sequence" HTML format (one `.email-view` per email, with
-// `.email-body` blocks such as `.stat-row`, `.system-list`, `.testi-card`) into
+// `.email-body` blocks such as `.stat-row`, `.system-list`, `.testi-card`) and the
+// "email preview" format (one `.email-section` per email, see parsePreviewSection) into
 // editable newsletter drafts. Runs in the admin browser with DOMParser. It never
 // keeps raw HTML: everything becomes validated blocks. Unknown elements degrade to
 // plain paragraphs and suggested photos / implementation notes go to internal notes.
@@ -47,7 +48,7 @@ function toInline(node: Node): string {
 }
 
 function inlineText(element: Element | null) {
-  return element ? Array.from(element.childNodes).map(toInline).join("").replace(/[ \t]+/g, " ").trim() : "";
+  return element ? Array.from(element.childNodes).map(toInline).join("").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").trim() : "";
 }
 
 function truncateAtWord(value: string, max: number) {
@@ -230,10 +231,203 @@ function parseView(view: Element, index: number): ImportedNewsletter | null {
   };
 }
 
+// Text without inline marks, with <br> as spaces: for titles, labels and metadata.
+function plainText(element: Element | null) {
+  return clean(stripInline(inlineText(element)).replace(/\n/g, " "));
+}
+
+// Links to the store's own domain become relative paths. "/products" (English) does not
+// exist in this store, so it is pointed to "/productos" and flagged for review.
+function storeLinkFrom(href: string) {
+  try {
+    const url = new URL(href, "https://iqkids.com.ar");
+    const isOwnSite = url.hostname.replace(/^www\./, "") === "iqkids.com.ar";
+
+    if (isOwnSite && (url.pathname === "/products" || url.pathname.startsWith("/products/"))) {
+      return { url: DEFAULT_BUTTON_URL, fixed: true };
+    }
+
+    if (isOwnSite) {
+      return { url: `${url.pathname}${url.search}` || DEFAULT_BUTTON_URL, fixed: false };
+    }
+  } catch {
+    // Falls through to the safety check below.
+  }
+
+  return { url: href && href !== "#" && isSafeLinkUrl(href) ? href : DEFAULT_BUTTON_URL, fixed: !href || href === "#" };
+}
+
+// Converts the "email preview" HTML format: one `.email-section` per email, with the
+// send date, subject and preheader in `.email-meta` and the content in `.email-body`
+// (`.email-header`, `.cyber-badge-wrap`, `.email-content`, `.info-strip`, `.email-footer`).
+function parsePreviewSection(section: Element, index: number, tabLabels: string[]): ImportedNewsletter | null {
+  const body = section.querySelector(".email-body");
+
+  if (!body) {
+    return null;
+  }
+
+  const blocks: NewsletterBlock[] = [];
+  const notes: string[] = [];
+  let title = "";
+  let category = "";
+  let fixedButtonLinks = 0;
+  let skippedCountdowns = 0;
+  let lastWasParagraph = false;
+
+  const push = (block: NewsletterBlock) => {
+    blocks.push(block);
+    lastWasParagraph = block.type === "paragraph";
+  };
+
+  const pushParagraph = (text: string) => {
+    if (!text) return;
+    const last = blocks.at(-1);
+    if (lastWasParagraph && last?.type === "paragraph") last.text = `${last.text}\n\n${text}`;
+    else push({ id: createBlockId(), type: "paragraph", text });
+  };
+
+  const meta = new Map<string, string>();
+  for (const row of Array.from(section.querySelectorAll(".email-meta-row"))) {
+    const label = plainText(row.querySelector(".email-meta-label")).toLowerCase();
+    if (label) meta.set(label, plainText(row.querySelector(".email-meta-val")));
+  }
+  const subject = meta.get("asunto") ?? "";
+  const preheader = meta.get("preheader") ?? "";
+  const sendDate = meta.get("envío") ?? meta.get("envio") ?? "";
+
+  const lastChance = body.querySelector(".last-chance-banner");
+  if (lastChance) push({ id: createBlockId(), type: "tip", title: null, tone: "pink", text: plainText(lastChance) });
+
+  const badgeWrap = body.querySelector(".cyber-badge-wrap");
+  if (badgeWrap) {
+    title = plainText(badgeWrap.querySelector(".cyber-title"));
+    category = plainText(badgeWrap.querySelector(".cyber-badge"));
+    pushParagraph(inlineText(badgeWrap.querySelector(".cyber-subtitle")));
+  }
+
+  const parseContentElement = (element: Element) => {
+    const classes = element.classList;
+
+    if (classes.contains("email-eyebrow")) {
+      category = plainText(element);
+    } else if (classes.contains("email-h2") || element.tagName.toLowerCase() === "h2") {
+      const text = plainText(element);
+      if (!title) title = text;
+      else if (text) push({ id: createBlockId(), type: "heading", text: truncateAtWord(text, 160) });
+    } else if (classes.contains("email-divider")) {
+      if (blocks.length > 0 && blocks.at(-1)?.type !== "divider") push({ id: createBlockId(), type: "divider" });
+    } else if (classes.contains("email-quote")) {
+      const cite = plainText(element.querySelector("cite")).replace(/^[—–-]\s*/, "");
+      const [author, ...role] = cite.split(",");
+      push({
+        id: createBlockId(),
+        type: "quote",
+        text: stripQuotes(plainText(element.querySelector("p"))),
+        author: clean(author) || null,
+        role: clean(role.join(",")) || null,
+        tone: "pink",
+      });
+    } else if (classes.contains("promo-grid")) {
+      for (const card of Array.from(element.querySelectorAll(".promo-card"))) {
+        const header = card.querySelector(".promo-card-header");
+        const cardTitle = [plainText(card.querySelector(".promo-card-title")), plainText(card.querySelector(".promo-card-tag"))].filter(Boolean).join(" · ");
+        const code = plainText(card.querySelector(".promo-code"));
+        const text = [inlineText(card.querySelector(".promo-card-desc")), code ? `Código: **${code}**` : ""].filter(Boolean).join("\n\n");
+        if (text) push({ id: createBlockId(), type: "tip", title: cardTitle ? truncateAtWord(cardTitle, 120) : null, tone: header?.classList.contains("teal") ? "cyan" : "pink", text });
+      }
+    } else if (classes.contains("email-cta-wrap")) {
+      const link = element.querySelector("a");
+      const { url, fixed } = storeLinkFrom(link?.getAttribute("href") ?? "");
+      if (fixed) fixedButtonLinks += 1;
+      push({
+        id: createBlockId(),
+        type: "button",
+        label: truncateAtWord(plainText(link) || "Ver productos", 80),
+        url,
+        note: null,
+        tone: link?.classList.contains("teal") ? "cyan" : "pink",
+      });
+    } else if (classes.contains("countdown-strip")) {
+      skippedCountdowns += 1;
+    } else if (classes.contains("email-p") || element.tagName.toLowerCase() === "p") {
+      const text = inlineText(element);
+      const style = (element.getAttribute("style") ?? "").replace(/\s/g, "");
+      if (!text) return;
+      if (style.includes("background")) push({ id: createBlockId(), type: "tip", title: null, tone: "yellow", text });
+      else pushParagraph(text);
+    } else {
+      pushParagraph(inlineText(element));
+    }
+  };
+
+  for (const element of Array.from(body.querySelector(".email-content")?.children ?? [])) {
+    parseContentElement(element);
+  }
+
+  const infoItems = Array.from(body.querySelectorAll(".info-strip .info-item")).slice(0, 10);
+  if (infoItems.length > 0) {
+    push({
+      id: createBlockId(),
+      type: "steps",
+      tone: "pink",
+      items: infoItems.map((item) => ({ title: plainText(item.querySelector(".info-title")), text: plainText(item.querySelector(".info-desc")), marker: "check" as const })),
+    });
+  }
+
+  // Footer fine print (terms of the promo) is kept; the brand line and the
+  // unsubscribe / browser links are dropped because the newsletter adds its own footer.
+  const finePrint = inlineText(body.querySelector(".email-footer p"))
+    .split("\n")
+    .map((line) => clean(line))
+    .filter((line) => line && !/iqkids\.com\.ar|desuscribirse|ver en el navegador/i.test(line));
+  if (finePrint.length > 0) push({ id: createBlockId(), type: "paragraph", text: finePrint.join("\n") });
+
+  if (blocks.length === 0 && !title) {
+    return null;
+  }
+
+  const headerTag = plainText(body.querySelector(".email-header-tag"));
+  const firstParagraph = blocks.find((block) => block.type === "paragraph");
+  const firstText = firstParagraph?.type === "paragraph" ? stripInline(firstParagraph.text.split("\n\n")[0] ?? "") : "";
+  const sourceLabel = tabLabels[index] || sendDate || `Newsletter ${index + 1}`;
+  const finalTitle = truncateAtWord(title || subject || `Newsletter ${index + 1}`, 140);
+
+  notes.push(`Importada del HTML de vista previa: ${sourceLabel}.`);
+  if (sendDate) notes.push(`Envío sugerido en el original: ${sendDate}.`);
+  if (skippedCountdowns > 0) notes.push("Se omitió la cuenta regresiva del original (era un número fijo).");
+  if (fixedButtonLinks > 0) notes.push(`${fixedButtonLinks === 1 ? "Un botón apuntaba" : `${fixedButtonLinks} botones apuntaban`} a una página que no existe (/products o "#"): se puso ${DEFAULT_BUTTON_URL}. Revisar.`);
+
+  return {
+    sourceLabel,
+    internalNotes: notes.join("\n\n").slice(0, 5000),
+    content: {
+      title: finalTitle,
+      subtitle: null,
+      excerpt: truncateAtWord(firstText.length >= 10 ? firstText : finalTitle, 400),
+      category: category ? truncateAtWord(category, 60) : null,
+      headerTag: headerTag ? truncateAtWord(headerTag, 80) : null,
+      coverImageUrl: null,
+      coverImageAlt: null,
+      blocks,
+      emailSubject: truncateAtWord(subject || finalTitle, 120),
+      emailPreviewText: preheader ? truncateAtWord(preheader, 150) : firstText ? firstSentence(firstText, 150) : null,
+    },
+  };
+}
+
 export function parseNewsletterSequenceHtml(html: string): ImportedNewsletter[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const views = Array.from(doc.querySelectorAll(".email-view"));
   const candidates = views.length > 0 ? views : Array.from(doc.querySelectorAll(".email-card")).map((card) => card.parentElement ?? card);
 
-  return candidates.map(parseView).filter((item): item is ImportedNewsletter => item !== null);
+  if (candidates.length > 0) {
+    return candidates.map(parseView).filter((item): item is ImportedNewsletter => item !== null);
+  }
+
+  // Preview format: tabs (`.tab-btn`) label each `.email-section` in order.
+  const tabLabels = Array.from(doc.querySelectorAll(".tab-btn")).map((tab) => clean(tab.textContent));
+  return Array.from(doc.querySelectorAll(".email-section"))
+    .map((section, index) => parsePreviewSection(section, index, tabLabels))
+    .filter((item): item is ImportedNewsletter => item !== null);
 }

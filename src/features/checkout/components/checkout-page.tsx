@@ -20,6 +20,9 @@ import { ProductPrice } from "@/features/catalog/components/product-price";
 import {
   COUPON_EXCLUDES_DISCOUNTED_MESSAGE,
   getCouponEligibleSubtotal,
+  getProductLinePricing,
+  hasActiveProductPromo,
+  summarizeProductLines,
   type ProductPricing,
 } from "@/features/catalog/lib/product-discount";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
@@ -53,9 +56,13 @@ type CheckoutPageProps = {
 type CouponPreview = {
   couponId: string;
   couponCode: string;
-  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT" | "BUY_X_PAY_Y";
   discountPercentage: number | null;
   fixedDiscountArs: number | null;
+  buyQuantity?: number | null;
+  payQuantity?: number | null;
+  freeUnits?: number;
+  freeShippingDeductionArs?: number;
   discountArs: number;
   subtotalWithDiscountArs: number;
 };
@@ -150,6 +157,7 @@ export function CheckoutPage({
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponPreview | null>(null);
   const [recoveryFreeShippingActive, setRecoveryFreeShippingActive] = useState(false);
+  const [freeShippingSource, setFreeShippingSource] = useState<"cart_recovery" | "free_shipping_link" | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isApplyingCoupon, startApplyingCoupon] = useTransition();
   const hasTrackedCheckoutRef = useRef(false);
@@ -224,12 +232,18 @@ export function CheckoutPage({
       !watchedAddressNumber?.trim() &&
       /(?:^|\s)\d{3,8}\s*(?:bis|[a-z])?\s*$/i.test(watchedAddressLine?.trim() ?? ""),
   );
-  const subtotal = productItems.reduce((acc, item) => acc + item.product.priceArs * item.quantity, 0);
-  const couponEligibleSubtotal = getCouponEligibleSubtotal(
-    productItems.map((item) => ({ ...item.product, quantity: item.quantity })),
+  const cartLines = productItems.map((item) => ({ ...item.product, quantity: item.quantity }));
+  const productTotals = summarizeProductLines(cartLines);
+  const subtotal = productTotals.subtotalArs;
+  const couponEligibleSubtotal = getCouponEligibleSubtotal(cartLines);
+  // Buy X pay Y coupons depend on the units, not only on the amount, so refresh on any cart change.
+  const couponCartKey = productItems.map((item) => `${item.productId}:${item.quantity}`).join("|");
+  const hasDiscountedItems = productItems.some((item) => hasActiveProductPromo(item.product));
+  const freeShippingSubtotal = Math.max(
+    productTotals.freeShippingSubtotalArs - (appliedCoupon?.freeShippingDeductionArs ?? 0),
+    0,
   );
-  const hasDiscountedItems = productItems.some((item) => item.product.activeDiscountPercentage);
-  const shippingQuote = calculateShippingQuote(subtotal, province, settings);
+  const shippingQuote = calculateShippingQuote(subtotal, province, settings, freeShippingSubtotal);
   const displayedShippingArs = recoveryFreeShippingActive ? 0 : shippingQuote.shippingArs;
   const couponDiscountArs = appliedCoupon?.discountArs ?? 0;
   const pricing = calculateCheckoutPricing({
@@ -240,9 +254,9 @@ export function CheckoutPage({
     enableBankTransferDiscount: settings.enableBankTransferDiscount,
     bankTransferDiscountPercentage: Number(settings.bankTransferDiscountPercentage ?? 0),
   });
-  const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - subtotal);
+  const amountToFreeShipping = Math.max(0, settings.freeShippingThreshold - freeShippingSubtotal);
   const amountToShippingDiscount = shippingQuote.shippingDiscountThresholdArs
-    ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - subtotal)
+    ? Math.max(0, shippingQuote.shippingDiscountThresholdArs - freeShippingSubtotal)
     : 0;
   const checkoutShippingNudge = shippingQuote.freeShippingReached
     ? "Ya tenés envío gratis. Sumá otro sabor y dejá más días de la semana resueltos."
@@ -317,6 +331,7 @@ export function CheckoutPage({
   useEffect(() => {
     if (!initialCartRecoveryFreeShippingToken || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(watchedEmail)) {
       setRecoveryFreeShippingActive(false);
+      setFreeShippingSource(null);
       return;
     }
 
@@ -336,9 +351,11 @@ export function CheckoutPage({
         });
         const payload = await response.json();
         setRecoveryFreeShippingActive(Boolean(response.ok && payload.data?.eligible));
+        setFreeShippingSource(response.ok && payload.data?.eligible ? payload.data.source ?? null : null);
       } catch (error) {
         if ((error as Error).name !== "AbortError") {
           setRecoveryFreeShippingActive(false);
+          setFreeShippingSource(null);
         }
       }
     }
@@ -354,7 +371,7 @@ export function CheckoutPage({
     }
 
     void refreshCoupon(appliedCoupon.couponCode, false);
-  }, [appliedCoupon, couponEligibleSubtotal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [appliedCoupon?.couponCode, couponEligibleSubtotal, couponCartKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (hasTrackedCheckoutRef.current) {
@@ -406,6 +423,7 @@ export function CheckoutPage({
         code,
         subtotalArs: couponEligibleSubtotal,
         taxId: form.getValues("taxId") ?? "",
+        items: productItems.map((item) => ({ productId: item.productId, quantity: item.quantity })),
       }),
     });
 
@@ -773,12 +791,22 @@ export function CheckoutPage({
             <div key={item.productId} className="flex items-start justify-between gap-3">
               <span className="pr-2">
                 {item.product.name} x {item.quantity}
+                {(() => {
+                  const linePricing = getProductLinePricing({ ...item.product, quantity: item.quantity });
+                  return linePricing.promoLabel ? (
+                    <span className="block text-xs font-bold text-emerald-700">
+                      Promo {linePricing.promoLabel}: {linePricing.freeUnits} sin cargo
+                    </span>
+                  ) : null;
+                })()}
               </span>
               <ProductPrice
                 className="shrink-0 justify-end"
                 priceArs={item.product.priceArs}
                 listPriceArs={item.product.listPriceArs}
                 discountPercentage={item.product.activeDiscountPercentage}
+                buyQuantity={item.product.activeBuyQuantity}
+                payQuantity={item.product.activePayQuantity}
                 quantity={item.quantity}
                 showBadge={false}
               />
@@ -850,6 +878,8 @@ export function CheckoutPage({
                         discountType: appliedCoupon.discountType,
                         discountPercentage: appliedCoupon.discountPercentage,
                         fixedDiscountArs: appliedCoupon.fixedDiscountArs,
+                        buyQuantity: appliedCoupon.buyQuantity,
+                        payQuantity: appliedCoupon.payQuantity,
                       })}{" "}
                       ({formatArs(appliedCoupon.discountArs)})
                     </p>
@@ -891,6 +921,8 @@ export function CheckoutPage({
                   discountType: appliedCoupon.discountType,
                   discountPercentage: appliedCoupon.discountPercentage,
                   fixedDiscountArs: appliedCoupon.fixedDiscountArs,
+                  buyQuantity: appliedCoupon.buyQuantity,
+                  payQuantity: appliedCoupon.payQuantity,
                 })}
               </span>
               <span className="font-bold text-green-700">- {formatArs(appliedCoupon.discountArs)}</span>
@@ -926,10 +958,14 @@ export function CheckoutPage({
         <div className="space-y-4 border-t border-brand-ink/10 pt-4">
           {recoveryFreeShippingActive ? (
             <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold leading-5 text-emerald-800">
-              Envío bonificado por recuperar este carrito. Se confirma al crear el pedido para este email y estos productos.
+              {freeShippingSource === "free_shipping_link"
+                ? "Envío gratis por tu link personal. Se confirma al crear el pedido con este email."
+                : "Envío bonificado por recuperar este carrito. Se confirma al crear el pedido para este email y estos productos."}
             </p>
           ) : null}
-          <p className="text-sm font-bold leading-6 text-emerald-700">{checkoutShippingNudge}</p>
+          {freeShippingSource === "free_shipping_link" ? null : (
+            <p className="text-sm font-bold leading-6 text-emerald-700">{checkoutShippingNudge}</p>
+          )}
 
           {suggestedProducts.length > 0 ? (
             <div>

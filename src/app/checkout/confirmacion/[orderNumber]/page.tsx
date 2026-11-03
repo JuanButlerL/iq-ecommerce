@@ -101,6 +101,8 @@ export default async function ConfirmationPage({
                         discountType: order.coupon.discountType,
                         discountPercentage: order.discountPercentage == null ? null : Number(order.discountPercentage),
                         fixedDiscountArs: order.coupon.fixedDiscountArs,
+                        buyQuantity: order.coupon.buyQuantity,
+                        payQuantity: order.coupon.payQuantity,
                       })})`
                     : ""}
                 </span>

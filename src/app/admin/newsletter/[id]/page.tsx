@@ -57,7 +57,7 @@ export default async function AdminNewsletterEditorPage({ params }: PageProps) {
       testimonials={testimonials.map((item) => ({ id: item.id, name: item.name, roleLabel: item.roleLabel, quote: item.quote }))}
       settings={{ testRecipients: settings.testRecipients, senderName: settings.senderName, sectionEnabled: settings.sectionEnabled }}
       eligibleRecipients={eligibleRecipients}
-      server={{ newsletterSendingEnabled: env.newsletterSendingEnabled, canSendEmail: env.canSendEmail, isProduction: env.isProduction, siteUrl: env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") }}
+      server={{ newsletterSendingEnabled: env.newsletterSendingEnabled, canSendEmail: env.canSendNewsletterEmail, isProduction: env.isProduction, siteUrl: env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "") }}
     />
   );
 }

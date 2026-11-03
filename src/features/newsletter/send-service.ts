@@ -376,6 +376,7 @@ async function sendPendingDeliveries(now: Date, settings: NewsletterSenderSettin
           subject: snapshot.subject,
           html: email.html,
           text: email.text,
+          channel: "newsletter",
           headers: {
             "List-Unsubscribe": `<${unsubscribeUrl}>`,
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -434,7 +435,7 @@ async function sendPendingDeliveries(now: Date, settings: NewsletterSenderSettin
 // ---------------------------------------------------------------------------
 
 export async function sendNewsletterTest(newsletterId: string, actorEmail: string | null) {
-  if (!env.canSendEmail) {
+  if (!env.canSendNewsletterEmail) {
     throw new AppError("El envío de emails está desactivado en el servidor. No se puede mandar la prueba.", 400, true);
   }
 
@@ -466,6 +467,7 @@ export async function sendNewsletterTest(newsletterId: string, actorEmail: strin
         subject: `[PRUEBA] ${snapshot.subject}`,
         html: email.html,
         text: email.text,
+        channel: "newsletter",
       });
     } catch (error) {
       failures.push(`${recipient}: ${error instanceof Error ? error.message : "error"}`);

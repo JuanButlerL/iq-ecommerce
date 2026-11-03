@@ -1,3 +1,5 @@
+import type { CouponDiscountType } from "@prisma/client";
+
 import { env } from "@/lib/env";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -16,12 +18,20 @@ function escapeHtml(value: string) {
 }
 
 function getCouponValueLabel(coupon: {
-  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountType: CouponDiscountType;
   discountPercentage?: string | number | null;
   fixedDiscountArs?: number | null;
+  buyQuantity?: number | null;
+  payQuantity?: number | null;
 }) {
   if (coupon.discountType === "FIXED_AMOUNT") {
     return `${formatArs(coupon.fixedDiscountArs ?? 0)} OFF`;
+  }
+
+  if (coupon.discountType === "BUY_X_PAY_Y") {
+    return coupon.buyQuantity && coupon.payQuantity
+      ? escapeHtml(`${coupon.buyQuantity}x${coupon.payQuantity}`)
+      : "Promo";
   }
 
   return `${escapeHtml(String(coupon.discountPercentage ?? 0))}% OFF`;
@@ -54,9 +64,11 @@ export function renderMarketingEmail({
   freeShippingMessage?: string | null;
   coupon?: {
     code: string;
-    discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+    discountType: CouponDiscountType;
     discountPercentage?: string | number | null;
     fixedDiscountArs?: number | null;
+    buyQuantity?: number | null;
+    payQuantity?: number | null;
     headline?: string | null;
     message?: string | null;
   } | null;

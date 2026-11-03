@@ -13,15 +13,43 @@ function uniqueCodes(codes: string[]) {
 }
 
 function buildDiscountPayload(input: {
-  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT" | "BUY_X_PAY_Y";
   discountPercentage?: number | null;
   fixedDiscountArs?: number | null;
+  buyQuantity?: number | null;
+  payQuantity?: number | null;
+  freeUnitsCountForFreeShipping?: boolean;
+  buyXPayYSameProductOnly?: boolean;
+  buyXPayYPackUnits?: Array<{ productId: string; unitsPerPack: number }>;
 }) {
+  // Only buy X pay Y coupons keep quantities; switching type clears them so they never leak.
+  if (input.discountType === "BUY_X_PAY_Y") {
+    return {
+      discountType: input.discountType,
+      discountPercentage: 0,
+      fixedDiscountArs: null,
+      buyQuantity: input.buyQuantity ?? undefined,
+      payQuantity: input.payQuantity ?? undefined,
+      freeUnitsCountForFreeShipping: input.freeUnitsCountForFreeShipping ?? true,
+      buyXPayYSameProductOnly: input.buyXPayYSameProductOnly ?? false,
+      buyXPayYPackUnits: input.buyXPayYPackUnits ?? [],
+    };
+  }
+
+  const noBuyXPayY = {
+    buyQuantity: null,
+    payQuantity: null,
+    freeUnitsCountForFreeShipping: true,
+    buyXPayYSameProductOnly: false,
+    buyXPayYPackUnits: [],
+  };
+
   if (input.discountType === "PERCENTAGE") {
     return {
       discountType: input.discountType,
       discountPercentage: input.discountPercentage ?? undefined,
       fixedDiscountArs: null,
+      ...noBuyXPayY,
     } as const;
   }
 
@@ -29,6 +57,7 @@ function buildDiscountPayload(input: {
     discountType: input.discountType,
     discountPercentage: 0,
     fixedDiscountArs: input.fixedDiscountArs ?? undefined,
+    ...noBuyXPayY,
   } as const;
 }
 
@@ -107,6 +136,14 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
     active: parsed.data.active,
   };
 
+  const buyXPayYInput = {
+    buyQuantity: parsed.data.buyQuantity,
+    payQuantity: parsed.data.payQuantity,
+    freeUnitsCountForFreeShipping: parsed.data.freeUnitsCountForFreeShipping,
+    buyXPayYSameProductOnly: parsed.data.buyXPayYSameProductOnly,
+    buyXPayYPackUnits: parsed.data.buyXPayYPackUnits,
+  };
+
   const requestedCodes = entries.length ? entries.map((entry) => entry.code) : codes;
 
   if (requestedCodes.length > 0) {
@@ -141,6 +178,7 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
             discountType: parsed.data.discountType,
             discountPercentage: singleEntry?.discountPercentage ?? parsed.data.discountPercentage,
             fixedDiscountArs: singleEntry?.fixedDiscountArs ?? parsed.data.fixedDiscountArs,
+            ...buyXPayYInput,
           }),
         },
       });
@@ -158,6 +196,7 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
             discountType: parsed.data.discountType,
             discountPercentage: entry.discountPercentage ?? parsed.data.discountPercentage,
             fixedDiscountArs: entry.fixedDiscountArs ?? parsed.data.fixedDiscountArs,
+            ...buyXPayYInput,
           }),
         }))
       : codes.map((code) => ({
@@ -167,6 +206,7 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
             discountType: parsed.data.discountType,
             discountPercentage: parsed.data.discountPercentage,
             fixedDiscountArs: parsed.data.fixedDiscountArs,
+            ...buyXPayYInput,
           }),
         }));
 

@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Container } from "@/components/layout/container";
 import { Card } from "@/components/ui/card";
 import { getStoreSettings } from "@/features/settings/queries";
 import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
+
+export const metadata: Metadata = {
+  title: "Contacto",
+  alternates: { canonical: "/contacto" },
+};
 
 export default async function ContactPage() {
   const settings = await getStoreSettings();

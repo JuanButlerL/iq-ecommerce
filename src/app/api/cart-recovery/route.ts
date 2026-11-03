@@ -3,7 +3,7 @@ import { MarketingEventType } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { applyProductDiscount } from "@/features/catalog/lib/product-discount";
+import { applyProductDiscount, getProductLinePricing } from "@/features/catalog/lib/product-discount";
 import { ensureMarketingSession, logMarketingEvent } from "@/features/marketing/attribution-service";
 import { hasSameRecoveryCart } from "@/features/cart-recovery/free-shipping-service";
 import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         quantity,
         productNameSnapshot: product.name,
         unitPriceArs: product.priceArs,
-        lineTotalArs: product.priceArs * quantity,
+        lineTotalArs: getProductLinePricing({ ...product, quantity }).lineTotalArs,
         imageUrl: product.images[0]?.publicUrl ?? null,
       };
     });

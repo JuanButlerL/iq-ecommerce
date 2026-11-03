@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronDown, ChevronUp, GripVertical, ImagePlus, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { ChevronDown, ChevronUp, Eye, GripVertical, ImagePlus, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,15 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatAdminDateTime, isoToArgentinaLocalInput } from "@/features/newsletter/components/newsletter-admin-labels";
+import { HomeSlidesPreviewDialog } from "@/features/admin/components/home-slides-preview-dialog";
+import type { HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
+import { withHeroImageFraming } from "@/features/home-slides/lib/hero-slides";
+import {
+  argentinaLocalInputToIso,
+  formatAdminDateTime,
+  isoToArgentinaLocalInput,
+} from "@/features/newsletter/components/newsletter-admin-labels";
+import { cn } from "@/lib/utils/cn";
 
 type HomeSlideListItem = {
   id: string;
@@ -23,6 +31,7 @@ type HomeSlideListItem = {
   imageUrl: string;
   mobileImageUrl: string | null;
   imageAlt: string | null;
+  imageOverlay: boolean;
   active: boolean;
   startsAt: Date | null;
   endsAt: Date | null;
@@ -45,6 +54,7 @@ type HomeSlideFormState = {
   imageUrl: string;
   mobileImageUrl: string;
   imageAlt: string;
+  imageOverlay: boolean;
   active: boolean;
   // datetime-local values in Argentina time ("" = no limit).
   startsAt: string;
@@ -62,6 +72,7 @@ const emptyForm: HomeSlideFormState = {
   imageUrl: "",
   mobileImageUrl: "",
   imageAlt: "",
+  imageOverlay: true,
   active: true,
   startsAt: "",
   endsAt: "",
@@ -78,6 +89,36 @@ const slideStatusMeta: Record<SlideStatus, { label: string; className: string }>
   scheduled: { label: "Programado", className: "bg-sky-100 text-sky-700" },
   ended: { label: "Finalizado", className: "bg-brand-ink/10 text-brand-ink/55" },
 };
+
+function argentinaInputToDate(value: string) {
+  const iso = value ? argentinaLocalInputToIso(value) : null;
+  return iso ? new Date(iso) : null;
+}
+
+function isVisibleAt(slide: HomeSlideListItem, at: Date) {
+  return (
+    slide.active &&
+    (!slide.startsAt || new Date(slide.startsAt) <= at) &&
+    (!slide.endsAt || new Date(slide.endsAt) > at)
+  );
+}
+
+function toHeroSlide(slide: HomeSlideListItem): HomeHeroSlide {
+  return withHeroImageFraming({
+    id: slide.id,
+    eyebrow: slide.eyebrow,
+    title: slide.title,
+    mobileTitle: slide.mobileTitle,
+    subtitle: slide.subtitle,
+    badges: slide.badges,
+    ctaLabel: slide.ctaLabel,
+    ctaUrl: slide.ctaUrl,
+    imageUrl: slide.imageUrl,
+    mobileImageUrl: slide.mobileImageUrl,
+    imageAlt: slide.imageAlt,
+    imageOverlay: slide.imageOverlay,
+  });
+}
 
 function getSlideStatus(slide: HomeSlideListItem, now: Date): SlideStatus {
   if (!slide.active) return "paused";
@@ -104,6 +145,8 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
   const [orderError, setOrderError] = useState<string | null>(null);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const dragStartOrder = useRef<string[]>([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewAt, setPreviewAt] = useState("");
 
   useEffect(() => {
     setOrderedSlides(slides);
@@ -112,6 +155,55 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
   const editingSlide = useMemo(() => slides.find((slide) => slide.id === editingId) ?? null, [slides, editingId]);
   const now = new Date();
   const activeCount = slides.filter((slide) => getSlideStatus(slide, now) === "active").length;
+
+  // The carousel as the home would show it at `previewAt`, with the form's unsaved slide in place.
+  const preview = useMemo(() => {
+    if (!isPreviewOpen) {
+      return null;
+    }
+
+    const at = argentinaInputToDate(previewAt) ?? new Date();
+    const draftId = editingId ?? "draft-slide";
+    const draft: HomeSlideListItem = {
+      id: draftId,
+      eyebrow: form.eyebrow.trim() || null,
+      title: form.title.trim(),
+      mobileTitle: form.mobileTitle.trim() || null,
+      subtitle: form.subtitle.trim() || null,
+      badges: parseBadges(form.badges),
+      ctaLabel: form.ctaLabel.trim() || null,
+      ctaUrl: form.ctaUrl.trim() || null,
+      imageUrl: form.imageUrl,
+      mobileImageUrl: form.mobileImageUrl || null,
+      imageAlt: form.imageAlt.trim() || null,
+      imageOverlay: form.imageOverlay,
+      active: form.active,
+      startsAt: argentinaInputToDate(form.startsAt),
+      endsAt: argentinaInputToDate(form.endsAt),
+      sortOrder: 0,
+    };
+    const allSlides = editingId
+      ? orderedSlides.map((slide) => (slide.id === editingId ? draft : slide))
+      : [...orderedSlides, draft];
+    // The draft is always shown so it can be reviewed, even when it wouldn't be live at that moment.
+    const shown = allSlides.filter((slide) => slide.id === draftId || isVisibleAt(slide, at));
+    const notice = isVisibleAt(draft, at)
+      ? null
+      : !draft.active
+        ? "Este slide está pausado, así que en la home real no se vería. Lo mostramos igual para que veas cómo queda."
+        : "En esa fecha este slide todavía no empezó o ya terminó, así que en la home real no se vería. Lo mostramos igual para que veas cómo queda.";
+
+    return {
+      slides: shown.map(toHeroSlide),
+      initialIndex: shown.findIndex((slide) => slide.id === draftId),
+      notice,
+    };
+  }, [isPreviewOpen, previewAt, editingId, form, orderedSlides]);
+
+  function openPreview() {
+    setPreviewAt(form.startsAt || isoToArgentinaLocalInput(new Date()));
+    setIsPreviewOpen(true);
+  }
 
   function resetForm() {
     setEditingId(null);
@@ -132,6 +224,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
       imageUrl: slide.imageUrl,
       mobileImageUrl: slide.mobileImageUrl ?? "",
       imageAlt: slide.imageAlt ?? "",
+      imageOverlay: slide.imageOverlay,
       active: slide.active,
       startsAt: slide.startsAt ? isoToArgentinaLocalInput(slide.startsAt) : "",
       endsAt: slide.endsAt ? isoToArgentinaLocalInput(slide.endsAt) : "",
@@ -310,7 +403,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                 onChange={(event) => setForm((current) => ({ ...current, eyebrow: event.target.value }))}
               />
             </Field>
-            <Field label="Título">
+            <Field label="Título (opcional)">
               <Textarea
                 value={form.title}
                 rows={2}
@@ -357,6 +450,21 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                 />
               </Field>
             </div>
+            <p className="-mt-2 text-xs text-brand-ink/55">
+              ¿Slide de solo imagen? Dejá vacíos los textos. Si cargás el link sin texto de botón, toda la imagen es
+              clickeable.
+            </p>
+            <div>
+              <Checkbox
+                label="Degradé sobre la imagen"
+                checked={form.imageOverlay}
+                onChange={(event) => setForm((current) => ({ ...current, imageOverlay: event.target.checked }))}
+              />
+              <p className="mt-1 text-xs text-brand-ink/55">
+                Aclara la foto detrás del texto para que se lea mejor. Desactivalo si la imagen ya tiene buen contraste.
+                En slides de solo imagen no se aplica.
+              </p>
+            </div>
             <Checkbox
               label="Slide activo"
               checked={form.active}
@@ -401,19 +509,44 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
 
           {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
 
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            disabled={isPending}
-            onClick={() => {
-              setError(null);
-              startTransition(async () => {
-                await submitForm();
-              });
-            }}
-          >
-            {isPending ? "Guardando..." : editingSlide ? "Guardar cambios" : "Crear slide"}
-          </Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              disabled={isPending}
+              onClick={() => {
+                setError(null);
+                startTransition(async () => {
+                  await submitForm();
+                });
+              }}
+            >
+              {isPending ? "Guardando..." : editingSlide ? "Guardar cambios" : "Crear slide"}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              disabled={!form.imageUrl}
+              title={form.imageUrl ? undefined : "Subí una imagen para ver la vista previa."}
+              onClick={openPreview}
+            >
+              <Eye className="h-4 w-4" /> Vista previa
+            </Button>
+          </div>
+          {!form.imageUrl ? (
+            <p className="-mt-2 text-xs text-brand-ink/55">Subí una imagen para ver la vista previa.</p>
+          ) : null}
+          {preview ? (
+            <HomeSlidesPreviewDialog
+              slides={preview.slides}
+              initialIndex={preview.initialIndex}
+              previewAt={previewAt}
+              onPreviewAtChange={setPreviewAt}
+              notice={preview.notice}
+              onClose={() => setIsPreviewOpen(false)}
+            />
+          ) : null}
         </Card>
 
         <Card className="space-y-4 p-5 md:p-6">
@@ -527,7 +660,11 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                             {slide.eyebrow}
                           </p>
                         ) : null}
-                        <p className="mt-1 whitespace-pre-line font-bold text-brand-ink">{slide.title}</p>
+                        {slide.title ? (
+                          <p className="mt-1 whitespace-pre-line font-bold text-brand-ink">{slide.title}</p>
+                        ) : (
+                          <p className="mt-1 font-bold italic text-brand-ink/50">Solo imagen, sin textos</p>
+                        )}
                         {slide.ctaLabel ? (
                           <p className="mt-2 break-words text-sm text-brand-ink/60">
                             Botón: {slide.ctaLabel} → {slide.ctaUrl}
@@ -637,7 +774,29 @@ function SlideImageField({
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Drag and drop is an alternative to the OS file picker, which can hang on some
+  // computers (cloud-synced folders, folders with many photos).
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    if (!dragging) setDragging(true);
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files[0];
+    if (file && !uploading) void upload(file);
+  }
 
   async function upload(file: File) {
     setError(null);
@@ -669,10 +828,15 @@ function SlideImageField({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
       <span className="block text-sm font-bold text-brand-ink/75">{label}</span>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-brand-pinkSoft/25 ring-1 ring-brand-ink/10 sm:w-48 sm:shrink-0">
+        <div
+          className={cn(
+            "relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-brand-pinkSoft/25 ring-1 ring-brand-ink/10 sm:w-48 sm:shrink-0",
+            dragging && "ring-2 ring-brand-pink",
+          )}
+        >
           {url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={url} alt="" className="h-full w-full object-cover" />
@@ -681,9 +845,14 @@ function SlideImageField({
               htmlFor={inputId}
               className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1 text-xs font-bold text-brand-ink/45 hover:text-brand-pink"
             >
-              <ImagePlus className="h-6 w-6" /> Subir imagen
+              <ImagePlus className="h-6 w-6" /> Subir o arrastrar imagen
             </label>
           )}
+          {dragging && !uploading ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-brand-pink/80 px-2 text-center text-xs font-extrabold text-white">
+              Soltá la imagen acá
+            </div>
+          ) : null}
           {uploading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/70">
               <Loader2 className="h-6 w-6 animate-spin text-brand-pink" />
@@ -716,7 +885,7 @@ function SlideImageField({
               </button>
             ) : null}
           </div>
-          <p className="text-xs leading-5 text-brand-ink/55">{hint}</p>
+          <p className="text-xs leading-5 text-brand-ink/55">{hint} También podés arrastrar la imagen desde una carpeta y soltarla acá.</p>
           {error ? (
             <p role="alert" className="text-xs font-bold text-red-600">
               {error}

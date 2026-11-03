@@ -30,10 +30,16 @@ export type ShippingQuote = {
   message: string;
 };
 
+/**
+ * @param subtotalArs what the products cost (used for the minimum order amount)
+ * @param freeShippingSubtotalArs amount compared against the free shipping and shipping discount
+ *   thresholds. Defaults to the subtotal; buy X pay Y promos can add back or take off free units.
+ */
 export function calculateShippingQuote(
   subtotalArs: number,
   provinceName: string | undefined,
   settings: Settings,
+  freeShippingSubtotalArs: number = subtotalArs,
 ): ShippingQuote {
   if (!settings) {
     return {
@@ -66,7 +72,7 @@ export function calculateShippingQuote(
 
   const discountThresholdArs = settings.activeShippingRule?.discountThresholdArs ?? null;
   const discountPercentage = settings.activeShippingRule?.discountPercentage ?? 0;
-  const freeShippingReached = subtotalArs >= settings.freeShippingThreshold;
+  const freeShippingReached = freeShippingSubtotalArs >= settings.freeShippingThreshold;
 
   if (freeShippingReached) {
     return {
@@ -84,7 +90,7 @@ export function calculateShippingQuote(
   const shippingDiscountReached =
     Boolean(discountThresholdArs) &&
     discountPercentage > 0 &&
-    subtotalArs >= Number(discountThresholdArs);
+    freeShippingSubtotalArs >= Number(discountThresholdArs);
   const shippingArs = shippingDiscountReached
     ? Math.max(0, Math.round(baseShippingArs * (1 - discountPercentage / 100)))
     : baseShippingArs;

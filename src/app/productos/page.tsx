@@ -1,8 +1,15 @@
+import type { Metadata } from "next";
+
 import { Container } from "@/components/layout/container";
 import { SectionHeading } from "@/components/section-heading";
 import { HomeInstitutionalStrip } from "@/features/catalog/components/home-institutional-strip";
 import { ProductCard } from "@/features/catalog/components/product-card";
 import { getVisibleProducts } from "@/features/catalog/queries";
+
+export const metadata: Metadata = {
+  title: "Barritas",
+  alternates: { canonical: "/productos" },
+};
 
 export default async function ProductsPage() {
   const products = await getVisibleProducts();
