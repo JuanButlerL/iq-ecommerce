@@ -29,6 +29,8 @@ export function SiteHeader({
   const [isCompact, setIsCompact] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isHomeRoute = pathname === "/";
+  // El canal mayorista tiene su propio carrito (barra inferior): el de la tienda no aplica ahí.
+  const showRetailCart = !pathname.startsWith("/mayoristas");
   const navigation = [
     { href: "/", label: "Inicio" },
     { href: "/productos", label: "Productos" },
@@ -126,10 +128,12 @@ export function SiteHeader({
           </Link>
 
           <div className="justify-self-end lg:hidden">
-            <CartBadge
-              className="h-10 w-10 border border-brand-pink/15 bg-white text-brand-pink shadow-none ring-0"
-              countClassName="bg-brand-pink text-white"
-            />
+            {showRetailCart ? (
+              <CartBadge
+                className="h-10 w-10 border border-brand-pink/15 bg-white text-brand-pink shadow-none ring-0"
+                countClassName="bg-brand-pink text-white"
+              />
+            ) : null}
           </div>
 
           <div className="hidden min-w-0 flex-none items-center justify-end gap-8 lg:flex xl:gap-10">
@@ -154,10 +158,12 @@ export function SiteHeader({
                   ))}
             </nav>
 
-            <CartBadge
-              className="h-11 w-11 border border-brand-pink/15 bg-white text-brand-pink shadow-none ring-0"
-              countClassName="bg-brand-pink text-white"
-            />
+            {showRetailCart ? (
+              <CartBadge
+                className="h-11 w-11 border border-brand-pink/15 bg-white text-brand-pink shadow-none ring-0"
+                countClassName="bg-brand-pink text-white"
+              />
+            ) : null}
           </div>
         </div>
       </div>

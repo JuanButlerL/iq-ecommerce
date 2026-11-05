@@ -4,13 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { CheckCircle2, Trash2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/components/address-map-preview";
+import { FieldShell } from "@/features/checkout/components/field-shell";
 import { useHydratedWholesaleCart, useWholesaleCartStore } from "@/features/wholesale/cart-store";
+import { joinStreet, splitStreet } from "@/features/wholesale/delivery-address";
 import type { WholesaleCustomerProfile } from "@/features/wholesale/identify";
 import {
   WHOLESALE_PAYMENT_METHOD_LABELS,
@@ -69,6 +72,8 @@ type Delivery = {
   contactName: string;
   phone: string;
   street: string;
+  number: string;
+  withoutNumber: boolean;
   floor: string;
   city: string;
   province: string;
@@ -76,13 +81,13 @@ type Delivery = {
   reference: string;
 };
 
-const EMPTY_DELIVERY: Delivery = { contactName: "", phone: "", street: "", floor: "", city: "", province: "", postalCode: "", reference: "" };
+const EMPTY_DELIVERY: Delivery = { contactName: "", phone: "", street: "", number: "", withoutNumber: false, floor: "", city: "", province: "", postalCode: "", reference: "" };
 
 function deliveryFrom(customer: WholesaleCustomerProfile): Delivery {
   return {
     contactName: customer.contactName,
     phone: customer.phone,
-    street: customer.street,
+    ...splitStreet(customer.street),
     floor: customer.floor ?? "",
     city: customer.city,
     province: customer.province,
@@ -179,7 +184,22 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
   const missing = Math.max(0, settings.minDisplays - displays);
   const subtotalArs = availableLines.reduce((sum, line) => sum + line.product.priceArs * line.quantity, 0);
 
-  const addressChanged = customer ? !isSameDeliveryAddress(customer, { ...delivery, floor: delivery.floor || null }) : false;
+  const fullStreet = joinStreet(delivery);
+  const addressChanged = customer ? !isSameDeliveryAddress(customer, { ...delivery, street: fullStreet, floor: delivery.floor || null }) : false;
+  const streetMayContainHeight = !delivery.withoutNumber && !delivery.number.trim() && /(?:^|\s)\d{3,8}\s*(?:bis|[a-z])?\s*$/i.test(delivery.street.trim());
+  const addressPreview = useMemo(
+    () =>
+      buildAddressPreview({
+        street: delivery.street,
+        number: delivery.number,
+        withoutNumber: delivery.withoutNumber,
+        extra: delivery.floor,
+        locality: delivery.city,
+        province: delivery.province,
+        postalCode: delivery.postalCode,
+      }),
+    [delivery.street, delivery.number, delivery.withoutNumber, delivery.floor, delivery.city, delivery.province, delivery.postalCode],
+  );
   const deferredAvailable = Boolean(customer?.allowDeferredPayment) && !addressChanged;
 
   const paymentOptions = (
@@ -251,7 +271,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     }
   };
 
-  const updateDelivery = (key: keyof Delivery, value: string) => setDelivery((current) => ({ ...current, [key]: value }));
+  const updateDelivery = (key: Exclude<keyof Delivery, "withoutNumber">, value: string) => setDelivery((current) => ({ ...current, [key]: value }));
 
   const canSubmit =
     hydrated && displays > 0 && missing === 0 && (identity.stage === "recognized" || identity.stage === "new") && paymentMethod !== null && !submitting;
@@ -276,7 +296,16 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
           ? { mode: "existing", customerId: identity.customerId }
           : { mode: "new", email, cuit, legalName, businessName, businessType },
       taxCondition,
-      delivery,
+      delivery: {
+        contactName: delivery.contactName,
+        phone: delivery.phone,
+        street: fullStreet,
+        floor: delivery.floor,
+        city: delivery.city,
+        province: delivery.province,
+        postalCode: delivery.postalCode,
+        reference: delivery.reference,
+      },
       paymentMethod,
       notes,
     });
@@ -476,24 +505,16 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
           {identity.stage === "recognized" || identity.stage === "new" ? (
             <>
               <Step number={3} title="Entrega">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Quién recibe *" htmlFor="w-contact">
-                    <Input id="w-contact" autoComplete="name" value={delivery.contactName} onChange={(event) => updateDelivery("contactName", event.target.value)} required />
-                  </Field>
-                  <Field label="Teléfono / WhatsApp *" htmlFor="w-phone">
-                    <Input id="w-phone" type="tel" autoComplete="tel" value={delivery.phone} onChange={(event) => updateDelivery("phone", event.target.value)} required />
-                  </Field>
-                  <Field label="Calle y número *" htmlFor="w-street">
-                    <Input id="w-street" autoComplete="address-line1" value={delivery.street} onChange={(event) => updateDelivery("street", event.target.value)} required />
-                  </Field>
-                  <Field label="Piso / Depto / Local" htmlFor="w-floor">
-                    <Input id="w-floor" autoComplete="address-line2" value={delivery.floor} onChange={(event) => updateDelivery("floor", event.target.value)} />
-                  </Field>
-                  <Field label="Ciudad *" htmlFor="w-city">
-                    <Input id="w-city" autoComplete="address-level2" value={delivery.city} onChange={(event) => updateDelivery("city", event.target.value)} required />
-                  </Field>
-                  <Field label="Provincia *" htmlFor="w-province">
-                    <Select id="w-province" value={delivery.province} onChange={(event) => updateDelivery("province", event.target.value)} required>
+                <p className="-mt-3 mb-4 text-sm text-brand-ink/60">Completalos tal como deben figurar en el envío.</p>
+                <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
+                  <FieldShell label="Quién recibe" className="md:col-span-2">
+                    <Input autoComplete="name" placeholder="Nombre y apellido" value={delivery.contactName} onChange={(event) => updateDelivery("contactName", event.target.value)} required />
+                  </FieldShell>
+                  <FieldShell label="Teléfono / WhatsApp">
+                    <Input type="tel" autoComplete="tel" placeholder="Ej: 11 2345 6789" value={delivery.phone} onChange={(event) => updateDelivery("phone", event.target.value)} required />
+                  </FieldShell>
+                  <FieldShell label="Provincia">
+                    <Select autoComplete="address-level1" value={delivery.province} onChange={(event) => updateDelivery("province", event.target.value)} required>
                       <option value="">Elegí una provincia</option>
                       {ARGENTINA_PROVINCES.map((province) => (
                         <option key={province.code} value={province.name}>
@@ -504,13 +525,58 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                         <option value={delivery.province}>{delivery.province}</option>
                       ) : null}
                     </Select>
-                  </Field>
-                  <Field label="Código postal *" htmlFor="w-postal">
-                    <Input id="w-postal" autoComplete="postal-code" value={delivery.postalCode} onChange={(event) => updateDelivery("postalCode", event.target.value)} required />
-                  </Field>
-                  <Field label="Referencia" htmlFor="w-reference">
-                    <Input id="w-reference" value={delivery.reference} onChange={(event) => updateDelivery("reference", event.target.value)} placeholder="Horario, timbre, entre calles" />
-                  </Field>
+                  </FieldShell>
+                  <FieldShell label="Localidad">
+                    <Input placeholder="Ej: Vicente López" autoComplete="address-level2" value={delivery.city} onChange={(event) => updateDelivery("city", event.target.value)} required />
+                  </FieldShell>
+                  <FieldShell label="Código postal">
+                    <Input placeholder="Ej: 1425" autoComplete="postal-code" inputMode="numeric" value={delivery.postalCode} onChange={(event) => updateDelivery("postalCode", event.target.value)} required />
+                  </FieldShell>
+                  <FieldShell label="Calle" className={delivery.withoutNumber ? "md:col-span-3" : "md:col-span-2"}>
+                    <Input placeholder="Ej: Calle 11 o Amenábar" autoComplete="address-line1" value={delivery.street} onChange={(event) => updateDelivery("street", event.target.value)} required />
+                    {streetMayContainHeight ? (
+                      <p className="mt-1.5 text-xs font-medium leading-5 text-brand-ink/55">
+                        Si ese número es la altura, cargalo en el campo de al lado. Las calles como &quot;Calle 11&quot; están permitidas.
+                      </p>
+                    ) : null}
+                  </FieldShell>
+                  {!delivery.withoutNumber ? (
+                    <FieldShell label="Altura">
+                      <Input placeholder="Ej: 2451" autoComplete="off" inputMode="numeric" value={delivery.number} onChange={(event) => updateDelivery("number", event.target.value)} required />
+                    </FieldShell>
+                  ) : null}
+                  <label className="group -mt-1 inline-flex w-fit cursor-pointer items-center gap-2 text-left focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-pink focus-within:ring-offset-2 md:col-span-3">
+                    <input
+                      type="checkbox"
+                      className="peer sr-only"
+                      checked={delivery.withoutNumber}
+                      onChange={(event) => setDelivery((current) => ({ ...current, withoutNumber: event.target.checked, number: event.target.checked ? "" : current.number }))}
+                    />
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-brand-ink/30 bg-white text-white transition-colors peer-checked:border-brand-pink peer-checked:bg-brand-pink">
+                      <CheckCircle2 className={cn("h-3 w-3 transition-opacity", delivery.withoutNumber ? "opacity-100" : "opacity-0")} />
+                    </span>
+                    <span className="text-sm font-semibold text-brand-ink/70">La calle no tiene altura</span>
+                  </label>
+                  <FieldShell label="Piso / Depto" className="md:col-span-3">
+                    <Input placeholder="Ej: Piso 4 Depto B" autoComplete="address-line2" value={delivery.floor} onChange={(event) => updateDelivery("floor", event.target.value)} />
+                  </FieldShell>
+
+                  {addressPreview ? (
+                    <div className="md:col-span-3">
+                      <AddressMapPreview preview={addressPreview} />
+                    </div>
+                  ) : null}
+
+                  <div className="md:col-span-3">
+                    <FieldShell label="Observaciones">
+                      <Textarea
+                        placeholder="Ej: Timbre roto. Tocar portería. Recibe Lucía por la tarde."
+                        maxLength={200}
+                        value={delivery.reference}
+                        onChange={(event) => updateDelivery("reference", event.target.value)}
+                      />
+                    </FieldShell>
+                  </div>
                 </div>
                 {customer && addressChanged ? (
                   <p className="mt-4 rounded-2xl bg-brand-yellow/40 px-4 py-3 text-sm text-brand-ink">
@@ -567,7 +633,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                 </div>
                 <div className="mt-4">
                   <Field label="Comentarios" htmlFor="w-notes">
-                    <Textarea id="w-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Algo que tengamos que saber del pedido o la entrega" />
+                    <Textarea id="w-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Algo que tengamos que saber del pedido" />
                   </Field>
                 </div>
               </Step>
