@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { NEWSLETTER_ACCENT_TONES, NEWSLETTER_STEP_MARKERS, NEWSLETTER_TIP_TONES, containsHtml, isSafeImageUrl, isSafeLinkUrl } from "@/features/newsletter/content";
+import { EMAIL_CSS_MAX_LENGTH, EMAIL_HTML_MAX_LENGTH, sanitizeEmailCss, sanitizeEmailHtml } from "@/features/newsletter/email-html";
 
 const htmlMessage = "No se admite HTML. Usá **negrita**, *cursiva* y [texto](link).";
 
@@ -29,7 +30,7 @@ const accentTone = z.enum(NEWSLETTER_ACCENT_TONES).default("pink");
 
 export const newsletterBlockSchema = z.discriminatedUnion("type", [
   z.object({ id: blockId, type: z.literal("heading"), text: requiredText(2, 160, "Completá el título de sección.") }),
-  z.object({ id: blockId, type: z.literal("paragraph"), text: requiredText(2, 5000, "Completá el párrafo.") }),
+  z.object({ id: blockId, type: z.literal("paragraph"), text: requiredText(2, 5000, "Completá el párrafo."), small: z.boolean().optional() }),
   z.object({ id: blockId, type: z.literal("image"), url: imageUrl, alt: altText, caption: optionalText(300) }),
   z.object({
     id: blockId,
@@ -112,6 +113,48 @@ export const newsletterBlockSchema = z.discriminatedUnion("type", [
     text: requiredText(2, 1500, "Completá las fuentes."),
   }),
   z.object({ id: blockId, type: z.literal("divider") }),
+  z.object({
+    id: blockId,
+    type: z.literal("promos"),
+    items: z
+      .array(
+        z.object({
+          value: requiredText(1, 40, "Completá el valor de cada promo (ej: 3x2, 20% off)."),
+          label: optionalText(100),
+          text: plainText(500),
+          code: optionalText(40),
+          tone: accentTone,
+        }),
+      )
+      .min(1, "Agregá al menos una promo.")
+      .max(3, "Máximo 3 promos por bloque."),
+  }),
+  z.object({
+    id: blockId,
+    type: z.literal("features"),
+    items: z
+      .array(z.object({ icon: optionalText(12), title: requiredText(2, 80, "Completá el título de cada beneficio."), text: plainText(200) }))
+      .min(2, "La franja necesita al menos 2 beneficios.")
+      .max(4, "Máximo 4 beneficios por franja."),
+  }),
+  z.object({ id: blockId, type: z.literal("banner"), text: requiredText(2, 200, "Completá el texto del aviso."), tone: accentTone }),
+  // The only block that accepts HTML: it is always stored sanitized (allowlist).
+  z.object({
+    id: blockId,
+    type: z.literal("html"),
+    html: z
+      .string()
+      .max(EMAIL_HTML_MAX_LENGTH, "El HTML es demasiado grande (máximo 300 KB).")
+      .transform(sanitizeEmailHtml)
+      .refine((value) => value.length > 0, "Pegá el HTML del email."),
+    css: z
+      .string()
+      .max(EMAIL_CSS_MAX_LENGTH)
+      .optional()
+      .nullable()
+      .transform((value) => sanitizeEmailCss(value) || null),
+    fullEmail: z.boolean().default(false),
+  }),
 ]);
 
 export const newsletterFormSchema = z.object({

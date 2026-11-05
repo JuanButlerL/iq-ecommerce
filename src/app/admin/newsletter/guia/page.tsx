@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils/cn";
 
 const steps = [
   { icon: Settings2, title: "Configurar (una sola vez)", text: "En Newsletter → Configuración: remitente, casillas de prueba (hasta 5) y máximo de mails por día." },
-  { icon: FileUp, title: "Crear o importar", text: "“Nueva newsletter” arranca un borrador vacío. “Importar HTML” precarga todo desde los archivos de la agencia." },
+  { icon: FileUp, title: "Crear o importar", text: "“Nueva newsletter” arranca un borrador vacío. “Importar HTML” precarga todo desde cualquier email en HTML (agencia, Claude, Mailchimp) con la estructura del original y la marca de IQ Kids." },
   { icon: PenLine, title: "Editar el contenido", text: "Título, resumen, categoría, asunto y bloques. Todo es editable. La vista previa muestra la web y el mail en vivo." },
   { icon: ImagePlus, title: "Subir las fotos", text: "Portada obligatoria y fotos en los bloques. Cada imagen necesita un texto alternativo que describa qué se ve." },
   { icon: FlaskConical, title: "Mandar la prueba", text: "Llega a las casillas de prueba con “[PRUEBA]” en el asunto. Si después se edita algo, hay que mandar otra." },
