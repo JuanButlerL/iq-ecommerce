@@ -8,6 +8,7 @@ import {
   type NewsletterProductSummary,
   type NewsletterTipTone,
 } from "@/features/newsletter/content";
+import { EMAIL_HTML_UNSUBSCRIBE_HREF, EMAIL_HTML_WEB_HREF, renderEmailHtml } from "@/features/newsletter/email-html";
 
 // The email is rendered once into a template with placeholders and frozen as the
 // newsletter snapshot. Each recipient only gets their own tracking/unsubscribe
@@ -64,6 +65,11 @@ export function buildNewsletterEmailSnapshot(input: {
   const { content, products, siteUrl, webUrl } = input;
   const links: string[] = [];
   const textParts: string[] = [];
+  // An imported full email keeps its own design: no IQ Kids header, title or footer.
+  const fullEmail = content.blocks.some((block) => block.type === "html" && block.fullEmail);
+  let hasOwnUnsubscribe = false;
+  let webLinkRef: string | null | undefined;
+  const webRef = () => (webLinkRef === undefined ? (webLinkRef = webUrl ? linkRef(webUrl) : null) : webLinkRef);
 
   function linkRef(url: string) {
     links.push(withNewsletterUtm(url, siteUrl, content.slug));
@@ -214,18 +220,45 @@ export function buildNewsletterEmailSnapshot(input: {
       case "divider":
         textParts.push("—");
         return `<div style="margin:30px auto;width:72px;height:4px;border-radius:4px;background:${pinkSoft};line-height:4px;font-size:0;">&nbsp;</div>`;
+
+      case "html": {
+        const rendered = renderEmailHtml(block.html, {
+          rewriteHref: (href) => {
+            if (href === EMAIL_HTML_UNSUBSCRIBE_HREF) {
+              hasOwnUnsubscribe = true;
+              return "{{unsubscribeUrl}}";
+            }
+            if (href === EMAIL_HTML_WEB_HREF) return webRef();
+            return linkRef(href);
+          },
+          rewriteSrc: (src) => toAbsoluteUrl(src, siteUrl),
+        });
+        textParts.push(rendered.text);
+        return block.fullEmail ? rendered.html : `<div style="margin:22px 0;">${rendered.html}</div>`;
+      }
     }
+  }
+
+  // Blocks added next to an imported full email go in a centered 600px column.
+  function renderFullEmailBlock(block: NewsletterBlock) {
+    const html = renderBlock(block);
+    if (!html || (block.type === "html" && block.fullEmail)) return html;
+    return `<table role="presentation" class="container" width="600" align="center" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;margin:0 auto;background:#ffffff;"><tr><td class="pad" style="padding:8px 32px;">${html}</td></tr></table>`;
   }
 
   const title = content.title.trim();
   const subject = content.emailSubject.trim();
   const previewText = (content.emailPreviewText ?? content.excerpt).trim();
 
+  if (fullEmail) {
+    return buildFullEmail();
+  }
+
   textParts.push(title.toUpperCase());
   if (content.subtitle) textParts.push(content.subtitle);
 
   const blocksHtml = content.blocks.map(renderBlock).join("");
-  const webLink = webUrl ? linkRef(webUrl) : null;
+  const webLink = webRef();
   const logoUrl = `${siteUrl.replace(/\/$/, "")}/brand/iq-kids-logo.png`;
   const cover = content.coverImageUrl
     ? `<tr><td style="padding:0 24px;">${image(content.coverImageUrl, content.coverImageAlt || title, 552, 24)}</td></tr>`
@@ -246,6 +279,7 @@ export function buildNewsletterEmailSnapshot(input: {
     .pad { padding-left: 20px !important; padding-right: 20px !important; }
   }
 </style>
+${importedCss()}
 </head>
 <body style="margin:0;padding:0;background:${pageBackground};">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(previewText)}</div>
@@ -290,6 +324,60 @@ ${content.subtitle ? `<p style="margin:0 0 8px;font-family:${bodyFont};font-size
     links,
     renderedAt: (input.now ?? new Date()).toISOString(),
   };
+
+  function importedCss() {
+    const css = content.blocks.flatMap((block) => (block.type === "html" && block.css ? [block.css] : [])).join("\n");
+    return css ? `<style>\n${css.replace(/<\//g, "")}\n</style>` : "";
+  }
+
+  function buildFullEmail(): NewsletterEmailSnapshot {
+    const blocksHtml = content.blocks.map(renderFullEmailBlock).join("\n");
+    const webLink = webRef();
+    // Every newsletter needs a working unsubscribe link: if the imported design has
+    // none, a small legal footer is added below it.
+    const legalFooter = hasOwnUnsubscribe
+      ? ""
+      : `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:18px 16px 28px;font-family:${bodyFont};font-size:12px;line-height:1.6;color:${muted};">Recibís este email porque te suscribiste a la newsletter de IQ Kids.<br />${webLink ? `<a href="${webLink}" style="color:${muted};text-decoration:underline;">Ver en la web</a> · ` : ""}<a href="{{unsubscribeUrl}}" style="color:${muted};text-decoration:underline;">Darme de baja</a></td></tr></table>`;
+
+    const fullHtml = `<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>${escapeHtml(subject)}</title>
+<style>
+  @media only screen and (max-width: 620px) {
+    .container { width: 100% !important; }
+    .pad { padding-left: 20px !important; padding-right: 20px !important; }
+  }
+</style>
+${importedCss()}
+</head>
+<body style="margin:0;padding:0;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(previewText)}</div>
+${blocksHtml}
+${legalFooter}
+{{openPixel}}
+</body>
+</html>`;
+
+    if (!hasOwnUnsubscribe) {
+      textParts.push(`\n—\nRecibís este email porque te suscribiste a la newsletter de IQ Kids.`);
+      if (webLink) textParts.push(`Ver en la web: ${webLink}`);
+      textParts.push(`Darte de baja: {{unsubscribeUrl}}`);
+    }
+
+    return {
+      version: 1,
+      subject,
+      previewText,
+      html: fullHtml,
+      text: textParts.filter(Boolean).join("\n\n"),
+      links,
+      renderedAt: (input.now ?? new Date()).toISOString(),
+    };
+  }
 }
 
 export function personalizeNewsletterEmail(

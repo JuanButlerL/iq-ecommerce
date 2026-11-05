@@ -403,6 +403,47 @@ function BlockFields({
 
     case "divider":
       return <p className="text-sm text-brand-ink/50">Separador visual entre secciones. No necesita configuración.</p>;
+
+    case "html":
+      return (
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-brand-ink/60">
+            Diseño de email tal cual se armó (tablas, colores, cajas). Para cambiar un texto, buscalo en el código y editalo: la vista previa se actualiza al instante. Por seguridad se quitan scripts, formularios y links no seguros.
+          </p>
+          <label className="block">
+            <span className={fieldLabel}>Código HTML</span>
+            <textarea
+              value={block.html}
+              onChange={(event) => onChange({ ...block, html: event.target.value })}
+              rows={14}
+              spellCheck={false}
+              className="min-h-64 w-full rounded-3xl border border-brand-ink/10 bg-white px-4 py-3 font-mono text-xs leading-5 text-brand-ink outline-none transition focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+            />
+          </label>
+          <label className="flex items-start gap-3 text-sm text-brand-ink/75">
+            <input
+              type="checkbox"
+              checked={block.fullEmail}
+              onChange={(event) => onChange({ ...block, fullEmail: event.target.checked })}
+              className="mt-1 h-4 w-4 shrink-0 rounded border-brand-ink/20 accent-brand-pink"
+            />
+            <span>
+              <span className="font-bold text-brand-ink">Es el email completo</span> — se envía con este diseño (su propio encabezado y pie) en lugar de la plantilla de IQ Kids. Si no trae link para darse de baja, se agrega uno al final.
+            </span>
+          </label>
+          <details className="rounded-2xl bg-brand-ink/[0.03] px-4 py-3">
+            <summary className="cursor-pointer text-sm font-bold text-brand-ink/70">Estilos CSS (opcional)</summary>
+            <textarea
+              value={block.css ?? ""}
+              onChange={(event) => onChange({ ...block, css: event.target.value })}
+              rows={6}
+              spellCheck={false}
+              placeholder="@media (max-width: 600px) { ... }"
+              className="mt-3 w-full rounded-2xl border border-brand-ink/10 bg-white px-4 py-3 font-mono text-xs leading-5 text-brand-ink outline-none focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20"
+            />
+          </details>
+        </div>
+      );
   }
 }
 

@@ -24,8 +24,10 @@ function normalize(value: string) {
 
 function warningsFor(item: Candidate) {
   const warnings: Array<{ icon: typeof ImageOff; text: string }> = [];
-  warnings.push({ icon: ImageOff, text: "Subir la foto de portada" });
-  if (item.internalNotes.includes('era "#"')) warnings.push({ icon: Link2, text: "Revisar el link del botón" });
+  const keepsDesign = item.content.blocks.some((block) => block.type === "html");
+  if (!keepsDesign) warnings.push({ icon: ImageOff, text: "Subir la foto de portada" });
+  if (item.internalNotes.includes('era "#"') || item.internalNotes.includes('eran "#"')) warnings.push({ icon: Link2, text: keepsDesign ? "Revisar los links sin destino" : "Revisar el link del botón" });
+  if (item.internalNotes.includes("no se muestran")) warnings.push({ icon: ImageOff, text: "Hay imágenes sin dirección https" });
   if (item.duplicate) warnings.push({ icon: AlertTriangle, text: "Ya existe una newsletter con este título" });
   return warnings;
 }
@@ -69,14 +71,14 @@ export function NewsletterImportButton({ existingTitles }: { existingTitles: str
 
     const parsed: Candidate[] = [];
     for (const file of files) {
-      const items = parseNewsletterSequenceHtml(await file.text());
+      const items = parseNewsletterSequenceHtml(await file.text(), file.name);
       items.forEach((item, index) =>
         parsed.push({ ...item, key: `${file.name}-${index}`, fileName: file.name, duplicate: existing.has(normalize(item.content.title)) }),
       );
     }
 
     if (parsed.length === 0) {
-      setError("No encontramos newsletters en esos archivos. El importador reconoce los HTML de la agencia (un email por bloque, con asunto, encabezado y cuerpo) y las vistas previas de emails con pestañas (asunto y preheader en la cabecera de cada email).");
+      setError("No encontramos contenido en esos archivos. Revisá que sea el HTML del email (el archivo .html completo, no una captura ni un link).");
       return;
     }
 

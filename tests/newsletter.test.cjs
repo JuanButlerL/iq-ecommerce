@@ -27,8 +27,9 @@ function load(file, imports = {}) {
 }
 
 const content = load('src/features/newsletter/content.ts');
-const render = load('src/features/newsletter/render-email.ts', { '@/features/newsletter/content': content });
-const validations = load('src/lib/validations/newsletter.ts', { zod: require('zod'), '@/features/newsletter/content': content });
+const emailHtml = load('src/features/newsletter/email-html.ts', { '@/features/newsletter/content': content });
+const render = load('src/features/newsletter/render-email.ts', { '@/features/newsletter/content': content, '@/features/newsletter/email-html': emailHtml });
+const validations = load('src/lib/validations/newsletter.ts', { zod: require('zod'), '@/features/newsletter/content': content, '@/features/newsletter/email-html': emailHtml });
 const enums = Object.fromEntries(['DRAFT', 'SCHEDULED', 'SENDING', 'PAUSED', 'SENT', 'NEEDS_REVIEW', 'PENDING', 'RESERVED', 'SKIPPED', 'ERROR', 'SUBSCRIBED', 'UNSUBSCRIBED'].map(s => [s, s]));
 
 const NOW = new Date('2026-10-01T12:00:00Z');
@@ -433,4 +434,91 @@ test('the email loads the brand display font from the site with safe fallbacks',
   });
   assert.ok(snapshot.html.includes("url('https://iqkids.example/fonts/watermelon-regular.woff2')"));
   assert.ok(snapshot.html.includes("'Watermelon Regular','Arial Rounded MT Bold'"));
+});
+
+// ---------------------------------------------------------------------------
+// Imported email HTML ("HTML de email" block)
+// ---------------------------------------------------------------------------
+
+const PROMO_EMAIL = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F0EBE4;"><tr><td align="center" style="padding:32px 16px;">
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;">
+<tr><td width="48%" style="vertical-align:top;"><table width="100%" style="border:1.5px solid #EDE8E2;border-radius:14px;overflow:hidden;"><tr><td style="background:#E78080;padding:16px 18px 12px;"><div style="font-family:Georgia,serif;font-size:26px;color:#ffffff;">3x2</div></td></tr>
+<tr><td><div style="font-family:monospace;color:#C96060;background:#FAECE7;border:1.5px dashed #E78080;border-radius:8px;display:inline-block;">CYBER3</div></td></tr></table></td></tr>
+<tr><td style="text-align:center;"><a href="/productos" style="display:inline-block;background:#E78080;color:#ffffff;">Ir a las barritas →</a></td></tr>
+<tr><td><p style="font-size:11px;">🎉 &nbsp;Válido hasta el 7/11 · <a href="nl:unsubscribe" style="color:rgba(255,255,255,0.5);">Desuscribirse</a> · <a href="nl:web">Ver en el navegador</a></p></td></tr>
+</table></td></tr></table>`;
+
+test('email HTML keeps tables, inline styles and table attributes as authored', () => {
+  const clean = emailHtml.sanitizeEmailHtml(PROMO_EMAIL);
+  for (const piece of ['<table width="600" cellpadding="0" cellspacing="0" border="0"', 'td align="center"', 'width="48%"', 'border-radius:16px', 'border:1.5px dashed #E78080', 'display:inline-block', 'font-family:Georgia,serif', 'rgba(255,255,255,0.5)', '🎉 &nbsp;Válido', 'CYBER3']) {
+    assert.ok(clean.includes(piece), piece);
+  }
+  assert.equal(emailHtml.sanitizeEmailHtml(clean), clean, 'sanitizing twice changes nothing (stable content hash)');
+});
+
+test('email HTML drops scripts, handlers, dangerous URLs and CSS tricks', () => {
+  const dirty = `<div onclick="alert(1)" style="color:red;background:url(javascript:alert(1));width:expression(alert(1));position:fixed;padding:4px">Hola</div>
+<script>alert(1)</script><style>body{}</style><iframe src="https://evil.example"></iframe><svg><script>alert(2)</script></svg>
+<a href="javascript:alert(1)">x</a><a href="jav&#x61;script:alert(1)">y</a><a href="//evil.example">z</a><img src="data:image/png;base64,AAAA" alt="a"><img src=x onerror=alert(1)>
+<form action="https://evil.example"><input name="password"></form><p title='"><img src=x onerror=alert(1)>'>t</p><!-- <script>alert(3)</script> -->`;
+  const clean = emailHtml.sanitizeEmailHtml(dirty);
+  for (const bad of ['onclick', '<script', 'alert(2)', 'javascript', 'expression', 'position:fixed', '<iframe', '<svg', '<form', '<input', 'data:image', '//evil', '<style', '<img src=x']) {
+    assert.ok(!clean.includes(bad), `${bad} removed: ${clean}`);
+  }
+  assert.ok(!/\son\w+=/i.test(clean.replace(/"[^"]*"/g, '""')), 'no event handler attributes outside quoted (escaped) values');
+  assert.ok(clean.includes('color:red'), 'safe declarations next to unsafe ones survive');
+  assert.ok(clean.includes('padding:4px'));
+  assert.ok(clean.includes('>x</a>') && clean.includes('>y</a>'), 'unsafe links keep their text');
+  assert.equal(emailHtml.sanitizeEmailCss('@import url(https://x.example/a.css); .a{background:url(javascript:alert(1))} @media (max-width:600px){.stack{display:block!important}}').includes('javascript'), false);
+  assert.ok(emailHtml.sanitizeEmailCss('@media (max-width:600px){.stack{display:block!important}}').includes('.stack'));
+});
+
+test('the html block validates sanitized and rejects an empty design', () => {
+  const { newsletterBlockSchema } = validations;
+  const ok = newsletterBlockSchema.safeParse({ id: 'h', type: 'html', html: '<p style="color:#E78080">Hola</p><script>alert(1)</script>', fullEmail: true });
+  assert.equal(ok.success, true);
+  assert.equal(ok.data.html, '<p style="color:#E78080">Hola</p>');
+  assert.equal(newsletterBlockSchema.safeParse({ id: 'h', type: 'html', html: '<script>alert(1)</script>', fullEmail: true }).success, false);
+  assert.equal(newsletterBlockSchema.safeParse({ id: 'x', type: 'paragraph', text: '<b>sigue sin HTML</b>' }).success, false, 'other blocks still reject HTML');
+});
+
+test('an imported full email is sent with its own design, tracked links and its own unsubscribe link', () => {
+  const snapshot = render.buildNewsletterEmailSnapshot({
+    content: { slug: 'cyber', title: 'Se extendió', excerpt: 'Las ofertas siguen hasta el viernes.', blocks: [{ id: 'h', type: 'html', html: PROMO_EMAIL, css: '@media (max-width:600px){.stack{display:block!important}}', fullEmail: true }], emailSubject: 'Lo extendemos 🧡', emailPreviewText: 'Las ofertas del Cyber siguen' },
+    products: {}, siteUrl: SITE, webUrl: `${SITE}/newsletter/cyber`,
+  });
+  assert.ok(snapshot.html.includes('border:1.5px dashed #E78080'), 'promo code box kept');
+  assert.ok(snapshot.html.includes('<table width="600" cellpadding="0"'), 'layout tables kept');
+  assert.ok(!snapshot.html.includes('iq-kids-logo.png'), 'no IQ Kids template header around an imported email');
+  assert.ok(!snapshot.html.includes('Darme de baja'), 'no extra footer when the email has its own unsubscribe link');
+  assert.ok(snapshot.html.includes('href="{{unsubscribeUrl}}"'));
+  assert.ok(snapshot.html.includes('.stack{display:block!important}'), 'media queries go in the head');
+  assert.ok(snapshot.html.includes('Las ofertas del Cyber siguen'), 'preheader');
+  assert.match(snapshot.links[0], /\/productos\?utm_source=newsletter/);
+  assert.ok(snapshot.links.includes(`${SITE}/newsletter/cyber?utm_source=newsletter&utm_medium=email&utm_campaign=cyber`), '"Ver en el navegador" goes to the web page');
+  assert.ok(snapshot.text.includes('CYBER3') && snapshot.text.includes('3x2'), 'plain text version');
+
+  const personalized = render.personalizeNewsletterEmail(snapshot, { linkUrl: (i) => `https://t.example/c/${i}`, unsubscribeUrl: 'https://t.example/u', openPixelUrl: 'https://t.example/o' });
+  assert.ok(personalized.html.includes('href="https://t.example/u"'));
+  assert.ok(personalized.html.includes('href="https://t.example/c/0"'));
+  assert.ok(personalized.html.includes('https://t.example/o'));
+});
+
+test('an imported email without unsubscribe link gets the legal footer', () => {
+  const snapshot = render.buildNewsletterEmailSnapshot({
+    content: { slug: 's', title: 'T', excerpt: 'Resumen de prueba', blocks: [{ id: 'h', type: 'html', html: '<table><tr><td>Hola</td></tr></table>', fullEmail: true }], emailSubject: 'A' },
+    products: {}, siteUrl: SITE, webUrl: null,
+  });
+  assert.ok(snapshot.html.includes('Darme de baja'));
+  assert.ok(snapshot.html.includes('{{unsubscribeUrl}}'));
+  assert.ok(snapshot.text.includes('{{unsubscribeUrl}}'));
+});
+
+test('an html block that is not a full email renders inside the IQ Kids template', () => {
+  const snapshot = render.buildNewsletterEmailSnapshot({
+    content: { slug: 's', title: 'Título', excerpt: 'Resumen de prueba', blocks: [{ id: 'p', type: 'paragraph', text: 'Hola' }, { id: 'h', type: 'html', html: '<div style="border:1px dashed #E78080">CYBER20</div>', fullEmail: false }], emailSubject: 'A' },
+    products: {}, siteUrl: SITE, webUrl: null,
+  });
+  assert.ok(snapshot.html.includes('iq-kids-logo.png'));
+  assert.ok(snapshot.html.includes('border:1px dashed #E78080'));
 });

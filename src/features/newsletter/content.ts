@@ -28,7 +28,11 @@ export type NewsletterBlock =
   | { id: string; type: "steps"; items: NewsletterStep[]; tone: NewsletterAccentTone }
   | { id: string; type: "testimonial"; quote: string; author: string; detail?: string | null; imageUrl?: string | null; imageAlt?: string | null }
   | { id: string; type: "sources"; label: string; text: string }
-  | { id: string; type: "divider" };
+  | { id: string; type: "divider" }
+  // Imported email design kept as authored (sanitized HTML, see email-html.ts).
+  // `fullEmail`: the HTML is the whole email (own header and footer), so the email is
+  // sent with this design instead of the IQ Kids template.
+  | { id: string; type: "html"; html: string; css?: string | null; fullEmail: boolean };
 
 export type NewsletterBlockType = NewsletterBlock["type"];
 
@@ -70,6 +74,7 @@ export const NEWSLETTER_BLOCK_LABELS: Record<NewsletterBlockType, string> = {
   testimonial: "Testimonio",
   sources: "Fuentes",
   divider: "Separador",
+  html: "HTML de email",
 };
 
 export const NEWSLETTER_ACCENT_TONE_LABELS: Record<NewsletterAccentTone, string> = {
@@ -126,6 +131,8 @@ export function createEmptyBlock(type: NewsletterBlockType): NewsletterBlock {
       return { id, type, label: "Fuentes", text: "" };
     case "divider":
       return { id, type };
+    case "html":
+      return { id, type, html: "", css: null, fullEmail: false };
   }
 }
 
@@ -302,6 +309,8 @@ export function getBlockPlainText(block: NewsletterBlock) {
       return block.caption ?? "";
     case "product":
       return block.note ?? "";
+    case "html":
+      return block.html.replace(/<[^>]*>/g, " ").replace(/&[#\w]+;/g, " ");
     default:
       return "";
   }

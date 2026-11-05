@@ -1,11 +1,16 @@
-import { createBlockId, isSafeLinkUrl, stripInline, type NewsletterBlock, type NewsletterContent, type NewsletterStepMarker } from "@/features/newsletter/content";
+import { createBlockId, isSafeImageUrl, isSafeLinkUrl, stripInline, type NewsletterBlock, type NewsletterContent, type NewsletterStepMarker } from "@/features/newsletter/content";
+import { EMAIL_HTML_UNSUBSCRIBE_HREF, EMAIL_HTML_WEB_HREF, emailHtmlToText, sanitizeEmailCss, sanitizeEmailHtml, sanitizeInlineStyle } from "@/features/newsletter/email-html";
 
 // Converts the "newsletter sequence" HTML format (one `.email-view` per email, with
 // `.email-body` blocks such as `.stat-row`, `.system-list`, `.testi-card`) and the
 // "email preview" format (one `.email-section` per email, see parsePreviewSection) into
-// editable newsletter drafts. Runs in the admin browser with DOMParser. It never
-// keeps raw HTML: everything becomes validated blocks. Unknown elements degrade to
+// editable newsletter drafts made of validated blocks. Unknown elements degrade to
 // plain paragraphs and suggested photos / implementation notes go to internal notes.
+//
+// Any other HTML is treated as a ready-made email (tables + inline styles, as sent by
+// Mailchimp, Klaviyo, Canva, agencies or hand-written) and imported as authored: one
+// "HTML de email" block with the sanitized design, so it looks exactly the same in the
+// email and on the web (see parseStandaloneEmail). Runs in the admin browser with DOMParser.
 
 export type ImportedNewsletter = {
   content: Omit<NewsletterContent, "slug">;
@@ -416,7 +421,116 @@ function parsePreviewSection(section: Element, index: number, tabLabels: string[
   };
 }
 
-export function parseNewsletterSequenceHtml(html: string): ImportedNewsletter[] {
+const UNSUBSCRIBE_TEXT = /desuscrib|dar(me|te|se)? de baja|unsubscribe|cancelar (la |tu )?suscripci|no (quiero|deseo) recibir/i;
+const UNSUBSCRIBE_HREF = /\*\|unsub|\{\{\s*unsubscribe|%unsubscribe|\[unsubscribe|unsubscribe_url|\/unsubscribe/i;
+const WEB_VIEW_TEXT = /ver (este (e-?mail|correo|mail) )?en (el |tu )?navegador|ver en la web|ver (la )?versi[oó]n web|ver online|view (this email )?in (your )?browser|view online/i;
+const WEB_VIEW_HREF = /\*\|archive|\{\{\s*(web_?version|view_in_browser)|%webversion|\[webversion/i;
+
+function commentValue(doc: Document, keys: RegExp) {
+  const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_COMMENT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const match = (node.nodeValue ?? "").match(new RegExp(`^\\s*(?:${keys.source})\\s*:\\s*([\\s\\S]+?)\\s*$`, "i"));
+    if (match?.[1]) return clean(match[1]);
+  }
+  return "";
+}
+
+// A ready-made email document. Its design is kept as authored (sanitized); only the
+// links are adapted: "Desuscribirse" / "Ver en el navegador" become the newsletter's
+// own links, "#" links become text and /products is pointed to /productos.
+function parseStandaloneEmail(doc: Document, fallbackLabel: string): ImportedNewsletter | null {
+  const body = doc.body;
+
+  if (!body || !clean(body.textContent) && !body.querySelector("img")) {
+    return null;
+  }
+
+  const notes: string[] = [];
+  let removedLinks = 0;
+  let fixedLinks = 0;
+  let unsubscribeLinks = 0;
+  let webLinks = 0;
+
+  // Hidden preheader text at the top of the body: the newsletter adds its own one.
+  let hiddenPreheader = "";
+  for (const element of Array.from(body.querySelectorAll<HTMLElement>("[style]")).slice(0, 5)) {
+    const style = (element.getAttribute("style") ?? "").replace(/\s/g, "").toLowerCase();
+    if (style.includes("display:none") && clean(element.textContent)) {
+      hiddenPreheader = clean(element.textContent);
+      element.remove();
+      break;
+    }
+  }
+
+  for (const link of Array.from(body.querySelectorAll("a"))) {
+    const href = (link.getAttribute("href") ?? "").trim();
+    const text = clean(link.textContent);
+
+    if (UNSUBSCRIBE_HREF.test(href) || UNSUBSCRIBE_TEXT.test(text)) {
+      link.setAttribute("href", EMAIL_HTML_UNSUBSCRIBE_HREF);
+      unsubscribeLinks += 1;
+    } else if (WEB_VIEW_HREF.test(href) || WEB_VIEW_TEXT.test(text)) {
+      link.setAttribute("href", EMAIL_HTML_WEB_HREF);
+      webLinks += 1;
+    } else if (!href || href === "#" || /^(\*\||\{\{|%)/.test(href)) {
+      link.removeAttribute("href");
+      removedLinks += 1;
+    } else {
+      const { url, fixed } = storeLinkFrom(href);
+      if (fixed) fixedLinks += 1;
+      link.setAttribute("href", url);
+    }
+  }
+
+  const lostImages = Array.from(body.querySelectorAll("img")).filter((image) => !isSafeImageUrl(image.getAttribute("src") ?? "")).length;
+
+  // The <body> background and font are part of the design: kept on a wrapper.
+  const bodyStyle = [body.getAttribute("bgcolor") ? `background-color:${body.getAttribute("bgcolor")}` : "", sanitizeInlineStyle(body.getAttribute("style") ?? "")]
+    .filter(Boolean)
+    .join(";");
+  const html = sanitizeEmailHtml(bodyStyle ? `<div style="${bodyStyle.replace(/"/g, "'")}">${body.innerHTML}</div>` : body.innerHTML);
+  const css = sanitizeEmailCss(Array.from(doc.querySelectorAll("style")).map((style) => style.textContent ?? "").join("\n"));
+
+  if (!html) {
+    return null;
+  }
+
+  const headline = plainText(body.querySelector("h1")) || plainText(body.querySelector("h2"));
+  const subject = commentValue(doc, /subject|asunto/) || clean(doc.title) || headline;
+  const preheader = commentValue(doc, /preheader|preview|pre-header|vista previa/) || hiddenPreheader;
+  const firstText = Array.from(body.querySelectorAll("p"))
+    .map((paragraph) => plainText(paragraph))
+    .find((text) => text.length >= 30) ?? "";
+  const finalTitle = truncateAtWord(headline || subject || fallbackLabel, 140);
+  const excerptSource = preheader || firstText || emailHtmlToText(html);
+
+  notes.push(`Importada tal cual del HTML del email (${fallbackLabel}): se mantiene el diseño original. Para cambiar textos, editá el bloque "HTML de email".`);
+  if (unsubscribeLinks > 0) notes.push('El link "Desuscribirse" del original ahora da de baja de la newsletter.');
+  else notes.push("El original no tenía link para darse de baja: al enviarlo se agrega uno al pie.");
+  if (webLinks > 0) notes.push('El link "Ver en el navegador" lleva a esta newsletter en la web (si está publicada).');
+  if (removedLinks > 0) notes.push(`${removedLinks === 1 ? "Un link del original era" : `${removedLinks} links del original eran`} "#" (sin destino): quedaron como texto. Revisar.`);
+  if (fixedLinks > 0) notes.push(`${fixedLinks === 1 ? "Un link apuntaba" : `${fixedLinks} links apuntaban`} a /products, que no existe: se cambió por ${DEFAULT_BUTTON_URL}.`);
+  if (lostImages > 0) notes.push(`${lostImages === 1 ? "Una imagen no tenía" : `${lostImages} imágenes no tenían`} una dirección https y no se muestran. Subilas y reemplazá el src en el HTML.`);
+
+  return {
+    sourceLabel: fallbackLabel,
+    internalNotes: notes.join("\n\n").slice(0, 5000),
+    content: {
+      title: finalTitle,
+      subtitle: null,
+      excerpt: truncateAtWord(excerptSource.length >= 10 ? excerptSource : `${finalTitle} — newsletter de IQ Kids`, 400),
+      category: null,
+      headerTag: null,
+      coverImageUrl: null,
+      coverImageAlt: null,
+      blocks: [{ id: createBlockId(), type: "html", html, css: css || null, fullEmail: true }],
+      emailSubject: truncateAtWord(subject || finalTitle, 120),
+      emailPreviewText: preheader ? truncateAtWord(preheader, 150) : firstText ? firstSentence(firstText, 150) : null,
+    },
+  };
+}
+
+export function parseNewsletterSequenceHtml(html: string, fileName = "archivo HTML"): ImportedNewsletter[] {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const views = Array.from(doc.querySelectorAll(".email-view"));
   const candidates = views.length > 0 ? views : Array.from(doc.querySelectorAll(".email-card")).map((card) => card.parentElement ?? card);
@@ -427,7 +541,13 @@ export function parseNewsletterSequenceHtml(html: string): ImportedNewsletter[] 
 
   // Preview format: tabs (`.tab-btn`) label each `.email-section` in order.
   const tabLabels = Array.from(doc.querySelectorAll(".tab-btn")).map((tab) => clean(tab.textContent));
-  return Array.from(doc.querySelectorAll(".email-section"))
-    .map((section, index) => parsePreviewSection(section, index, tabLabels))
-    .filter((item): item is ImportedNewsletter => item !== null);
+  const sections = Array.from(doc.querySelectorAll(".email-section"));
+
+  if (sections.length > 0) {
+    return sections.map((section, index) => parsePreviewSection(section, index, tabLabels)).filter((item): item is ImportedNewsletter => item !== null);
+  }
+
+  // Anything else is one ready-made email.
+  const email = parseStandaloneEmail(doc, fileName);
+  return email ? [email] : [];
 }

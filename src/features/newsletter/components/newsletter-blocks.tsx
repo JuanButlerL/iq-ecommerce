@@ -10,6 +10,7 @@ import {
   type NewsletterAccentTone,
   type NewsletterTipTone,
 } from "@/features/newsletter/content";
+import { NewsletterHtmlFrame } from "@/features/newsletter/components/newsletter-html-frame";
 import { cn } from "@/lib/utils/cn";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -299,6 +300,9 @@ function Block({ block, products }: { block: NewsletterBlock; products: Record<s
           <span className="h-2 w-2 rounded-full bg-brand-cyan" />
         </div>
       );
+
+    case "html":
+      return <NewsletterHtmlFrame html={block.html} css={block.css} />;
   }
 }
 

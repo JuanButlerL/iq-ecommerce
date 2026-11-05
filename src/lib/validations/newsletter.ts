@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { NEWSLETTER_ACCENT_TONES, NEWSLETTER_STEP_MARKERS, NEWSLETTER_TIP_TONES, containsHtml, isSafeImageUrl, isSafeLinkUrl } from "@/features/newsletter/content";
+import { EMAIL_CSS_MAX_LENGTH, EMAIL_HTML_MAX_LENGTH, sanitizeEmailCss, sanitizeEmailHtml } from "@/features/newsletter/email-html";
 
 const htmlMessage = "No se admite HTML. Usá **negrita**, *cursiva* y [texto](link).";
 
@@ -112,6 +113,23 @@ export const newsletterBlockSchema = z.discriminatedUnion("type", [
     text: requiredText(2, 1500, "Completá las fuentes."),
   }),
   z.object({ id: blockId, type: z.literal("divider") }),
+  // The only block that accepts HTML: it is always stored sanitized (allowlist).
+  z.object({
+    id: blockId,
+    type: z.literal("html"),
+    html: z
+      .string()
+      .max(EMAIL_HTML_MAX_LENGTH, "El HTML es demasiado grande (máximo 300 KB).")
+      .transform(sanitizeEmailHtml)
+      .refine((value) => value.length > 0, "Pegá el HTML del email."),
+    css: z
+      .string()
+      .max(EMAIL_CSS_MAX_LENGTH)
+      .optional()
+      .nullable()
+      .transform((value) => sanitizeEmailCss(value) || null),
+    fullEmail: z.boolean().default(false),
+  }),
 ]);
 
 export const newsletterFormSchema = z.object({
