@@ -849,6 +849,12 @@ function parseStructuredEmail(doc: Document, fileName: string): ImportedNewslett
     // Brand header of the original ("iQ Kids · Snack saludable"): the template has the logo.
     if (!hasContent() && STORE_NAME.test(text) && text.length < 60) return;
 
+    // Legal / unsubscribe line: the template adds its own footer.
+    if (!buttonLink(element) && isFooter(element)) {
+      handleFooter(element);
+      return;
+    }
+
     const button = buttonLink(element);
     if (button) {
       const href = (button.getAttribute("href") ?? "").trim();
@@ -894,6 +900,15 @@ function parseStructuredEmail(doc: Document, fileName: string): ImportedNewslett
     }
     if (/^(script|style|head|title|meta|link)$/.test(tag)) return;
 
+    if (tag === "ul" || tag === "ol") {
+      const items = Array.from(element.children).filter((item) => item.tagName.toLowerCase() === "li" && clean(item.textContent));
+      if (items.length > 0) {
+        push({ id: createBlockId(), type: "paragraph", text: items.map((item, index) => `${tag === "ol" ? `${index + 1}.` : "•"} ${inlineText(item).replace(/\n+/g, " ")}`).join("\n") });
+        lastWasParagraph = false;
+        return;
+      }
+    }
+
     if (tag === "hr") {
       if (hasContent() && blocks.at(-1)?.type !== "divider") push({ id: createBlockId(), type: "divider" });
       return;
@@ -920,6 +935,13 @@ function parseStructuredEmail(doc: Document, fileName: string): ImportedNewslett
       }
       // Brand header of the original ("iQ Kids" + tagline): the template has its own logo.
       if (!hasContent() && leaves[0] && STORE_NAME.test(plainText(leaves[0])) && text.length < 120 && !hasButton) return;
+      // Quote / testimonial box: “text” — author.
+      if (leaves.length === 1 && /^["“«]/.test(text) && text.length <= 800) {
+        const [quote, ...author] = text.split(/\s+[—–-]\s+/);
+        const [name, ...role] = author.join(" — ").split(",");
+        push({ id: createBlockId(), type: "quote", text: truncateAtWord(stripQuotes(quote ?? text), 800), author: clean(name) ? truncateAtWord(clean(name), 120) : null, role: clean(role.join(",")) ? truncateAtWord(clean(role.join(",")), 240) : null, tone: toneOfColor(isAccent(backgroundOf(element)) ? backgroundOf(element) : null) });
+        return;
+      }
       // Colored strip with a single short text: announcement banner.
       if (isAccent(backgroundOf(element)) && leaves.length === 1 && text.length <= 200 && !hasButton && !STORE_NAME.test(text) && !/^h[1-6]$/i.test(leaves[0]!.tagName)) {
         push({ id: createBlockId(), type: "banner", text: truncateAtWord(text.replace(/\s+/g, " "), 200), tone: toneOfColor(backgroundOf(element)) });
@@ -945,7 +967,8 @@ function parseStructuredEmail(doc: Document, fileName: string): ImportedNewslett
         }
       }
       if (cells.length >= 2 && cells.length <= 4) {
-        const sameKind = cells.every((cell) => !soleImage(cell));
+        // Cards with their own buttons are read cell by cell so no link is lost.
+        const sameKind = cells.every((cell) => !soleImage(cell)) && !cells.some((cell) => leavesOf(cell).some((leaf) => buttonLink(leaf)));
         const promos = sameKind ? parsePromoCards(cells) : null;
         if (promos) {
           push({ id: createBlockId(), type: "promos", items: promos.slice(0, 3) });
@@ -1074,12 +1097,14 @@ async function normalizeWithLayout(html: string): Promise<string | null> {
       if (element.tagName.toLowerCase() === "img") props.push(`width:${Math.round(element.getBoundingClientRect().width)}px`);
 
       // Children laid out horizontally (same row, different columns).
+      // Only boxes count (inline words like <strong> or <a> in a sentence never make a row).
       const children = Array.from(element.children).filter((child) => {
         const rect = child.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
+        const display = view.getComputedStyle(child).display;
+        return rect.width > 0 && rect.height > 0 && display !== "inline" && display !== "contents" && display !== "none";
       });
       let row = false;
-      if (children.length >= 2 && element.tagName.toLowerCase() !== "tr") {
+      if (children.length >= 2 && blockLevel && element.tagName.toLowerCase() !== "tr") {
         const rects = children.map((child) => child.getBoundingClientRect());
         const top = rects[0]!.top;
         row = rects.every((rect, index) => Math.abs(rect.top - top) < 24 && (index === 0 || rect.left >= rects[index - 1]!.right - 2));
