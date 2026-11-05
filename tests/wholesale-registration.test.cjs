@@ -154,3 +154,17 @@ test('aviso de dispositivo nuevo: nombra la cuenta, el dispositivo y qué hacer 
   assert.match(email.html, /Dietética &lt;La Hoja&gt;/);
   assert.doesNotMatch(email.html, /<La Hoja>/);
 });
+
+const deliveryAddress = load('src/features/wholesale/delivery-address.ts');
+
+test('dirección mayorista: separar calle y altura y volver a unirlas da el mismo texto del maestro', () => {
+  for (const value of ['Av. Corrientes 1234', 'Calle 11', 'Corrientes 1234 B', 'Mitre 450 bis', 'Ruta 8 km 40', 'Los Aromos', 'Barrio Norte Lote 5 Casa A']) {
+    assert.equal(deliveryAddress.joinStreet(deliveryAddress.splitStreet(value)), value);
+  }
+  const split = deliveryAddress.splitStreet('Av. Corrientes 1234');
+  assert.equal(split.street, 'Av. Corrientes');
+  assert.equal(split.number, '1234');
+  assert.equal(split.withoutNumber, false);
+  assert.equal(deliveryAddress.splitStreet('Los Aromos').withoutNumber, true);
+  assert.equal(deliveryAddress.splitStreet('').withoutNumber, false);
+});

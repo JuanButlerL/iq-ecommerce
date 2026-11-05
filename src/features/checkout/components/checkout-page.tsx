@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Product, ProductImage, ShippingRule, ShippingRuleProvince, StoreSettings } from "@prisma/client";
-import { AlertCircle, CheckCircle2, MapPinned, Plus, TicketPercent } from "lucide-react";
+import { AlertCircle, CheckCircle2, Plus, TicketPercent } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
@@ -27,6 +27,8 @@ import {
 } from "@/features/catalog/lib/product-discount";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/components/address-map-preview";
+import { FieldShell } from "@/features/checkout/components/field-shell";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { productFallbackImageMap } from "@/features/catalog/product-theme";
@@ -67,13 +69,6 @@ type CouponPreview = {
   subtotalWithDiscountArs: number;
 };
 
-type FieldShellProps = {
-  label: string;
-  error?: string;
-  className?: string;
-  children: React.ReactNode;
-};
-
 type ErrorSummaryProps = {
   messages: Array<{ label: string; message?: string }>;
   className?: string;
@@ -104,24 +99,6 @@ function formatCheckoutProductLabel(label: string) {
   }
 
   return normalizedLabel;
-}
-
-function FieldShell({ label, error, className, children }: FieldShellProps) {
-  return (
-    <label
-      className={`block space-y-2 ${
-        error ? "[&_input]:border-red-400 [&_input]:bg-red-50/30 [&_select]:border-red-400 [&_select]:bg-red-50/30" : ""
-      } ${className ?? ""}`}
-    >
-      <span className={`text-xs font-extrabold uppercase tracking-[0.16em] ${error ? "text-red-600" : "text-brand-ink/55"}`}>
-        {label}
-      </span>
-      {children}
-      <p className={`min-h-4 text-[11px] font-semibold leading-4 ${error ? "text-red-600" : "text-transparent"}`}>
-        {error}
-      </p>
-    </label>
-  );
 }
 
 function ErrorSummary({ messages, className }: ErrorSummaryProps) {
@@ -265,58 +242,35 @@ export function CheckoutPage({
       : amountToShippingDiscount > 0 && shippingQuote.shippingDiscountPercentage > 0
         ? `Sumá un producto más y activa ${shippingQuote.shippingDiscountPercentage}% off en el envío.`
         : `Sumá un segundo sabor para llegar al envío gratis. Te faltan ${formatArs(amountToFreeShipping)}.`;
-  const addressPreview = useMemo(() => {
-    const formattedStreet = [
-      watchedAddressLine?.trim(),
-      watchedAddressWithoutNumber ? "s/n" : watchedAddressNumber?.trim(),
-    ]
-      .filter(Boolean)
-      .join(" ");
-    const addressParts = [
-      formattedStreet,
-      watchedAddressExtra?.trim(),
-      watchedLocality?.trim(),
-      province?.trim(),
-      watchedPostalCode?.trim(),
-      "Argentina",
-    ].filter(Boolean);
-    const hasRequiredAddressFields = Boolean(
-      watchedAddressLine?.trim() &&
-        (watchedAddressWithoutNumber || watchedAddressNumber?.trim()) &&
-        watchedLocality?.trim() &&
-        province?.trim() &&
-        watchedPostalCode?.trim(),
-    );
-    const hasAddressErrors = Boolean(
-      errors.addressLine || errors.addressNumber || errors.locality || errors.postalCode || errors.province,
-    );
-
-    if (!hasRequiredAddressFields) {
-      return null;
-    }
-
-    const query = addressParts.join(", ");
-
-    return {
-      query,
-      hasAddressErrors,
-      mapsHref: `https://www.google.com/maps?q=${encodeURIComponent(query)}`,
-      embedSrc: `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`,
-    };
-  }, [
-    errors.addressLine,
-    errors.addressNumber,
-    errors.locality,
-    errors.postalCode,
-    errors.province,
-    province,
-    watchedAddressExtra,
-    watchedAddressLine,
-    watchedAddressNumber,
-    watchedAddressWithoutNumber,
-    watchedLocality,
-    watchedPostalCode,
-  ]);
+  const addressPreview = useMemo(
+    () =>
+      buildAddressPreview({
+        street: watchedAddressLine,
+        number: watchedAddressNumber,
+        withoutNumber: watchedAddressWithoutNumber,
+        extra: watchedAddressExtra,
+        locality: watchedLocality,
+        province,
+        postalCode: watchedPostalCode,
+        hasAddressErrors: Boolean(
+          errors.addressLine || errors.addressNumber || errors.locality || errors.postalCode || errors.province,
+        ),
+      }),
+    [
+      errors.addressLine,
+      errors.addressNumber,
+      errors.locality,
+      errors.postalCode,
+      errors.province,
+      province,
+      watchedAddressExtra,
+      watchedAddressLine,
+      watchedAddressNumber,
+      watchedAddressWithoutNumber,
+      watchedLocality,
+      watchedPostalCode,
+    ],
+  );
 
   useEffect(() => {
     if (paymentMethod === "MERCADO_PAGO" && !allowMercadoPago && allowBankTransfer) {
@@ -709,36 +663,7 @@ export function CheckoutPage({
 
           {addressPreview ? (
             <div className="md:col-span-3">
-              <div className="overflow-hidden rounded-[1.75rem] border border-brand-ink/10 bg-white shadow-card">
-                <div className="flex flex-col gap-3 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="rounded-full bg-brand-pink/10 p-2 text-brand-pink">
-                      <MapPinned className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-brand-ink/46">Ubicación</p>
-                      <p className="mt-1 text-sm font-semibold leading-6 text-brand-ink/78">{addressPreview.query}</p>
-                    </div>
-                  </div>
-                  <p className="text-sm leading-6 text-brand-ink/62">
-                    {addressPreview.hasAddressErrors
-                      ? "Revisá calle, altura, localidad o código postal para ubicar mejor el destino."
-                      : "Si no coincide, modificá la calle, altura o dejanos una aclaración en observaciones."}
-                  </p>
-                </div>
-                <div className="border-t border-brand-ink/10 bg-[#f8f6f4] p-2">
-                  <div className="relative overflow-hidden rounded-[1.4rem] border border-brand-ink/10 bg-white">
-                    <iframe
-                      title="Vista previa del destino"
-                      src={addressPreview.embedSrc}
-                      className="pointer-events-none h-[280px] w-full"
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                    <div className="absolute inset-0 z-10" aria-hidden="true" />
-                  </div>
-                </div>
-              </div>
+              <AddressMapPreview preview={addressPreview} />
             </div>
           ) : null}
 

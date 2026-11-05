@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesaleContact } from "@/features/wholesale/components/wholesale-contact";
-import { WholesaleProductGrid } from "@/features/wholesale/components/wholesale-product-grid";
+import { WholesaleOrderBar, WholesaleProductGrid } from "@/features/wholesale/components/wholesale-product-grid";
 import { WholesalePasswordGate } from "@/features/wholesale/components/wholesale-password-gate";
 import type { WholesaleSectionIntro } from "@/features/wholesale/content";
 import { getPublicWholesaleProducts } from "@/features/wholesale/products";
@@ -50,10 +50,10 @@ function SectionHeading({ intro, center, dark }: { intro: WholesaleSectionIntro;
   );
 }
 
-function Section({ id, className, children }: { id?: string; className?: string; children: ReactNode }) {
+function Section({ id, className, wide = false, children }: { id?: string; className?: string; wide?: boolean; children: ReactNode }) {
   return (
     <section id={id} className={cn("scroll-mt-24 px-4 py-14 md:px-6 md:py-20", className)}>
-      <div className="mx-auto max-w-[1080px]">{children}</div>
+      <div className={cn("mx-auto", wide ? "max-w-[1600px] lg:px-4 xl:px-6" : "max-w-[1080px]")}>{children}</div>
     </section>
   );
 }
@@ -152,7 +152,7 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
       ) : null}
 
       {products.length > 0 ? (
-        <Section id="productos">
+        <Section id="productos" wide className="bg-[#fff6f7]">
           {justRegistered ? (
             <div role="status" className="mb-8 rounded-[2rem] bg-brand-mint/40 px-6 py-5 text-brand-ink">
               <p className="text-base font-extrabold">¡Listo, ya estás registrado!</p>
@@ -163,6 +163,7 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
           ) : null}
           <SectionHeading intro={productsIntro} />
           <WholesaleProductGrid products={products} minDisplays={wholesaleSettings.minDisplays} />
+          <WholesaleOrderBar products={products} minDisplays={wholesaleSettings.minDisplays} />
         </Section>
       ) : null}
 
