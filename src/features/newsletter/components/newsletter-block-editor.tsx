@@ -110,7 +110,15 @@ function BlockFields({
       return <Input value={block.text} onChange={(event) => onChange({ ...block, text: event.target.value })} maxLength={160} placeholder="Ej: 3 ideas para la vianda de esta semana" />;
 
     case "paragraph":
-      return <NewsletterFormattedTextarea value={block.text} onChange={(text) => onChange({ ...block, text })} rows={6} maxLength={5000} placeholder="Escribí el texto..." />;
+      return (
+        <div className="space-y-3">
+          <NewsletterFormattedTextarea value={block.text} onChange={(text) => onChange({ ...block, text })} rows={block.small ? 3 : 6} maxLength={5000} placeholder="Escribí el texto..." />
+          <label className="flex items-center gap-2 text-sm text-brand-ink/70">
+            <input type="checkbox" checked={Boolean(block.small)} onChange={(event) => onChange({ ...block, small: event.target.checked })} className="h-4 w-4 rounded border-brand-ink/20 accent-brand-pink" />
+            Letra chica (condiciones, legales)
+          </label>
+        </div>
+      );
 
     case "image":
       return (
@@ -403,6 +411,80 @@ function BlockFields({
 
     case "divider":
       return <p className="text-sm text-brand-ink/50">Separador visual entre secciones. No necesita configuración.</p>;
+
+    case "promos": {
+      const setItem = (itemIndex: number, patch: Partial<(typeof block.items)[number]>) =>
+        onChange({ ...block, items: block.items.map((current, i) => (i === itemIndex ? { ...current, ...patch } : current)) });
+      return (
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {block.items.map((item, itemIndex) => (
+              <div key={itemIndex} className="space-y-2 rounded-2xl bg-brand-ink/[0.03] p-3">
+                <div className="grid grid-cols-[1fr_110px] gap-2">
+                  <Input value={item.value.replace(/\n/g, " / ")} onChange={(event) => setItem(itemIndex, { value: event.target.value.replace(/\s+\/\s+/g, "\n") })} maxLength={40} placeholder="3x2 · usá / para cortar línea" className="text-lg font-extrabold" />
+                  <ToneSelect value={item.tone} onChange={(tone) => setItem(itemIndex, { tone })} />
+                </div>
+                <Input value={item.label ?? ""} onChange={(event) => setItem(itemIndex, { label: event.target.value })} maxLength={100} placeholder="Llevás 3, pagás 2" />
+                <NewsletterFormattedTextareaPlain value={item.text} onChange={(text) => setItem(itemIndex, { text })} />
+                <Input value={item.code ?? ""} onChange={(event) => setItem(itemIndex, { code: event.target.value.toUpperCase() })} maxLength={40} placeholder="Código (opcional): CYBER3" className="font-mono font-bold tracking-widest" />
+                {block.items.length > 1 ? (
+                  <button type="button" className="text-xs font-bold text-red-600 hover:underline" onClick={() => onChange({ ...block, items: block.items.filter((_, i) => i !== itemIndex) })}>
+                    Quitar
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {block.items.length < 3 ? (
+            <button type="button" className="inline-flex items-center gap-2 text-sm font-extrabold text-brand-pink hover:underline" onClick={() => onChange({ ...block, items: [...block.items, { value: "", label: "", text: "", code: "", tone: "pink" }] })}>
+              <Plus className="h-4 w-4" /> Agregar promo
+            </button>
+          ) : null}
+        </div>
+      );
+    }
+
+    case "features": {
+      const setItem = (itemIndex: number, patch: Partial<(typeof block.items)[number]>) =>
+        onChange({ ...block, items: block.items.map((current, i) => (i === itemIndex ? { ...current, ...patch } : current)) });
+      return (
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {block.items.map((item, itemIndex) => (
+              <div key={itemIndex} className="space-y-2 rounded-2xl bg-brand-ink/[0.03] p-3">
+                <div className="grid grid-cols-[64px_1fr] gap-2">
+                  <Input value={item.icon ?? ""} onChange={(event) => setItem(itemIndex, { icon: event.target.value })} maxLength={12} placeholder="🚚" className="text-center text-lg" aria-label="Emoji" />
+                  <Input value={item.title} onChange={(event) => setItem(itemIndex, { title: event.target.value })} maxLength={80} placeholder="Envío gratis" className="font-bold" />
+                </div>
+                <Input value={item.text} onChange={(event) => setItem(itemIndex, { text: event.target.value })} maxLength={200} placeholder="Con 3 cajas o más" />
+                {block.items.length > 2 ? (
+                  <button type="button" className="text-xs font-bold text-red-600 hover:underline" onClick={() => onChange({ ...block, items: block.items.filter((_, i) => i !== itemIndex) })}>
+                    Quitar
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {block.items.length < 4 ? (
+            <button type="button" className="inline-flex items-center gap-2 text-sm font-extrabold text-brand-pink hover:underline" onClick={() => onChange({ ...block, items: [...block.items, { icon: "", title: "", text: "" }] })}>
+              <Plus className="h-4 w-4" /> Agregar beneficio
+            </button>
+          ) : null}
+        </div>
+      );
+    }
+
+    case "banner":
+      return (
+        <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
+          <label className="block">
+            <span className={fieldLabel}>Texto del aviso</span>
+            <Input value={block.text} onChange={(event) => onChange({ ...block, text: event.target.value })} maxLength={200} placeholder="🎉 Lo extendemos: ahora cierra el viernes" />
+          </label>
+          <ToneSelect value={block.tone} onChange={(tone) => onChange({ ...block, tone })} />
+          <p className="text-xs text-brand-ink/50 sm:col-span-2">Si es el primer bloque, en el mail va arriba de todo, como franja sobre el logo.</p>
+        </div>
+      );
 
     case "html":
       return (

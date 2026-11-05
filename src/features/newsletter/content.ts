@@ -13,10 +13,15 @@ export type NewsletterStepMarker = (typeof NEWSLETTER_STEP_MARKERS)[number];
 export type NewsletterImage = { url: string; alt: string };
 export type NewsletterStat = { value: string; label: string };
 export type NewsletterStep = { title: string; text: string; marker: NewsletterStepMarker };
+// Promo card: big value (3x2, 20% off), short label, description and discount code.
+export type NewsletterPromo = { value: string; label?: string | null; text: string; code?: string | null; tone: NewsletterAccentTone };
+// Benefit in a strip of 2 to 4 columns (emoji + title + short text).
+export type NewsletterFeature = { icon?: string | null; title: string; text: string };
 
 export type NewsletterBlock =
   | { id: string; type: "heading"; text: string }
-  | { id: string; type: "paragraph"; text: string }
+  // `small`: fine print (terms, conditions), shown small and centered.
+  | { id: string; type: "paragraph"; text: string; small?: boolean }
   | { id: string; type: "image"; url: string; alt: string; caption?: string | null }
   | { id: string; type: "imageText"; url: string; alt: string; title?: string | null; text: string; imagePosition: "left" | "right" }
   | { id: string; type: "gallery"; images: NewsletterImage[]; caption?: string | null }
@@ -29,6 +34,10 @@ export type NewsletterBlock =
   | { id: string; type: "testimonial"; quote: string; author: string; detail?: string | null; imageUrl?: string | null; imageAlt?: string | null }
   | { id: string; type: "sources"; label: string; text: string }
   | { id: string; type: "divider" }
+  | { id: string; type: "promos"; items: NewsletterPromo[] }
+  | { id: string; type: "features"; items: NewsletterFeature[] }
+  // Announcement strip. As the first block it goes on top of the email, above the logo.
+  | { id: string; type: "banner"; text: string; tone: NewsletterAccentTone }
   // Imported email design kept as authored (sanitized HTML, see email-html.ts).
   // `fullEmail`: the HTML is the whole email (own header and footer), so the email is
   // sent with this design instead of the IQ Kids template.
@@ -74,7 +83,10 @@ export const NEWSLETTER_BLOCK_LABELS: Record<NewsletterBlockType, string> = {
   testimonial: "Testimonio",
   sources: "Fuentes",
   divider: "Separador",
-  html: "HTML de email",
+  promos: "Cajas de promo",
+  features: "Franja de beneficios",
+  banner: "Aviso destacado",
+  html: "HTML de email (diseño propio)",
 };
 
 export const NEWSLETTER_ACCENT_TONE_LABELS: Record<NewsletterAccentTone, string> = {
@@ -131,6 +143,12 @@ export function createEmptyBlock(type: NewsletterBlockType): NewsletterBlock {
       return { id, type, label: "Fuentes", text: "" };
     case "divider":
       return { id, type };
+    case "promos":
+      return { id, type, items: [{ value: "", label: "", text: "", code: "", tone: "pink" }, { value: "", label: "", text: "", code: "", tone: "cyan" }] };
+    case "features":
+      return { id, type, items: [{ icon: "", title: "", text: "" }, { icon: "", title: "", text: "" }, { icon: "", title: "", text: "" }] };
+    case "banner":
+      return { id, type, text: "", tone: "cyan" };
     case "html":
       return { id, type, html: "", css: null, fullEmail: false };
   }
@@ -309,6 +327,12 @@ export function getBlockPlainText(block: NewsletterBlock) {
       return block.caption ?? "";
     case "product":
       return block.note ?? "";
+    case "promos":
+      return block.items.map((item) => `${item.value} ${item.label ?? ""} ${item.text} ${item.code ?? ""}`).join(" ");
+    case "features":
+      return block.items.map((item) => `${item.title} ${item.text}`).join(" ");
+    case "banner":
+      return block.text;
     case "html":
       return block.html.replace(/<[^>]*>/g, " ").replace(/&[#\w]+;/g, " ");
     default:

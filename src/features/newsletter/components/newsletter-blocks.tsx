@@ -108,7 +108,13 @@ function Block({ block, products }: { block: NewsletterBlock; products: Record<s
       return <h2 className="mb-4 mt-12 font-display text-[1.9rem] leading-[1.08] text-brand-ink sm:text-[2.25rem]">{block.text}</h2>;
 
     case "paragraph":
-      return <Paragraphs value={block.text} className={paragraphClass} />;
+      return block.small ? (
+        <div className="my-8">
+          <Paragraphs value={block.text} className="mb-2 text-center text-xs leading-5 text-brand-ink/50" />
+        </div>
+      ) : (
+        <Paragraphs value={block.text} className={paragraphClass} />
+      );
 
     case "image":
       return (
@@ -299,6 +305,59 @@ function Block({ block, products }: { block: NewsletterBlock; products: Record<s
           <span className="h-2 w-2 rounded-full bg-brand-yellow" />
           <span className="h-2 w-2 rounded-full bg-brand-cyan" />
         </div>
+      );
+
+    case "promos":
+      return (
+        <div className={cn("my-10 grid gap-4", block.items.length === 3 ? "sm:grid-cols-3" : block.items.length === 2 ? "sm:grid-cols-2" : "")}>
+          {block.items.map((item, index) => {
+            const cyan = item.tone === "cyan";
+            return (
+              <div key={index} className="overflow-hidden rounded-[1.75rem] bg-white shadow-card ring-1 ring-brand-pink/15">
+                <div className={cn("px-6 pb-4 pt-5 text-white", cyan ? "bg-[#2B9CC4]" : "bg-brand-pink")}>
+                  <p className="whitespace-pre-line font-display text-[2.1rem] leading-[1.05]">{item.value}</p>
+                  {item.label ? <p className="mt-2 text-sm font-bold text-white/90">{item.label}</p> : null}
+                </div>
+                <div className="px-6 pb-6 pt-4">
+                  {item.text ? <Paragraphs value={item.text} className="mb-2 text-[0.95rem] leading-6 text-brand-ink/75" /> : null}
+                  {item.code ? (
+                    <div className="mt-4">
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-brand-ink/45">Código</p>
+                      <span
+                        className={cn(
+                          "mt-1.5 inline-flex rounded-xl border-2 border-dashed px-4 py-1.5 text-lg font-extrabold tracking-[0.14em]",
+                          cyan ? "border-[#2B9CC4] bg-[#EAF8FE] text-[#2B9CC4]" : "border-brand-pink bg-brand-pinkSoft/35 text-brand-pink",
+                        )}
+                      >
+                        {item.code}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+
+    case "features":
+      return (
+        <div className={cn("my-10 grid overflow-hidden rounded-[1.75rem] bg-brand-pinkSoft/25 ring-1 ring-brand-pink/15", block.items.length === 4 ? "grid-cols-2 sm:grid-cols-4" : block.items.length === 3 ? "grid-cols-3" : "grid-cols-2")}>
+          {block.items.map((item, index) => (
+            <div key={index} className={cn("px-3 py-5 text-center", index > 0 && "border-l border-brand-pink/15")}>
+              {item.icon ? <p className="mb-2 text-2xl leading-none">{item.icon}</p> : null}
+              <p className="text-sm font-extrabold leading-snug text-brand-ink">{item.title}</p>
+              {item.text ? <p className="mt-1 text-xs leading-5 text-brand-ink/60">{item.text}</p> : null}
+            </div>
+          ))}
+        </div>
+      );
+
+    case "banner":
+      return (
+        <p className={cn("my-8 rounded-2xl px-5 py-3.5 text-center text-sm font-extrabold leading-6 text-white", block.tone === "cyan" ? "bg-[#2B9CC4]" : "bg-brand-pink")}>
+          {block.text}
+        </p>
       );
 
     case "html":

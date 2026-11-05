@@ -8,7 +8,7 @@ import { useMemo, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { NewsletterBlocksView } from "@/features/newsletter/components/newsletter-blocks";
 import { NEWSLETTER_BLOCK_LABELS } from "@/features/newsletter/content";
-import { parseNewsletterSequenceHtml, type ImportedNewsletter } from "@/features/newsletter/import-html";
+import { importNewsletterHtml, type ImportedNewsletter } from "@/features/newsletter/import-html";
 import { cn } from "@/lib/utils/cn";
 
 type ImportResult = { created: Array<{ id: string; title: string }>; failed: Array<{ index: number; title: string; error: string }> };
@@ -71,7 +71,7 @@ export function NewsletterImportButton({ existingTitles }: { existingTitles: str
 
     const parsed: Candidate[] = [];
     for (const file of files) {
-      const items = parseNewsletterSequenceHtml(await file.text(), file.name);
+      const items = await importNewsletterHtml(await file.text(), file.name);
       items.forEach((item, index) =>
         parsed.push({ ...item, key: `${file.name}-${index}`, fileName: file.name, duplicate: existing.has(normalize(item.content.title)) }),
       );
@@ -195,7 +195,7 @@ export function NewsletterImportButton({ existingTitles }: { existingTitles: str
                   <div className="space-y-4 rounded-[2rem] bg-brand-pinkSoft/20 p-6 text-sm leading-6 text-brand-ink/75">
                     <p className="font-display text-xl text-brand-ink">Qué hace el importador</p>
                     <p>
-                      <strong>Precarga todo:</strong> título, asunto, texto de vista previa, categoría, frase del encabezado, resumen y cada bloque del contenido (párrafos, datos, pasos, citas, testimonios, fuentes y botones).
+                      <strong>Sirve cualquier email en HTML</strong> (el de la agencia, uno armado con Claude o exportado de Mailchimp/Canva): respeta la estructura (aviso de arriba, título, párrafos, cajas de promo con código, botón, franja de beneficios, letra chica) y la arma con los colores, tipografías, logo y pie de IQ Kids.
                     </p>
                     <p>
                       <strong>Crea borradores:</strong> no publica nada en la web y <strong>no envía ningún mail</strong>. Después cada texto se puede editar en el editor.
@@ -204,7 +204,7 @@ export function NewsletterImportButton({ existingTitles }: { existingTitles: str
                       <strong>Guarda las notas:</strong> la foto sugerida, los asuntos alternativos y los datos a verificar quedan en las notas internas de cada newsletter.
                     </p>
                     <p className="flex items-start gap-2 rounded-2xl bg-white p-3 text-xs text-brand-ink/60">
-                      <Lock className="mt-0.5 h-4 w-4 shrink-0 text-brand-pink" /> El HTML no se guarda tal cual: se convierte en bloques de la marca, así se ve bien en todos los clientes de mail y no puede romper la página.
+                      <Lock className="mt-0.5 h-4 w-4 shrink-0 text-brand-pink" /> Del original se toman los textos y la estructura, no sus colores ni letras: todo queda con la marca, se ve bien en todos los clientes de mail y en la web, y no puede romper la página. El asunto y el preheader se leen de los comentarios <code>&lt;!-- subject: --&gt;</code> y <code>&lt;!-- preheader: --&gt;</code>.
                     </p>
                   </div>
                 </div>

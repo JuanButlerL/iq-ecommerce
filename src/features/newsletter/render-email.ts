@@ -119,7 +119,9 @@ export function buildNewsletterEmailSnapshot(input: {
 
       case "paragraph":
         textParts.push(splitParagraphs(block.text).map(inlineText).join("\n\n"));
-        return paragraphs(block.text, paragraphStyle);
+        return block.small
+          ? paragraphs(block.text, `margin:18px 0 8px;font-family:${bodyFont};font-size:12px;line-height:1.6;color:${muted};text-align:center;`)
+          : paragraphs(block.text, paragraphStyle);
 
       case "image":
         if (block.caption) textParts.push(`[Imagen: ${block.caption}]`);
@@ -221,6 +223,39 @@ export function buildNewsletterEmailSnapshot(input: {
         textParts.push("—");
         return `<div style="margin:30px auto;width:72px;height:4px;border-radius:4px;background:${pinkSoft};line-height:4px;font-size:0;">&nbsp;</div>`;
 
+      case "promos": {
+        const count = block.items.length;
+        const cells = block.items
+          .map((item, index) => {
+            const accent = item.tone === "cyan" ? cyanStrong : pink;
+            const soft = item.tone === "cyan" ? cyanSoft : "#FFF0F1";
+            textParts.push([`${item.value.replace(/\n/g, " ")}${item.label ? ` — ${item.label}` : ""}`, item.text ? splitParagraphs(item.text).map(inlineText).join("\n") : "", item.code ? `Código: ${item.code}` : ""].filter(Boolean).join("\n"));
+            const code = item.code
+              ? `<p style="margin:14px 0 6px;font-family:${bodyFont};font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:${muted};">Código</p><span style="display:inline-block;padding:8px 16px;background:${soft};border:2px dashed ${accent};border-radius:12px;font-family:${bodyFont};font-size:17px;font-weight:800;letter-spacing:2px;color:${accent};">${escapeHtml(item.code)}</span>`
+              : "";
+            return `<td class="stack" valign="top" width="${Math.floor(100 / count)}%" style="padding:${index === 0 ? "0" : "0 0 0 12px"};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1.5px solid ${pinkSoft};border-radius:22px;border-collapse:separate;overflow:hidden;"><tr><td style="background:${accent};padding:18px 20px 14px;border-radius:20px 20px 0 0;"><p style="margin:0;font-family:${displayFont};font-size:30px;line-height:1.1;color:#ffffff;">${escapeHtml(item.value).replace(/\n/g, "<br />")}</p>${item.label ? `<p style="margin:6px 0 0;font-family:${bodyFont};font-size:13px;font-weight:700;line-height:1.4;color:#ffffff;">${escapeHtml(item.label)}</p>` : ""}</td></tr><tr><td style="padding:16px 20px 20px;">${item.text ? paragraphs(item.text, `margin:0 0 6px;font-family:${bodyFont};font-size:14px;line-height:1.6;color:${ink};`) : ""}${code}</td></tr></table></td>`;
+          })
+          .join("");
+        return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr>${cells}</tr></table>`;
+      }
+
+      case "features": {
+        const count = block.items.length;
+        textParts.push(block.items.map((item) => `${item.icon ? `${item.icon} ` : ""}${item.title}${item.text ? `: ${item.text}` : ""}`).join("\n"));
+        const cells = block.items
+          .map(
+            (item, index) =>
+              `<td valign="top" width="${Math.floor(100 / count)}%" style="padding:18px 8px;text-align:center;${index > 0 ? `border-left:1px solid ${pinkSoft};` : ""}">${item.icon ? `<p style="margin:0 0 6px;font-size:22px;line-height:1;">${escapeHtml(item.icon)}</p>` : ""}<p style="margin:0 0 3px;font-family:${bodyFont};font-size:13px;font-weight:800;line-height:1.35;color:${ink};">${escapeHtml(item.title)}</p>${item.text ? `<p style="margin:0;font-family:${bodyFont};font-size:12px;line-height:1.45;color:${muted};">${escapeHtml(item.text)}</p>` : ""}</td>`,
+          )
+          .join("");
+        return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background:#FFF8F8;border:1px solid ${pinkSoft};border-radius:22px;border-collapse:separate;"><tr>${cells}</tr></table>`;
+      }
+
+      case "banner": {
+        textParts.push(block.text);
+        return `<div style="margin:22px 0;padding:13px 20px;background:${block.tone === "cyan" ? cyanStrong : pink};border-radius:16px;text-align:center;font-family:${bodyFont};font-size:14px;font-weight:800;line-height:1.45;color:#ffffff;">${escapeHtml(block.text)}</div>`;
+      }
+
       case "html": {
         const rendered = renderEmailHtml(block.html, {
           rewriteHref: (href) => {
@@ -257,9 +292,21 @@ export function buildNewsletterEmailSnapshot(input: {
   textParts.push(title.toUpperCase());
   if (content.subtitle) textParts.push(content.subtitle);
 
-  const blocksHtml = content.blocks.map(renderBlock).join("");
+  // Announcement strips at the start go on top of the email, above the logo.
+  const leadingBanners: Array<Extract<NewsletterBlock, { type: "banner" }>> = [];
+  for (const block of content.blocks) {
+    if (block.type !== "banner") break;
+    leadingBanners.push(block);
+  }
+  const topBanners = leadingBanners
+    .map((block) => {
+      textParts.push(block.text);
+      return `<tr><td class="pad" style="background:${block.tone === "cyan" ? cyanStrong : pink};padding:13px 32px;text-align:center;font-family:${bodyFont};font-size:13px;font-weight:800;letter-spacing:0.5px;line-height:1.45;color:#ffffff;">${escapeHtml(block.text)}</td></tr>`;
+    })
+    .join("");
+  const blocksHtml = content.blocks.slice(leadingBanners.length).map(renderBlock).join("");
   const webLink = webRef();
-  const logoUrl = `${siteUrl.replace(/\/$/, "")}/brand/iq-kids-logo.png`;
+  const logoUrl = `${siteUrl.replace(/\/$/, "")}/brand/iq-kids-logo-email.png`;
   const cover = content.coverImageUrl
     ? `<tr><td style="padding:0 24px;">${image(content.coverImageUrl, content.coverImageAlt || title, 552, 24)}</td></tr>`
     : "";
@@ -286,9 +333,10 @@ ${importedCss()}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${pageBackground};">
 <tr><td align="center" style="padding:28px 12px;">
 <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:32px;overflow:hidden;">
+${topBanners}
 <tr><td class="pad" style="padding:26px 32px 18px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-<td valign="middle"><img src="${escapeHtml(logoUrl)}" height="38" alt="IQ Kids" style="display:block;height:38px;width:auto;border:0;" /></td>
+<td valign="middle"><img src="${escapeHtml(logoUrl)}" width="49" height="56" alt="IQ Kids" style="display:block;width:49px;height:56px;border:0;" /></td>
 <td valign="middle" align="right" style="font-family:${bodyFont};font-size:12px;line-height:1.5;color:${muted};">${content.headerTag ? `<span style="font-weight:700;color:${pink};">${escapeHtml(content.headerTag)}</span>` : ""}${content.headerTag && webLink ? "<br />" : ""}${webLink ? `<a href="${webLink}" style="font-weight:700;color:${muted};text-decoration:underline;">Ver en la web</a>` : ""}</td>
 </tr></table>
 </td></tr>

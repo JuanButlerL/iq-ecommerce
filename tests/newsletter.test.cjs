@@ -489,7 +489,7 @@ test('an imported full email is sent with its own design, tracked links and its 
   });
   assert.ok(snapshot.html.includes('border:1.5px dashed #E78080'), 'promo code box kept');
   assert.ok(snapshot.html.includes('<table width="600" cellpadding="0"'), 'layout tables kept');
-  assert.ok(!snapshot.html.includes('iq-kids-logo.png'), 'no IQ Kids template header around an imported email');
+  assert.ok(!snapshot.html.includes('iq-kids-logo-email.png'), 'no IQ Kids template header around an imported email');
   assert.ok(!snapshot.html.includes('Darme de baja'), 'no extra footer when the email has its own unsubscribe link');
   assert.ok(snapshot.html.includes('href="{{unsubscribeUrl}}"'));
   assert.ok(snapshot.html.includes('.stack{display:block!important}'), 'media queries go in the head');
@@ -519,6 +519,38 @@ test('an html block that is not a full email renders inside the IQ Kids template
     content: { slug: 's', title: 'Título', excerpt: 'Resumen de prueba', blocks: [{ id: 'p', type: 'paragraph', text: 'Hola' }, { id: 'h', type: 'html', html: '<div style="border:1px dashed #E78080">CYBER20</div>', fullEmail: false }], emailSubject: 'A' },
     products: {}, siteUrl: SITE, webUrl: null,
   });
-  assert.ok(snapshot.html.includes('iq-kids-logo.png'));
+  assert.ok(snapshot.html.includes('iq-kids-logo-email.png'));
   assert.ok(snapshot.html.includes('border:1px dashed #E78080'));
+});
+
+test('brand blocks for imported emails (promos, benefits, banner, fine print) validate and render with the brand', () => {
+  const { newsletterBlockSchema } = validations;
+  const blocks = [
+    { id: 'b', type: 'banner', text: '🎉 LO EXTENDEMOS · Ahora cierra el viernes', tone: 'cyan' },
+    { id: 'p', type: 'paragraph', text: 'Si todavía no lo hiciste, **esta es tu oportunidad**.' },
+    { id: 'pr', type: 'promos', items: [
+      { value: '3x2', label: 'Llevás 3, pagás 2', text: 'Combiná sabores.', code: 'CYBER3', tone: 'pink' },
+      { value: '20% off\n+ envío gratis', label: 'Llevando 3 cajas', text: 'Sobre el total.', code: 'CYBER20', tone: 'cyan' },
+    ] },
+    { id: 'f', type: 'features', items: [{ icon: '📅', title: 'Cierre: viernes 7/11', text: 'A las 23:59 hs' }, { icon: '🚚', title: 'Envío gratis', text: 'Con CYBER20' }, { icon: '📦', title: 'Stock limitado', text: '' }] },
+    { id: 's', type: 'paragraph', text: 'Un código por compra. Sujeto a stock.', small: true },
+  ];
+  for (const block of blocks) assert.equal(newsletterBlockSchema.safeParse(block).success, true, block.type);
+  assert.equal(newsletterBlockSchema.safeParse({ id: 'x', type: 'promos', items: [] }).success, false, 'promos need items');
+  assert.equal(newsletterBlockSchema.safeParse({ id: 'x', type: 'promos', items: [{ value: '<b>3x2</b>', text: '', tone: 'pink' }] }).success, false, 'no HTML in promos');
+  assert.equal(newsletterBlockSchema.safeParse({ id: 'x', type: 'features', items: [{ title: 'Solo uno', text: '' }] }).success, false, 'a strip needs 2+ benefits');
+
+  const snapshot = render.buildNewsletterEmailSnapshot({
+    content: { slug: 's', title: 'Se extendió', excerpt: 'Resumen de prueba', category: 'Cyber extendido', blocks, emailSubject: 'Asunto' },
+    products: {}, siteUrl: SITE, webUrl: null,
+  });
+  const html = snapshot.html;
+  assert.ok(html.indexOf('LO EXTENDEMOS') < html.indexOf('iq-kids-logo-email.png'), 'a leading banner goes on top of the email, above the logo');
+  assert.ok(html.includes('border:2px dashed #F48991') && html.includes('border:2px dashed #2B9CC4'), 'codes in dashed boxes with brand colors');
+  assert.ok(html.includes('20% off<br />+ envío gratis'), 'promo value keeps its line break');
+  assert.ok(html.includes("Watermelon Regular"), 'brand display font');
+  assert.ok(!html.includes('#E78080') && !html.includes('Georgia'), 'nothing of the original palette or fonts');
+  assert.ok(html.includes('font-size:12px;line-height:1.6;color:#6f6680;text-align:center;'), 'fine print is small and centered');
+  for (const text of ['CYBER3', 'CYBER20', 'Cierre: viernes 7/11', '📦']) assert.ok(html.includes(text), text);
+  assert.ok(snapshot.text.includes('Código: CYBER20') && snapshot.text.includes('20% off + envío gratis'), 'plain text version');
 });
