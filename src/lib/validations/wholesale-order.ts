@@ -28,6 +28,7 @@ export const wholesaleCuitSchema = required("el CUIT", 20)
 export const wholesaleIdentifySchema = z.object({
   email: wholesaleEmailSchema,
   cuit: z.string().trim().max(20).optional(),
+  remember: z.boolean().default(false),
 });
 
 export const wholesaleDeliverySchema = z.object({
@@ -45,6 +46,7 @@ export const wholesaleDeliverySchema = z.object({
 
 export const wholesaleOrderSchema = z.object({
   checkoutRequestKey: z.string().trim().min(8).max(100),
+  remember: z.boolean().default(false),
   items: z
     .array(z.object({ wholesaleProductId: z.string().uuid(), quantity: z.number().int().min(1).max(1000) }))
     .min(1, "Tu pedido está vacío.")

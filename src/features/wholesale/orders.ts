@@ -218,7 +218,8 @@ export async function createWholesaleOrder(payload: unknown) {
     throw new AppError("No pudimos generar el número de pedido. Probá de nuevo.", 500, true);
   }
 
-  if (isNewCustomer) {
+  // Un cliente nuevo ya no necesita la cookie para este pedido: solo se graba si aceptó guardar sus datos.
+  if (isNewCustomer && input.remember) {
     await trustWholesaleCustomer(created.customerId);
   }
 

@@ -411,7 +411,7 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
             <TextField label="Descripción para Google (SEO)" value={content.seoDescription} onChange={(value) => patch("seoDescription", value)} multiline />
           </div>
           <div className="md:col-span-2">
-            <TextField label="Barra superior" value={content.topbar} onChange={(value) => patch("topbar", value)} hint="Franja oscura arriba de todo. Vacía = no se muestra." />
+            <TextField label="Barra superior" value={content.topbar} onChange={(value) => patch("topbar", value)} hint="Franja rosa en movimiento arriba de todo. Vacía = no se muestra." />
           </div>
         </div>
       </AdminSection>

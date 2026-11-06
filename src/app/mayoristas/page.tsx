@@ -97,7 +97,7 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
   return (
     <div className="overflow-hidden bg-white text-brand-ink">
       {/* Fija arriba de todo: la regla .wholesale-topbar de globals.css baja el menú para hacerle lugar. */}
-      {content.topbar ? <AnnouncementMarquee text={content.topbar} className="wholesale-topbar bg-brand-ink" /> : null}
+      {content.topbar ? <AnnouncementMarquee text={content.topbar} className="wholesale-topbar bg-brand-pink" /> : null}
 
       <section className="relative bg-[#fff6f7] px-4 pb-14 pt-14 text-center md:px-6 md:pb-20 md:pt-20">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(244,137,145,0.18)_0%,transparent_70%)]" />
