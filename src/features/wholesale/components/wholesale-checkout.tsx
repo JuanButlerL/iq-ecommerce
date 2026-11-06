@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { CheckCircle2, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, FileCheck2, Landmark, Trash2, type LucideIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/components/address-map-preview";
 import { FieldShell } from "@/features/checkout/components/field-shell";
+import { PaymentOptionCard } from "@/features/checkout/components/payment-option-card";
 import { useHydratedWholesaleCart, useWholesaleCartStore } from "@/features/wholesale/cart-store";
 import { joinStreet, splitStreet } from "@/features/wholesale/delivery-address";
 import type { WholesaleCustomerProfile } from "@/features/wholesale/identify";
@@ -60,6 +61,13 @@ type WholesaleCheckoutProps = {
 };
 
 type TaxCondition = (typeof TAX_CONDITIONS)[number];
+
+// Mercado Pago usa su logo, igual que en la tienda; el resto, un icono.
+const PAYMENT_ICONS: Partial<Record<WholesalePaymentMethod, LucideIcon>> = {
+  BANK_TRANSFER: Landmark,
+  ECHEQ: FileCheck2,
+  DEFERRED: CalendarClock,
+};
 
 // "email": todavía no sabemos quién es. "cuit": el email existe pero este navegador no está recordado.
 type Identity =
@@ -180,6 +188,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     [items, products],
   );
   const availableLines = lines.filter((line) => !line.product.soldOut);
+  const suggestedProducts = products.filter((product) => !product.soldOut && !items.some((item) => item.productId === product.id));
   const displays = availableLines.reduce((sum, line) => sum + line.quantity, 0);
   const missing = Math.max(0, settings.minDisplays - displays);
   const subtotalArs = availableLines.reduce((sum, line) => sum + line.product.priceArs * line.quantity, 0);
@@ -400,6 +409,49 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                 ? `El mínimo es de ${settings.minDisplays}: ${missing === 1 ? "te falta 1 display" : `te faltan ${missing} displays`}.`
                 : "Llegaste al pedido mínimo."}
             </p>
+
+            {suggestedProducts.length > 0 ? (
+              <div className="mt-5 rounded-[1.65rem] border border-brand-ink/8 bg-white p-4 shadow-[0_10px_26px_rgba(44,34,65,0.04)]">
+                <p className="mb-3 text-sm font-extrabold leading-5 text-brand-ink">Sumar otro sabor</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {suggestedProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="grid grid-cols-[58px_minmax(0,1fr)_92px] items-center gap-3 rounded-[1.25rem] border border-brand-ink/8 bg-brand-cream/35 p-3 transition hover:border-brand-pink/30 hover:bg-white hover:shadow-[0_12px_30px_rgba(44,34,65,0.06)]"
+                    >
+                      <div className="relative h-14 w-14 overflow-hidden rounded-[1rem] bg-white shadow-[0_8px_18px_rgba(44,34,65,0.06)]">
+                        {product.imageUrl ? (
+                          <Image src={product.imageUrl} alt={product.imageAlt || product.name} fill sizes="56px" className="object-contain p-1.5" />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-[0.92rem] font-extrabold leading-5 text-brand-ink">{product.name}</p>
+                        <p className="mt-1 text-sm font-bold tabular-nums text-brand-ink/55">{formatArs(product.priceArs)}</p>
+                      </div>
+                      <div className="inline-flex items-center justify-self-end rounded-full border border-brand-ink/12 bg-white shadow-[0_8px_18px_rgba(44,34,65,0.05)]">
+                        <button
+                          type="button"
+                          className="flex h-9 w-8 cursor-not-allowed items-center justify-center text-lg font-light text-brand-ink/25"
+                          disabled
+                          aria-label={`${product.name} todavía no está en el pedido`}
+                        >
+                          -
+                        </button>
+                        <span className="flex h-9 min-w-7 items-center justify-center text-sm font-extrabold text-brand-ink/55">0</span>
+                        <button
+                          type="button"
+                          className="flex h-9 w-8 items-center justify-center text-lg font-light text-brand-pink transition hover:text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/30"
+                          aria-label={`Agregar ${product.name} al pedido`}
+                          onClick={() => setQuantity(product.id, 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </Step>
 
           <Step
@@ -593,42 +645,29 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
               <Step number={4} title="Pago">
                 <div className="grid gap-3" role="radiogroup" aria-label="Medio de pago">
                   {paymentOptions.map((method) => (
-                    <label
+                    <PaymentOptionCard
                       key={method}
-                      className={cn(
-                        "flex cursor-pointer items-start gap-3 rounded-3xl border-2 px-4 py-3.5 transition",
-                        paymentMethod === method ? "border-brand-pink bg-[#fff6f7]" : "border-brand-ink/10 hover:border-brand-ink/25",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value={method}
-                        checked={paymentMethod === method}
-                        onChange={() => setPaymentMethod(method)}
-                        className="mt-1 accent-[#F48991]"
-                        required
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-sm font-extrabold text-brand-ink">
-                          {WHOLESALE_PAYMENT_METHOD_LABELS[method]}
-                          {method === "BANK_TRANSFER" && settings.enableBankTransferDiscount && settings.bankTransferDiscountPercentage > 0 ? (
-                            <span className="ml-2 rounded-full bg-brand-mint px-2 py-0.5 text-[11px] font-extrabold text-brand-ink">
-                              {settings.bankTransferDiscountPercentage}% OFF
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="mt-0.5 block whitespace-pre-line text-xs leading-5 text-brand-ink/60">
-                          {method === "MERCADO_PAGO"
-                            ? "Tarjeta, dinero en cuenta o lo que tengas en Mercado Pago."
-                            : method === "BANK_TRANSFER"
-                              ? "Te mostramos los datos al confirmar. Despachamos cuando se acredita."
-                              : method === "ECHEQ"
-                                ? settings.echeqInstructions || "Emitís el eCheq y subís el comprobante. Despachamos cuando lo recibimos."
-                                : "Según las condiciones acordadas con tu cuenta. Pagás después de recibir el pedido."}
-                        </span>
-                      </span>
-                    </label>
+                      asRadio
+                      title={WHOLESALE_PAYMENT_METHOD_LABELS[method]}
+                      description={
+                        method === "MERCADO_PAGO"
+                          ? "Tarjeta, dinero en cuenta o lo que tengas en Mercado Pago."
+                          : method === "BANK_TRANSFER"
+                            ? "Te mostramos los datos al confirmar. Despachamos cuando se acredita."
+                            : method === "ECHEQ"
+                              ? settings.echeqInstructions || "Emitís el eCheq y subís el comprobante. Despachamos cuando lo recibimos."
+                              : "Según las condiciones acordadas con tu cuenta. Pagás después de recibir el pedido."
+                      }
+                      note={
+                        method === "BANK_TRANSFER" && settings.enableBankTransferDiscount && settings.bankTransferDiscountPercentage > 0
+                          ? `${settings.bankTransferDiscountPercentage}% de descuento pagando por transferencia`
+                          : null
+                      }
+                      selected={paymentMethod === method}
+                      onSelect={() => setPaymentMethod(method)}
+                      icon={PAYMENT_ICONS[method]}
+                      logo={method === "MERCADO_PAGO" ? { src: "/brand/mercado-pago-logo.png", alt: "Mercado Pago" } : undefined}
+                    />
                   ))}
                 </div>
                 <div className="mt-4">
