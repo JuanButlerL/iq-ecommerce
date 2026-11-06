@@ -164,6 +164,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
   );
   const [email, setEmail] = useState(trustedCustomers[0]?.email ?? "");
   const [cuit, setCuit] = useState("");
+  const [remember, setRemember] = useState(false);
   const [legalName, setLegalName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
@@ -258,7 +259,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     setIdentifyError(null);
     const result = await postJson<{ status: "new" } | { status: "needs_cuit" } | { status: "recognized"; customers: WholesaleCustomerProfile[] }>(
       "/api/mayoristas/identificar",
-      { email, cuit: identity.stage === "cuit" ? cuit : undefined },
+      { email, cuit: identity.stage === "cuit" ? cuit : undefined, remember },
     );
     setIdentifying(false);
 
@@ -299,6 +300,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     setSubmitError(null);
     const result = await postJson<{ orderNumber: string; paymentMethod: WholesalePaymentMethod }>("/api/mayoristas/pedidos", {
       checkoutRequestKey,
+      remember,
       items: availableLines.map((line) => ({ wholesaleProductId: line.product.id, quantity: line.quantity })),
       customer:
         identity.stage === "recognized"
@@ -413,7 +415,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
             {suggestedProducts.length > 0 ? (
               <div className="mt-5 rounded-[1.65rem] border border-brand-ink/8 bg-white p-4 shadow-[0_10px_26px_rgba(44,34,65,0.04)]">
                 <p className="mb-3 text-sm font-extrabold leading-5 text-brand-ink">Sumar otro sabor</p>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3">
                   {suggestedProducts.map((product) => (
                     <div
                       key={product.id}
@@ -464,8 +466,10 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                 stage={identity.stage}
                 email={email}
                 cuit={cuit}
+                remember={remember}
                 onEmail={setEmail}
                 onCuit={setCuit}
+                onRemember={setRemember}
                 busy={identifying}
                 error={identifyError}
                 onSubmit={identify}
@@ -740,8 +744,10 @@ function IdentifyFields({
   stage,
   email,
   cuit,
+  remember,
   onEmail,
   onCuit,
+  onRemember,
   busy,
   error,
   onSubmit,
@@ -749,8 +755,10 @@ function IdentifyFields({
   stage: "email" | "cuit";
   email: string;
   cuit: string;
+  remember: boolean;
   onEmail: (value: string) => void;
   onCuit: (value: string) => void;
+  onRemember: (value: boolean) => void;
   busy: boolean;
   error: string | null;
   onSubmit: () => void;
@@ -785,6 +793,17 @@ function IdentifyFields({
         ) : null}
       </div>
       {stage === "email" ? <p className="text-xs text-brand-ink/55">Si ya nos compraste, precargamos tus datos.</p> : null}
+
+      <label className="group flex w-fit cursor-pointer items-start gap-2 text-left focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-pink focus-within:ring-offset-2">
+        <input type="checkbox" className="peer sr-only" checked={remember} onChange={(event) => onRemember(event.target.checked)} />
+        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-brand-ink/30 bg-white text-white transition-colors peer-checked:border-brand-pink peer-checked:bg-brand-pink">
+          <CheckCircle2 className={cn("h-3 w-3 transition-opacity", remember ? "opacity-100" : "opacity-0")} />
+        </span>
+        <span>
+          <span className="block text-sm font-semibold text-brand-ink/70">Acepto que guarden mis datos para futuras compras</span>
+          <span className="mt-0.5 block text-xs text-brand-ink/55">Recordamos tu empresa y dirección en este navegador, así no tenés que volver a validarte.</span>
+        </span>
+      </label>
 
       {stage === "cuit" ? (
         <>

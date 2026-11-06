@@ -120,7 +120,7 @@ export async function identifyWholesaleCustomer(payload: unknown, request: { ip:
       sendWholesaleNewDeviceNotice(match, { userAgent: request.userAgent });
     }
 
-    await trustWholesaleCustomer(match.id);
+    await trustWholesaleCustomer(match.id, { remember: parsed.data.remember });
     trustedIds.add(match.id);
   }
 

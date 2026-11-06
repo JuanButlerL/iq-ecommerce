@@ -103,6 +103,12 @@ test('pedido mayorista: rechaza CUIT inválido, sin condición de IVA o con un m
   assert.equal(wholesaleOrderSchema.safeParse({ ...validOrder(), items: [] }).success, false);
 });
 
+test('guardar los datos requiere aceptación explícita: sin el check no se recuerda', () => {
+  assert.equal(wholesaleIdentifySchema.parse({ email: 'a@b.com' }).remember, false);
+  assert.equal(wholesaleIdentifySchema.parse({ email: 'a@b.com', remember: true }).remember, true);
+  assert.equal(wholesaleIdentifySchema.safeParse({ email: 'a@b.com', remember: 'si' }).success, false);
+});
+
 test('un cliente existente se manda solo con su id', () => {
   const parsed = wholesaleOrderSchema.safeParse({ ...validOrder(), customer: { mode: 'existing', customerId: '6f1c1b1e-2222-4a4a-9a9a-123456789abc' } });
   assert.equal(parsed.success, true);
