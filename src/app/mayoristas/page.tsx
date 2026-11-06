@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { AnnouncementMarquee } from "@/components/layout/announcement-marquee";
 import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesaleContact } from "@/features/wholesale/components/wholesale-contact";
 import { WholesaleOrderBar, WholesaleProductGrid } from "@/features/wholesale/components/wholesale-product-grid";
@@ -95,9 +96,8 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="overflow-hidden bg-white text-brand-ink">
-      {content.topbar ? (
-        <div className="bg-brand-ink px-4 py-2.5 text-center text-xs tracking-[0.06em] text-white/75">{content.topbar}</div>
-      ) : null}
+      {/* Fija arriba de todo: la regla .wholesale-topbar de globals.css baja el menú para hacerle lugar. */}
+      {content.topbar ? <AnnouncementMarquee text={content.topbar} className="wholesale-topbar bg-brand-ink" /> : null}
 
       <section className="relative bg-[#fff6f7] px-4 pb-14 pt-14 text-center md:px-6 md:pb-20 md:pt-20">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(244,137,145,0.18)_0%,transparent_70%)]" />

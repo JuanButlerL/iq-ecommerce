@@ -6,6 +6,7 @@ import { ArrowRight, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { IQKidsLogo } from "@/components/brand/logo";
+import { AnnouncementMarquee } from "@/components/layout/announcement-marquee";
 import { CartBadge } from "@/features/cart/components/cart-badge";
 import { CartFeedback } from "@/features/cart/components/cart-feedback";
 import { cn } from "@/lib/utils/cn";
@@ -89,15 +90,7 @@ export function SiteHeader({
     <header className="sticky top-0 z-40 transition-all duration-300">
       <CartFeedback />
       {announcementBarEnabled && announcementBarText && isHomeRoute ? (
-        <div className="overflow-hidden bg-brand-pink py-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-white md:py-2 md:text-[12px] md:tracking-[0.17em]">
-          <div className="flex w-max min-w-full animate-[marquee_26s_linear_infinite] whitespace-nowrap">
-            {Array.from({ length: 10 }).map((_, index) => (
-              <span key={index} className="inline-flex items-center px-6 md:px-10">
-                {announcementBarText}
-              </span>
-            ))}
-          </div>
-        </div>
+        <AnnouncementMarquee text={announcementBarText} className="bg-brand-pink py-1.5 md:py-2" />
       ) : null}
 
       <div className="w-full border-b border-brand-pink/12 bg-white">

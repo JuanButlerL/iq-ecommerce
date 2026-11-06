@@ -36,6 +36,32 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Franja de /mayoristas: se dibuja en la página pero va arriba del menú, que vive en el layout raíz. */
+.wholesale-topbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  height: 1.75rem;
+}
+
+body:has(.wholesale-topbar) > header {
+  top: 1.75rem;
+  margin-top: 1.75rem;
+}
+
+@media (min-width: 768px) {
+  .wholesale-topbar {
+    height: 2.25rem;
+  }
+
+  body:has(.wholesale-topbar) > header {
+    top: 2.25rem;
+    margin-top: 2.25rem;
+  }
+}
+
 @keyframes marquee {
   0% {
     transform: translate3d(0, 0, 0);
