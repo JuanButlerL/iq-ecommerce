@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { MetaPixelEvent } from "@/components/analytics/meta-pixel-event";
 import { Container } from "@/components/layout/container";
 import { ProductPrice } from "@/features/catalog/components/product-price";
 import { hasWholesaleAccess } from "@/features/wholesale/access";
@@ -10,6 +11,7 @@ import { WholesalePurchasePanel } from "@/features/wholesale/components/wholesal
 import { getPublicWholesaleProducts } from "@/features/wholesale/products";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { getWholesaleSettings } from "@/features/wholesale/settings";
+import { WHOLESALE_META_CHANNEL, WHOLESALE_META_EVENTS } from "@/lib/wholesale-meta-events";
 import { formatArs } from "@/lib/utils/currency";
 
 export const metadata: Metadata = {
@@ -51,6 +53,19 @@ export default async function WholesaleProductPage({ params }: { params: Promise
 
   return (
     <Container className="space-y-14 py-12 md:py-16">
+      <MetaPixelEvent
+        custom
+        eventName={WHOLESALE_META_EVENTS.viewContent}
+        dedupeKey={`view-content-mayorista:${product.id}`}
+        params={{
+          content_ids: [product.id],
+          content_name: product.name,
+          content_type: "product",
+          currency: "ARS",
+          value: product.priceArs,
+          channel: WHOLESALE_META_CHANNEL,
+        }}
+      />
       <div className="grid gap-10 lg:grid-cols-[1fr_0.85fr]">
         <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] bg-white shadow-card">
           {product.imageUrl ? (
@@ -97,7 +112,7 @@ export default async function WholesaleProductPage({ params }: { params: Promise
           {product.soldOut ? (
             <p className="flex h-12 items-center justify-center rounded-full bg-brand-ink/5 text-sm font-extrabold text-brand-ink/50">Sin stock. Volvé pronto.</p>
           ) : (
-            <WholesalePurchasePanel productId={product.id} />
+            <WholesalePurchasePanel productId={product.id} productName={product.name} priceArs={product.priceArs} />
           )}
         </div>
       </div>

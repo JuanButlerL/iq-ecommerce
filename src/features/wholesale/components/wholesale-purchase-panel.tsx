@@ -5,8 +5,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "@/features/catalog/components/quantity-selector";
 import { useWholesaleCartStore } from "@/features/wholesale/cart-store";
+import { trackWholesaleAddToCart } from "@/lib/integrations/wholesale-commerce-tracking";
 
-export function WholesalePurchasePanel({ productId }: { productId: string }) {
+export function WholesalePurchasePanel({ productId, productName, priceArs }: { productId: string; productName: string; priceArs: number }) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
@@ -23,6 +24,7 @@ export function WholesalePurchasePanel({ productId }: { productId: string }) {
           const { items, setQuantity: setCartQuantity } = useWholesaleCartStore.getState();
           const current = items.find((item) => item.productId === productId)?.quantity ?? 0;
           setCartQuantity(productId, current + quantity);
+          trackWholesaleAddToCart({ productId, productName, priceArs, quantity });
           setAdded(true);
           window.setTimeout(() => setAdded(false), 1200);
         }}

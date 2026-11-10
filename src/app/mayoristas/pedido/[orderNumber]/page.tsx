@@ -3,10 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { MetaPixelPurchase } from "@/components/analytics/meta-pixel-purchase";
 import { PaymentProofForm } from "@/features/checkout/components/payment-proof-form";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { WHOLESALE_PAYMENT_METHOD_LABELS, type WholesalePaymentMethod } from "@/features/wholesale/pricing";
+import { wholesaleMetaPurchaseItems } from "@/features/wholesale/meta-purchase";
 import { getWholesaleSettings } from "@/features/wholesale/settings";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -39,6 +41,8 @@ export default async function WholesaleOrderPage({ params }: { params: Promise<{
   const needsProof = (paymentMethod === "BANK_TRANSFER" || paymentMethod === "ECHEQ") && order.paymentStatus === "PENDING" && !cancelled;
   const mercadoPagoPending = paymentMethod === "MERCADO_PAGO" && !paid && !cancelled;
   const orderUrl = `/mayoristas/pedido/${order.publicOrderNumber}`;
+  // Mismo criterio que el servidor (sendWholesaleMetaPurchase): cuenta cuando el pago quedó comprometido.
+  const shouldTrackMetaPurchase = !cancelled && (paid || proofUploaded || paymentMethod === "DEFERRED");
 
   const totals: [string, string][] = [
     ["Subtotal", formatArs(order.subtotalArs)],
@@ -62,6 +66,15 @@ export default async function WholesaleOrderPage({ params }: { params: Promise<{
   return (
     <div className="bg-[#fff6f7] px-4 py-10 md:px-6 md:py-14">
       <div className="mx-auto flex max-w-[720px] flex-col gap-6">
+        {shouldTrackMetaPurchase ? (
+          <MetaPixelPurchase
+            wholesale
+            orderNumber={order.publicOrderNumber}
+            totalArs={order.totalArs}
+            shippingArs={order.shippingArs}
+            items={wholesaleMetaPurchaseItems(order.items)}
+          />
+        ) : null}
         <div className="text-center">
           <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-brand-pink">iQ Kids Mayoristas</p>
           <h1 className="mt-3 font-display text-4xl leading-none text-brand-ink md:text-5xl">¡Gracias, {order.customerFirstName}!</h1>

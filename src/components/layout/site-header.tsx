@@ -17,6 +17,8 @@ type SiteHeaderProps = {
   subscriptionSectionEnabled?: boolean | null;
   faqSectionEnabled?: boolean | null;
   newsletterSectionEnabled?: boolean | null;
+  // Con la sección mayorista habilitada, la tienda muestra el acceso a /mayoristas.
+  wholesaleEnabled?: boolean;
 };
 
 export function SiteHeader({
@@ -25,20 +27,36 @@ export function SiteHeader({
   subscriptionSectionEnabled,
   faqSectionEnabled,
   newsletterSectionEnabled,
+  wholesaleEnabled = false,
 }: SiteHeaderProps) {
   const pathname = usePathname();
   const [isCompact, setIsCompact] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isHomeRoute = pathname === "/";
+  const isWholesaleRoute = pathname.startsWith("/mayoristas");
   // El canal mayorista tiene su propio carrito (barra inferior): el de la tienda no aplica ahí.
-  const showRetailCart = !pathname.startsWith("/mayoristas");
-  const navigation = [
+  const showRetailCart = !isWholesaleRoute;
+  // Cada canal tiene su menú y un acceso directo al otro.
+  const homeHref = isWholesaleRoute ? "/mayoristas" : "/";
+  const channelLink = isWholesaleRoute
+    ? { href: "/", label: "Minoristas" }
+    : wholesaleEnabled
+      ? { href: "/mayoristas", label: "Mayoristas" }
+      : null;
+  const wholesaleNavigation = [
+    { href: "/mayoristas", label: "Inicio" },
+    { href: "/mayoristas#productos", label: "Productos" },
+    { href: "/mayoristas#faq", label: "Preguntas frecuentes" },
+    { href: "/mayoristas#contacto", label: "Contacto" },
+  ];
+  const retailNavigation = [
     { href: "/", label: "Inicio" },
     { href: "/productos", label: "Productos" },
     ...(faqSectionEnabled ? [{ href: "/preguntas-frecuentes", label: "Preguntas frecuentes" }] : []),
     ...(newsletterSectionEnabled ? [{ href: "/newsletter", label: "Newsletter" }] : []),
     { href: "/contacto", label: "Contacto" },
   ];
+  const navigation = isWholesaleRoute ? wholesaleNavigation : retailNavigation;
   const homeNavigation = [
     { id: "inicio", label: "Inicio" },
     { id: "productos", label: "Productos" },
@@ -110,7 +128,7 @@ export function SiteHeader({
           </button>
 
           <Link
-            href="/"
+            href={homeHref}
             aria-label="IQ Kids home"
             className="mx-auto block w-fit self-center justify-self-center lg:mr-auto lg:ml-0 lg:shrink-0"
           >
@@ -150,6 +168,18 @@ export function SiteHeader({
                     </Link>
                   ))}
             </nav>
+
+            {channelLink ? (
+              <Link
+                href={channelLink.href}
+                className={cn(
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-full border border-brand-pink/40 px-4 font-extrabold text-brand-pink transition hover:bg-brand-pink hover:text-white",
+                  isCompact ? "h-9 text-sm" : "h-10 text-[15px]",
+                )}
+              >
+                {channelLink.label}
+              </Link>
+            ) : null}
 
             {showRetailCart ? (
               <CartBadge
@@ -206,6 +236,17 @@ export function SiteHeader({
                     </Link>
                   ))}
             </nav>
+
+            {channelLink ? (
+              <Link
+                href={channelLink.href}
+                className="mt-6 flex items-center justify-between rounded-full border border-brand-pink/40 px-5 py-3.5 text-base font-extrabold text-brand-pink transition hover:bg-brand-pink hover:text-white"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <span>Ir a {channelLink.label.toLowerCase()}</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}

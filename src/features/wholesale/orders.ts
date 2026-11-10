@@ -5,6 +5,7 @@ import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ensureMercadoPagoPreference } from "@/features/orders/services/mercado-pago-service";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { getTrustedWholesaleCustomerIds, trustWholesaleCustomer } from "@/features/wholesale/device";
+import { sendWholesaleMetaPurchase } from "@/features/wholesale/meta-purchase";
 import { buildWholesaleOrderAdminEmail, buildWholesaleOrderCustomerEmail, type WholesaleOrderEmailData } from "@/features/wholesale/order-email";
 import {
   WHOLESALE_PAYMENT_METHOD_LABELS,
@@ -264,6 +265,12 @@ export async function createWholesaleOrder(payload: unknown) {
       deliveryAddressChanged,
     },
   });
+
+  // El pago diferido no pasa por comprobante ni por Mercado Pago: la compra queda hecha al crear el pedido.
+  if (input.paymentMethod === "DEFERRED") {
+    const order = await prisma.order.findUnique({ where: { id: created.id }, include: { items: true } });
+    if (order) await sendWholesaleMetaPurchase(order);
+  }
 
   return buildResponse(created);
 }

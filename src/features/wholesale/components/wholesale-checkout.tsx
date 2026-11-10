@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { CalendarClock, CheckCircle2, FileCheck2, Landmark, Trash2, type LucideIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,9 @@ import { cn } from "@/lib/utils/cn";
 import { formatArs } from "@/lib/utils/currency";
 import { formatCuit, isValidCuit, normalizeCuit } from "@/lib/utils/cuit";
 import { TAX_CONDITIONS } from "@/lib/validations/wholesale-customer";
+import { trackWholesaleAddToCart } from "@/lib/integrations/wholesale-commerce-tracking";
+import { customEvent } from "@/lib/pixel";
+import { WHOLESALE_META_CHANNEL, WHOLESALE_META_EVENTS } from "@/lib/wholesale-meta-events";
 
 type CheckoutProduct = {
   id: string;
@@ -236,6 +239,27 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     shippingArs: shippingQuote?.shippingArs ?? 0,
   });
 
+  // Una vez por intento de compra, como InitiateCheckout en la tienda.
+  const trackedCheckoutRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated || trackedCheckoutRef.current || displays === 0) return;
+    trackedCheckoutRef.current = true;
+    const storageKey = `meta:initiate_checkout_mayorista:${checkoutRequestKey}`;
+    if (window.sessionStorage.getItem(storageKey)) return;
+    window.sessionStorage.setItem(storageKey, "1");
+    customEvent(WHOLESALE_META_EVENTS.initiateCheckout, {
+      value: pricing.totalArs,
+      currency: "ARS",
+      num_items: displays,
+      channel: WHOLESALE_META_CHANNEL,
+    });
+  }, [hydrated, displays, checkoutRequestKey, pricing.totalArs]);
+
+  const addDisplay = (product: CheckoutProduct, nextQuantity: number) => {
+    setQuantity(product.id, nextQuantity);
+    trackWholesaleAddToCart({ productId: product.id, productName: product.name, priceArs: product.priceArs, quantity: 1 });
+  };
+
   const selectCustomer = (next: WholesaleCustomerProfile) => {
     setTaxCondition(next.taxCondition ?? "");
     setDelivery(deliveryFrom(next));
@@ -389,7 +413,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                         onChange={(event) => setQuantity(product.id, Number.parseInt(event.target.value, 10) || 0)}
                         className="h-8 w-14 rounded-xl border border-brand-ink/15 text-center text-base tabular-nums text-brand-ink outline-none focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20 md:text-sm"
                       />
-                      <button type="button" aria-label={`Sumar un display de ${product.name}`} onClick={() => setQuantity(product.id, quantity + 1)} className={stepButton}>
+                      <button type="button" aria-label={`Sumar un display de ${product.name}`} onClick={() => addDisplay(product, quantity + 1)} className={stepButton}>
                         +
                       </button>
                     </div>
@@ -444,7 +468,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                           type="button"
                           className="flex h-9 w-8 items-center justify-center text-lg font-light text-brand-pink transition hover:text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/30"
                           aria-label={`Agregar ${product.name} al pedido`}
-                          onClick={() => setQuantity(product.id, 1)}
+                          onClick={() => addDisplay(product, 1)}
                         >
                           +
                         </button>

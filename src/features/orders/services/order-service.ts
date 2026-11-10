@@ -26,6 +26,7 @@ import { AppError } from "@/lib/errors/app-error";
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
+import { sendWholesaleMetaPurchase } from "@/features/wholesale/meta-purchase";
 import { sendGoogleAnalyticsPurchaseForOrder } from "@/lib/integrations/google-analytics/server";
 import { uploadPaymentProof } from "@/lib/storage/payment-proofs";
 import type { CheckoutInput } from "@/lib/validations/checkout";
@@ -504,8 +505,9 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     return null;
   });
 
-  // Recuperación de carrito, Meta y GA miden la tienda: los pedidos mayoristas no cuentan.
+  // Recuperación de carrito, GA y las compras de Meta miden la tienda. Los pedidos mayoristas mandan su propio evento.
   if (isWholesale) {
+    await sendWholesaleMetaPurchase(order, requestContext);
     return {
       orderNumber: order.publicOrderNumber,
       syncResult,
