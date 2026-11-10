@@ -33,3 +33,12 @@ export const event = (name: string, options: PixelEventOptions = {}, trackingOpt
 
   window.fbq("track", name, options, trackingOptions);
 };
+
+// Eventos propios (no estándar) de Meta, como los del canal mayorista.
+export const customEvent = (name: string, options: PixelEventOptions = {}, trackingOptions: PixelTrackingOptions = {}) => {
+  if (!isFacebookPixelEnabled() || typeof window === "undefined" || typeof window.fbq !== "function") {
+    return;
+  }
+
+  window.fbq("trackCustom", name, options, trackingOptions);
+};

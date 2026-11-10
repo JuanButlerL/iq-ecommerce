@@ -21,6 +21,7 @@ type AppChromeProps = {
   subscriptionSectionEnabled?: boolean | null;
   faqSectionEnabled?: boolean | null;
   newsletterSectionEnabled?: boolean | null;
+  wholesaleEnabled?: boolean;
   lastUpdatedAt?: string;
 };
 
@@ -35,6 +36,7 @@ export function AppChrome({
   subscriptionSectionEnabled,
   faqSectionEnabled,
   newsletterSectionEnabled,
+  wholesaleEnabled,
   lastUpdatedAt,
 }: AppChromeProps) {
   const pathname = usePathname();
@@ -56,6 +58,7 @@ export function AppChrome({
           subscriptionSectionEnabled={subscriptionSectionEnabled}
           faqSectionEnabled={faqSectionEnabled}
           newsletterSectionEnabled={newsletterSectionEnabled}
+          wholesaleEnabled={wholesaleEnabled}
         />
       )}
       <main>{children}</main>

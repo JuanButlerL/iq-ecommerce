@@ -2,15 +2,17 @@
 
 import { useEffect, useRef } from "react";
 
-import { event, type PixelEventOptions } from "@/lib/pixel";
+import { customEvent, event, type PixelEventOptions } from "@/lib/pixel";
 
 type MetaPixelEventProps = {
   eventName: string;
   params?: PixelEventOptions;
   dedupeKey?: string;
+  // Evento propio (trackCustom), como los del canal mayorista.
+  custom?: boolean;
 };
 
-export function MetaPixelEvent({ eventName, params = {}, dedupeKey }: MetaPixelEventProps) {
+export function MetaPixelEvent({ eventName, params = {}, dedupeKey, custom = false }: MetaPixelEventProps) {
   const trackedRef = useRef(false);
 
   useEffect(() => {
@@ -29,9 +31,9 @@ export function MetaPixelEvent({ eventName, params = {}, dedupeKey }: MetaPixelE
       window.sessionStorage.setItem(storageKey, "1");
     }
 
-    event(eventName, params);
+    (custom ? customEvent : event)(eventName, params);
     trackedRef.current = true;
-  }, [dedupeKey, eventName, params]);
+  }, [custom, dedupeKey, eventName, params]);
 
   return null;
 }

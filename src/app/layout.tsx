@@ -10,6 +10,7 @@ import { MicrosoftClarity } from "@/components/analytics/microsoft-clarity";
 import { WebVitals } from "@/components/analytics/web-vitals";
 import { AppChrome } from "@/components/layout/app-chrome";
 import { getStoreSettings } from "@/features/settings/queries";
+import { getWholesaleContent } from "@/features/wholesale/queries";
 import { env } from "@/lib/env";
 import { absoluteUrl, JsonLd } from "@/lib/seo/json-ld";
 import { getSiteLastUpdatedAt } from "@/lib/seo/last-updated";
@@ -47,7 +48,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const [settings, lastUpdatedAt] = await Promise.all([getStoreSettings(), getSiteLastUpdatedAt()]);
+  const [settings, lastUpdatedAt, wholesaleContent] = await Promise.all([getStoreSettings(), getSiteLastUpdatedAt(), getWholesaleContent()]);
   const clarityProjectId = env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID || "wqhtpsarz4";
   const facebookPixelId = env.hasFacebookPixel ? env.NEXT_PUBLIC_FB_PIXEL_ID : null;
   const googleTagManagerId = env.hasGoogleTagManager ? env.NEXT_PUBLIC_GTM_ID : null;
@@ -98,6 +99,7 @@ export default async function RootLayout({
           subscriptionSectionEnabled={settings?.subscriptionSectionEnabled}
           faqSectionEnabled={settings?.faqSectionEnabled}
           newsletterSectionEnabled={settings?.newsletterSectionEnabled}
+          wholesaleEnabled={wholesaleContent.enabled}
           lastUpdatedAt={lastUpdatedAt?.toISOString()}
         >
           {children}

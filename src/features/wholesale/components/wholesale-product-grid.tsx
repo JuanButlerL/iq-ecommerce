@@ -8,6 +8,7 @@ import { HomeProductsScroller } from "@/features/catalog/components/home-product
 import { ProductCardActionsView } from "@/features/catalog/components/product-card-actions-view";
 import { ProductPrice } from "@/features/catalog/components/product-price";
 import { useHydratedWholesaleCart, useWholesaleCartStore } from "@/features/wholesale/cart-store";
+import { trackWholesaleAddToCart } from "@/lib/integrations/wholesale-commerce-tracking";
 import { cn } from "@/lib/utils/cn";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -42,6 +43,10 @@ function WholesaleProductCardActions({ product, accent }: { product: WholesaleGr
   const setQuantity = useWholesaleCartStore((state) => state.setQuantity);
   const quantity = items.find((item) => item.productId === product.id)?.quantity ?? 0;
   const [added, setAdded] = useState(false);
+  const addOne = () => {
+    setQuantity(product.id, quantity + 1);
+    trackWholesaleAddToCart({ productId: product.id, productName: product.name, priceArs: product.priceArs, quantity: 1 });
+  };
 
   return (
     <ProductCardActionsView
@@ -51,12 +56,12 @@ function WholesaleProductCardActions({ product, accent }: { product: WholesaleGr
       buttonLabel="Ver producto →"
       productHref={wholesaleProductHref(product.id)}
       onAdd={() => {
-        setQuantity(product.id, quantity + 1);
+        addOne();
         setAdded(true);
         window.setTimeout(() => setAdded(false), 1200);
       }}
       onDecrease={() => setQuantity(product.id, quantity - 1)}
-      onIncrease={() => setQuantity(product.id, quantity + 1)}
+      onIncrease={addOne}
     />
   );
 }
