@@ -30,6 +30,13 @@ export type OrderSheetRow = {
   comprobante_url: string;
   fuente: string;
   created_at: string;
+  // Appended at the end: the Apps Script writes columns by position.
+  canal: "MINORISTA" | "MAYORISTA";
+  razon_social: string;
+  condicion_iva: string;
+  tipo_factura: string;
+  descuento_mayorista: number;
+  domicilio_fiscal: string;
 };
 
 export type OrderItemSheetRow = {
