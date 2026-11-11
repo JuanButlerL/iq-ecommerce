@@ -74,7 +74,9 @@ export async function createWholesaleOrder(payload: unknown) {
 
   // Productos: precio y disponibilidad salen siempre de la base, nunca del navegador.
   const productIds = [...new Set(input.items.map((item) => item.wholesaleProductId))];
-  const products = await prisma.wholesaleProduct.findMany({ where: { id: { in: productIds }, active: true, soldOut: false } });
+  const products = await prisma.wholesaleProduct.findMany({
+    where: { id: { in: productIds }, active: true, soldOut: false, productId: { not: null } },
+  });
 
   if (products.length !== productIds.length) {
     throw new AppError("Uno o más productos ya no están disponibles. Revisá tu pedido.", 400, true);

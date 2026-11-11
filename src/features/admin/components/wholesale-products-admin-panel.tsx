@@ -155,16 +155,20 @@ function ProductRow({
           <Input type="number" inputMode="numeric" min={1} step={1} value={values.unitsPerDisplay} onChange={(event) => set("unitsPerDisplay", event.target.value)} />
         </label>
         <label className="grid gap-1.5 text-sm font-bold text-brand-ink">
-          Producto de la tienda (opcional)
+          Producto de la tienda
           <Select value={values.productId ?? ""} onChange={(event) => set("productId", event.target.value || null)}>
-            <option value="">Sin vincular</option>
+            <option value="">Elegí un producto</option>
             {retailProducts.map((retail) => (
               <option key={retail.id} value={retail.id}>
                 {retail.name}
               </option>
             ))}
           </Select>
-          <span className="text-xs font-normal text-brand-ink/50">Sirve para reportes y para comparar con el precio de la tienda.</span>
+          <span className={values.productId ? "text-xs font-normal text-brand-ink/50" : "text-xs font-bold text-red-600"}>
+            {values.productId
+              ? "Con este vínculo el pedido llega a la planilla y a la app de operaciones con el producto correcto."
+              : "Obligatorio para mostrarlo en /mayoristas: con él el pedido llega a la planilla y a la app de operaciones."}
+          </span>
         </label>
         <div className="space-y-2 self-end pb-1">
           <Checkbox label="Visible en /mayoristas" checked={values.active} onChange={(event) => set("active", event.target.checked)} />

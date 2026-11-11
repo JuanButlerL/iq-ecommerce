@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const wholesaleProductSchema = z.object({
+export const wholesaleProductSchema = z
+  .object({
   name: z.string().trim().min(1, "Completá el nombre.").max(120, "Nombre: máximo 120 caracteres."),
   description: z.string().trim().max(400, "Descripción: máximo 400 caracteres."),
   imageUrl: z.string().trim().max(500),
@@ -14,7 +15,12 @@ export const wholesaleProductSchema = z.object({
   active: z.boolean(),
   soldOut: z.boolean(),
   productId: z.string().uuid().nullable(),
-});
+  })
+  // The order reaches the sheet and the operations app through the linked store product.
+  .refine((data) => !data.active || Boolean(data.productId), {
+    message: "Para mostrarlo en /mayoristas, elegí el producto de la tienda al que corresponde.",
+    path: ["productId"],
+  });
 
 export const wholesaleProductOrderSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(100),

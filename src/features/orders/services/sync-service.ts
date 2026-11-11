@@ -13,7 +13,7 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      items: true,
+      items: { include: { wholesaleProduct: { select: { productId: true } } } },
       wholesaleCustomer: true,
       paymentProofs: {
         orderBy: {
@@ -90,7 +90,9 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
   const itemRows: OrderItemSheetRow[] = order.items.map((item) => ({
     order_item_id: item.id,
     order_id: item.orderId,
-    product_id: item.productId ?? "",
+    // Wholesale items take the retail product their wholesale product is linked to now,
+    // so linking it in the admin fixes orders created while it was unlinked.
+    product_id: item.productId ?? item.wholesaleProduct?.productId ?? "",
     producto: item.productNameSnapshot,
     cantidad: item.quantity,
     precio_unitario: item.unitPriceArs,

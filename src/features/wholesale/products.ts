@@ -9,10 +9,11 @@ export async function getAdminWholesaleProducts() {
   return prisma.wholesaleProduct.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
 }
 
-// Lo que se muestra en /mayoristas: activos, en el orden del admin.
+// Lo que se muestra en /mayoristas: activos y vinculados a un producto de la tienda, en el orden del admin.
+// Sin vínculo (por ejemplo, si se borró el producto de la tienda) no se puede vender: el pedido no llegaría a operaciones.
 export const getPublicWholesaleProducts = cache(async () => {
   return prisma.wholesaleProduct.findMany({
-    where: { active: true },
+    where: { active: true, productId: { not: null } },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 });
