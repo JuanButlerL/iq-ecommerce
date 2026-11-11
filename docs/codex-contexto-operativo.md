@@ -239,6 +239,13 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-11-11 - Datos de canal y facturación en el sync a Google Sheets (rama `feature/sync-datos-fiscales-mayoristas`, pendiente de deploy)
+
+- El payload que recibe el Apps Script suma al final de `order`: `canal` (MINORISTA/MAYORISTA), `razon_social`, `condicion_iva`, `tipo_factura` (A solo para Responsable Inscripto, B para el resto), `descuento_mayorista` (descuento extra del CUIT, que no está incluido en `descuento`) y `domicilio_fiscal` (dirección registrada del cliente mayorista; la de entrega puede ser otra).
+- En pedidos minoristas esos campos van vacíos, salvo `canal`. `fuente` y `dni_cuit` no cambian (en mayoristas `dni_cuit` es el CUIT de la empresa).
+- El Apps Script escribe por posición. Copia de referencia actualizada en `docs/apps-script-pedidos.gs`. Orden de pase: deploy de la web, después pegar el script nuevo y publicar una nueva versión del Web App (misma URL), y escribir a mano los 6 títulos en la fila 1 de `pedidos` (`ensurePedidosHeader` solo actúa con la hoja vacía).
+- Sin migraciones. Archivos: `src/features/orders/services/sync-service.ts`, `src/lib/integrations/sheets/types.ts`.
+
 ### 2026-10-30 - Degradé opcional por slide del carrusel de la home (rama `feature/carrusel-degrade-opcional`, pendiente de deploy)
 
 - Cada slide de Admin > Home carrusel tiene el checkbox "Degradé sobre la imagen", activado por defecto, así que los slides existentes se ven igual.

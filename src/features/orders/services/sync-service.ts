@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { prisma } from "@/lib/db/prisma";
 import { getOrderSyncProvider } from "@/lib/integrations/sheets/factory";
 import type { OrderItemSheetRow, OrderSheetRow, OrderSyncPayload } from "@/lib/integrations/sheets/types";
+import { getInvoiceType, TAX_CONDITION_LABELS } from "@/features/wholesale/tax-condition";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 
@@ -13,6 +14,7 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     where: { id: orderId },
     include: {
       items: true,
+      wholesaleCustomer: true,
       paymentProofs: {
         orderBy: {
           uploadedAt: "desc",
@@ -30,6 +32,20 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
   const proofUrl = latestProof
     ? latestProof.publicUrl ??
       (env.enableProofPublicUrlSync ? latestProof.publicUrl : await createPaymentProofSignedUrl(latestProof.storagePath))
+    : "";
+
+  const isWholesale = order.channel === "WHOLESALE";
+  // The customer's registered address; the delivery address of the order can differ.
+  const customer = order.wholesaleCustomer;
+  const fiscalAddress = customer
+    ? [
+        [customer.street, customer.floor].filter(Boolean).join(" "),
+        customer.city,
+        customer.province,
+        customer.postalCode ? `CP ${customer.postalCode}` : null,
+      ]
+        .filter(Boolean)
+        .join(", ")
     : "";
 
   const orderRow: OrderSheetRow = {
@@ -61,8 +77,14 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     total: order.totalArs,
     medio_pago: order.paymentMethod,
     comprobante_url: proofUrl ?? "",
-    fuente: order.channel === "WHOLESALE" ? "MAYORISTA" : order.source,
+    fuente: isWholesale ? "MAYORISTA" : order.source,
     created_at: formatArgentinaDateTime(order.createdAt),
+    canal: isWholesale ? "MAYORISTA" : "MINORISTA",
+    razon_social: isWholesale ? (order.customerBusinessName ?? "") : "",
+    condicion_iva: order.customerTaxCondition ? TAX_CONDITION_LABELS[order.customerTaxCondition] : "",
+    tipo_factura: getInvoiceType(order.customerTaxCondition) ?? "",
+    descuento_mayorista: order.extraDiscountArs,
+    domicilio_fiscal: fiscalAddress,
   };
 
   const itemRows: OrderItemSheetRow[] = order.items.map((item) => ({
