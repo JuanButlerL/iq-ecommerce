@@ -79,7 +79,9 @@ function upsertPedido(sheet, order) {
     order.condicion_iva || '',
     order.tipo_factura || '',
     order.descuento_mayorista || 0,
-    order.domicilio_fiscal || ''
+    order.domicilio_fiscal || '',
+    order.nombre_fantasia || '',
+    order.rubro || ''
   ];
 
   const lastRow = sheet.getLastRow();
@@ -166,7 +168,9 @@ function ensurePedidosHeader(sheet) {
     'condicion_iva',
     'tipo_factura',
     'descuento_mayorista',
-    'domicilio_fiscal'
+    'domicilio_fiscal',
+    'nombre_fantasia',
+    'rubro'
   ]);
 }
 

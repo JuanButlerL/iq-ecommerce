@@ -85,6 +85,8 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     tipo_factura: getInvoiceType(order.customerTaxCondition) ?? "",
     descuento_mayorista: order.extraDiscountArs,
     domicilio_fiscal: fiscalAddress,
+    nombre_fantasia: customer?.businessName ?? "",
+    rubro: customer?.businessType ?? "",
   };
 
   const itemRows: OrderItemSheetRow[] = order.items.map((item) => ({

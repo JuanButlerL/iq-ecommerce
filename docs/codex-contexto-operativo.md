@@ -239,6 +239,12 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-11-11 - Nombre de fantasía y rubro mayorista en el sync a Google Sheets (rama `feature/sync-nombre-fantasia-mayoristas`, pendiente de deploy)
+
+- El payload de `order` suma al final `nombre_fantasia` y `rubro` del cliente mayorista (vacíos en minoristas). Los usa el script de operaciones para dar de alta la cuenta del cliente en `accounts` del AppSheet cuando no existe su CUIT.
+- `docs/apps-script-pedidos.gs` actualizado: la hoja `pedidos` pasa a tener 8 columnas nuevas (AA:AH): `canal`, `razon_social`, `condicion_iva`, `tipo_factura`, `descuento_mayorista`, `domicilio_fiscal`, `nombre_fantasia`, `rubro`.
+- Sin migraciones. Archivos: `src/features/orders/services/sync-service.ts`, `src/lib/integrations/sheets/types.ts`, `docs/apps-script-pedidos.gs`.
+
 ### 2026-11-11 - Datos de canal y facturación en el sync a Google Sheets (rama `feature/sync-datos-fiscales-mayoristas`, pendiente de deploy)
 
 - El payload que recibe el Apps Script suma al final de `order`: `canal` (MINORISTA/MAYORISTA), `razon_social`, `condicion_iva`, `tipo_factura` (A solo para Responsable Inscripto, B para el resto), `descuento_mayorista` (descuento extra del CUIT, que no está incluido en `descuento`) y `domicilio_fiscal` (dirección registrada del cliente mayorista; la de entrega puede ser otra).

@@ -37,6 +37,8 @@ export type OrderSheetRow = {
   tipo_factura: string;
   descuento_mayorista: number;
   domicilio_fiscal: string;
+  nombre_fantasia: string;
+  rubro: string;
 };
 
 export type OrderItemSheetRow = {
