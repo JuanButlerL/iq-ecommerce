@@ -243,7 +243,8 @@ Si se va a hacer `git pull`:
 
 - Los ítems mayoristas guardan como `productId` el producto minorista vinculado al producto mayorista al momento del pedido. Si el producto mayorista no estaba vinculado, el ítem llegaba a `pedidos_items` sin `product_id` y el script de operaciones no lo pasaba a la app.
 - El sync ahora usa como respaldo el vínculo actual del producto mayorista: vincularlo en Admin > Mayoristas > Productos y reintentar el sync del pedido corrige pedidos ya creados (el script reemplaza los ítems del pedido).
-- Admin > Mayoristas > Productos marca en rojo los productos sin vincular y explica que sus pedidos no pasan a operaciones.
+- El vínculo pasa a ser obligatorio para vender: no se puede activar un producto mayorista sin "Producto de la tienda", `/mayoristas` solo muestra productos activos y vinculados, y el checkout rechaza productos sin vínculo (por ejemplo, si se borró el producto de la tienda, que deja el vínculo en null). El admin marca en rojo los productos sin vincular.
+- Al deployar, un producto mayorista activo que siga sin vincular deja de verse en `/mayoristas` hasta vincularlo: vincularlos antes del pase.
 - Sin migraciones. Archivos: `src/features/orders/services/sync-service.ts`, `src/features/admin/components/wholesale-products-admin-panel.tsx`.
 
 ### 2026-11-11 - Datos de canal y facturación en el sync a Google Sheets (rama `feature/sync-datos-fiscales-mayoristas`, pendiente de deploy)

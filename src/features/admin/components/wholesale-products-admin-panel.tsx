@@ -157,7 +157,7 @@ function ProductRow({
         <label className="grid gap-1.5 text-sm font-bold text-brand-ink">
           Producto de la tienda
           <Select value={values.productId ?? ""} onChange={(event) => set("productId", event.target.value || null)}>
-            <option value="">Sin vincular</option>
+            <option value="">Elegí un producto</option>
             {retailProducts.map((retail) => (
               <option key={retail.id} value={retail.id}>
                 {retail.name}
@@ -167,7 +167,7 @@ function ProductRow({
           <span className={values.productId ? "text-xs font-normal text-brand-ink/50" : "text-xs font-bold text-red-600"}>
             {values.productId
               ? "Con este vínculo el pedido llega a la planilla y a la app de operaciones con el producto correcto."
-              : "Sin vincular, los pedidos de este producto llegan a la planilla sin product_id y no pasan a la app de operaciones."}
+              : "Obligatorio para mostrarlo en /mayoristas: con él el pedido llega a la planilla y a la app de operaciones."}
           </span>
         </label>
         <div className="space-y-2 self-end pb-1">
