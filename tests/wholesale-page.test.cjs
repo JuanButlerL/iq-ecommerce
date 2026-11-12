@@ -131,3 +131,33 @@ test('sin cookie no hay acceso si la página tiene contraseña', async () => {
   assert.equal(await access.hasWholesaleAccess({ accessPasswordHash: passwordHash }), false);
   assert.equal(await access.hasWholesaleAccess({ accessPasswordHash: '' }), true);
 });
+
+test('el contenido guardado antes del carrusel sigue siendo válido y toma valores por defecto', () => {
+  const content = clone();
+  delete content.hero.backgroundImageUrl;
+  delete content.hero.backgroundMobileImageUrl;
+  delete content.hero.slides;
+  delete content.hero.intervalSeconds;
+  const parsed = wholesaleContentSchema.safeParse(content);
+  assert.equal(parsed.success, true, parsed.success ? '' : parsed.error.issues[0].message);
+  assert.deepEqual(parsed.data.hero.slides, []);
+  assert.equal(parsed.data.hero.backgroundImageUrl, '');
+  assert.equal(parsed.data.hero.intervalSeconds, 7);
+});
+
+test('el carrusel de la portada acepta slides con foto y rechaza los que no tienen', () => {
+  const content = clone();
+  content.hero.slides = [{ imageUrl: '/uploads/wholesale/slide.jpg', title: 'Nuevo sabor', ctaLabel: 'Ver precios', ctaUrl: '#productos' }];
+  const parsed = wholesaleContentSchema.safeParse(content);
+  assert.equal(parsed.success, true, parsed.success ? '' : parsed.error.issues[0].message);
+  assert.equal(parsed.data.hero.slides[0].overlay, true);
+
+  content.hero.slides = [{ imageUrl: '', title: 'Sin foto' }];
+  assert.equal(wholesaleContentSchema.safeParse(content).success, false);
+});
+
+test('rechaza un link del carrusel que no es una ruta ni una dirección web', () => {
+  const content = clone();
+  content.hero.slides = [{ imageUrl: '/uploads/wholesale/slide.jpg', ctaUrl: 'javascript:alert(1)' }];
+  assert.equal(wholesaleContentSchema.safeParse(content).success, false);
+});

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { CalendarClock, CheckCircle2, FileCheck2, Landmark, Trash2, type LucideIcon } from "lucide-react";
+import { AlertCircle, CalendarClock, CheckCircle2, FileCheck2, Landmark, Trash2, type LucideIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -126,13 +126,62 @@ function Step({ number, title, children, aside }: { number: number; title: strin
   );
 }
 
-function Field({ label, htmlFor, children, className }: { label: string; htmlFor: string; children: ReactNode; className?: string }) {
+function Field({ label, htmlFor, children, className, error }: { label: string; htmlFor: string; children: ReactNode; className?: string; error?: string }) {
   return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <label htmlFor={htmlFor} className="text-xs font-bold text-brand-ink/70">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-1.5",
+        error && "[&_input]:border-red-400 [&_input]:bg-red-50/30 [&_select]:border-red-400 [&_select]:bg-red-50/30",
+        className,
+      )}
+    >
+      <label htmlFor={htmlFor} className={cn("text-xs font-bold", error ? "text-red-600" : "text-brand-ink/70")}>
         {label}
       </label>
       {children}
+      {error ? <p className="text-[11px] font-semibold leading-4 text-red-600">{error}</p> : null}
+    </div>
+  );
+}
+
+// Lo que falta para confirmar, en el orden en que aparece en la página (así se baja al primero).
+type CheckoutErrorKey =
+  | "products"
+  | "email"
+  | "cuit"
+  | "taxCondition"
+  | "contactName"
+  | "phone"
+  | "province"
+  | "city"
+  | "postalCode"
+  | "street"
+  | "number"
+  | "payment";
+type CheckoutErrors = Partial<Record<CheckoutErrorKey, string>>;
+
+const ERROR_TARGETS: Record<CheckoutErrorKey, string> = {
+  products: "w-products",
+  email: "w-email",
+  cuit: "w-cuit",
+  taxCondition: "w-tax",
+  contactName: "w-contact",
+  phone: "w-phone",
+  province: "w-province",
+  city: "w-city",
+  postalCode: "w-postal",
+  street: "w-street",
+  number: "w-number",
+  payment: "w-payment",
+};
+
+function ErrorSummary({ show, className }: { show: boolean; className?: string }) {
+  if (!show) return null;
+
+  return (
+    <div role="alert" className={cn("flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700", className)}>
+      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <p>Revisá los campos marcados en rojo.</p>
     </div>
   );
 }
@@ -179,6 +228,8 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
   const [identifyError, setIdentifyError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Se prende al tocar "Confirmar" con datos faltantes: desde ahí se marcan en rojo.
+  const [attempted, setAttempted] = useState(false);
   // Una clave por intento de compra: si el pedido ya se creó y se reintenta, el servidor devuelve el mismo.
   const [checkoutRequestKey] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`));
 
@@ -238,6 +289,27 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     bankTransferDiscountPercentage: settings.bankTransferDiscountPercentage,
     shippingArs: shippingQuote?.shippingArs ?? 0,
   });
+
+  // Mismo aviso verde que el checkout de la tienda: cuánto falta para el descuento o el envío gratis.
+  const freeShippingThreshold = settings.freeShippingThresholdArs;
+  const amountToFreeShipping = freeShippingThreshold ? Math.max(0, freeShippingThreshold - subtotalArs) : 0;
+  const amountToShippingDiscount = shippingRule.discountThresholdArs ? Math.max(0, shippingRule.discountThresholdArs - subtotalArs) : 0;
+  const shippingDiscountPercentage = shippingRule.discountPercentage ?? 0;
+  const shippingNudge = !shippingQuote
+    ? shippingDiscountPercentage > 0 && amountToShippingDiscount === 0 && shippingRule.discountThresholdArs
+      ? `Tu pedido tiene ${shippingDiscountPercentage}% off en el envío. Elegí la provincia para verlo.`
+      : null
+    : shippingQuote.freeShippingReached
+      ? "Ya tenés envío gratis."
+      : shippingQuote.shippingDiscountReached
+        ? `Tenés ${shippingQuote.shippingDiscountPercentage}% off en el envío.${
+            freeShippingThreshold && amountToFreeShipping > 0 ? ` Si llegás a ${formatArs(freeShippingThreshold)}, el envío es gratis.` : ""
+          }`
+        : shippingQuote.shippingArs > 0 && amountToShippingDiscount > 0 && shippingDiscountPercentage > 0
+          ? `Sumá ${formatArs(amountToShippingDiscount)} más y activá ${shippingDiscountPercentage}% off en el envío.`
+          : shippingQuote.shippingArs > 0 && freeShippingThreshold && amountToFreeShipping > 0
+            ? `Te faltan ${formatArs(amountToFreeShipping)} para el envío gratis.`
+            : null;
 
   // Una vez por intento de compra, como InitiateCheckout en la tienda.
   const trackedCheckoutRef = useRef(false);
@@ -307,16 +379,51 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
 
   const updateDelivery = (key: Exclude<keyof Delivery, "withoutNumber">, value: string) => setDelivery((current) => ({ ...current, [key]: value }));
 
-  const canSubmit =
-    hydrated && displays > 0 && missing === 0 && (identity.stage === "recognized" || identity.stage === "new") && paymentMethod !== null && !submitting;
+  // Igual que en la tienda: el botón siempre se puede tocar y, si falta algo, se marca en rojo.
+  const checkoutErrors: CheckoutErrors = {};
+  if (displays === 0) {
+    checkoutErrors.products = "Sumá al menos un display al pedido.";
+  } else if (missing > 0) {
+    checkoutErrors.products = `El mínimo es de ${settings.minDisplays} displays: ${missing === 1 ? "te falta 1" : `te faltan ${missing}`}.`;
+  }
+  if (identity.stage === "email") {
+    checkoutErrors.email = email.includes("@") ? "Tocá “Continuar” para validar tu email." : "Ingresá tu email.";
+  } else if (identity.stage === "cuit") {
+    checkoutErrors.cuit = "Confirmá el CUIT del negocio para seguir.";
+  } else {
+    if (identity.stage === "new") {
+      if (!cuit.trim()) checkoutErrors.cuit = "Completá el CUIT.";
+      else if (!isValidCuit(normalizeCuit(cuit))) checkoutErrors.cuit = "El CUIT no es válido: revisá los 11 números.";
+    }
+    if (!taxCondition) checkoutErrors.taxCondition = "Elegí tu condición frente al IVA.";
+    if (!delivery.contactName.trim()) checkoutErrors.contactName = "Completá quién recibe.";
+    if (!delivery.phone.trim()) checkoutErrors.phone = "Completá el teléfono.";
+    else if (delivery.phone.replace(/\D/g, "").length < 8) checkoutErrors.phone = "Revisá el teléfono: tiene que tener al menos 8 números.";
+    if (!delivery.province) checkoutErrors.province = "Elegí la provincia.";
+    if (!delivery.city.trim()) checkoutErrors.city = "Completá la localidad.";
+    if (!delivery.postalCode.trim()) checkoutErrors.postalCode = "Completá el código postal.";
+    if (!delivery.street.trim()) checkoutErrors.street = "Completá la calle.";
+    if (!delivery.withoutNumber && !delivery.number.trim()) checkoutErrors.number = "Completá la altura.";
+    if (!paymentMethod) checkoutErrors.payment = "Elegí cómo vas a pagar.";
+  }
+  const errorKeys = Object.keys(checkoutErrors) as CheckoutErrorKey[];
+  // Los errores se muestran recién después del primer intento, y se van limpiando a medida que se completa.
+  const errors: CheckoutErrors = attempted ? checkoutErrors : {};
+  const firstErrorMessage = attempted && errorKeys.length > 0 ? checkoutErrors[errorKeys[0]!] : null;
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit || !paymentMethod || !taxCondition) {
+    if (!hydrated || submitting) {
       return;
     }
-    if (identity.stage === "new" && !isValidCuit(normalizeCuit(cuit))) {
-      setSubmitError("El CUIT no es válido: revisá los 11 números.");
+    if (errorKeys.length > 0 || !paymentMethod || !taxCondition) {
+      setAttempted(true);
+      const firstKey = errorKeys[0];
+      const target = firstKey ? document.getElementById(firstKey === "cuit" && identity.stage === "cuit" ? "w-verify-cuit" : ERROR_TARGETS[firstKey]) : null;
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.focus({ preventScroll: true });
+      }
       return;
     }
 
@@ -379,7 +486,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
 
   return (
     <div className="bg-[#fff6f7] px-4 py-10 md:px-6 md:py-14">
-      <form onSubmit={submit} className="mx-auto grid max-w-[1080px] gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+      <form onSubmit={submit} noValidate className="mx-auto grid max-w-[1080px] gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
         <div className="flex min-w-0 flex-col gap-6">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-brand-pink">iQ Kids Mayoristas</p>
@@ -429,7 +536,13 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                 </li>
               ))}
             </ul>
-            <p role="status" aria-live="polite" className={cn("mt-3 text-sm", missing > 0 ? "font-bold text-brand-pink" : "text-brand-ink/60")}>
+            <p
+              id="w-products"
+              tabIndex={-1}
+              role="status"
+              aria-live="polite"
+              className={cn("mt-3 text-sm outline-none", errors.products ? "font-bold text-red-600" : missing > 0 ? "font-bold text-brand-pink" : "text-brand-ink/60")}
+            >
               {displays} display{displays === 1 ? "" : "s"} ·{" "}
               {missing > 0
                 ? `El mínimo es de ${settings.minDisplays}: ${missing === 1 ? "te falta 1 display" : `te faltan ${missing} displays`}.`
@@ -497,6 +610,8 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                 busy={identifying}
                 error={identifyError}
                 onSubmit={identify}
+                emailError={errors.email}
+                cuitError={errors.cuit}
               />
             ) : identity.stage === "recognized" && customer ? (
               <div className="space-y-4">
@@ -535,7 +650,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                   Es tu primer pedido con <strong className="text-brand-ink">{email}</strong>. Completá los datos del negocio para la factura.
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="CUIT *" htmlFor="w-cuit">
+                  <Field label="CUIT *" htmlFor="w-cuit" error={errors.cuit}>
                     <Input
                       id="w-cuit"
                       inputMode="numeric"
@@ -543,6 +658,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                       value={cuit}
                       onChange={(event) => setCuit(event.target.value.replace(/[^0-9-]/g, "").slice(0, 13))}
                       required
+                      aria-invalid={errors.cuit ? "true" : "false"}
                     />
                   </Field>
                   <Field label="Razón social" htmlFor="w-legal">
@@ -567,8 +683,14 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
 
             {identity.stage === "recognized" || identity.stage === "new" ? (
               <div className="mt-4">
-                <Field label="Condición frente al IVA *" htmlFor="w-tax">
-                  <Select id="w-tax" value={taxCondition} onChange={(event) => setTaxCondition(event.target.value as TaxCondition | "")} required>
+                <Field label="Condición frente al IVA *" htmlFor="w-tax" error={errors.taxCondition}>
+                  <Select
+                    id="w-tax"
+                    value={taxCondition}
+                    onChange={(event) => setTaxCondition(event.target.value as TaxCondition | "")}
+                    required
+                    aria-invalid={errors.taxCondition ? "true" : "false"}
+                  >
                     <option value="">Elegí una opción</option>
                     {TAX_CONDITIONS.map((condition) => (
                       <option key={condition} value={condition}>
@@ -586,15 +708,19 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
             <>
               <Step number={3} title="Entrega">
                 <p className="-mt-3 mb-4 text-sm text-brand-ink/60">Completalos tal como deben figurar en el envío.</p>
+                <ErrorSummary
+                  className="mb-4"
+                  show={Boolean(errors.contactName || errors.phone || errors.province || errors.city || errors.postalCode || errors.street || errors.number)}
+                />
                 <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
-                  <FieldShell label="Quién recibe" className="md:col-span-2">
-                    <Input autoComplete="name" placeholder="Nombre y apellido" value={delivery.contactName} onChange={(event) => updateDelivery("contactName", event.target.value)} required />
+                  <FieldShell label="Quién recibe" className="md:col-span-2" error={errors.contactName}>
+                    <Input id="w-contact" aria-invalid={errors.contactName ? "true" : "false"} autoComplete="name" placeholder="Nombre y apellido" value={delivery.contactName} onChange={(event) => updateDelivery("contactName", event.target.value)} required />
                   </FieldShell>
-                  <FieldShell label="Teléfono / WhatsApp">
-                    <Input type="tel" autoComplete="tel" placeholder="Ej: 11 2345 6789" value={delivery.phone} onChange={(event) => updateDelivery("phone", event.target.value)} required />
+                  <FieldShell label="Teléfono / WhatsApp" error={errors.phone}>
+                    <Input id="w-phone" aria-invalid={errors.phone ? "true" : "false"} type="tel" autoComplete="tel" placeholder="Ej: 11 2345 6789" value={delivery.phone} onChange={(event) => updateDelivery("phone", event.target.value)} required />
                   </FieldShell>
-                  <FieldShell label="Provincia">
-                    <Select autoComplete="address-level1" value={delivery.province} onChange={(event) => updateDelivery("province", event.target.value)} required>
+                  <FieldShell label="Provincia" error={errors.province}>
+                    <Select id="w-province" aria-invalid={errors.province ? "true" : "false"} autoComplete="address-level1" value={delivery.province} onChange={(event) => updateDelivery("province", event.target.value)} required>
                       <option value="">Elegí una provincia</option>
                       {ARGENTINA_PROVINCES.map((province) => (
                         <option key={province.code} value={province.name}>
@@ -606,14 +732,14 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                       ) : null}
                     </Select>
                   </FieldShell>
-                  <FieldShell label="Localidad">
-                    <Input placeholder="Ej: Vicente López" autoComplete="address-level2" value={delivery.city} onChange={(event) => updateDelivery("city", event.target.value)} required />
+                  <FieldShell label="Localidad" error={errors.city}>
+                    <Input id="w-city" aria-invalid={errors.city ? "true" : "false"} placeholder="Ej: Vicente López" autoComplete="address-level2" value={delivery.city} onChange={(event) => updateDelivery("city", event.target.value)} required />
                   </FieldShell>
-                  <FieldShell label="Código postal">
-                    <Input placeholder="Ej: 1425" autoComplete="postal-code" inputMode="numeric" value={delivery.postalCode} onChange={(event) => updateDelivery("postalCode", event.target.value)} required />
+                  <FieldShell label="Código postal" error={errors.postalCode}>
+                    <Input id="w-postal" aria-invalid={errors.postalCode ? "true" : "false"} placeholder="Ej: 1425" autoComplete="postal-code" inputMode="numeric" value={delivery.postalCode} onChange={(event) => updateDelivery("postalCode", event.target.value)} required />
                   </FieldShell>
-                  <FieldShell label="Calle" className={delivery.withoutNumber ? "md:col-span-3" : "md:col-span-2"}>
-                    <Input placeholder="Ej: Calle 11 o Amenábar" autoComplete="address-line1" value={delivery.street} onChange={(event) => updateDelivery("street", event.target.value)} required />
+                  <FieldShell label="Calle" className={delivery.withoutNumber ? "md:col-span-3" : "md:col-span-2"} error={errors.street}>
+                    <Input id="w-street" aria-invalid={errors.street ? "true" : "false"} placeholder="Ej: Calle 11 o Amenábar" autoComplete="address-line1" value={delivery.street} onChange={(event) => updateDelivery("street", event.target.value)} required />
                     {streetMayContainHeight ? (
                       <p className="mt-1.5 text-xs font-medium leading-5 text-brand-ink/55">
                         Si ese número es la altura, cargalo en el campo de al lado. Las calles como &quot;Calle 11&quot; están permitidas.
@@ -621,8 +747,8 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                     ) : null}
                   </FieldShell>
                   {!delivery.withoutNumber ? (
-                    <FieldShell label="Altura">
-                      <Input placeholder="Ej: 2451" autoComplete="off" inputMode="numeric" value={delivery.number} onChange={(event) => updateDelivery("number", event.target.value)} required />
+                    <FieldShell label="Altura" error={errors.number}>
+                      <Input id="w-number" aria-invalid={errors.number ? "true" : "false"} placeholder="Ej: 2451" autoComplete="off" inputMode="numeric" value={delivery.number} onChange={(event) => updateDelivery("number", event.target.value)} required />
                     </FieldShell>
                   ) : null}
                   <label className="group -mt-1 inline-flex w-fit cursor-pointer items-center gap-2 text-left focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-pink focus-within:ring-offset-2 md:col-span-3">
@@ -671,7 +797,14 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
               </Step>
 
               <Step number={4} title="Pago">
-                <div className="grid gap-3" role="radiogroup" aria-label="Medio de pago">
+                <div
+                  id="w-payment"
+                  tabIndex={-1}
+                  className={cn("grid gap-3 rounded-[1.6rem] outline-none", errors.payment && "ring-2 ring-red-400 ring-offset-4")}
+                  role="radiogroup"
+                  aria-label="Medio de pago"
+                  aria-invalid={errors.payment ? "true" : undefined}
+                >
                   {paymentOptions.map((method) => (
                     <PaymentOptionCard
                       key={method}
@@ -698,6 +831,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                     />
                   ))}
                 </div>
+                {errors.payment ? <p className="mt-3 text-sm font-bold text-red-600">{errors.payment}</p> : null}
                 <div className="mt-4">
                   <Field label="Comentarios" htmlFor="w-notes">
                     <Textarea id="w-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Algo que tengamos que saber del pedido" />
@@ -720,42 +854,52 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
             {pricing.extraDiscountArs > 0 ? (
               <div className="flex justify-between gap-3">
                 <dt className="text-brand-ink/65">Descuento especial ({pricing.extraDiscountPercentage}%)</dt>
-                <dd className="font-bold text-brand-ink">−{formatArs(pricing.extraDiscountArs)}</dd>
+                <dd className="font-bold text-green-700">- {formatArs(pricing.extraDiscountArs)}</dd>
               </div>
             ) : null}
             {pricing.transferDiscountArs > 0 ? (
               <div className="flex justify-between gap-3">
                 <dt className="text-brand-ink/65">Descuento por transferencia ({pricing.transferDiscountPercentage}%)</dt>
-                <dd className="font-bold text-brand-ink">−{formatArs(pricing.transferDiscountArs)}</dd>
+                <dd className="font-bold text-green-700">- {formatArs(pricing.transferDiscountArs)}</dd>
               </div>
             ) : null}
-            <div className="flex justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
               <dt className="text-brand-ink/65">Envío</dt>
               <dd className="font-bold text-brand-ink">
-                {shippingQuote ? (shippingQuote.shippingArs > 0 ? formatArs(shippingQuote.shippingArs) : "Sin cargo") : "Elegí la provincia"}
+                {!shippingQuote ? (
+                  <span className="font-semibold text-brand-ink/50">Elegí la provincia</span>
+                ) : shippingQuote.freeShippingReached || (shippingQuote.shippingArs === 0 && shippingQuote.baseShippingArs > 0) ? (
+                  <span className="text-emerald-700">Gratis</span>
+                ) : shippingQuote.shippingDiscountReached ? (
+                  <span className="flex items-center gap-2">
+                    <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
+                    <span className="text-emerald-700">{formatArs(shippingQuote.shippingArs)}</span>
+                  </span>
+                ) : shippingQuote.shippingArs > 0 ? (
+                  formatArs(shippingQuote.shippingArs)
+                ) : (
+                  <span className="text-emerald-700">Sin cargo</span>
+                )}
               </dd>
             </div>
-            <div className="flex items-baseline justify-between gap-3 border-t-2 border-brand-ink/10 pt-3">
+            <div className="flex items-center justify-between gap-3 border-t border-brand-ink/10 pt-3">
               <dt className="font-extrabold text-brand-ink">Total</dt>
-              <dd className="font-display text-3xl text-brand-ink">{formatArs(pricing.totalArs)}</dd>
+              <dd className="text-2xl font-extrabold text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</dd>
             </div>
           </dl>
           <p className="mt-2 text-xs text-brand-ink/50">Precios con IVA incluido.</p>
+          {shippingNudge ? <p className="mt-3 text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p> : null}
 
-          <button type="submit" className={cn(primaryButton, "mt-5 w-full")} disabled={!canSubmit}>
+          <button type="submit" className={cn(primaryButton, "mt-5 w-full")} disabled={submitting}>
             {submitting ? "Confirmando…" : paymentMethod === "MERCADO_PAGO" ? "Confirmar y pagar" : "Confirmar pedido"}
           </button>
           {submitError ? (
             <p role="alert" className="mt-3 text-center text-sm font-bold text-red-600">
               {submitError}
             </p>
-          ) : !canSubmit && !submitting ? (
-            <p className="mt-3 text-center text-xs text-brand-ink/50">
-              {missing > 0
-                ? `Sumá ${missing === 1 ? "1 display" : `${missing} displays`} para llegar al mínimo.`
-                : identity.stage === "email" || identity.stage === "cuit"
-                  ? "Ingresá tu email para seguir."
-                  : "Elegí cómo vas a pagar."}
+          ) : firstErrorMessage ? (
+            <p role="alert" className="mt-3 text-center text-sm font-bold text-red-600">
+              {errorKeys.length > 1 ? `${firstErrorMessage} Revisá lo marcado en rojo.` : firstErrorMessage}
             </p>
           ) : null}
         </aside>
@@ -775,6 +919,8 @@ function IdentifyFields({
   busy,
   error,
   onSubmit,
+  emailError,
+  cuitError,
 }: {
   stage: "email" | "cuit";
   email: string;
@@ -786,6 +932,8 @@ function IdentifyFields({
   busy: boolean;
   error: string | null;
   onSubmit: () => void;
+  emailError?: string;
+  cuitError?: string;
 }) {
   // Va dentro del formulario del pedido: botones type="button" y Enter manejado a mano para no mandar el pedido.
   const send = onSubmit;
@@ -793,7 +941,7 @@ function IdentifyFields({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-        <Field label="Email *" htmlFor="w-email">
+        <Field label="Email *" htmlFor="w-email" error={emailError}>
           <Input
             id="w-email"
             type="email"
@@ -833,7 +981,7 @@ function IdentifyFields({
         <>
           <p className="text-sm text-brand-ink/70">Ya tenemos una cuenta con ese email. Para ver tus datos en este dispositivo, confirmá el CUIT del negocio.</p>
           <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-            <Field label="CUIT *" htmlFor="w-verify-cuit">
+            <Field label="CUIT *" htmlFor="w-verify-cuit" error={cuitError}>
               <Input
                 id="w-verify-cuit"
                 inputMode="numeric"

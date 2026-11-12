@@ -6,13 +6,16 @@ import type { ReactNode } from "react";
 import { AnnouncementMarquee } from "@/components/layout/announcement-marquee";
 import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesaleContact } from "@/features/wholesale/components/wholesale-contact";
+import { WholesaleHeroCarousel, type WholesaleHeroCarouselSlide } from "@/features/wholesale/components/wholesale-hero-carousel";
 import { WholesaleOrderBar, WholesaleProductGrid } from "@/features/wholesale/components/wholesale-product-grid";
+import { buildWholesaleProductTheme } from "@/features/wholesale/product-theme";
 import { WholesalePasswordGate } from "@/features/wholesale/components/wholesale-password-gate";
 import type { WholesaleSectionIntro } from "@/features/wholesale/content";
 import { getPublicWholesaleProducts } from "@/features/wholesale/products";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { getWholesaleSettings } from "@/features/wholesale/settings";
 import { getStoreSettings } from "@/features/settings/queries";
+import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
 import { cn } from "@/lib/utils/cn";
 
 const FALLBACK_WHATSAPP = "5491173933235";
@@ -60,11 +63,12 @@ function Section({ id, className, wide = false, children }: { id?: string; class
 }
 
 export default async function WholesalePage({ searchParams }: { searchParams: Promise<{ bienvenida?: string }> }) {
-  const [content, settings, wholesaleProducts, wholesaleSettings] = await Promise.all([
+  const [content, settings, wholesaleProducts, wholesaleSettings, homeFeaturedSlots] = await Promise.all([
     getWholesaleContent(),
     getStoreSettings(),
     getPublicWholesaleProducts(),
     getWholesaleSettings(),
+    getHomeFeaturedProductSlots(),
   ]);
 
   if (!content.enabled) {
@@ -82,6 +86,14 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
   // Las secciones alternan fondo blanco y rosado; las que no tienen elementos no se muestran.
   const showProfiles = profiles.items.length > 0;
   const showReasons = reasons.items.length > 0;
+  // La tarjeta destacada es la del producto que la home minorista muestra primero ("Más elegido");
+  // si no está a la venta por mayor, la Caja Mix.
+  const retailFeaturedId = (homeFeaturedSlots as { slotOrder: number; productId?: string; product?: { id: string } }[]).find((slot) => slot.slotOrder === 1)?.product?.id;
+  const normalizeName = (name: string) => name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const highlightedId =
+    wholesaleProducts.find((product) => retailFeaturedId && product.productId === retailFeaturedId)?.id ??
+    wholesaleProducts.find((product) => normalizeName(product.name).includes("mix"))?.id ??
+    null;
   // Productos, precios y mínimo salen del admin mayorista (Productos y precios / Condiciones), no del contenido de la página.
   const products = wholesaleProducts.map((product) => ({
     id: product.id,
@@ -92,51 +104,100 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
     priceArs: product.priceArs,
     unitsPerDisplay: product.unitsPerDisplay,
     soldOut: product.soldOut,
+    theme: buildWholesaleProductTheme(product.product),
+    highlighted: product.id === highlightedId,
   }));
+
+  const heroSlidePadding = cn("px-4 pb-14 pt-14 text-center md:px-6 md:pb-20 md:pt-20", hero.slides.length > 0 && "pb-20 md:pb-24");
+  // La portada de siempre es el primer slide (con foto de fondo opcional); después van los del carrusel.
+  const heroSlides: WholesaleHeroCarouselSlide[] = [
+    {
+      id: "portada",
+      background: hero.backgroundImageUrl
+        ? { imageUrl: hero.backgroundImageUrl, mobileImageUrl: hero.backgroundMobileImageUrl, alt: "", overlay: true }
+        : null,
+      content: (
+        <div className={heroSlidePadding}>
+          <div className="relative mx-auto max-w-[820px]">
+            {hero.eyebrow ? <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">{hero.eyebrow}</p> : null}
+            <h1 className="mt-5 whitespace-pre-line text-balance font-display text-[2.6rem] leading-[1.02] text-brand-ink md:text-[4.2rem]">
+              {hero.title}
+              {hero.titleAccent ? <span className="mt-3 block text-[0.55em] leading-[1.15] text-brand-pink">{hero.titleAccent}</span> : null}
+            </h1>
+            {hero.description ? (
+              <p className="mx-auto mt-6 max-w-[620px] whitespace-pre-line text-base leading-7 text-brand-ink/70 md:text-lg md:leading-8">{hero.description}</p>
+            ) : null}
+            {hero.chips.length > 0 ? (
+              <div className="mt-7 flex flex-wrap justify-center gap-2">
+                {hero.chips.map((chip, index) => (
+                  <span
+                    key={`${chip.label}-${index}`}
+                    className={cn(
+                      "rounded-full px-4 py-1.5 text-sm font-bold",
+                      chip.accent ? "bg-brand-pink text-white" : "bg-white text-brand-ink ring-1 ring-brand-ink/10",
+                    )}
+                  >
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/mayoristas/registro" className={primaryCta}>
+                {hero.primaryCta}
+              </Link>
+              {products.length > 0 ? (
+                <a href="#productos" className={secondaryCta}>
+                  {hero.secondaryCta}
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    ...hero.slides.map((slide, index) => {
+      const hasText = Boolean(slide.eyebrow || slide.title || slide.description || slide.ctaLabel);
+      const hasButton = Boolean(slide.ctaLabel && slide.ctaUrl);
+
+      return {
+        id: `slide-${index}`,
+        background: { imageUrl: slide.imageUrl, mobileImageUrl: slide.mobileImageUrl, alt: slide.imageAlt, overlay: hasText && slide.overlay },
+        // Sin texto de botón, el link (si hay) hace clickeable todo el slide.
+        href: !slide.ctaLabel && slide.ctaUrl ? slide.ctaUrl : null,
+        label: slide.imageAlt || slide.title,
+        content: hasText ? (
+          <div className={heroSlidePadding}>
+            <div className="relative mx-auto max-w-[820px]">
+              {slide.eyebrow ? <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">{slide.eyebrow}</p> : null}
+              {slide.title ? (
+                <h2 className="mt-5 whitespace-pre-line text-balance font-display text-[2.6rem] leading-[1.02] text-brand-ink md:text-[4.2rem]">{slide.title}</h2>
+              ) : null}
+              {slide.description ? (
+                <p className="mx-auto mt-6 max-w-[620px] whitespace-pre-line text-base leading-7 text-brand-ink/70 md:text-lg md:leading-8">{slide.description}</p>
+              ) : null}
+              {hasButton ? (
+                <div className="mt-8 flex flex-wrap justify-center gap-3">
+                  <a href={slide.ctaUrl} className={primaryCta}>
+                    {slide.ctaLabel}
+                  </a>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div aria-hidden="true" className="min-h-[420px] md:min-h-[520px]" />
+        ),
+      };
+    }),
+  ];
 
   return (
     <div className="overflow-hidden bg-white text-brand-ink">
       {/* Fija arriba de todo: la regla .wholesale-topbar de globals.css baja el menú para hacerle lugar. */}
       {content.topbar ? <AnnouncementMarquee text={content.topbar} className="wholesale-topbar bg-brand-pink" /> : null}
 
-      <section className="relative bg-[#fff6f7] px-4 pb-14 pt-14 text-center md:px-6 md:pb-20 md:pt-20">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(244,137,145,0.18)_0%,transparent_70%)]" />
-        <div className="relative mx-auto max-w-[820px]">
-          {hero.eyebrow ? <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">{hero.eyebrow}</p> : null}
-          <h1 className="mt-5 whitespace-pre-line text-balance font-display text-[2.6rem] leading-[1.02] text-brand-ink md:text-[4.2rem]">
-            {hero.title}
-            {hero.titleAccent ? <span className="mt-3 block text-[0.55em] leading-[1.15] text-brand-pink">{hero.titleAccent}</span> : null}
-          </h1>
-          {hero.description ? (
-            <p className="mx-auto mt-6 max-w-[620px] whitespace-pre-line text-base leading-7 text-brand-ink/70 md:text-lg md:leading-8">{hero.description}</p>
-          ) : null}
-          {hero.chips.length > 0 ? (
-            <div className="mt-7 flex flex-wrap justify-center gap-2">
-              {hero.chips.map((chip, index) => (
-                <span
-                  key={`${chip.label}-${index}`}
-                  className={cn(
-                    "rounded-full px-4 py-1.5 text-sm font-bold",
-                    chip.accent ? "bg-brand-pink text-white" : "bg-white text-brand-ink ring-1 ring-brand-ink/10",
-                  )}
-                >
-                  {chip.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/mayoristas/registro" className={primaryCta}>
-              {hero.primaryCta}
-            </Link>
-            {products.length > 0 ? (
-              <a href="#productos" className={secondaryCta}>
-                {hero.secondaryCta}
-              </a>
-            ) : null}
-          </div>
-        </div>
-      </section>
+      <WholesaleHeroCarousel slides={heroSlides} intervalSeconds={hero.intervalSeconds} />
 
       {content.stats.length > 0 ? (
         <div className="bg-brand-pink px-4 py-7">

@@ -239,6 +239,14 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-11-12 - Ajustes de UX en /mayoristas: checkout, producto destacado y carrusel (rama `feature/mayoristas-ajustes-ux`, mergeada a `main`)
+
+- Checkout mayorista igual que el minorista: el botón "Confirmar pedido" siempre se puede tocar; si falta algo, marca en rojo cada campo (CUIT, condición de IVA, datos de entrega, medio de pago, mínimo de displays), muestra el primer faltante debajo del botón y baja hasta ese campo. Los errores se limpian a medida que se completan.
+- Resumen del checkout mayorista: descuentos en verde, envío con descuento tachado y el nuevo valor en verde, "Gratis" en verde, total en rosa y el aviso verde de cuánto falta para el descuento o el envío gratis.
+- Grilla de productos mayoristas: cada tarjeta toma los colores del producto de la tienda vinculado (`visual*Hex` o el tema), como la home minorista. La tarjeta del producto que la home minorista muestra primero (si no está, la Caja Mix) va destacada con borde rosa y "Más elegido".
+- Portada de /mayoristas: foto de fondo opcional (computadora y celular) y carrusel de slides (foto, texto, botón con link, velo claro) que pasan después de la portada, con los mismos controles que el carrusel minorista. Se edita en Admin > Mayorista > Landing > General. Los campos nuevos viven en el JSON de `wholesale_page` con valores por defecto, así que el contenido ya guardado sigue siendo válido.
+- Sin migraciones. Archivos: `src/features/wholesale/components/wholesale-checkout.tsx`, `wholesale-product-grid.tsx`, `wholesale-hero-carousel.tsx`, `src/features/wholesale/product-theme.ts`, `src/app/mayoristas/page.tsx`, `src/lib/validations/wholesale-page.ts`, `src/features/admin/components/wholesale-admin-panel.tsx`.
+
 ### 2026-11-11 - product_id de pedidos mayoristas en el sync (rama `fix/mayoristas-product-id-sync`, pendiente de deploy)
 
 - Los ítems mayoristas guardan como `productId` el producto minorista vinculado al producto mayorista al momento del pedido. Si el producto mayorista no estaba vinculado, el ítem llegaba a `pedidos_items` sin `product_id` y el script de operaciones no lo pasaba a la app.

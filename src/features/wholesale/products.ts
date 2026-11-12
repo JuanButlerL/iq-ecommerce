@@ -15,6 +15,8 @@ export const getPublicWholesaleProducts = cache(async () => {
   return prisma.wholesaleProduct.findMany({
     where: { active: true, productId: { not: null } },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    // Los colores de la tarjeta salen del producto de la tienda vinculado, igual que en la home minorista.
+    include: { product: { select: { colorTheme: true, visualAccentHex: true, visualSurfaceHex: true, visualTextHex: true } } },
   });
 });
 
