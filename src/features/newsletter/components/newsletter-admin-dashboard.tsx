@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, BookOpen, CalendarClock, Check, Eye, Mail, MousePointerClick, Newspaper, Plus, Search, Settings2, ShieldCheck, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, CalendarClock, Check, Eye, Mail, MousePointerClick, Newspaper, Plus, Search, Settings2, ShieldCheck, Users } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -146,6 +146,9 @@ export function NewsletterAdminDashboard({
               <Eye className="h-4 w-4" /> Ver sección
             </Link>
           ) : null}
+          <Link href="/admin/newsletter/resultados" className="inline-flex h-12 items-center gap-2 rounded-full bg-brand-ink px-5 text-sm font-extrabold text-white hover:bg-brand-ink/90">
+            <BarChart3 className="h-4 w-4" /> Resultados y ventas
+          </Link>
           <Link href="/admin/newsletter/guia" className="inline-flex h-12 items-center gap-2 rounded-full px-5 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 hover:bg-white">
             <BookOpen className="h-4 w-4" /> Cómo funciona
           </Link>

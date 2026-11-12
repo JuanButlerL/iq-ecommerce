@@ -145,8 +145,24 @@ export default async function NewsletterGuidePage() {
             Cuando termina, <strong>Enviar a N nuevos</strong> la manda solo a quienes se suscribieron después.
           </li>
           <li>
-            En <strong>Envíos y auditoría</strong> ves cada destinatario, aperturas, clicks, errores y quién hizo cada acción. Se puede exportar a CSV.
+            En <strong>Envíos y auditoría</strong> ves cada destinatario, aperturas, clicks, errores y quién hizo cada acción. Se puede exportar a CSV. Las ventas de cada newsletter están en <strong>Resultados</strong>.
           </li>
+        </ul>
+      </Section>
+
+      <Section eyebrow="Resultados" title="Quién abrió, quién hizo click y quién compró">
+        <ul className="list-disc space-y-2 pl-5">
+          <li>
+            En <strong>Newsletter → Resultados y ventas</strong> está la comparación de todas las newsletters del período: enviados, aperturas, clicks, compras, facturación, ingreso por mail enviado, clientes nuevos, cupones y bajas. Se descarga a Excel.
+          </li>
+          <li>
+            Entrando a una newsletter (o con el botón <strong>Resultados</strong> del editor) ves el embudo y la lista persona por persona: compró, hizo click y no compró, solo abrió, no abrió. Cada lista se descarga por separado; la de “click sin compra” sirve para un recordatorio.
+          </li>
+          <li>
+            Una compra cuenta para la newsletter si la persona <strong>hizo click y compró dentro de los 7 días</strong> (aunque haya comprado desde otro dispositivo), o si compró después de entrar por uno de sus links (se la reenviaron o vio la versión web). Solo pedidos pagos o con comprobante.
+          </li>
+          <li>Quien abrió, no hizo click y compró aparece aparte como “Abrió y compró sin click”: el mail pudo ayudar, pero no se cuenta como venta.</li>
+          <li>Si alguien hizo click en dos newsletters y compró, la compra figura en las dos. Los totales de arriba de la pantalla general la cuentan una sola vez.</li>
         </ul>
       </Section>
 

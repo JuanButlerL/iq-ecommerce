@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Archive,
+  BarChart3,
   Check,
   CheckCircle2,
   Circle,
@@ -463,6 +464,11 @@ export function NewsletterEditor({
           {newsletter.stats.total > 0 ? (
             <Link href={`/admin/newsletter/${newsletter.id}/envios`} className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 hover:bg-white">
               <Users className="h-4 w-4" /> Envíos y auditoría
+            </Link>
+          ) : null}
+          {newsletter.sendingStartedAt ? (
+            <Link href={`/admin/newsletter/${newsletter.id}/resultados`} className="inline-flex h-10 items-center gap-2 rounded-full bg-brand-ink px-4 text-sm font-extrabold text-white hover:bg-brand-ink/90">
+              <BarChart3 className="h-4 w-4" /> Resultados
             </Link>
           ) : null}
           <Button type="button" size="sm" variant="secondary" disabled={busy !== null || dirty} title={needsSaveHint} onClick={() => simpleAction("duplicate", "Copia creada.")}>
