@@ -8,6 +8,15 @@ import { requireAdminSection } from "@/lib/auth/admin";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 import { WHOLESALE_LEAD_STATUSES } from "@/lib/validations/wholesale-lead";
 
+// Ej: "Facebook Ads · mayoristas_nov26 · leadform_whatsapp (meta / paid_social)".
+function formatLeadOrigin(
+  session: { sourceLabel: string; utmSource: string | null; utmMedium: string | null; utmCampaign: string | null; utmContent: string | null } | null,
+) {
+  if (!session) return null;
+  const utm = [session.utmSource, session.utmMedium].filter(Boolean).join(" / ");
+  return [session.sourceLabel, session.utmCampaign, session.utmContent].filter(Boolean).join(" · ") + (utm ? ` (${utm})` : "");
+}
+
 export default async function AdminWholesaleLeadsPage({ searchParams }: { searchParams: Promise<{ estado?: string }> }) {
   await requireAdminSection("wholesale");
   const { estado } = await searchParams;
@@ -33,6 +42,7 @@ export default async function AdminWholesaleLeadsPage({ searchParams }: { search
         address: [lead.street, lead.floor, lead.city, lead.province, lead.postalCode ? `CP ${lead.postalCode}` : null].filter(Boolean).join(", "),
         reference: lead.reference,
         monthlyVolume: lead.monthlyVolume,
+        origin: formatLeadOrigin(lead.marketingSession),
         message: lead.message,
         adminNotes: lead.adminNotes ?? "",
         notified: Boolean(lead.notifiedAt),

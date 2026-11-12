@@ -458,12 +458,17 @@ model WholesaleLead {
   userAgent         String?             @map("user_agent")
   notifiedAt        DateTime?           @map("notified_at")
   notificationError String?             @map("notification_error")
+  // Sesión de marketing en la que se registró: guarda UTM y origen de la visita.
+  marketingSessionId String?            @map("marketing_session_id") @db.Uuid
+  marketingVisitorId String?            @map("marketing_visitor_id")
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
+  marketingSession  MarketingSession?   @relation(fields: [marketingSessionId], references: [id], onDelete: SetNull)
   customers         WholesaleCustomer[]
 
   @@index([status, createdAt], map: "wholesale_leads_status_created_idx")
   @@index([ipAddress, createdAt], map: "wholesale_leads_ip_created_idx")
+  @@index([marketingSessionId], map: "wholesale_leads_marketing_session_idx")
   @@map("wholesale_leads")
 }
 
@@ -609,6 +614,7 @@ model MarketingSession {
   cartRecoveryLeads CartRecoveryLead[]
   orders         Order[]
   events         MarketingEvent[]
+  wholesaleLeads WholesaleLead[]
 
   @@index([email, firstSeenAt], map: "marketing_sessions_email_first_seen_idx")
   @@index([sourceCategory, sourcePlatform, firstSeenAt], map: "marketing_sessions_source_idx")

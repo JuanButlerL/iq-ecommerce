@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma, type WholesaleCustomer, type WholesaleLead } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
+import { ensureMarketingSessionSafely } from "@/features/marketing/attribution-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { getTrustedWholesaleCustomerIds, trustWholesaleCustomer } from "@/features/wholesale/device";
 import { toArgentineWhatsappNumber } from "@/features/wholesale/lead-email";
@@ -47,6 +48,9 @@ export async function registerWholesaleCustomer(payload: unknown, meta: RequestM
   if (input.website) {
     return { status: "ignored" };
   }
+
+  // Vincula la visita (UTM, origen) con el email del mayorista para seguir su recorrido hasta la compra.
+  const marketingSession = await ensureMarketingSessionSafely(input.marketing, input.email);
 
   const existing = await prisma.wholesaleCustomer.findUnique({ where: { cuit: input.cuit } });
 
@@ -101,6 +105,8 @@ export async function registerWholesaleCustomer(payload: unknown, meta: RequestM
           message: input.message,
           ipAddress: meta.ipAddress?.slice(0, 64) ?? null,
           userAgent: meta.userAgent?.slice(0, 300) ?? null,
+          marketingSessionId: marketingSession?.id ?? null,
+          marketingVisitorId: marketingSession?.visitorId ?? null,
         },
       });
       const customer = await tx.wholesaleCustomer.create({

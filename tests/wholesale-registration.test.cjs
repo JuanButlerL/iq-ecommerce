@@ -10,7 +10,7 @@ function load(file, imports = {}) {
   const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-  }).outputText, { exports, Error, console, Buffer, Date, Intl, Number, Math, require(name) {
+  }).outputText, { exports, Error, console, Buffer, Date, Intl, Number, Math, URL, require(name) {
     if (!(name in imports)) throw new Error(`Forbidden import: ${name}`);
     return imports[name];
   } });
@@ -21,14 +21,17 @@ const zod = require('zod');
 const cuit = load('src/lib/utils/cuit.ts');
 const pricing = load('src/features/wholesale/pricing.ts');
 const customerValidation = load('src/lib/validations/wholesale-customer.ts', { zod, '@/lib/utils/cuit': cuit });
+const attribution = load('src/lib/marketing/attribution.ts', { zod, '@prisma/client': require('@prisma/client') });
 const orderValidation = load('src/lib/validations/wholesale-order.ts', {
   zod,
   '@/features/wholesale/pricing': pricing,
   '@/lib/utils/cuit': cuit,
+  '@/lib/marketing/attribution': attribution,
   '@/lib/validations/wholesale-customer': customerValidation,
 });
 const { wholesaleRegistrationSchema } = load('src/lib/validations/wholesale-registration.ts', {
   zod,
+  '@/lib/marketing/attribution': attribution,
   '@/lib/validations/wholesale-customer': customerValidation,
   '@/lib/validations/wholesale-order': orderValidation,
 });

@@ -1,6 +1,7 @@
-import { OrderStatus, PaymentMethod, PaymentProvider, Prisma, SyncStatus, type WholesaleCustomer } from "@prisma/client";
+import { MarketingEventType, OrderStatus, PaymentMethod, PaymentProvider, Prisma, SyncStatus, type WholesaleCustomer } from "@prisma/client";
 
 import { sendEmail } from "@/features/email/provider";
+import { ensureMarketingSessionSafely, logMarketingEvent } from "@/features/marketing/attribution-service";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { ensureMercadoPagoPreference } from "@/features/orders/services/mercado-pago-service";
 import { syncOrder } from "@/features/orders/services/sync-service";
@@ -115,6 +116,8 @@ export async function createWholesaleOrder(payload: unknown) {
     shippingArs: shippingQuote.shippingArs,
   });
   const { firstName, lastName } = splitName(input.delivery.contactName);
+  // La sesión guarda los UTM con los que entró a la web, aunque ya no estén en la URL del carrito.
+  const marketingSession = await ensureMarketingSessionSafely(input.marketing, customer.email);
   const paymentMethod = input.paymentMethod as PaymentMethod;
   let created: (CreatedWholesaleOrder & { customerId: string }) | null = null;
 
@@ -161,6 +164,8 @@ export async function createWholesaleOrder(payload: unknown) {
             paymentProviderStatusDetail: paymentMethod === "MERCADO_PAGO" ? "waiting_checkout" : null,
             deliveryAddressChanged,
             syncStatus: SyncStatus.PENDING,
+            marketingSessionId: marketingSession?.id ?? null,
+            marketingVisitorId: marketingSession?.visitorId ?? null,
           },
         });
 
@@ -224,6 +229,17 @@ export async function createWholesaleOrder(payload: unknown) {
   // Un cliente nuevo ya no necesita la cookie para este pedido: solo se graba si aceptó guardar sus datos.
   if (isNewCustomer && input.remember) {
     await trustWholesaleCustomer(created.customerId);
+  }
+
+  if (marketingSession) {
+    await logMarketingEvent({
+      marketingContext: input.marketing,
+      eventType: MarketingEventType.ORDER_CREATED,
+      email: customer.email,
+      path: input.marketing?.pagePath ?? "/mayoristas/pedido",
+      orderId: created.id,
+      metadata: { channel: "WHOLESALE", paymentMethod: input.paymentMethod, subtotalArs: pricing.subtotalArs, totalArs: pricing.totalArs },
+    }).catch((error) => console.error("No se pudo registrar el evento de marketing del pedido mayorista", error));
   }
 
   await syncOrder(created.id).catch(async (syncError) => {

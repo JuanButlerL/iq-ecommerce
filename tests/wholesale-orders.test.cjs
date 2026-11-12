@@ -10,7 +10,7 @@ function load(file, imports = {}) {
   const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-  }).outputText, { exports, Error, console, Buffer, Date, Intl, Number, Math, require(name) {
+  }).outputText, { exports, Error, console, Buffer, Date, Intl, Number, Math, URL, require(name) {
     if (!(name in imports)) throw new Error(`Forbidden import: ${name}`);
     return imports[name];
   } });
@@ -23,10 +23,12 @@ const pricing = load('src/features/wholesale/pricing.ts');
 const provinces = load('src/lib/constants/provinces.ts');
 const { calculateShippingQuote } = load('src/features/cart/lib/shipping.ts', { '@/lib/constants/provinces': provinces });
 const customerValidation = load('src/lib/validations/wholesale-customer.ts', { zod, '@/lib/utils/cuit': cuit });
+const attribution = load('src/lib/marketing/attribution.ts', { zod, '@prisma/client': require('@prisma/client') });
 const { wholesaleOrderSchema, wholesaleIdentifySchema } = load('src/lib/validations/wholesale-order.ts', {
   zod,
   '@/features/wholesale/pricing': pricing,
   '@/lib/utils/cuit': cuit,
+  '@/lib/marketing/attribution': attribution,
   '@/lib/validations/wholesale-customer': customerValidation,
 });
 const emails = load('src/features/wholesale/order-email.ts', { '@/features/wholesale/pricing': pricing });
@@ -154,4 +156,38 @@ test('mail interno: avisa cliente nuevo, cambio de dirección y tipo de factura'
   assert.match(mail.text, /Cliente nuevo/);
   assert.match(mail.text, /dirección de entrega es distinta/);
   assert.match(mail.html, /factura A/);
+});
+
+const marketing = {
+  visitorId: '6f1c1b1e-2222-4a4a-9a9a-123456789abc',
+  sessionKey: '7a2d2c2f-3333-4b4b-8b8b-123456789abc',
+  pagePath: '/mayoristas/pedido',
+  pageUrl: 'https://iqkids.com.ar/mayoristas/pedido',
+  referrer: '',
+  landingQuery: {},
+};
+
+test('pedido mayorista: acepta el contexto de marketing y lo ignora si llega mal formado', () => {
+  const withMarketing = wholesaleOrderSchema.safeParse({ ...validOrder(), marketing });
+  assert.equal(withMarketing.success, true);
+  assert.equal(withMarketing.data.marketing.sessionKey, marketing.sessionKey);
+
+  const broken = wholesaleOrderSchema.safeParse({ ...validOrder(), marketing: { visitorId: 'x' } });
+  assert.equal(broken.success, true);
+  assert.equal(broken.data.marketing, undefined);
+});
+
+test('atribución: el link de lead ads (utm_medium=leadform) cuenta como pauta de Meta', () => {
+  const landing = (query) => attribution.classifyMarketingAttribution({ ...marketing, landingQuery: query });
+  const leadform = landing({ utm_source: 'meta', utm_medium: 'leadform', utm_campaign: 'mayoristas_nov26', utm_content: 'whatsapp' });
+  assert.equal(leadform.sourceCategory, 'META');
+  assert.equal(leadform.isPaid, true);
+  assert.equal(leadform.utmCampaign, 'mayoristas_nov26');
+  assert.equal(leadform.utmContent, 'whatsapp');
+
+  const organic = landing({ utm_source: 'meta', utm_medium: 'whatsapp' });
+  assert.equal(organic.isPaid, false);
+  assert.equal(organic.sourceCategory, 'ORGANIC');
+
+  assert.equal(landing({}).sourceCategory, 'DIRECT');
 });

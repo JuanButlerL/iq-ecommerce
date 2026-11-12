@@ -30,6 +30,7 @@ type LeadItem = {
   address: string;
   reference: string | null;
   monthlyVolume: string | null;
+  origin: string | null;
   message: string | null;
   adminNotes: string;
   notified: boolean;
@@ -88,6 +89,7 @@ function LeadCard({ lead }: { lead: LeadItem }) {
     ["Dirección", lead.address],
     ["Referencia", lead.reference],
     ["Cantidad estimada", lead.monthlyVolume],
+    ["Origen", lead.origin],
   ];
 
   return (

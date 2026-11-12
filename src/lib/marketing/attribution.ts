@@ -63,7 +63,8 @@ export function classifyMarketingAttribution(input: MarketingSessionContextInput
   const isPaid = Boolean(
     // fbclid is also appended to organic Meta visits, so it cannot prove that a visit was paid.
     // Paid Meta traffic must carry a paid medium or an explicit paid/ads source.
-    gclid || ttclid || msclkid || /(^|[^a-z])(cpc|ppc|paid|ads|adset|remarketing|retargeting|display|social_paid|paid_social)([^a-z]|$)/i.test(mediumHint) || /(^|[^a-z])(paid|ads|adset|remarketing|retargeting)([^a-z]|$)/i.test(utmSource ?? ""),
+    // Lead form ads (utm_medium=leadform) are paid: the link reaches people only through the ad's form.
+    gclid || ttclid || msclkid || /(^|[^a-z])(cpc|ppc|paid|ads|adset|remarketing|retargeting|display|social_paid|paid_social|leadform|lead_form|leadgen)([^a-z]|$)/i.test(mediumHint) || /(^|[^a-z])(paid|ads|adset|remarketing|retargeting)([^a-z]|$)/i.test(utmSource ?? ""),
   );
 
   if (matchesAny(sourceHint, ["instagram", "ig", "facebook", "fb", "meta", "threads", "m.me"])) {

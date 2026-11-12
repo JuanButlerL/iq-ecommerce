@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { WHOLESALE_PAYMENT_METHODS } from "@/features/wholesale/pricing";
+import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
 import { isValidCuit, normalizeCuit } from "@/lib/utils/cuit";
 import { TAX_CONDITIONS } from "@/lib/validations/wholesale-customer";
 
@@ -66,6 +67,8 @@ export const wholesaleOrderSchema = z.object({
   delivery: wholesaleDeliverySchema,
   paymentMethod: z.enum(WHOLESALE_PAYMENT_METHODS, { errorMap: () => ({ message: "Elegí cómo vas a pagar." }) }),
   notes: optional("Comentarios", 1000),
+  // Origen de la visita (UTM, referrer). Si llega mal formado se ignora: nunca frena el pedido.
+  marketing: marketingSessionContextSchema.optional().catch(undefined),
 });
 
 export type WholesaleOrderInput = z.infer<typeof wholesaleOrderSchema>;

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
 import { TAX_CONDITIONS } from "@/lib/validations/wholesale-customer";
 import { wholesaleCuitSchema, wholesaleEmailSchema } from "@/lib/validations/wholesale-order";
 
@@ -41,6 +42,8 @@ export const wholesaleRegistrationSchema = z.object({
   consent: z.literal(true, { errorMap: () => ({ message: "Tenés que aceptar la política de privacidad." }) }),
   // Campo trampa: invisible para personas; si viene completo es un bot.
   website: z.string().optional(),
+  // Origen de la visita (UTM, referrer). Si llega mal formado se ignora: nunca frena el registro.
+  marketing: marketingSessionContextSchema.optional().catch(undefined),
 });
 
 export type WholesaleRegistrationInput = z.infer<typeof wholesaleRegistrationSchema>;

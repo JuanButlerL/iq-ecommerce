@@ -139,6 +139,16 @@ export async function ensureMarketingSession(payload: unknown, email?: string | 
   return session;
 }
 
+// Variante para flujos donde el tracking es secundario (mayoristas): si falla, se sigue sin atribución.
+export async function ensureMarketingSessionSafely(payload: unknown, email?: string | null) {
+  try {
+    return await ensureMarketingSession(payload, email);
+  } catch (error) {
+    console.error("No se pudo registrar la sesion de marketing", error);
+    return null;
+  }
+}
+
 export async function logMarketingEvent(input: {
   marketingContext?: unknown;
   eventType: MarketingEventType;
