@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Download, History, RotateCcw } from "lucide-react";
+import { ArrowLeft, BarChart3, Download, History, RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import { Card } from "@/components/ui/card";
@@ -167,6 +167,11 @@ export function NewsletterDeliveriesPanel({
             <button type="button" onClick={() => setBulkRetry(true)} className="inline-flex h-10 items-center gap-2 rounded-full bg-brand-pink px-4 text-sm font-extrabold text-white shadow-soft hover:bg-[#ea737d]">
               <RotateCcw className="h-4 w-4" /> Reintentar {newsletter.stats.errors} con error
             </button>
+          ) : null}
+          {newsletter.stats.sent > 0 ? (
+            <Link href={`/admin/newsletter/${newsletter.id}/resultados`} className="inline-flex h-10 items-center gap-2 rounded-full bg-brand-ink px-4 text-sm font-extrabold text-white hover:bg-brand-ink/90">
+              <BarChart3 className="h-4 w-4" /> Resultados y ventas
+            </Link>
           ) : null}
           <a href={`/api/admin/newsletters/${newsletter.id}/deliveries/export`} className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 hover:bg-white">
             <Download className="h-4 w-4" /> Exportar CSV
