@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ARGENTINA_PROVINCES } from "@/features/wholesale/content";
 import { TAX_CONDITION_LABELS } from "@/features/wholesale/tax-condition";
+import { getBrowserMarketingContext } from "@/lib/marketing/client";
 import { event as trackMetaEvent } from "@/lib/pixel";
 import { cn } from "@/lib/utils/cn";
 import { isValidCuit } from "@/lib/utils/cuit";
@@ -76,6 +77,7 @@ export function WholesaleRegistrationForm({ businessTypes, monthlyVolumes }: Who
       ...Object.fromEntries(Array.from(data.entries()).map(([key, value]) => [key, String(value).trim()])),
       cuit,
       consent: data.get("consent") === "on",
+      marketing: getBrowserMarketingContext() ?? undefined,
     };
 
     setSending(true);

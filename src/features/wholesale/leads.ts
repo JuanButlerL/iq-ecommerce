@@ -112,7 +112,10 @@ async function notifyWholesaleLead(lead: WholesaleLead) {
 export async function getWholesaleLeads(status?: WholesaleLeadStatus) {
   return prisma.wholesaleLead.findMany({
     where: status ? { status } : undefined,
-    include: { customers: { select: { id: true }, take: 1 } },
+    include: {
+      customers: { select: { id: true }, take: 1 },
+      marketingSession: { select: { sourceLabel: true, utmSource: true, utmMedium: true, utmCampaign: true, utmContent: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 500,
   });

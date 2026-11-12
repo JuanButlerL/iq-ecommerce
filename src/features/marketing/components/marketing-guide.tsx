@@ -52,6 +52,18 @@ const guideSections: GuideSection[] = [
     code: "Meta: utm_source=meta&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_term={{adset.name}}&utm_content={{ad.name}}\nGoogle: utm_source=google&utm_medium=cpc&utm_campaign={{campaignname}}&utm_term={{keyword}}&utm_content={{creative}}",
   },
   {
+    title: "Lead ads y mayoristas",
+    paragraphs: [
+      "Para anuncios con formulario de Meta, el link que se manda por WhatsApp o mail puede usar utm_medium=leadform: también cuenta como pauta. Un medio que no indique pauta se clasifica como orgánico.",
+      "En /mayoristas, el registro y el pedido quedan vinculados a la visita con sus UTM, aunque desaparezcan de la URL al navegar. El origen de cada registro se ve en Mayoristas > Consultas.",
+    ],
+    bullets: [
+      "Si se registró desde un anuncio y compró días después entrando directo, el pedido conserva la visita real y la campaña aparece en Primer y Último touch pago.",
+      "Quien nunca entró desde pauta no tiene touch pago: lo orgánico no se mezcla con la pauta.",
+    ],
+    code: "Meta lead ads: utm_source=meta&utm_medium=leadform&utm_campaign=mayoristas_nov26&utm_content=whatsapp",
+  },
+  {
     title: "Exportaciones",
     paragraphs: ["Ventas atribuidas descarga una fila por compra confirmada con first touch, last touch, asistencias y recorrido. Contactos y embudo descarga una fila por email con su historia de captación, eventos y compras."],
   },

@@ -31,6 +31,7 @@ import { formatArs } from "@/lib/utils/currency";
 import { formatCuit, isValidCuit, normalizeCuit } from "@/lib/utils/cuit";
 import { TAX_CONDITIONS } from "@/lib/validations/wholesale-customer";
 import { trackWholesaleAddToCart } from "@/lib/integrations/wholesale-commerce-tracking";
+import { getBrowserMarketingContext } from "@/lib/marketing/client";
 import { customEvent } from "@/lib/pixel";
 import { WHOLESALE_META_CHANNEL, WHOLESALE_META_EVENTS } from "@/lib/wholesale-meta-events";
 
@@ -450,6 +451,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
       },
       paymentMethod,
       notes,
+      marketing: getBrowserMarketingContext() ?? undefined,
     });
 
     if (!result.ok) {

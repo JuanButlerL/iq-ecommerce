@@ -369,6 +369,26 @@ Google:
 
 Sin esas etiquetas, el sistema conserva lo que detecta, pero no puede asegurar campaña, conjunto, anuncio ni separar con fiabilidad una visita orgánica de una paga sin señal explícita.
 
+Para anuncios con formulario de Meta (lead ads), el link que se envía por WhatsApp o mail puede usar `utm_medium=leadform`: también cuenta como pauta. Ejemplo:
+
+`utm_source=meta&utm_medium=leadform&utm_campaign=mayoristas_nov26&utm_content=whatsapp`
+
+Un medio que no indique pauta (por ejemplo `utm_medium=whatsapp` con `utm_source=meta`) se clasifica como orgánico.
+
+## Mayoristas
+
+La sección `/mayoristas` usa la misma trazabilidad que la tienda:
+
+- al entrar, la sesión guarda los UTM aunque después desaparezcan de la URL al navegar;
+- el registro mayorista guarda la sesión en la consulta y vincula el email del mayorista con sus visitas anteriores en ese navegador;
+- el pedido mayorista queda vinculado a la sesión en la que se hizo y registra el evento `ORDER_CREATED`.
+
+En `Admin > Mayoristas > Consultas` cada registro muestra su `Origen` (etiqueta, campaña, contenido, fuente y medio).
+
+Si un mayorista se registra desde un anuncio y compra días después entrando directo u orgánico, el pedido conserva como origen la visita real de la compra y la campaña paga aparece por separado en `Primer touch pago` y `Ultimo touch pago` del panel y del export de pedidos. Una persona que nunca entró desde pauta no tiene touch pago: lo orgánico no se mezcla con la pauta.
+
+El export de pedidos se puede filtrar por canal mayorista para ver solo esas compras con sus columnas de marketing.
+
 ## Conciliacion con Google Ads y GA4
 
 No se deben comparar directamente las compras confirmadas totales de IQ Kids con las conversiones atribuidas a Google Ads:
