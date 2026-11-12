@@ -11,6 +11,7 @@ import { useHydratedWholesaleCart, useWholesaleCartStore } from "@/features/whol
 import { trackWholesaleAddToCart } from "@/lib/integrations/wholesale-commerce-tracking";
 import { cn } from "@/lib/utils/cn";
 import { formatArs } from "@/lib/utils/currency";
+import { getWholesaleProductTheme, type WholesaleProductTheme } from "@/features/wholesale/product-theme";
 
 export type WholesaleGridProduct = {
   id: string;
@@ -21,18 +22,11 @@ export type WholesaleGridProduct = {
   priceArs: number;
   unitsPerDisplay: number;
   soldOut: boolean;
+  // Colores del producto de la tienda vinculado; sin vínculo se usan los del sabor.
+  theme?: WholesaleProductTheme | null;
+  // La tarjeta destacada, como el "Más elegido" de la home minorista.
+  highlighted?: boolean;
 };
-
-// Los productos mayoristas no tienen tema propio: se toma el color de la tienda según el sabor.
-function getWholesaleProductTheme(name: string) {
-  const normalized = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
-  if (normalized.includes("mix")) return { accent: "#2c2241", surface: "#ffffff" };
-  if (normalized.includes("cacao")) return { accent: "#F48991", surface: "#FFF3F4" };
-  if (normalized.includes("banana")) return { accent: "#ffd35c", surface: "#FFF8DF" };
-  if (normalized.includes("mani")) return { accent: "#7bd8f7", surface: "#EEF9FE" };
-  return { accent: "#F48991", surface: "#ffffff" };
-}
 
 export function wholesaleProductHref(id: string) {
   return `/mayoristas/productos/${id}`;
@@ -67,16 +61,24 @@ function WholesaleProductCardActions({ product, accent }: { product: WholesaleGr
 }
 
 function WholesaleProductCard({ product }: { product: WholesaleGridProduct }) {
-  const theme = getWholesaleProductTheme(product.name);
+  const theme = product.theme ?? getWholesaleProductTheme(product.name);
   const href = wholesaleProductHref(product.id);
   const unitPrice = formatArs(Math.round(product.priceArs / Math.max(1, product.unitsPerDisplay)));
 
   return (
     <article
-      className="group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border border-brand-ink/10 bg-white text-brand-ink shadow-card transition-all duration-200 hover:-translate-y-1 md:h-full md:w-auto md:shrink"
-      style={{ backgroundColor: theme.surface }}
+      className={cn(
+        "group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 md:h-full md:w-auto md:shrink",
+        product.highlighted ? "border-brand-pink/60 shadow-[0_20px_48px_rgba(244,137,145,0.2)] ring-1 ring-brand-pink/20" : "border-brand-ink/10 shadow-card",
+      )}
+      style={{ backgroundColor: theme.surface, color: theme.text }}
     >
-      <Link href={href} className="relative aspect-[4/3] overflow-hidden bg-white">
+      <Link href={href} className="relative aspect-[4/3] overflow-hidden">
+        {product.highlighted && !product.soldOut ? (
+          <span className="absolute left-4 top-4 z-10 rounded-full bg-brand-pink px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.16em] text-white shadow-soft">
+            Más elegido
+          </span>
+        ) : null}
         {product.soldOut ? (
           <span className="absolute left-4 top-4 z-10 rounded-full bg-brand-ink px-4 py-2 text-[11px] font-extrabold uppercase tracking-[0.16em] text-white shadow-soft">
             Sin stock

@@ -168,7 +168,18 @@ function ListEditor<T>({
   );
 }
 
-export function ImageField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function ImageField({
+  value,
+  onChange,
+  hint = "JPG, PNG o WEBP · hasta 8 MB · se muestra en formato 4:3.",
+  removable = false,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  hint?: string;
+  // Para imágenes opcionales (fondo, versión celular): permite sacarla.
+  removable?: boolean;
+}) {
   const inputId = useId();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -230,9 +241,24 @@ export function ImageField({ value, onChange }: { value: string; onChange: (valu
             if (file) void upload(file);
           }}
         />
-        <p className="text-xs text-brand-ink/50">JPG, PNG o WEBP · hasta 8 MB · se muestra en formato 4:3.</p>
+        {removable && value ? (
+          <button type="button" onClick={() => onChange("")} className="ml-2 text-xs font-bold text-brand-ink/60 hover:text-red-600">
+            Quitar imagen
+          </button>
+        ) : null}
+        <p className="text-xs text-brand-ink/50">{hint}</p>
         {error ? <p className="text-xs font-bold text-red-600">{error}</p> : null}
       </div>
+    </div>
+  );
+}
+
+// Como Field, pero sin <label> envolvente: ImageField ya tiene su propio label para el archivo.
+function ImageSlot({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid content-start gap-1.5 text-sm font-bold text-brand-ink">
+      <span>{label}</span>
+      {children}
     </div>
   );
 }
@@ -445,7 +471,114 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
             </div>
           )}
         />
+        <SubTitle>Foto de fondo de la portada</SubTitle>
+        <p className="text-sm text-brand-ink/60">Opcional. Lleva un velo claro para que se lean el título y los botones. Sin foto, queda el fondo rosado.</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <ImageSlot label="Computadora">
+            <ImageField
+              value={hero.backgroundImageUrl}
+              onChange={(backgroundImageUrl) => patch("hero", { ...hero, backgroundImageUrl })}
+              hint="JPG, PNG o WEBP · hasta 8 MB · ideal horizontal, 1920 × 900 px."
+              removable
+            />
+          </ImageSlot>
+          <ImageSlot label="Celular (opcional)">
+            <ImageField
+              value={hero.backgroundMobileImageUrl}
+              onChange={(backgroundMobileImageUrl) => patch("hero", { ...hero, backgroundMobileImageUrl })}
+              hint="Vertical, 1080 × 1350 px. Vacía = usa la de computadora."
+              removable
+            />
+          </ImageSlot>
+        </div>
       </AdminSection>
+      ) : null}
+
+      {is("general") ? (
+        <AdminSection
+          title="Carrusel de la portada"
+          description="Slides que pasan después de la portada, como en la home de la tienda. Cada uno lleva una foto de fondo y, si querés, texto y un botón. Sin slides, se ve solo la portada."
+        >
+          <ListEditor
+            items={hero.slides}
+            onChange={(slides) => patch("hero", { ...hero, slides })}
+            createItem={() => ({
+              imageUrl: "",
+              mobileImageUrl: "",
+              imageAlt: "",
+              eyebrow: "",
+              title: "",
+              description: "",
+              ctaLabel: "",
+              ctaUrl: "",
+              overlay: true,
+            })}
+            addLabel="Agregar slide"
+            itemTitle={(slide, index) => slide.title || slide.imageAlt || `Slide ${index + 1}`}
+            max={8}
+            renderItem={(slide, update) => (
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <ImageSlot label="Foto (computadora) *">
+                    <ImageField
+                      value={slide.imageUrl}
+                      onChange={(imageUrl) => update({ ...slide, imageUrl })}
+                      hint="JPG, PNG o WEBP · hasta 8 MB · ideal horizontal, 1920 × 900 px."
+                    />
+                  </ImageSlot>
+                  <ImageSlot label="Foto (celular, opcional)">
+                    <ImageField
+                      value={slide.mobileImageUrl}
+                      onChange={(mobileImageUrl) => update({ ...slide, mobileImageUrl })}
+                      hint="Vertical, 1080 × 1350 px. Vacía = usa la de computadora."
+                      removable
+                    />
+                  </ImageSlot>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <TextField label="Encabezado (texto chico rosa)" value={slide.eyebrow} onChange={(eyebrow) => update({ ...slide, eyebrow })} />
+                  <TextField label="Título" value={slide.title} onChange={(title) => update({ ...slide, title })} />
+                  <div className="md:col-span-2">
+                    <TextField label="Descripción" value={slide.description} onChange={(description) => update({ ...slide, description })} multiline />
+                  </div>
+                  <TextField label="Texto del botón" value={slide.ctaLabel} onChange={(ctaLabel) => update({ ...slide, ctaLabel })} placeholder="Ej: Ver precios →" />
+                  <TextField
+                    label="Link del botón"
+                    value={slide.ctaUrl}
+                    onChange={(ctaUrl) => update({ ...slide, ctaUrl })}
+                    placeholder="Ej: #productos o /mayoristas/registro"
+                    hint="Sin texto de botón, el link hace clickeable todo el slide."
+                  />
+                  <TextField
+                    label="Texto alternativo de la foto"
+                    value={slide.imageAlt}
+                    onChange={(imageAlt) => update({ ...slide, imageAlt })}
+                    hint="Describe la foto para buscadores y lectores de pantalla."
+                  />
+                  <Checkbox
+                    label="Velo claro sobre la foto (para que se lea el texto)"
+                    checked={slide.overlay}
+                    onChange={(event) => update({ ...slide, overlay: event.target.checked })}
+                    className="self-end pb-3"
+                  />
+                </div>
+              </div>
+            )}
+          />
+          {hero.slides.length > 0 ? (
+            <div className="max-w-xs">
+              <Field label="Segundos entre slides" hint="Entre 3 y 30.">
+                <Input
+                  type="number"
+                  min={3}
+                  max={30}
+                  value={hero.intervalSeconds}
+                  onChange={(event) => patch("hero", { ...hero, intervalSeconds: Number.parseInt(event.target.value, 10) || 7 })}
+                />
+              </Field>
+            </div>
+          ) : null}
+        </AdminSection>
       ) : null}
 
       {is("general") ? (

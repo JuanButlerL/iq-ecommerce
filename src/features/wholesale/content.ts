@@ -9,6 +9,19 @@ export type WholesaleSectionIntro = {
   description: string;
 };
 
+export type WholesaleHeroSlide = {
+  imageUrl: string;
+  mobileImageUrl: string;
+  imageAlt: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  // Velo claro sobre la foto para que se lea el texto.
+  overlay: boolean;
+};
+
 export type WholesaleContent = {
   enabled: boolean;
   // "scrypt$<salt>$<hash>" de la contraseña para ver /mayoristas. Vacío = página abierta.
@@ -27,6 +40,12 @@ export type WholesaleContent = {
     chips: { label: string; accent: boolean }[];
     primaryCta: string;
     secondaryCta: string;
+    // Foto de fondo de la portada (opcional). Vacía = el fondo rosado de siempre.
+    backgroundImageUrl: string;
+    backgroundMobileImageUrl: string;
+    // Slides que se suman después de la portada, como el carrusel de la home minorista.
+    slides: WholesaleHeroSlide[];
+    intervalSeconds: number;
   };
   stats: { value: string; label: string }[];
   products: WholesaleSectionIntro & {
@@ -80,6 +99,10 @@ export const DEFAULT_WHOLESALE_CONTENT: WholesaleContent = {
     ],
     primaryCta: "Quiero vender iQ Kids →",
     secondaryCta: "Ver precios y hacer pedido",
+    backgroundImageUrl: "",
+    backgroundMobileImageUrl: "",
+    slides: [],
+    intervalSeconds: 7,
   },
   stats: [
     { value: "+5.000", label: "familias ya la probaron\nonline y en más de 130 comercios" },

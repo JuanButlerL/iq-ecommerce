@@ -18,6 +18,36 @@ const imageUrl = z
     message: "Subí una imagen para cada producto.",
   });
 
+// Imagen opcional (portada y carrusel): vacía o una ruta/URL válida.
+const optionalImageUrl = z
+  .string()
+  .trim()
+  .max(500, "Imagen: máximo 500 caracteres.")
+  .refine((value) => value === "" || value.startsWith("/") || /^https?:\/\//i.test(value), {
+    message: "La imagen no es válida: subila de nuevo.",
+  })
+  .default("");
+
+// Link de un botón del carrusel: vacío, una ruta interna ("/...", "#...") o una URL http(s).
+const optionalLink = (field: string) =>
+  text(field, 300)
+    .refine((value) => value === "" || value.startsWith("/") || value.startsWith("#") || /^https?:\/\//i.test(value), {
+      message: `${field}: usá una ruta que empiece con “/” o una dirección que empiece con https://.`,
+    })
+    .default("");
+
+const heroSlide = z.object({
+  imageUrl: optionalImageUrl.refine((value) => value !== "", { message: "Carrusel: subí una imagen para cada slide." }),
+  mobileImageUrl: optionalImageUrl,
+  imageAlt: text("Carrusel · texto alternativo", 160).default(""),
+  eyebrow: text("Carrusel · encabezado", 80).default(""),
+  title: text("Carrusel · título", 160).default(""),
+  description: text("Carrusel · descripción", 500).default(""),
+  ctaLabel: text("Carrusel · texto del botón", 60).default(""),
+  ctaUrl: optionalLink("Carrusel · link del botón"),
+  overlay: z.boolean().default(true),
+});
+
 const sectionIntro = (section: string) => ({
   eyebrow: text(`${section} · encabezado`, 80),
   title: requiredText(`${section} · título`, 160),
@@ -48,6 +78,11 @@ export const wholesaleContentSchema = z.object({
     chips: list(z.object({ label: requiredText("Portada · etiqueta", 40), accent: z.boolean() }), "Portada · etiquetas", 8),
     primaryCta: requiredText("Portada · botón principal", 60),
     secondaryCta: requiredText("Portada · botón secundario", 60),
+    // Los campos nuevos tienen valor por defecto para que el contenido ya guardado siga siendo válido.
+    backgroundImageUrl: optionalImageUrl,
+    backgroundMobileImageUrl: optionalImageUrl,
+    slides: list(heroSlide, "Carrusel", 8).default([]),
+    intervalSeconds: z.number().int().min(3, "Carrusel: mínimo 3 segundos.").max(30, "Carrusel: máximo 30 segundos.").default(7),
   }),
   stats: list(z.object({ value: requiredText("Números · valor", 20), label: text("Números · texto", 120) }), "Números", 6),
   products: z.object({
