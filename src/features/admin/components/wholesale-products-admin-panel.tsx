@@ -23,6 +23,7 @@ type WholesaleProductItem = {
   unitsPerDisplay: number;
   active: boolean;
   soldOut: boolean;
+  highlighted: boolean;
   kind: WholesaleKind;
   boxDisplays: number;
   components: { productId: string; quantity: number }[];
@@ -139,6 +140,7 @@ function ProductRow({
           unitsPerDisplay: Math.round(units),
           active: values.active,
           soldOut: values.soldOut,
+          highlighted: values.highlighted,
           kind: values.kind,
           boxDisplays: Math.round(boxDisplays),
           components: components.map(({ productId, quantity }) => ({ productId, quantity })),
@@ -175,6 +177,7 @@ function ProductRow({
           <span className="rounded-full bg-brand-pink/10 px-2.5 py-0.5 text-[11px] font-extrabold text-brand-pink">{savedUnitLabel}</span>
           {!product.active ? <span className="rounded-full bg-brand-ink/10 px-2.5 py-0.5 text-[11px] font-extrabold text-brand-ink/60">Oculto</span> : null}
           {product.soldOut ? <span className="rounded-full bg-brand-pink/15 px-2.5 py-0.5 text-[11px] font-extrabold text-brand-pink">Sin stock</span> : null}
+          {product.highlighted ? <span className="rounded-full bg-brand-pink px-2.5 py-0.5 text-[11px] font-extrabold text-white">Más elegido</span> : null}
         </div>
         <div className="flex items-center gap-1">
           <button type="button" aria-label="Subir" onClick={() => onMove(-1)} disabled={isFirst} className="rounded-full p-1.5 text-brand-ink/60 hover:bg-[#fff6f7] disabled:opacity-30">
@@ -315,6 +318,11 @@ function ProductRow({
         <div className="space-y-2 md:col-span-2">
           <Checkbox label="Visible en /mayoristas" checked={values.active} onChange={(event) => set("active", event.target.checked)} />
           <Checkbox label="Sin stock (se muestra pero no se puede pedir)" checked={values.soldOut} onChange={(event) => set("soldOut", event.target.checked)} />
+          <Checkbox
+            label="Destacar como “Más elegido” (lo lleva uno solo: si lo marcás acá, se saca del que lo tenía)"
+            checked={values.highlighted}
+            onChange={(event) => set("highlighted", event.target.checked)}
+          />
         </div>
       </div>
 
@@ -382,7 +390,7 @@ export function WholesaleProductsAdminPanel({ products, retailProducts, minDispl
       <div className={cn("space-y-4", busy && "pointer-events-none opacity-60")}>
         {products.map((product, index) => (
           <ProductRow
-            key={`${product.id}-${product.name}-${product.priceArs}-${product.active}-${product.soldOut}-${product.kind}-${product.boxDisplays}-${product.components
+            key={`${product.id}-${product.name}-${product.priceArs}-${product.active}-${product.soldOut}-${product.highlighted}-${product.kind}-${product.boxDisplays}-${product.components
               .map((component) => `${component.productId}:${component.quantity}`)
               .join(",")}`}
             product={product}

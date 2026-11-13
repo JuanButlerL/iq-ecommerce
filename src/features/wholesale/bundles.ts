@@ -185,6 +185,8 @@ export type WholesaleSaleProduct = {
   priceArs: number;
   unitsPerDisplay: number;
   soldOut: boolean;
+  // Lleva la etiqueta "Más elegido".
+  highlighted: boolean;
   kind: WholesaleKind;
   boxDisplays: number;
   // Displays que trae cada unidad de venta.

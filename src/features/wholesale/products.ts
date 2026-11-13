@@ -66,6 +66,7 @@ export function toWholesaleSaleProduct(product: PublicWholesaleProduct): Wholesa
     priceArs: product.priceArs,
     unitsPerDisplay: product.unitsPerDisplay,
     soldOut: product.soldOut,
+    highlighted: product.highlighted,
     kind: product.kind,
     boxDisplays: product.boxDisplays,
     displays: product.displays,
@@ -156,6 +157,11 @@ export async function updateWholesaleProduct(id: string, payload: unknown) {
 
     if (count === 0) {
       throw new AppError("El producto no existe o fue eliminado.", 404, true);
+    }
+
+    // "Más elegido" lo lleva uno solo: marcarlo en este lo saca de los demás.
+    if (data.highlighted) {
+      await tx.wholesaleProduct.updateMany({ where: { id: { not: productId }, highlighted: true }, data: { highlighted: false } });
     }
 
     await tx.wholesaleProductComponent.deleteMany({ where: { wholesaleProductId: productId } });
