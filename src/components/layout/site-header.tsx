@@ -11,6 +11,9 @@ import { CartBadge } from "@/features/cart/components/cart-badge";
 import { CartFeedback } from "@/features/cart/components/cart-feedback";
 import { cn } from "@/lib/utils/cn";
 
+// Qué secciones de /mayoristas están visibles, para no linkear a una que se apagó desde el admin.
+export type WholesaleNavVisibility = { products: boolean; faq: boolean; contact: boolean };
+
 type SiteHeaderProps = {
   announcementBarEnabled?: boolean | null;
   announcementBarText?: string | null;
@@ -19,6 +22,7 @@ type SiteHeaderProps = {
   newsletterSectionEnabled?: boolean | null;
   // Con la sección mayorista habilitada, la tienda muestra el acceso a /mayoristas.
   wholesaleEnabled?: boolean;
+  wholesaleNav?: WholesaleNavVisibility;
 };
 
 export function SiteHeader({
@@ -28,6 +32,7 @@ export function SiteHeader({
   faqSectionEnabled,
   newsletterSectionEnabled,
   wholesaleEnabled = false,
+  wholesaleNav = { products: true, faq: true, contact: true },
 }: SiteHeaderProps) {
   const pathname = usePathname();
   const [isCompact, setIsCompact] = useState(false);
@@ -45,9 +50,10 @@ export function SiteHeader({
       : null;
   const wholesaleNavigation = [
     { href: "/mayoristas", label: "Inicio" },
-    { href: "/mayoristas#productos", label: "Productos" },
-    { href: "/mayoristas#faq", label: "Preguntas frecuentes" },
-    { href: "/mayoristas#contacto", label: "Contacto" },
+    ...(wholesaleNav.products ? [{ href: "/mayoristas#productos", label: "Productos" }] : []),
+    ...(wholesaleNav.faq ? [{ href: "/mayoristas#faq", label: "Preguntas frecuentes" }] : []),
+    // Sin el bloque de contacto, el acceso directo es el registro.
+    wholesaleNav.contact ? { href: "/mayoristas#contacto", label: "Contacto" } : { href: "/mayoristas/registro", label: "Registrá tu negocio" },
   ];
   const retailNavigation = [
     { href: "/", label: "Inicio" },

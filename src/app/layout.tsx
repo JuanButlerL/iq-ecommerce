@@ -100,6 +100,11 @@ export default async function RootLayout({
           faqSectionEnabled={settings?.faqSectionEnabled}
           newsletterSectionEnabled={settings?.newsletterSectionEnabled}
           wholesaleEnabled={wholesaleContent.enabled}
+          wholesaleNav={{
+            products: wholesaleContent.sections.products,
+            faq: wholesaleContent.sections.faq && wholesaleContent.faq.items.length > 0,
+            contact: wholesaleContent.sections.contact,
+          }}
           lastUpdatedAt={lastUpdatedAt?.toISOString()}
         >
           {children}

@@ -11,7 +11,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { WHOLESALE_ADMIN_SECTIONS, type WholesaleAdminSectionId } from "@/features/wholesale/admin-sections";
-import { DEFAULT_WHOLESALE_CONTENT, type WholesaleContent, type WholesaleSectionIntro } from "@/features/wholesale/content";
+import {
+  DEFAULT_WHOLESALE_CONTENT,
+  WHOLESALE_TOGGLEABLE_SECTIONS,
+  type WholesaleContent,
+  type WholesaleSectionIntro,
+} from "@/features/wholesale/content";
 import { cn } from "@/lib/utils/cn";
 
 type WholesaleAdminPanelProps = {
@@ -598,6 +603,41 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
           )}
         />
       </AdminSection>
+      ) : null}
+
+      {is("secciones") ? (
+        <AdminSection title="Secciones de la página" description="Destildá una sección para ocultarla. Los fondos se siguen alternando solos entre las que quedan visibles.">
+          <div className="grid gap-3">
+            {WHOLESALE_TOGGLEABLE_SECTIONS.map((item) => (
+              <label
+                key={item.key}
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-3xl border px-4 py-3 transition",
+                  content.sections[item.key] ? "border-brand-pink/40 bg-[#fff6f7]" : "border-brand-ink/10 bg-white",
+                )}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-brand-ink/20 accent-brand-pink"
+                  checked={content.sections[item.key]}
+                  onChange={(event) => patch("sections", { ...content.sections, [item.key]: event.target.checked })}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-extrabold text-brand-ink">
+                    {item.label}{" "}
+                    <span className={cn("ml-1 text-xs font-bold", content.sections[item.key] ? "text-emerald-700" : "text-brand-ink/45")}>
+                      {content.sections[item.key] ? "Visible" : "Oculta"}
+                    </span>
+                  </span>
+                  {item.hint ? <span className="mt-0.5 block text-xs leading-5 text-brand-ink/60">{item.hint}</span> : null}
+                </span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-brand-ink/55">
+            Una sección también se oculta sola si no tiene elementos cargados (por ejemplo, testimonios sin ningún testimonio).
+          </p>
+        </AdminSection>
       ) : null}
 
       {is("productos") ? (

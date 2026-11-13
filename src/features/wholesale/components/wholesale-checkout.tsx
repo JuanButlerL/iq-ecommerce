@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { AlertCircle, CalendarClock, CheckCircle2, FileCheck2, Landmark, Trash2, type LucideIcon } from "lucide-react";
+import { AlertCircle, ArrowRight, CalendarClock, Check, CheckCircle2, ChevronDown, FileCheck2, Landmark, Trash2, type LucideIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -112,17 +112,73 @@ function customerLabel(customer: WholesaleCustomerProfile) {
   return `${customer.businessName || customer.legalName || customer.contactName} · CUIT ${formatCuit(customer.cuit)}`;
 }
 
-function Step({ number, title, children, aside }: { number: number; title: string; children: ReactNode; aside?: ReactNode }) {
+type CheckoutStepNumber = 1 | 2 | 3 | 4;
+type StepStatus = "current" | "done" | "pending" | "locked";
+
+const STEP_TITLES = ["Tu pedido", "Tus datos", "Entrega", "Pago"] as const;
+
+// Un paso abierto por vez: los completos quedan resumidos en una línea con "Editar", los que faltan, en gris.
+function Step({
+  id,
+  number,
+  title,
+  status,
+  summary,
+  onEdit,
+  children,
+  aside,
+}: {
+  id: string;
+  number: number;
+  title: string;
+  status: StepStatus;
+  summary?: string | null;
+  onEdit?: () => void;
+  children: ReactNode;
+  aside?: ReactNode;
+}) {
+  const open = status === "current";
+
   return (
-    <section className="rounded-[2rem] bg-white p-5 shadow-card sm:p-7">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-3 font-display text-2xl leading-none text-brand-ink">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-pink font-body text-sm font-extrabold text-white">{number}</span>
-          {title}
-        </h2>
-        {aside}
+    <section
+      id={id}
+      aria-current={open ? "step" : undefined}
+      className={cn(
+        "scroll-mt-28 rounded-[2rem] bg-white transition-shadow",
+        open ? "p-5 shadow-[0_20px_48px_rgba(244,137,145,0.16)] ring-2 ring-brand-pink/35 sm:p-7" : "px-5 py-4 shadow-card sm:px-7",
+        status === "locked" && "bg-white/60 shadow-none",
+      )}
+    >
+      <div className={cn("flex items-center justify-between gap-3", open && "mb-5")}>
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-body text-sm font-extrabold",
+              status === "done" ? "bg-emerald-500 text-white" : status === "locked" ? "bg-brand-ink/10 text-brand-ink/45" : "bg-brand-pink text-white",
+            )}
+          >
+            {status === "done" ? <Check className="h-4 w-4" aria-label="Completo" /> : number}
+          </span>
+          <div className="min-w-0">
+            <h2 className={cn("font-display leading-none", open ? "text-2xl text-brand-ink" : "text-xl", status === "locked" ? "text-brand-ink/45" : "text-brand-ink")}>
+              {title}
+            </h2>
+            {!open && status !== "locked" ? (
+              <p className={cn("mt-1 truncate text-sm", status === "pending" ? "font-bold text-brand-pink" : "text-brand-ink/60")}>
+                {status === "pending" ? "Falta completar" : summary}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        {open ? (
+          aside
+        ) : status !== "locked" && onEdit ? (
+          <button type="button" onClick={onEdit} className="shrink-0 rounded-full px-3 py-1.5 text-sm font-extrabold text-brand-pink transition hover:bg-brand-pink/10">
+            {status === "pending" ? "Completar" : "Editar"}
+          </button>
+        ) : null}
       </div>
-      {children}
+      {open ? children : null}
     </section>
   );
 }
@@ -174,6 +230,13 @@ const ERROR_TARGETS: Record<CheckoutErrorKey, string> = {
   street: "w-street",
   number: "w-number",
   payment: "w-payment",
+};
+
+const STEP_ERROR_KEYS: Record<CheckoutStepNumber, CheckoutErrorKey[]> = {
+  1: ["products"],
+  2: ["email", "cuit", "taxCondition"],
+  3: ["contactName", "phone", "province", "city", "postalCode", "street", "number"],
+  4: ["payment"],
 };
 
 function ErrorSummary({ show, className }: { show: boolean; className?: string }) {
@@ -229,8 +292,14 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
   const [identifyError, setIdentifyError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  // Se prende al tocar "Confirmar" con datos faltantes: desde ahí se marcan en rojo.
-  const [attempted, setAttempted] = useState(false);
+  // Paso abierto y el más lejano al que se llegó (los siguientes quedan bloqueados hasta pasar por los anteriores).
+  const [step, setStep] = useState<CheckoutStepNumber>(1);
+  const [reachedStep, setReachedStep] = useState<CheckoutStepNumber>(1);
+  // Pasos en los que ya se tocó "Continuar" con datos faltantes: desde ahí se marcan en rojo.
+  const [attemptedSteps, setAttemptedSteps] = useState<CheckoutStepNumber[]>([]);
+  const [focusTarget, setFocusTarget] = useState<string | null>(null);
+  // Al reconocer al cliente por su email se avanza solo si ya tiene todo cargado.
+  const pendingAutoAdvance = useRef(false);
   // Una clave por intento de compra: si el pedido ya se creó y se reintenta, el servidor devuelve el mismo.
   const [checkoutRequestKey] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`));
 
@@ -373,6 +442,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
       // Si validó un CUIT, ese es el cliente del pedido; si no, el primero recordado.
       const normalized = normalizeCuit(cuit);
       const selected = result.data.customers.find((item) => item.cuit === normalized) ?? result.data.customers[0]!;
+      pendingAutoAdvance.current = true;
       setIdentity({ stage: "recognized", customers: result.data.customers, customerId: selected.id });
       selectCustomer(selected);
     }
@@ -408,23 +478,78 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     if (!paymentMethod) checkoutErrors.payment = "Elegí cómo vas a pagar.";
   }
   const errorKeys = Object.keys(checkoutErrors) as CheckoutErrorKey[];
-  // Los errores se muestran recién después del primer intento, y se van limpiando a medida que se completa.
-  const errors: CheckoutErrors = attempted ? checkoutErrors : {};
-  const firstErrorMessage = attempted && errorKeys.length > 0 ? checkoutErrors[errorKeys[0]!] : null;
+  const identityReady = identity.stage === "recognized" || identity.stage === "new";
+  // Un paso está completo cuando no le falta nada; entrega y pago necesitan además saber quién compra.
+  const stepComplete = (step: CheckoutStepNumber) =>
+    (step < 2 || identityReady) && STEP_ERROR_KEYS[step].every((key) => !checkoutErrors[key]);
+  // Los errores de un paso se muestran recién después de intentar avanzar, y se van limpiando a medida que se completa.
+  const errors: CheckoutErrors = {};
+  for (const step of attemptedSteps) {
+    for (const key of STEP_ERROR_KEYS[step]) {
+      if (checkoutErrors[key]) errors[key] = checkoutErrors[key];
+    }
+  }
+  const currentStepErrorKeys = STEP_ERROR_KEYS[step].filter((key) => errors[key]);
+  const currentStepErrorMessage = currentStepErrorKeys.length > 0 ? errors[currentStepErrorKeys[0]!] : null;
+
+  // Baja y enfoca el paso o el campo pedido una vez que ya está en pantalla.
+  useEffect(() => {
+    if (!focusTarget) return;
+    const target = document.getElementById(focusTarget);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: focusTarget.startsWith("w-step-") ? "start" : "center" });
+      if (!focusTarget.startsWith("w-step-")) target.focus({ preventScroll: true });
+    }
+    setFocusTarget(null);
+  }, [focusTarget, step]);
+
+  const openStep = (next: CheckoutStepNumber) => {
+    setStep(next);
+    setReachedStep((current) => (next > current ? next : current));
+    setFocusTarget(`w-step-${next}`);
+  };
+
+  const showStepErrors = (target: CheckoutStepNumber) => {
+    setAttemptedSteps((current) => (current.includes(target) ? current : [...current, target]));
+    const firstKey = STEP_ERROR_KEYS[target].find((key) => checkoutErrors[key]);
+    setStep(target);
+    setFocusTarget(firstKey ? (firstKey === "cuit" && identity.stage === "cuit" ? "w-verify-cuit" : ERROR_TARGETS[firstKey]) : `w-step-${target}`);
+  };
+
+  // "Continuar": si al paso le falta algo se marca en rojo; si no, se abre el siguiente que falte completar
+  // (un cliente recordado salta directo al pago) y el pago siempre queda último para confirmar.
+  const continueFrom = (from: CheckoutStepNumber) => {
+    if (!stepComplete(from)) {
+      showStepErrors(from);
+      return;
+    }
+    const next = ([2, 3] as CheckoutStepNumber[]).find((candidate) => candidate > from && !stepComplete(candidate)) ?? 4;
+    openStep(next);
+  };
+
+  // Después de validar el email: si ya conocemos al cliente y tiene todo cargado, se sigue solo.
+  useEffect(() => {
+    if (!pendingAutoAdvance.current || !identityReady) return;
+    pendingAutoAdvance.current = false;
+    if (identity.stage === "recognized" && stepComplete(2)) {
+      continueFrom(2);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo cuando cambia la identidad.
+  }, [identity]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!hydrated || submitting) {
       return;
     }
-    if (errorKeys.length > 0 || !paymentMethod || !taxCondition) {
-      setAttempted(true);
-      const firstKey = errorKeys[0];
-      const target = firstKey ? document.getElementById(firstKey === "cuit" && identity.stage === "cuit" ? "w-verify-cuit" : ERROR_TARGETS[firstKey]) : null;
-      if (target) {
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-        target.focus({ preventScroll: true });
-      }
+    // Enter en un campo de un paso intermedio avanza, no confirma.
+    if (step !== 4) {
+      continueFrom(step);
+      return;
+    }
+    const firstIncomplete = ([1, 2, 3, 4] as CheckoutStepNumber[]).find((candidate) => !stepComplete(candidate));
+    if (firstIncomplete || errorKeys.length > 0 || !paymentMethod || !taxCondition) {
+      showStepErrors(firstIncomplete ?? 4);
       return;
     }
 
@@ -485,17 +610,135 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
   }
 
   const invoiceType = taxCondition ? getInvoiceType(taxCondition) : null;
+  const stepStatus = (target: CheckoutStepNumber): StepStatus =>
+    target === step ? "current" : target > reachedStep ? "locked" : stepComplete(target) ? "done" : "pending";
+  const stepSummaries: Record<CheckoutStepNumber, string | null> = {
+    1: `${displays} display${displays === 1 ? "" : "s"} · ${formatArs(subtotalArs)}`,
+    2: customer ? customerLabel(customer) : identity.stage === "new" ? `${email}${cuit ? ` · CUIT ${formatCuit(normalizeCuit(cuit))}` : ""}` : null,
+    3: delivery.street ? `${delivery.contactName} · ${fullStreet}, ${delivery.city}, ${delivery.province}` : null,
+    4: paymentMethod ? WHOLESALE_PAYMENT_METHOD_LABELS[paymentMethod] : null,
+  };
+  const continueLabels: Record<1 | 2 | 3, string> = {
+    1: "Continuar",
+    2: "Continuar a la entrega",
+    3: "Continuar al pago",
+  };
+  const stepFooter = (from: 1 | 2 | 3) => (
+    <div className="mt-6 border-t border-brand-ink/10 pt-5">
+      {currentStepErrorMessage ? (
+        <p role="alert" className="mb-3 flex items-start gap-2 text-sm font-bold text-red-600">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          {currentStepErrorKeys.length > 1 ? `${currentStepErrorMessage} Revisá lo marcado en rojo.` : currentStepErrorMessage}
+        </p>
+      ) : null}
+      <button type="button" onClick={() => continueFrom(from)} className={cn(primaryButton, "h-14 w-full text-base")}>
+        {continueLabels[from]}
+        <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+      </button>
+    </div>
+  );
+
+  // Resumen informativo: sin botones, para que la única acción de la pantalla sea la del paso abierto.
+  const summaryDetails = (
+    <>
+      <ul className="mb-4 space-y-2 border-b border-brand-ink/10 pb-4 text-sm">
+        {availableLines.map(({ product, quantity }) => (
+          <li key={product.id} className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate text-brand-ink/75">
+              <span className="font-extrabold text-brand-ink">{quantity}×</span> {product.name}
+            </span>
+            <span className="shrink-0 font-bold tabular-nums text-brand-ink">{formatArs(product.priceArs * quantity)}</span>
+          </li>
+        ))}
+      </ul>
+      <dl className="space-y-2.5 text-sm tabular-nums">
+        <div className="flex justify-between gap-3">
+          <dt className="text-brand-ink/65">
+            Subtotal ({displays} display{displays === 1 ? "" : "s"})
+          </dt>
+          <dd className="font-bold text-brand-ink">{formatArs(pricing.subtotalArs)}</dd>
+        </div>
+        {pricing.extraDiscountArs > 0 ? (
+          <div className="flex justify-between gap-3">
+            <dt className="text-brand-ink/65">Descuento especial ({pricing.extraDiscountPercentage}%)</dt>
+            <dd className="font-bold text-green-700">- {formatArs(pricing.extraDiscountArs)}</dd>
+          </div>
+        ) : null}
+        {pricing.transferDiscountArs > 0 ? (
+          <div className="flex justify-between gap-3">
+            <dt className="text-brand-ink/65">Descuento por transferencia ({pricing.transferDiscountPercentage}%)</dt>
+            <dd className="font-bold text-green-700">- {formatArs(pricing.transferDiscountArs)}</dd>
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-brand-ink/65">Envío</dt>
+          <dd className="font-bold text-brand-ink">
+            {!shippingQuote ? (
+              <span className="font-semibold text-brand-ink/50">Elegí la provincia</span>
+            ) : shippingQuote.freeShippingReached || (shippingQuote.shippingArs === 0 && shippingQuote.baseShippingArs > 0) ? (
+              <span className="text-emerald-700">Gratis</span>
+            ) : shippingQuote.shippingDiscountReached ? (
+              <span className="flex items-center gap-2">
+                <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
+                <span className="text-emerald-700">{formatArs(shippingQuote.shippingArs)}</span>
+              </span>
+            ) : shippingQuote.shippingArs > 0 ? (
+              formatArs(shippingQuote.shippingArs)
+            ) : (
+              <span className="text-emerald-700">Sin cargo</span>
+            )}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-brand-ink/10 pt-3">
+          <dt className="font-extrabold text-brand-ink">Total</dt>
+          <dd className="text-2xl font-extrabold text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</dd>
+        </div>
+      </dl>
+      <p className="mt-2 text-xs text-brand-ink/50">Precios con IVA incluido.</p>
+      {shippingNudge ? <p className="mt-3 text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p> : null}
+    </>
+  );
 
   return (
-    <div className="bg-[#fff6f7] px-4 py-10 md:px-6 md:py-14">
-      <form onSubmit={submit} noValidate className="mx-auto grid max-w-[1080px] gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-6">
+    <div className="bg-[#fff6f7] px-4 py-8 md:px-6 md:py-12">
+      <form onSubmit={submit} noValidate className="mx-auto grid max-w-[1080px] gap-6 lg:grid-cols-[1fr_340px] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-4">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.28em] text-brand-pink">iQ Kids Mayoristas</p>
-            <h1 className="mt-2 font-display text-4xl leading-none text-brand-ink md:text-5xl">Tu pedido</h1>
+            <h1 className="mt-2 font-display text-4xl leading-none text-brand-ink md:text-5xl">Finalizá tu pedido</h1>
+            <p className="mt-2 text-sm text-brand-ink/60">
+              {STEP_TITLES.length} pasos cortos. Paso {step} de {STEP_TITLES.length}: <strong className="text-brand-ink">{STEP_TITLES[step - 1]}</strong>.
+            </p>
+            <div className="mt-4 grid grid-cols-4 gap-1.5" aria-hidden="true">
+              {STEP_TITLES.map((title, index) => (
+                <span key={title} className={cn("h-1.5 rounded-full transition-colors", index + 1 <= step ? "bg-brand-pink" : "bg-brand-ink/10")} />
+              ))}
+            </div>
           </div>
 
-          <Step number={1} title="Productos" aside={<Link href="/mayoristas#productos" className={linkButton}>Agregar más</Link>}>
+          {/* En celular el resumen va arriba y cerrado; en compu queda fijo al costado. */}
+          <details className="group rounded-[1.6rem] bg-white px-5 py-4 shadow-card lg:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+              <span className="text-sm font-bold text-brand-ink/70">
+                Resumen · {displays} display{displays === 1 ? "" : "s"}
+              </span>
+              <span className="flex items-center gap-2 text-lg font-extrabold tabular-nums text-brand-pink">
+                {formatArs(pricing.totalArs)}
+                <ChevronDown className="h-4 w-4 text-brand-ink/50 transition group-open:rotate-180" aria-hidden="true" />
+              </span>
+            </summary>
+            <div className="mt-4">{summaryDetails}</div>
+          </details>
+
+          <Step
+            id="w-step-1"
+            number={1}
+            title={STEP_TITLES[0]}
+            status={stepStatus(1)}
+            summary={stepSummaries[1]}
+            onEdit={() => openStep(1)}
+            aside={<Link href="/mayoristas#productos" className={linkButton}>Ver catálogo</Link>}
+          >
             <ul className="divide-y divide-brand-ink/10">
               {lines.map(({ product, quantity }) => (
                 <li key={product.id} className="flex items-center gap-3 py-3">
@@ -593,11 +836,16 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                 </div>
               </div>
             ) : null}
+            {stepFooter(1)}
           </Step>
 
           <Step
+            id="w-step-2"
             number={2}
-            title="Tus datos"
+            title={STEP_TITLES[1]}
+            status={stepStatus(2)}
+            summary={stepSummaries[2]}
+            onEdit={() => openStep(2)}
             aside={identity.stage !== "email" ? <button type="button" onClick={resetIdentity} className={linkButton}>Usar otro email</button> : null}
           >
             {identity.stage === "email" || identity.stage === "cuit" ? (
@@ -704,206 +952,170 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                 {invoiceType ? <p className="mt-1.5 text-xs text-brand-ink/55">Te facturamos con factura {invoiceType}.</p> : null}
               </div>
             ) : null}
+            {identityReady ? stepFooter(2) : null}
           </Step>
 
-          {identity.stage === "recognized" || identity.stage === "new" ? (
-            <>
-              <Step number={3} title="Entrega">
-                <p className="-mt-3 mb-4 text-sm text-brand-ink/60">Completalos tal como deben figurar en el envío.</p>
-                <ErrorSummary
-                  className="mb-4"
-                  show={Boolean(errors.contactName || errors.phone || errors.province || errors.city || errors.postalCode || errors.street || errors.number)}
-                />
-                <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
-                  <FieldShell label="Quién recibe" className="md:col-span-2" error={errors.contactName}>
-                    <Input id="w-contact" aria-invalid={errors.contactName ? "true" : "false"} autoComplete="name" placeholder="Nombre y apellido" value={delivery.contactName} onChange={(event) => updateDelivery("contactName", event.target.value)} required />
-                  </FieldShell>
-                  <FieldShell label="Teléfono / WhatsApp" error={errors.phone}>
-                    <Input id="w-phone" aria-invalid={errors.phone ? "true" : "false"} type="tel" autoComplete="tel" placeholder="Ej: 11 2345 6789" value={delivery.phone} onChange={(event) => updateDelivery("phone", event.target.value)} required />
-                  </FieldShell>
-                  <FieldShell label="Provincia" error={errors.province}>
-                    <Select id="w-province" aria-invalid={errors.province ? "true" : "false"} autoComplete="address-level1" value={delivery.province} onChange={(event) => updateDelivery("province", event.target.value)} required>
-                      <option value="">Elegí una provincia</option>
-                      {ARGENTINA_PROVINCES.map((province) => (
-                        <option key={province.code} value={province.name}>
-                          {province.name}
-                        </option>
-                      ))}
-                      {delivery.province && !ARGENTINA_PROVINCES.some((province) => province.name === delivery.province) ? (
-                        <option value={delivery.province}>{delivery.province}</option>
-                      ) : null}
-                    </Select>
-                  </FieldShell>
-                  <FieldShell label="Localidad" error={errors.city}>
-                    <Input id="w-city" aria-invalid={errors.city ? "true" : "false"} placeholder="Ej: Vicente López" autoComplete="address-level2" value={delivery.city} onChange={(event) => updateDelivery("city", event.target.value)} required />
-                  </FieldShell>
-                  <FieldShell label="Código postal" error={errors.postalCode}>
-                    <Input id="w-postal" aria-invalid={errors.postalCode ? "true" : "false"} placeholder="Ej: 1425" autoComplete="postal-code" inputMode="numeric" value={delivery.postalCode} onChange={(event) => updateDelivery("postalCode", event.target.value)} required />
-                  </FieldShell>
-                  <FieldShell label="Calle" className={delivery.withoutNumber ? "md:col-span-3" : "md:col-span-2"} error={errors.street}>
-                    <Input id="w-street" aria-invalid={errors.street ? "true" : "false"} placeholder="Ej: Calle 11 o Amenábar" autoComplete="address-line1" value={delivery.street} onChange={(event) => updateDelivery("street", event.target.value)} required />
-                    {streetMayContainHeight ? (
-                      <p className="mt-1.5 text-xs font-medium leading-5 text-brand-ink/55">
-                        Si ese número es la altura, cargalo en el campo de al lado. Las calles como &quot;Calle 11&quot; están permitidas.
-                      </p>
-                    ) : null}
-                  </FieldShell>
-                  {!delivery.withoutNumber ? (
-                    <FieldShell label="Altura" error={errors.number}>
-                      <Input id="w-number" aria-invalid={errors.number ? "true" : "false"} placeholder="Ej: 2451" autoComplete="off" inputMode="numeric" value={delivery.number} onChange={(event) => updateDelivery("number", event.target.value)} required />
-                    </FieldShell>
+          <Step id="w-step-3" number={3} title={STEP_TITLES[2]} status={stepStatus(3)} summary={stepSummaries[3]} onEdit={() => openStep(3)}>
+            <p className="-mt-3 mb-4 text-sm text-brand-ink/60">Completalos tal como deben figurar en el envío.</p>
+            <ErrorSummary
+              className="mb-4"
+              show={Boolean(errors.contactName || errors.phone || errors.province || errors.city || errors.postalCode || errors.street || errors.number)}
+            />
+            <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
+              <FieldShell label="Quién recibe" className="md:col-span-2" error={errors.contactName}>
+                <Input id="w-contact" aria-invalid={errors.contactName ? "true" : "false"} autoComplete="name" placeholder="Nombre y apellido" value={delivery.contactName} onChange={(event) => updateDelivery("contactName", event.target.value)} required />
+              </FieldShell>
+              <FieldShell label="Teléfono / WhatsApp" error={errors.phone}>
+                <Input id="w-phone" aria-invalid={errors.phone ? "true" : "false"} type="tel" autoComplete="tel" placeholder="Ej: 11 2345 6789" value={delivery.phone} onChange={(event) => updateDelivery("phone", event.target.value)} required />
+              </FieldShell>
+              <FieldShell label="Provincia" error={errors.province}>
+                <Select id="w-province" aria-invalid={errors.province ? "true" : "false"} autoComplete="address-level1" value={delivery.province} onChange={(event) => updateDelivery("province", event.target.value)} required>
+                  <option value="">Elegí una provincia</option>
+                  {ARGENTINA_PROVINCES.map((province) => (
+                    <option key={province.code} value={province.name}>
+                      {province.name}
+                    </option>
+                  ))}
+                  {delivery.province && !ARGENTINA_PROVINCES.some((province) => province.name === delivery.province) ? (
+                    <option value={delivery.province}>{delivery.province}</option>
                   ) : null}
-                  <label className="group -mt-1 inline-flex w-fit cursor-pointer items-center gap-2 text-left focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-pink focus-within:ring-offset-2 md:col-span-3">
-                    <input
-                      type="checkbox"
-                      className="peer sr-only"
-                      checked={delivery.withoutNumber}
-                      onChange={(event) => setDelivery((current) => ({ ...current, withoutNumber: event.target.checked, number: event.target.checked ? "" : current.number }))}
-                    />
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-brand-ink/30 bg-white text-white transition-colors peer-checked:border-brand-pink peer-checked:bg-brand-pink">
-                      <CheckCircle2 className={cn("h-3 w-3 transition-opacity", delivery.withoutNumber ? "opacity-100" : "opacity-0")} />
-                    </span>
-                    <span className="text-sm font-semibold text-brand-ink/70">La calle no tiene altura</span>
-                  </label>
-                  <FieldShell label="Piso / Depto" className="md:col-span-3">
-                    <Input placeholder="Ej: Piso 4 Depto B" autoComplete="address-line2" value={delivery.floor} onChange={(event) => updateDelivery("floor", event.target.value)} />
-                  </FieldShell>
-
-                  {addressPreview ? (
-                    <div className="md:col-span-3">
-                      <AddressMapPreview preview={addressPreview} />
-                    </div>
-                  ) : null}
-
-                  <div className="md:col-span-3">
-                    <FieldShell label="Observaciones">
-                      <Textarea
-                        placeholder="Ej: Timbre roto. Tocar portería. Recibe Lucía por la tarde."
-                        maxLength={200}
-                        value={delivery.reference}
-                        onChange={(event) => updateDelivery("reference", event.target.value)}
-                      />
-                    </FieldShell>
-                  </div>
-                </div>
-                {customer && addressChanged ? (
-                  <p className="mt-4 rounded-2xl bg-brand-yellow/40 px-4 py-3 text-sm text-brand-ink">
-                    Es una dirección distinta a la que tenemos cargada. Le avisamos al equipo con el pedido
-                    {customer.allowDeferredPayment ? " y, para esta entrega, el pago tiene que ser anticipado" : ""}.
-                    {" "}
-                    <button type="button" onClick={() => selectCustomer(customer)} className={linkButton}>
-                      Volver a la dirección cargada
-                    </button>
+                </Select>
+              </FieldShell>
+              <FieldShell label="Localidad" error={errors.city}>
+                <Input id="w-city" aria-invalid={errors.city ? "true" : "false"} placeholder="Ej: Vicente López" autoComplete="address-level2" value={delivery.city} onChange={(event) => updateDelivery("city", event.target.value)} required />
+              </FieldShell>
+              <FieldShell label="Código postal" error={errors.postalCode}>
+                <Input id="w-postal" aria-invalid={errors.postalCode ? "true" : "false"} placeholder="Ej: 1425" autoComplete="postal-code" inputMode="numeric" value={delivery.postalCode} onChange={(event) => updateDelivery("postalCode", event.target.value)} required />
+              </FieldShell>
+              <FieldShell label="Calle" className={delivery.withoutNumber ? "md:col-span-3" : "md:col-span-2"} error={errors.street}>
+                <Input id="w-street" aria-invalid={errors.street ? "true" : "false"} placeholder="Ej: Calle 11 o Amenábar" autoComplete="address-line1" value={delivery.street} onChange={(event) => updateDelivery("street", event.target.value)} required />
+                {streetMayContainHeight ? (
+                  <p className="mt-1.5 text-xs font-medium leading-5 text-brand-ink/55">
+                    Si ese número es la altura, cargalo en el campo de al lado. Las calles como &quot;Calle 11&quot; están permitidas.
                   </p>
                 ) : null}
-              </Step>
+              </FieldShell>
+              {!delivery.withoutNumber ? (
+                <FieldShell label="Altura" error={errors.number}>
+                  <Input id="w-number" aria-invalid={errors.number ? "true" : "false"} placeholder="Ej: 2451" autoComplete="off" inputMode="numeric" value={delivery.number} onChange={(event) => updateDelivery("number", event.target.value)} required />
+                </FieldShell>
+              ) : null}
+              <label className="group -mt-1 inline-flex w-fit cursor-pointer items-center gap-2 text-left focus-within:outline-none focus-within:ring-2 focus-within:ring-brand-pink focus-within:ring-offset-2 md:col-span-3">
+                <input
+                  type="checkbox"
+                  className="peer sr-only"
+                  checked={delivery.withoutNumber}
+                  onChange={(event) => setDelivery((current) => ({ ...current, withoutNumber: event.target.checked, number: event.target.checked ? "" : current.number }))}
+                />
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-brand-ink/30 bg-white text-white transition-colors peer-checked:border-brand-pink peer-checked:bg-brand-pink">
+                  <CheckCircle2 className={cn("h-3 w-3 transition-opacity", delivery.withoutNumber ? "opacity-100" : "opacity-0")} />
+                </span>
+                <span className="text-sm font-semibold text-brand-ink/70">La calle no tiene altura</span>
+              </label>
+              <FieldShell label="Piso / Depto" className="md:col-span-3">
+                <Input placeholder="Ej: Piso 4 Depto B" autoComplete="address-line2" value={delivery.floor} onChange={(event) => updateDelivery("floor", event.target.value)} />
+              </FieldShell>
 
-              <Step number={4} title="Pago">
-                <div
-                  id="w-payment"
-                  tabIndex={-1}
-                  className={cn("grid gap-3 rounded-[1.6rem] outline-none", errors.payment && "ring-2 ring-red-400 ring-offset-4")}
-                  role="radiogroup"
-                  aria-label="Medio de pago"
-                  aria-invalid={errors.payment ? "true" : undefined}
-                >
-                  {paymentOptions.map((method) => (
-                    <PaymentOptionCard
-                      key={method}
-                      asRadio
-                      title={WHOLESALE_PAYMENT_METHOD_LABELS[method]}
-                      description={
-                        method === "MERCADO_PAGO"
-                          ? "Tarjeta, dinero en cuenta o lo que tengas en Mercado Pago."
-                          : method === "BANK_TRANSFER"
-                            ? "Te mostramos los datos al confirmar. Despachamos cuando se acredita."
-                            : method === "ECHEQ"
-                              ? settings.echeqInstructions || "Emitís el eCheq y subís el comprobante. Despachamos cuando lo recibimos."
-                              : "Según las condiciones acordadas con tu cuenta. Pagás después de recibir el pedido."
-                      }
-                      note={
-                        method === "BANK_TRANSFER" && settings.enableBankTransferDiscount && settings.bankTransferDiscountPercentage > 0
-                          ? `${settings.bankTransferDiscountPercentage}% de descuento pagando por transferencia`
-                          : null
-                      }
-                      selected={paymentMethod === method}
-                      onSelect={() => setPaymentMethod(method)}
-                      icon={PAYMENT_ICONS[method]}
-                      logo={method === "MERCADO_PAGO" ? { src: "/brand/mercado-pago-logo.png", alt: "Mercado Pago" } : undefined}
-                    />
-                  ))}
+              {addressPreview ? (
+                <div className="md:col-span-3">
+                  <AddressMapPreview preview={addressPreview} />
                 </div>
-                {errors.payment ? <p className="mt-3 text-sm font-bold text-red-600">{errors.payment}</p> : null}
-                <div className="mt-4">
-                  <Field label="Comentarios" htmlFor="w-notes">
-                    <Textarea id="w-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Algo que tengamos que saber del pedido" />
-                  </Field>
-                </div>
-              </Step>
-            </>
-          ) : null}
+              ) : null}
+
+              <div className="md:col-span-3">
+                <FieldShell label="Observaciones">
+                  <Textarea
+                    placeholder="Ej: Timbre roto. Tocar portería. Recibe Lucía por la tarde."
+                    maxLength={200}
+                    value={delivery.reference}
+                    onChange={(event) => updateDelivery("reference", event.target.value)}
+                  />
+                </FieldShell>
+              </div>
+            </div>
+            {customer && addressChanged ? (
+              <p className="mt-4 rounded-2xl bg-brand-yellow/40 px-4 py-3 text-sm text-brand-ink">
+                Es una dirección distinta a la que tenemos cargada. Le avisamos al equipo con el pedido
+                {customer.allowDeferredPayment ? " y, para esta entrega, el pago tiene que ser anticipado" : ""}.
+                {" "}
+                <button type="button" onClick={() => selectCustomer(customer)} className={linkButton}>
+                  Volver a la dirección cargada
+                </button>
+              </p>
+            ) : null}
+            {stepFooter(3)}
+          </Step>
+
+          <Step id="w-step-4" number={4} title={STEP_TITLES[3]} status={stepStatus(4)} summary={stepSummaries[4]} onEdit={() => openStep(4)}>
+            <div
+              id="w-payment"
+              tabIndex={-1}
+              className={cn("grid gap-3 rounded-[1.6rem] outline-none", errors.payment && "ring-2 ring-red-400 ring-offset-4")}
+              role="radiogroup"
+              aria-label="Medio de pago"
+              aria-invalid={errors.payment ? "true" : undefined}
+            >
+              {paymentOptions.map((method) => (
+                <PaymentOptionCard
+                  key={method}
+                  asRadio
+                  title={WHOLESALE_PAYMENT_METHOD_LABELS[method]}
+                  description={
+                    method === "MERCADO_PAGO"
+                      ? "Tarjeta, dinero en cuenta o lo que tengas en Mercado Pago."
+                      : method === "BANK_TRANSFER"
+                        ? "Te mostramos los datos al confirmar. Despachamos cuando se acredita."
+                        : method === "ECHEQ"
+                          ? settings.echeqInstructions || "Emitís el eCheq y subís el comprobante. Despachamos cuando lo recibimos."
+                          : "Según las condiciones acordadas con tu cuenta. Pagás después de recibir el pedido."
+                  }
+                  note={
+                    method === "BANK_TRANSFER" && settings.enableBankTransferDiscount && settings.bankTransferDiscountPercentage > 0
+                      ? `${settings.bankTransferDiscountPercentage}% de descuento pagando por transferencia`
+                      : null
+                  }
+                  selected={paymentMethod === method}
+                  onSelect={() => setPaymentMethod(method)}
+                  icon={PAYMENT_ICONS[method]}
+                  logo={method === "MERCADO_PAGO" ? { src: "/brand/mercado-pago-logo.png", alt: "Mercado Pago" } : undefined}
+                />
+              ))}
+            </div>
+            {errors.payment ? <p className="mt-3 text-sm font-bold text-red-600">{errors.payment}</p> : null}
+            <div className="mt-4">
+              <Field label="Comentarios" htmlFor="w-notes">
+                <Textarea id="w-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Algo que tengamos que saber del pedido" />
+              </Field>
+            </div>
+            <div className="mt-6 rounded-[1.6rem] bg-[#fff6f7] p-4 sm:p-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-bold text-brand-ink/70">Total a pagar</span>
+                <span className="text-2xl font-extrabold tabular-nums text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</span>
+              </div>
+              <p className="mt-1 text-xs text-brand-ink/50">
+                {displays} display{displays === 1 ? "" : "s"} · IVA incluido{shippingQuote ? " · envío incluido" : ""}
+              </p>
+              <button type="submit" className={cn(primaryButton, "mt-4 h-14 w-full text-base")} disabled={submitting}>
+                {submitting ? "Confirmando…" : paymentMethod === "MERCADO_PAGO" ? "Confirmar y pagar con Mercado Pago" : "Confirmar pedido"}
+              </button>
+              {submitError ? (
+                <p role="alert" className="mt-3 text-center text-sm font-bold text-red-600">
+                  {submitError}
+                </p>
+              ) : currentStepErrorMessage ? (
+                <p role="alert" className="mt-3 text-center text-sm font-bold text-red-600">
+                  {currentStepErrorMessage}
+                </p>
+              ) : (
+                <p className="mt-3 text-center text-xs text-brand-ink/50">Revisá el resumen antes de confirmar. Te mandamos el detalle por email.</p>
+              )}
+            </div>
+          </Step>
         </div>
 
-        <aside className="rounded-[2rem] bg-white p-5 shadow-card sm:p-7 lg:sticky lg:top-24">
-          <h2 className="font-display text-2xl leading-none text-brand-ink">Resumen</h2>
-          <dl className="mt-5 space-y-2.5 text-sm tabular-nums">
-            <div className="flex justify-between gap-3">
-              <dt className="text-brand-ink/65">
-                Subtotal ({displays} display{displays === 1 ? "" : "s"})
-              </dt>
-              <dd className="font-bold text-brand-ink">{formatArs(pricing.subtotalArs)}</dd>
-            </div>
-            {pricing.extraDiscountArs > 0 ? (
-              <div className="flex justify-between gap-3">
-                <dt className="text-brand-ink/65">Descuento especial ({pricing.extraDiscountPercentage}%)</dt>
-                <dd className="font-bold text-green-700">- {formatArs(pricing.extraDiscountArs)}</dd>
-              </div>
-            ) : null}
-            {pricing.transferDiscountArs > 0 ? (
-              <div className="flex justify-between gap-3">
-                <dt className="text-brand-ink/65">Descuento por transferencia ({pricing.transferDiscountPercentage}%)</dt>
-                <dd className="font-bold text-green-700">- {formatArs(pricing.transferDiscountArs)}</dd>
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-brand-ink/65">Envío</dt>
-              <dd className="font-bold text-brand-ink">
-                {!shippingQuote ? (
-                  <span className="font-semibold text-brand-ink/50">Elegí la provincia</span>
-                ) : shippingQuote.freeShippingReached || (shippingQuote.shippingArs === 0 && shippingQuote.baseShippingArs > 0) ? (
-                  <span className="text-emerald-700">Gratis</span>
-                ) : shippingQuote.shippingDiscountReached ? (
-                  <span className="flex items-center gap-2">
-                    <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
-                    <span className="text-emerald-700">{formatArs(shippingQuote.shippingArs)}</span>
-                  </span>
-                ) : shippingQuote.shippingArs > 0 ? (
-                  formatArs(shippingQuote.shippingArs)
-                ) : (
-                  <span className="text-emerald-700">Sin cargo</span>
-                )}
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-t border-brand-ink/10 pt-3">
-              <dt className="font-extrabold text-brand-ink">Total</dt>
-              <dd className="text-2xl font-extrabold text-brand-pink md:text-3xl">{formatArs(pricing.totalArs)}</dd>
-            </div>
-          </dl>
-          <p className="mt-2 text-xs text-brand-ink/50">Precios con IVA incluido.</p>
-          {shippingNudge ? <p className="mt-3 text-sm font-bold leading-6 text-emerald-700">{shippingNudge}</p> : null}
-
-          <button type="submit" className={cn(primaryButton, "mt-5 w-full")} disabled={submitting}>
-            {submitting ? "Confirmando…" : paymentMethod === "MERCADO_PAGO" ? "Confirmar y pagar" : "Confirmar pedido"}
-          </button>
-          {submitError ? (
-            <p role="alert" className="mt-3 text-center text-sm font-bold text-red-600">
-              {submitError}
-            </p>
-          ) : firstErrorMessage ? (
-            <p role="alert" className="mt-3 text-center text-sm font-bold text-red-600">
-              {errorKeys.length > 1 ? `${firstErrorMessage} Revisá lo marcado en rojo.` : firstErrorMessage}
-            </p>
-          ) : null}
+        <aside className="hidden rounded-[2rem] bg-white p-6 shadow-card lg:sticky lg:top-24 lg:block">
+          <h2 className="mb-4 font-display text-2xl leading-none text-brand-ink">Resumen</h2>
+          {summaryDetails}
         </aside>
       </form>
     </div>

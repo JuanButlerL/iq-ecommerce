@@ -161,3 +161,22 @@ test('rechaza un link del carrusel que no es una ruta ni una dirección web', ()
   content.hero.slides = [{ imageUrl: '/uploads/wholesale/slide.jpg', ctaUrl: 'javascript:alert(1)' }];
   assert.equal(wholesaleContentSchema.safeParse(content).success, false);
 });
+
+test('el contenido guardado antes de los interruptores de secciones sigue siendo válido y oculta solo el contacto', () => {
+  const content = clone();
+  delete content.sections;
+  const parsed = wholesaleContentSchema.safeParse(content);
+  assert.equal(parsed.success, true, parsed.success ? '' : parsed.error.issues[0].message);
+  assert.deepEqual(JSON.parse(JSON.stringify(parsed.data.sections)), JSON.parse(JSON.stringify(DEFAULT_WHOLESALE_CONTENT.sections)));
+  assert.equal(parsed.data.sections.contact, false);
+  assert.equal(parsed.data.sections.products, true);
+});
+
+test('las secciones se pueden apagar y prender desde el admin', () => {
+  const content = clone();
+  content.sections = { ...content.sections, faq: false, contact: true };
+  const parsed = wholesaleContentSchema.safeParse(content);
+  assert.equal(parsed.success, true);
+  assert.equal(parsed.data.sections.faq, false);
+  assert.equal(parsed.data.sections.contact, true);
+});
