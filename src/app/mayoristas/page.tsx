@@ -15,7 +15,6 @@ import { getPublicWholesaleProducts, toWholesaleSaleProduct } from "@/features/w
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { getWholesaleSettings } from "@/features/wholesale/settings";
 import { getStoreSettings } from "@/features/settings/queries";
-import { getHomeFeaturedProductSlots } from "@/features/home-featured-products/queries";
 import { cn } from "@/lib/utils/cn";
 
 const FALLBACK_WHATSAPP = "5491173933235";
@@ -80,12 +79,11 @@ function Section({ id, tone, wide = false, children }: { id?: string; tone: Sect
 }
 
 export default async function WholesalePage({ searchParams }: { searchParams: Promise<{ bienvenida?: string }> }) {
-  const [content, settings, wholesaleProducts, wholesaleSettings, homeFeaturedSlots] = await Promise.all([
+  const [content, settings, wholesaleProducts, wholesaleSettings] = await Promise.all([
     getWholesaleContent(),
     getStoreSettings(),
     getPublicWholesaleProducts(),
     getWholesaleSettings(),
-    getHomeFeaturedProductSlots(),
   ]);
 
   if (!content.enabled) {
@@ -133,19 +131,10 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
     toneIndex += 1;
   }
   const tone = (key: OrderedSection): SectionTone => tones[key] ?? "white";
-  // La tarjeta destacada es la del producto que la home minorista muestra primero ("Más elegido");
-  // si no está a la venta por mayor, la Caja Mix.
-  const retailFeaturedId = (homeFeaturedSlots as { slotOrder: number; productId?: string; product?: { id: string } }[]).find((slot) => slot.slotOrder === 1)?.product?.id;
-  const normalizeName = (name: string) => name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  const highlightedId =
-    wholesaleProducts.find((product) => retailFeaturedId && product.productId === retailFeaturedId)?.id ??
-    wholesaleProducts.find((product) => normalizeName(product.name).includes("mix"))?.id ??
-    null;
   // Productos, precios y mínimo salen del admin mayorista (Productos y precios / Condiciones), no del contenido de la página.
   const products = wholesaleProducts.map((product) => ({
     ...toWholesaleSaleProduct(product),
     theme: buildWholesaleProductTheme(product.product),
-    highlighted: product.id === highlightedId,
   }));
 
   const heroSlidePadding = cn("px-4 pb-14 pt-14 text-center md:px-6 md:pb-20 md:pt-20", hero.slides.length > 0 && "pb-20 md:pb-24");

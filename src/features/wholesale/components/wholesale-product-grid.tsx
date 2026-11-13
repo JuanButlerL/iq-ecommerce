@@ -18,8 +18,6 @@ import { describeComposition, resolveCartLines, saleUnitLabel, shortProductName,
 export type WholesaleGridProduct = WholesaleSaleProduct & {
   // Colores del producto de la tienda vinculado; sin vínculo se usan los del sabor.
   theme?: WholesaleProductTheme | null;
-  // La tarjeta destacada, como el "Más elegido" de la home minorista.
-  highlighted?: boolean;
 };
 
 export function wholesaleProductHref(id: string) {

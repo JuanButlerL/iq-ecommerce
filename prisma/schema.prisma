@@ -518,6 +518,8 @@ model WholesaleProduct {
   unitsPerDisplay Int         @default(12) @map("units_per_display")
   active          Boolean     @default(true)
   soldOut         Boolean     @default(false) @map("sold_out")
+  // La etiqueta "Más elegido" de /mayoristas: la lleva uno solo (o ninguno), se elige en el admin.
+  highlighted     Boolean     @default(false)
   sortOrder       Int         @default(0) @map("sort_order")
   // FIXED: composición fija (components con cantidad). CUSTOM: el cliente elige los sabores (components) hasta llenar boxDisplays.
   kind            WholesaleProductKind @default(FIXED)

@@ -26,6 +26,7 @@ export default async function AdminWholesaleProductsPage() {
         unitsPerDisplay: product.unitsPerDisplay,
         active: product.active,
         soldOut: product.soldOut,
+        highlighted: product.highlighted,
         kind: product.kind,
         boxDisplays: product.boxDisplays,
         components: product.components.map((component) => ({ productId: component.productId, quantity: component.quantity })),

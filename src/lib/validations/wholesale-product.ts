@@ -16,6 +16,7 @@ export const wholesaleProductSchema = z
     unitsPerDisplay: z.number().int().min(1, "Barritas por display: al menos 1.").max(500),
     active: z.boolean(),
     soldOut: z.boolean(),
+    highlighted: z.boolean().default(false),
     kind: z.enum(["FIXED", "CUSTOM"]),
     boxDisplays: z
       .number({ invalid_type_error: "Displays por caja: tiene que ser un número." })
