@@ -49,7 +49,17 @@ export const wholesaleOrderSchema = z.object({
   checkoutRequestKey: z.string().trim().min(8).max(100),
   remember: z.boolean().default(false),
   items: z
-    .array(z.object({ wholesaleProductId: z.string().uuid(), quantity: z.number().int().min(1).max(1000) }))
+    .array(
+      z.object({
+        wholesaleProductId: z.string().uuid(),
+        quantity: z.number().int().min(1).max(1000),
+        // Solo en "armá tu caja": cuántos displays de cada sabor lleva cada caja.
+        selection: z
+          .array(z.object({ productId: z.string().uuid(), quantity: z.number().int().min(1).max(1000) }))
+          .max(30)
+          .optional(),
+      }),
+    )
     .min(1, "Tu pedido está vacío.")
     .max(50),
   customer: z.discriminatedUnion("mode", [

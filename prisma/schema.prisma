@@ -241,6 +241,7 @@ model Product {
   images           ProductImage[]
   orderItems       OrderItem[]
   wholesaleProducts  WholesaleProduct[]
+  wholesaleComponents WholesaleProductComponent[]
 
   @@index([active, visible, featured], map: "products_visibility_idx")
   @@index([sortOrder], map: "products_sort_idx")
@@ -504,7 +505,9 @@ model WholesaleCustomer {
   @@map("wholesale_customers")
 }
 
-// Productos que se venden por display en /mayoristas, con su propio precio.
+// Lo que se vende en /mayoristas, con su propio precio: un display suelto, un bulto de composición fija
+// o una caja que arma el cliente. Siempre se compone de productos de la tienda (los displays base),
+// y así viaja a la planilla y a la app de operaciones.
 model WholesaleProduct {
   id              String      @id @default(uuid()) @db.Uuid
   name            String
@@ -516,14 +519,41 @@ model WholesaleProduct {
   active          Boolean     @default(true)
   soldOut         Boolean     @default(false) @map("sold_out")
   sortOrder       Int         @default(0) @map("sort_order")
+  // FIXED: composición fija (components con cantidad). CUSTOM: el cliente elige los sabores (components) hasta llenar boxDisplays.
+  kind            WholesaleProductKind @default(FIXED)
+  boxDisplays     Int         @default(10) @map("box_displays")
+  // Producto de la tienda principal: foto y colores de la tarjeta. Se completa solo con el primero de la composición.
   productId       String?     @map("product_id") @db.Uuid
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
   product         Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  components      WholesaleProductComponent[]
   orderItems      OrderItem[]
 
   @@index([active, sortOrder], map: "wholesale_products_active_sort_idx")
   @@map("wholesale_products")
+}
+
+// Un display base dentro de un producto mayorista. En FIXED, quantity es cuántos displays de ese producto trae
+// cada unidad; en CUSTOM es un sabor que el cliente puede elegir (quantity no se usa y queda en 0).
+model WholesaleProductComponent {
+  id                 String           @id @default(uuid()) @db.Uuid
+  wholesaleProductId String           @map("wholesale_product_id") @db.Uuid
+  productId          String           @map("product_id") @db.Uuid
+  quantity           Int              @default(0)
+  sortOrder          Int              @default(0) @map("sort_order")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  wholesaleProduct   WholesaleProduct @relation(fields: [wholesaleProductId], references: [id], onDelete: Cascade)
+  product            Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([wholesaleProductId, productId], map: "wholesale_product_components_product_key")
+  @@index([productId], map: "wholesale_product_components_retail_idx")
+  @@map("wholesale_product_components")
+}
+
+enum WholesaleProductKind {
+  FIXED
+  CUSTOM
 }
 
 // Condiciones de compra mayorista (una sola fila). Los datos bancarios son los de StoreSettings.
@@ -975,6 +1005,9 @@ model OrderItem {
   product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   wholesaleProductId  String?           @map("wholesale_product_id") @db.Uuid
   wholesaleProduct    WholesaleProduct? @relation(fields: [wholesaleProductId], references: [id], onDelete: SetNull)
+  // Displays base que trae cada unidad del ítem mayorista, congelados al comprar:
+  // [{ productId, name, quantity }]. La sincronización los abre en una línea por producto de la tienda.
+  wholesaleComponents Json?             @map("wholesale_components")
 
   @@index([orderId], map: "order_items_order_idx")
   @@map("order_items")

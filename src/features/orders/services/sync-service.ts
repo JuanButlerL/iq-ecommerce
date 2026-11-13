@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { prisma } from "@/lib/db/prisma";
 import { getOrderSyncProvider } from "@/lib/integrations/sheets/factory";
 import type { OrderItemSheetRow, OrderSheetRow, OrderSyncPayload } from "@/lib/integrations/sheets/types";
+import { explodeOrderItem, parseComponentsSnapshot } from "@/features/wholesale/bundles";
 import { getInvoiceType, TAX_CONDITION_LABELS } from "@/features/wholesale/tax-condition";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
@@ -87,17 +88,37 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     domicilio_fiscal: fiscalAddress,
   };
 
-  const itemRows: OrderItemSheetRow[] = order.items.map((item) => ({
-    order_item_id: item.id,
-    order_id: item.orderId,
-    // Wholesale items take the retail product their wholesale product is linked to now,
-    // so linking it in the admin fixes orders created while it was unlinked.
-    product_id: item.productId ?? item.wholesaleProduct?.productId ?? "",
-    producto: item.productNameSnapshot,
-    cantidad: item.quantity,
-    precio_unitario: item.unitPriceArs,
-    subtotal_item: item.lineTotalArs,
-  }));
+  const itemRows: OrderItemSheetRow[] = order.items.flatMap((item) => {
+    // Bultos y cajas armadas viajan abiertos en sus displays base: una línea por producto de la tienda,
+    // así la planilla y la app de operaciones los reciben sin configurar nada nuevo.
+    const components = parseComponentsSnapshot(item.wholesaleComponents);
+
+    if (components) {
+      return explodeOrderItem({ ...item, components }).map((row) => ({
+        order_item_id: row.key,
+        order_id: item.orderId,
+        product_id: row.productId,
+        producto: row.name,
+        cantidad: row.quantity,
+        precio_unitario: row.unitPrice,
+        subtotal_item: row.lineTotal,
+      }));
+    }
+
+    return [
+      {
+        order_item_id: item.id,
+        order_id: item.orderId,
+        // Wholesale items take the retail product their wholesale product is linked to now,
+        // so linking it in the admin fixes orders created while it was unlinked.
+        product_id: item.productId ?? item.wholesaleProduct?.productId ?? "",
+        producto: item.productNameSnapshot,
+        cantidad: item.quantity,
+        precio_unitario: item.unitPriceArs,
+        subtotal_item: item.lineTotalArs,
+      },
+    ];
+  });
 
   return {
     provider: provider.provider,

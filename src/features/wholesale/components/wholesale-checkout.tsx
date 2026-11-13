@@ -13,6 +13,7 @@ import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/components/address-map-preview";
 import { FieldShell } from "@/features/checkout/components/field-shell";
 import { PaymentOptionCard } from "@/features/checkout/components/payment-option-card";
+import { describeComposition, resolveCartLines, type WholesaleCartLine, type WholesaleSaleProduct } from "@/features/wholesale/bundles";
 import { useHydratedWholesaleCart, useWholesaleCartStore } from "@/features/wholesale/cart-store";
 import { joinStreet, splitStreet } from "@/features/wholesale/delivery-address";
 import type { WholesaleCustomerProfile } from "@/features/wholesale/identify";
@@ -35,15 +36,7 @@ import { getBrowserMarketingContext } from "@/lib/marketing/client";
 import { customEvent } from "@/lib/pixel";
 import { WHOLESALE_META_CHANNEL, WHOLESALE_META_EVENTS } from "@/lib/wholesale-meta-events";
 
-type CheckoutProduct = {
-  id: string;
-  name: string;
-  imageUrl: string;
-  imageAlt: string;
-  priceArs: number;
-  unitsPerDisplay: number;
-  soldOut: boolean;
-};
+type CheckoutProduct = WholesaleSaleProduct;
 
 type CheckoutSettings = {
   minDisplays: number;
@@ -305,18 +298,14 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
 
   const customer = identity.stage === "recognized" ? identity.customers.find((item) => item.id === identity.customerId) ?? null : null;
 
-  const lines = useMemo(
-    () =>
-      items
-        .map((item) => ({ product: products.find((product) => product.id === item.productId), quantity: item.quantity }))
-        .filter((line): line is { product: CheckoutProduct; quantity: number } => Boolean(line.product)),
-    [items, products],
-  );
-  const availableLines = lines.filter((line) => !line.product.soldOut);
-  const suggestedProducts = products.filter((product) => !product.soldOut && !items.some((item) => item.productId === product.id));
-  const displays = availableLines.reduce((sum, line) => sum + line.quantity, 0);
+  const lines = useMemo(() => resolveCartLines(items, products), [items, products]);
+  // Sin stock o una caja que ya no coincide con lo que se vende: se muestran pero no entran en el pedido.
+  const availableLines = lines.filter((line) => !line.problem);
+  // Para sumar de un toque solo sirven los de composición fija; la caja a elección se arma en su ficha.
+  const suggestedProducts = products.filter((product) => !product.soldOut && product.kind === "FIXED" && !items.some((item) => item.key === product.id));
+  const displays = availableLines.reduce((sum, line) => sum + line.displays, 0);
   const missing = Math.max(0, settings.minDisplays - displays);
-  const subtotalArs = availableLines.reduce((sum, line) => sum + line.product.priceArs * line.quantity, 0);
+  const subtotalArs = availableLines.reduce((sum, line) => sum + line.lineTotalArs, 0);
 
   const fullStreet = joinStreet(delivery);
   const addressChanged = customer ? !isSameDeliveryAddress(customer, { ...delivery, street: fullStreet, floor: delivery.floor || null }) : false;
@@ -397,9 +386,9 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     });
   }, [hydrated, displays, checkoutRequestKey, pricing.totalArs]);
 
-  const addDisplay = (product: CheckoutProduct, nextQuantity: number) => {
-    setQuantity(product.id, nextQuantity);
-    trackWholesaleAddToCart({ productId: product.id, productName: product.name, priceArs: product.priceArs, quantity: 1 });
+  const addOne = (line: Pick<WholesaleCartLine, "key" | "product">, nextQuantity: number) => {
+    setQuantity(line.key, nextQuantity);
+    trackWholesaleAddToCart({ productId: line.product.id, productName: line.product.name, priceArs: line.product.priceArs, quantity: 1 });
   };
 
   const selectCustomer = (next: WholesaleCustomerProfile) => {
@@ -558,7 +547,11 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     const result = await postJson<{ orderNumber: string; paymentMethod: WholesalePaymentMethod }>("/api/mayoristas/pedidos", {
       checkoutRequestKey,
       remember,
-      items: availableLines.map((line) => ({ wholesaleProductId: line.product.id, quantity: line.quantity })),
+      items: availableLines.map((line) => ({
+        wholesaleProductId: line.product.id,
+        quantity: line.quantity,
+        ...(line.product.kind === "CUSTOM" ? { selection: line.components.map(({ productId, quantity }) => ({ productId, quantity })) } : {}),
+      })),
       customer:
         identity.stage === "recognized"
           ? { mode: "existing", customerId: identity.customerId }
@@ -600,7 +593,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
       <div className="bg-[#fff6f7] px-4 py-20 text-center">
         <h1 className="font-display text-4xl leading-none text-brand-ink">Tu pedido está vacío</h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-brand-ink/65">
-          Elegí los displays en la página mayorista. El mínimo es de {settings.minDisplays} displays en total y podés combinar sabores.
+          Elegí bultos o displays en la página mayorista. El mínimo es de {settings.minDisplays} displays en total y podés combinar productos.
         </p>
         <Link href="/mayoristas#productos" className={cn(primaryButton, "mt-6")}>
           Ver productos y precios
@@ -642,12 +635,15 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
   const summaryDetails = (
     <>
       <ul className="mb-4 space-y-2 border-b border-brand-ink/10 pb-4 text-sm">
-        {availableLines.map(({ product, quantity }) => (
-          <li key={product.id} className="flex items-center justify-between gap-3">
-            <span className="min-w-0 truncate text-brand-ink/75">
-              <span className="font-extrabold text-brand-ink">{quantity}×</span> {product.name}
+        {availableLines.map((line) => (
+          <li key={line.key} className="flex items-start justify-between gap-3">
+            <span className="min-w-0 text-brand-ink/75">
+              <span className="block truncate">
+                <span className="font-extrabold text-brand-ink">{line.quantity}×</span> {line.product.name}
+              </span>
+              {line.displaysPerUnit > 1 ? <span className="block truncate text-xs text-brand-ink/50">{describeComposition(line.components)}</span> : null}
             </span>
-            <span className="shrink-0 font-bold tabular-nums text-brand-ink">{formatArs(product.priceArs * quantity)}</span>
+            <span className="shrink-0 font-bold tabular-nums text-brand-ink">{formatArs(line.lineTotalArs)}</span>
           </li>
         ))}
       </ul>
@@ -740,46 +736,59 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
             aside={<Link href="/mayoristas#productos" className={linkButton}>Ver catálogo</Link>}
           >
             <ul className="divide-y divide-brand-ink/10">
-              {lines.map(({ product, quantity }) => (
-                <li key={product.id} className="flex items-center gap-3 py-3">
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-[#fff6f7]">
-                    {product.imageUrl ? <Image src={product.imageUrl} alt={product.imageAlt || product.name} fill sizes="56px" className="object-contain" /> : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-extrabold text-brand-ink">{product.name}</p>
-                    <p className="text-xs tabular-nums text-brand-ink/55">
-                      {product.soldOut ? "Sin stock: no se incluye en el pedido" : `${formatArs(product.priceArs)} / display · ${product.unitsPerDisplay} barritas`}
-                    </p>
-                  </div>
-                  {product.soldOut ? null : (
-                    <div className="flex items-center gap-1.5">
-                      <button type="button" aria-label={`Quitar un display de ${product.name}`} onClick={() => setQuantity(product.id, quantity - 1)} className={stepButton}>
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        aria-label={`Displays de ${product.name}`}
-                        value={quantity}
-                        onChange={(event) => setQuantity(product.id, Number.parseInt(event.target.value, 10) || 0)}
-                        className="h-8 w-14 rounded-xl border border-brand-ink/15 text-center text-base tabular-nums text-brand-ink outline-none focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20 md:text-sm"
-                      />
-                      <button type="button" aria-label={`Sumar un display de ${product.name}`} onClick={() => addDisplay(product, quantity + 1)} className={stepButton}>
-                        +
+              {lines.map((line) => {
+                const { product, quantity } = line;
+                const unit = product.kind === "CUSTOM" ? "caja" : line.displaysPerUnit === 1 ? "display" : "bulto";
+                return (
+                  <li key={line.key} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-[#fff6f7]">
+                      {product.imageUrl ? <Image src={product.imageUrl} alt={product.imageAlt || product.name} fill sizes="56px" className="object-contain" /> : null}
+                    </div>
+                    {/* En celular los botones bajan a su propia fila para que el nombre y la composición se lean enteros. */}
+                    <div className="min-w-0 flex-1 basis-[calc(100%-4.25rem)] sm:basis-0">
+                      <p className="text-sm font-extrabold leading-5 text-brand-ink">{product.name}</p>
+                      {line.displaysPerUnit > 1 && line.components.length > 0 ? (
+                        <p className="text-xs font-bold leading-5 text-brand-ink/70">{describeComposition(line.components)}</p>
+                      ) : null}
+                      <p className={cn("text-xs tabular-nums", line.problem ? "font-bold text-brand-pink" : "text-brand-ink/55")}>
+                        {line.problem ??
+                          (line.displaysPerUnit === 1
+                            ? `${formatArs(product.priceArs)} / display · ${product.unitsPerDisplay} barritas`
+                            : `${formatArs(product.priceArs)} / ${unit} de ${line.displaysPerUnit} displays`)}
+                      </p>
+                    </div>
+                    <div className="ml-[4.25rem] flex items-center gap-1.5 sm:ml-0">
+                      {line.problem ? null : (
+                        <div className="flex items-center gap-1.5">
+                          <button type="button" aria-label={`Quitar un ${unit} de ${product.name}`} onClick={() => setQuantity(line.key, quantity - 1)} className={stepButton}>
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            aria-label={`Cantidad de ${product.name}`}
+                            value={quantity}
+                            onChange={(event) => setQuantity(line.key, Number.parseInt(event.target.value, 10) || 0)}
+                            className="h-8 w-14 rounded-xl border border-brand-ink/15 text-center text-base tabular-nums text-brand-ink outline-none focus:border-brand-pink/40 focus:ring-2 focus:ring-brand-pink/20 md:text-sm"
+                          />
+                          <button type="button" aria-label={`Sumar un ${unit} de ${product.name}`} onClick={() => addOne(line, quantity + 1)} className={stepButton}>
+                            +
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        aria-label={`Sacar ${product.name} del pedido`}
+                        onClick={() => setQuantity(line.key, 0)}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-ink/40 transition hover:text-brand-pink"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </button>
                     </div>
-                  )}
-                  <button
-                    type="button"
-                    aria-label={`Sacar ${product.name} del pedido`}
-                    onClick={() => setQuantity(product.id, 0)}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-brand-ink/40 transition hover:text-brand-pink"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
             <p
               id="w-products"
@@ -796,7 +805,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
 
             {suggestedProducts.length > 0 ? (
               <div className="mt-5 rounded-[1.65rem] border border-brand-ink/8 bg-white p-4 shadow-[0_10px_26px_rgba(44,34,65,0.04)]">
-                <p className="mb-3 text-sm font-extrabold leading-5 text-brand-ink">Sumar otro sabor</p>
+                <p className="mb-3 text-sm font-extrabold leading-5 text-brand-ink">Sumar otro producto</p>
                 <div className="grid gap-3">
                   {suggestedProducts.map((product) => (
                     <div
@@ -826,7 +835,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                           type="button"
                           className="flex h-9 w-8 items-center justify-center text-lg font-light text-brand-pink transition hover:text-brand-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-pink/30"
                           aria-label={`Agregar ${product.name} al pedido`}
-                          onClick={() => addDisplay(product, 1)}
+                          onClick={() => addOne({ key: product.id, product }, 1)}
                         >
                           +
                         </button>
