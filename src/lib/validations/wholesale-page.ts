@@ -61,8 +61,25 @@ const iconCard = (section: string) =>
     description: text(`${section} · descripción`, 400),
   });
 
+// Contenido guardado antes de que existieran los interruptores: cada sección toma su valor por defecto
+// (los mismos que DEFAULT_WHOLESALE_SECTION_VISIBILITY; el bloque de contacto arranca apagado).
+const sectionVisibility = z
+  .object({
+    stats: z.boolean().default(true),
+    products: z.boolean().default(true),
+    profiles: z.boolean().default(true),
+    reasons: z.boolean().default(true),
+    conditions: z.boolean().default(true),
+    steps: z.boolean().default(true),
+    testimonials: z.boolean().default(true),
+    contact: z.boolean().default(false),
+    faq: z.boolean().default(true),
+  })
+  .default({});
+
 export const wholesaleContentSchema = z.object({
   enabled: z.boolean(),
+  sections: sectionVisibility,
   accessPasswordHash: z.string().max(300).default(""),
   seoTitle: requiredText("Título SEO", 70),
   seoDescription: text("Descripción SEO", 300),

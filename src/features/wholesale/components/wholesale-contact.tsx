@@ -9,6 +9,8 @@ import { buildWhatsappUrl } from "@/lib/utils/whatsapp";
 type WholesaleContactProps = {
   whatsappNumber: string;
   content: WholesaleContent["contact"];
+  // Sin la sección de productos visible no hay a dónde mandar el "hacer el pedido".
+  showOrderLink?: boolean;
 };
 
 function Divider({ children }: { children: ReactNode }) {
@@ -22,7 +24,7 @@ function Divider({ children }: { children: ReactNode }) {
 }
 
 // El alta de clientes vive en /mayoristas/registro; acá solo se invita a registrarse, comprar o escribir.
-export function WholesaleContact({ whatsappNumber, content }: WholesaleContactProps) {
+export function WholesaleContact({ whatsappNumber, content, showOrderLink = true }: WholesaleContactProps) {
   return (
     <div className="mx-auto max-w-[680px]">
       <div className="rounded-[2rem] bg-white p-5 shadow-card sm:p-10">
@@ -36,15 +38,19 @@ export function WholesaleContact({ whatsappNumber, content }: WholesaleContactPr
         </Link>
         <p className="mt-2 text-center text-xs text-brand-ink/50">Te registrás en un minuto y comprás en el momento.</p>
 
-        <Divider>o si ya sos cliente</Divider>
-        <a
-          href="#productos"
-          className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-brand-pink bg-[#fff6f7] px-4 py-3.5 text-sm font-extrabold text-brand-ink transition hover:bg-brand-pinkSoft/50"
-        >
-          <ShoppingCart className="h-4 w-4" aria-hidden="true" />
-          Ver precios y hacer el pedido online
-        </a>
-        <p className="mt-2 text-center text-xs text-brand-ink/50">Te identificás con tu email y CUIT.</p>
+        {showOrderLink ? (
+          <>
+            <Divider>o si ya sos cliente</Divider>
+            <a
+              href="#productos"
+              className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-brand-pink bg-[#fff6f7] px-4 py-3.5 text-sm font-extrabold text-brand-ink transition hover:bg-brand-pinkSoft/50"
+            >
+              <ShoppingCart className="h-4 w-4" aria-hidden="true" />
+              Ver precios y hacer el pedido online
+            </a>
+            <p className="mt-2 text-center text-xs text-brand-ink/50">Te identificás con tu email y CUIT.</p>
+          </>
+        ) : null}
 
         <Divider>o contactanos directo</Divider>
         <a

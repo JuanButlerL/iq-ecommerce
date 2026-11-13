@@ -5,6 +5,7 @@ import { ShoppingCart } from "lucide-react";
 import { useState } from "react";
 
 import { HomeProductsScroller } from "@/features/catalog/components/home-products-scroller";
+import { HOME_PRODUCTS_GRID_LIMIT } from "@/features/catalog/lib/home-products";
 import { ProductCardActionsView } from "@/features/catalog/components/product-card-actions-view";
 import { ProductPrice } from "@/features/catalog/components/product-price";
 import { useHydratedWholesaleCart, useWholesaleCartStore } from "@/features/wholesale/cart-store";
@@ -60,7 +61,8 @@ function WholesaleProductCardActions({ product, accent }: { product: WholesaleGr
   );
 }
 
-function WholesaleProductCard({ product }: { product: WholesaleGridProduct }) {
+// Misma tarjeta que la home minorista (HomeFeaturedSlotCard): mismas medidas, foto a sangre y colores del producto.
+function WholesaleProductCard({ product, inScroller }: { product: WholesaleGridProduct; inScroller: boolean }) {
   const theme = product.theme ?? getWholesaleProductTheme(product.name);
   const href = wholesaleProductHref(product.id);
   const unitPrice = formatArs(Math.round(product.priceArs / Math.max(1, product.unitsPerDisplay)));
@@ -68,7 +70,8 @@ function WholesaleProductCard({ product }: { product: WholesaleGridProduct }) {
   return (
     <article
       className={cn(
-        "group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1 md:h-full md:w-auto md:shrink",
+        "group flex h-auto w-[82%] min-w-0 shrink-0 snap-start self-stretch flex-col overflow-hidden rounded-[2rem] border bg-white transition-all duration-200 hover:-translate-y-1",
+        inScroller ? "md:w-[calc((100%_-_1.25rem)/2)] xl:w-[calc((100%_-_3.75rem)/4)]" : "md:h-full md:w-auto md:shrink",
         product.highlighted ? "border-brand-pink/60 shadow-[0_20px_48px_rgba(244,137,145,0.2)] ring-1 ring-brand-pink/20" : "border-brand-ink/10 shadow-card",
       )}
       style={{ backgroundColor: theme.surface, color: theme.text }}
@@ -89,7 +92,7 @@ function WholesaleProductCard({ product }: { product: WholesaleGridProduct }) {
           <img
             src={product.imageUrl}
             alt={product.imageAlt || product.name}
-            className="absolute inset-0 h-full w-full object-contain transition duration-300 group-hover:scale-[1.03]"
+            className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
           />
         ) : null}
       </Link>
@@ -126,7 +129,7 @@ export function WholesaleProductGrid({ products, minDisplays }: { products: Whol
     <>
       <HomeProductsScroller itemCount={products.length}>
         {products.map((product) => (
-          <WholesaleProductCard key={product.id} product={product} />
+          <WholesaleProductCard key={product.id} product={product} inScroller={products.length > HOME_PRODUCTS_GRID_LIMIT} />
         ))}
       </HomeProductsScroller>
       <p className="mt-5 text-center text-sm text-brand-ink/60">

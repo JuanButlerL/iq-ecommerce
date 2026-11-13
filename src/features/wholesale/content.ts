@@ -22,8 +22,40 @@ export type WholesaleHeroSlide = {
   overlay: boolean;
 };
 
+// Secciones de /mayoristas que se pueden prender o apagar desde el admin (Landing > Secciones).
+// La portada y el pedido no se apagan: sin portada no hay página y sin productos no se puede comprar.
+export const WHOLESALE_TOGGLEABLE_SECTIONS = [
+  { key: "stats", label: "Números destacados", hint: "La franja rosa debajo de la portada." },
+  { key: "products", label: "Productos y pedido", hint: "Las tarjetas para armar el pedido. Si la apagás, no se puede comprar desde la página." },
+  { key: "profiles", label: "¿Para quién es esto?", hint: "Tipos de negocio." },
+  { key: "reasons", label: "Por qué funciona en el punto de venta", hint: "" },
+  { key: "conditions", label: "Condiciones de compra", hint: "" },
+  { key: "steps", label: "El proceso (pasos)", hint: "" },
+  { key: "testimonials", label: "Testimonios", hint: "" },
+  { key: "contact", label: "Contacto / registro", hint: "El bloque “¿Querés vender iQ Kids o reponer tu stock?”." },
+  { key: "faq", label: "Preguntas frecuentes", hint: "" },
+] as const;
+
+export type WholesaleToggleableSection = (typeof WHOLESALE_TOGGLEABLE_SECTIONS)[number]["key"];
+export type WholesaleSectionVisibility = Record<WholesaleToggleableSection, boolean>;
+
+// El bloque de contacto arranca apagado: el registro ya está en la portada y en el checkout.
+export const DEFAULT_WHOLESALE_SECTION_VISIBILITY: WholesaleSectionVisibility = {
+  stats: true,
+  products: true,
+  profiles: true,
+  reasons: true,
+  conditions: true,
+  steps: true,
+  testimonials: true,
+  contact: false,
+  faq: true,
+};
+
 export type WholesaleContent = {
   enabled: boolean;
+  // Qué secciones se muestran en /mayoristas.
+  sections: WholesaleSectionVisibility;
   // "scrypt$<salt>$<hash>" de la contraseña para ver /mayoristas. Vacío = página abierta.
   // Nunca se manda al navegador: el admin solo ve si hay contraseña o no.
   accessPasswordHash: string;
@@ -78,6 +110,7 @@ export type WholesaleContent = {
 
 export const DEFAULT_WHOLESALE_CONTENT: WholesaleContent = {
   enabled: true,
+  sections: DEFAULT_WHOLESALE_SECTION_VISIBILITY,
   accessPasswordHash: "",
   seoTitle: "Snack saludable sin azúcar por mayor",
   seoDescription:

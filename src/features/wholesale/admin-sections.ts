@@ -12,6 +12,14 @@ export const WHOLESALE_ADMIN_SECTIONS = [
     keys: ["enabled", "seoTitle", "seoDescription", "whatsappNumber", "topbar", "hero", "stats"],
   },
   {
+    id: "secciones",
+    href: "/admin/mayoristas/landing/secciones",
+    label: "Secciones",
+    title: "Secciones visibles",
+    description: "Elegí qué secciones se muestran en /mayoristas. Apagar una no borra su contenido: la podés volver a prender cuando quieras.",
+    keys: ["sections"],
+  },
+  {
     id: "productos",
     href: "/admin/mayoristas/landing/productos",
     label: "Productos",

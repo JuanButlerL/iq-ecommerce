@@ -36,9 +36,25 @@ const primaryCta =
 const secondaryCta =
   "inline-flex items-center justify-center rounded-full bg-white px-7 py-4 text-base font-extrabold text-brand-ink ring-2 ring-brand-ink/10 transition hover:ring-brand-ink/30";
 
-function SectionHeading({ intro, center, dark }: { intro: WholesaleSectionIntro; center?: boolean; dark?: boolean }) {
+// Fondos como la home minorista: cada sección se distingue de la anterior. Se calculan sobre las secciones
+// que realmente se muestran, así apagar una desde el admin no deja dos fondos iguales pegados.
+type SectionTone = "pink" | "white" | "cream" | "dark";
+
+const TONE_BACKGROUND: Record<SectionTone, string> = {
+  pink: "bg-[#fff6f7]",
+  white: "bg-white",
+  cream: "bg-[#fffaf0]",
+  dark: "bg-brand-ink",
+};
+
+// Tarjetas internas: blancas sobre fondo de color y rosadas sobre fondo blanco, para que siempre se despeguen.
+function cardSurface(tone: SectionTone) {
+  return tone === "white" ? "bg-[#fff6f7]" : "bg-white";
+}
+
+function SectionHeading({ intro, center, dark, flush }: { intro: WholesaleSectionIntro; center?: boolean; dark?: boolean; flush?: boolean }) {
   return (
-    <div className={cn("mb-10 md:mb-12", center && "text-center")}>
+    <div className={cn(flush ? "max-w-3xl" : "mb-8 md:mb-10", center && "mx-auto text-center")}>
       {intro.eyebrow ? (
         <p className={cn("text-xs font-extrabold uppercase tracking-[0.28em]", dark ? "text-brand-cyan" : "text-brand-pink")}>{intro.eyebrow}</p>
       ) : null}
@@ -54,9 +70,10 @@ function SectionHeading({ intro, center, dark }: { intro: WholesaleSectionIntro;
   );
 }
 
-function Section({ id, className, wide = false, children }: { id?: string; className?: string; wide?: boolean; children: ReactNode }) {
+// Mismo ritmo vertical que las secciones de la home minorista (py-12 / 14 / 16).
+function Section({ id, tone, wide = false, children }: { id?: string; tone: SectionTone; wide?: boolean; children: ReactNode }) {
   return (
-    <section id={id} className={cn("scroll-mt-24 px-4 py-14 md:px-6 md:py-20", className)}>
+    <section id={id} className={cn("scroll-mt-24 px-4 py-12 sm:py-14 md:px-6 lg:py-16", TONE_BACKGROUND[tone])}>
       <div className={cn("mx-auto", wide ? "max-w-[1600px] lg:px-4 xl:px-6" : "max-w-[1080px]")}>{children}</div>
     </section>
   );
@@ -83,9 +100,39 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
   const justRegistered = (await searchParams).bienvenida === "1";
   const whatsappNumber = content.whatsappNumber || settings?.whatsappNumber || FALLBACK_WHATSAPP;
   const { hero, products: productsIntro, profiles, reasons, conditions, steps, testimonials, faq } = content;
-  // Las secciones alternan fondo blanco y rosado; las que no tienen elementos no se muestran.
-  const showProfiles = profiles.items.length > 0;
-  const showReasons = reasons.items.length > 0;
+  const visible = content.sections;
+  // Las secciones apagadas en el admin o sin elementos no se muestran.
+  const showStats = visible.stats && content.stats.length > 0;
+  const showProducts = visible.products && wholesaleProducts.length > 0;
+  const showProfiles = visible.profiles && profiles.items.length > 0;
+  const showReasons = visible.reasons && reasons.items.length > 0;
+  const showConditions = visible.conditions && conditions.plans.length > 0;
+  const showSteps = visible.steps && steps.items.length > 0;
+  const showTestimonials = visible.testimonials && testimonials.items.length > 0;
+  const showContact = visible.contact;
+  const showFaq = visible.faq && faq.items.length > 0;
+
+  // Alterna color / blanco y, entre los de color, rosado / crema. Testimonios siempre va oscuro pero ocupa su lugar en la secuencia.
+  const sectionOrder = [
+    ["products", showProducts],
+    ["profiles", showProfiles],
+    ["reasons", showReasons],
+    ["conditions", showConditions],
+    ["steps", showSteps],
+    ["testimonials", showTestimonials],
+    ["contact", showContact],
+    ["faq", showFaq],
+  ] as const;
+  type OrderedSection = (typeof sectionOrder)[number][0];
+  const tones: Partial<Record<OrderedSection, SectionTone>> = {};
+  let toneIndex = 0;
+  for (const [key, shown] of sectionOrder) {
+    if (!shown) continue;
+    const tint: SectionTone = toneIndex % 4 === 0 ? "pink" : "cream";
+    tones[key] = key === "testimonials" ? "dark" : toneIndex % 2 === 0 ? tint : "white";
+    toneIndex += 1;
+  }
+  const tone = (key: OrderedSection): SectionTone => tones[key] ?? "white";
   // La tarjeta destacada es la del producto que la home minorista muestra primero ("Más elegido");
   // si no está a la venta por mayor, la Caja Mix.
   const retailFeaturedId = (homeFeaturedSlots as { slotOrder: number; productId?: string; product?: { id: string } }[]).find((slot) => slot.slotOrder === 1)?.product?.id;
@@ -146,7 +193,7 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
               <Link href="/mayoristas/registro" className={primaryCta}>
                 {hero.primaryCta}
               </Link>
-              {products.length > 0 ? (
+              {showProducts ? (
                 <a href="#productos" className={secondaryCta}>
                   {hero.secondaryCta}
                 </a>
@@ -199,7 +246,7 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
 
       <WholesaleHeroCarousel slides={heroSlides} intervalSeconds={hero.intervalSeconds} />
 
-      {content.stats.length > 0 ? (
+      {showStats ? (
         <div className="bg-brand-pink px-4 py-7">
           <div className={cn("mx-auto grid max-w-[1080px] grid-cols-2 gap-6", content.stats.length >= 4 ? "md:grid-cols-4" : "md:grid-cols-3")}>
             {content.stats.map((stat, index) => (
@@ -212,8 +259,8 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
         </div>
       ) : null}
 
-      {products.length > 0 ? (
-        <Section id="productos" wide className="bg-[#fff6f7]">
+      {showProducts ? (
+        <Section id="productos" wide tone={tone("products")}>
           {justRegistered ? (
             <div role="status" className="mb-8 rounded-[2rem] bg-brand-mint/40 px-6 py-5 text-brand-ink">
               <p className="text-base font-extrabold">¡Listo, ya estás registrado!</p>
@@ -222,18 +269,19 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
               </p>
             </div>
           ) : null}
-          <SectionHeading intro={productsIntro} />
+          {/* Sin margen propio: la grilla ya trae el mismo espacio que en la home minorista. */}
+          <SectionHeading intro={productsIntro} flush />
           <WholesaleProductGrid products={products} minDisplays={wholesaleSettings.minDisplays} />
           <WholesaleOrderBar products={products} minDisplays={wholesaleSettings.minDisplays} />
         </Section>
       ) : null}
 
       {showProfiles ? (
-        <Section className="bg-[#fff6f7]">
+        <Section tone={tone("profiles")}>
           <SectionHeading intro={profiles} />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {profiles.items.map((profile, index) => (
-              <div key={`${profile.title}-${index}`} className="rounded-[2rem] bg-white p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-soft">
+              <div key={`${profile.title}-${index}`} className={cn("rounded-[2rem] p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-soft", cardSurface(tone("profiles")))}>
                 {profile.icon ? (
                   <p className="text-3xl" aria-hidden="true">
                     {profile.icon}
@@ -248,11 +296,11 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
       ) : null}
 
       {showReasons ? (
-        <Section>
+        <Section tone={tone("reasons")}>
           <SectionHeading intro={reasons} />
           <div className="grid gap-4 md:grid-cols-2">
             {reasons.items.map((reason, index) => (
-              <div key={`${reason.title}-${index}`} className="flex items-start gap-4 rounded-[2rem] bg-[#fff6f7] p-6">
+              <div key={`${reason.title}-${index}`} className={cn("flex items-start gap-4 rounded-[2rem] p-6", cardSurface(tone("reasons")), tone("reasons") !== "white" && "shadow-card")}>
                 {reason.icon ? (
                   <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-pinkSoft text-xl">
                     {reason.icon}
@@ -268,12 +316,15 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
         </Section>
       ) : null}
 
-      {conditions.plans.length > 0 ? (
-        <Section id="condiciones" className="bg-[#fff6f7]">
+      {showConditions ? (
+        <Section id="condiciones" tone={tone("conditions")}>
           <SectionHeading intro={conditions} />
           <div className={cn("grid gap-5", conditions.plans.length === 2 && "md:grid-cols-2", conditions.plans.length >= 3 && "md:grid-cols-3")}>
             {conditions.plans.map((plan, index) => (
-              <div key={`${plan.title}-${index}`} className={cn("overflow-hidden rounded-[2rem] bg-white shadow-card", plan.highlighted && "ring-2 ring-brand-cyan")}>
+              <div key={`${plan.title}-${index}`} className={cn(
+                  "overflow-hidden rounded-[2rem] bg-white shadow-card",
+                  plan.highlighted ? "ring-2 ring-brand-cyan" : tone("conditions") === "white" && "ring-1 ring-brand-ink/10",
+                )}>
                 <div className={cn("flex items-center gap-4 border-b px-6 pb-4 pt-6", plan.highlighted ? "border-brand-cyan/30 bg-brand-cyan/15" : "border-brand-ink/10")}>
                   {plan.icon ? (
                     <span className="text-3xl" aria-hidden="true">
@@ -300,7 +351,7 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
                     </dl>
                   ) : null}
                   <a
-                    href={products.length > 0 ? "#productos" : "/mayoristas/registro"}
+                    href={showProducts ? "#productos" : "/mayoristas/registro"}
                     className={cn(
                       "mt-5 flex w-full items-center justify-center rounded-full px-6 py-3.5 text-sm font-extrabold transition",
                       plan.highlighted ? "bg-brand-cyan text-brand-ink hover:brightness-95" : "bg-brand-pink text-white shadow-soft hover:bg-[#ea737d]",
@@ -315,8 +366,8 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
         </Section>
       ) : null}
 
-      {steps.items.length > 0 ? (
-        <Section id="como-funciona">
+      {showSteps ? (
+        <Section id="como-funciona" tone={tone("steps")}>
           <SectionHeading intro={steps} center />
           <ol className={cn("relative grid gap-8 md:gap-0", steps.items.length >= 4 ? "md:grid-cols-4" : steps.items.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2")}>
             {steps.items.length > 1 ? (
@@ -339,8 +390,8 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
         </Section>
       ) : null}
 
-      {testimonials.items.length > 0 ? (
-        <Section className="bg-brand-ink">
+      {showTestimonials ? (
+        <Section tone="dark">
           <SectionHeading intro={testimonials} dark />
           <div className={cn("grid gap-4", testimonials.items.length > 1 && "md:grid-cols-2", testimonials.items.length > 2 && "lg:grid-cols-3")}>
             {testimonials.items.map((testimonial, index) => (
@@ -359,17 +410,19 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
         </Section>
       ) : null}
 
-      <Section id="contacto" className="bg-[#fff6f7]">
-        <SectionHeading intro={content.contact} center />
-        <WholesaleContact whatsappNumber={whatsappNumber} content={content.contact} />
-      </Section>
+      {showContact ? (
+        <Section id="contacto" tone={tone("contact")}>
+          <SectionHeading intro={content.contact} center />
+          <WholesaleContact whatsappNumber={whatsappNumber} content={content.contact} showOrderLink={showProducts} />
+        </Section>
+      ) : null}
 
-      {faq.items.length > 0 ? (
-        <Section id="faq">
+      {showFaq ? (
+        <Section id="faq" tone={tone("faq")}>
           <SectionHeading intro={faq} center />
           <div className="mx-auto flex max-w-[760px] flex-col gap-3">
             {faq.items.map((item, index) => (
-              <details key={`${item.question}-${index}`} className="group rounded-3xl bg-[#fff6f7] open:bg-white open:shadow-card">
+              <details key={`${item.question}-${index}`} className={cn("group rounded-3xl open:shadow-card", tone("faq") === "white" ? "bg-[#fff6f7] open:bg-white" : "bg-white")}>
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-base font-extrabold text-brand-ink [&::-webkit-details-marker]:hidden">
                   {item.question}
                   <span aria-hidden="true" className="text-xl leading-none text-brand-pink group-open:hidden">

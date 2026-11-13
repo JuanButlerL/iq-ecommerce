@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { MarketingSessionTracker } from "@/components/analytics/marketing-session-tracker";
 import { FloatingWhatsapp } from "@/components/layout/floating-whatsapp";
 import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
+import { SiteHeader, type WholesaleNavVisibility } from "@/components/layout/site-header";
 import { TabTitleNudge } from "@/components/layout/tab-title-nudge";
 import { WelcomePopup } from "@/features/marketing/components/welcome-popup";
 
@@ -22,6 +22,7 @@ type AppChromeProps = {
   faqSectionEnabled?: boolean | null;
   newsletterSectionEnabled?: boolean | null;
   wholesaleEnabled?: boolean;
+  wholesaleNav?: WholesaleNavVisibility;
   lastUpdatedAt?: string;
 };
 
@@ -37,6 +38,7 @@ export function AppChrome({
   faqSectionEnabled,
   newsletterSectionEnabled,
   wholesaleEnabled,
+  wholesaleNav,
   lastUpdatedAt,
 }: AppChromeProps) {
   const pathname = usePathname();
@@ -59,6 +61,7 @@ export function AppChrome({
           faqSectionEnabled={faqSectionEnabled}
           newsletterSectionEnabled={newsletterSectionEnabled}
           wholesaleEnabled={wholesaleEnabled}
+          wholesaleNav={wholesaleNav}
         />
       )}
       <main>{children}</main>
