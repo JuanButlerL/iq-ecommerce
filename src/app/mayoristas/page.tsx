@@ -11,7 +11,7 @@ import { WholesaleOrderBar, WholesaleProductGrid } from "@/features/wholesale/co
 import { buildWholesaleProductTheme } from "@/features/wholesale/product-theme";
 import { WholesalePasswordGate } from "@/features/wholesale/components/wholesale-password-gate";
 import type { WholesaleSectionIntro } from "@/features/wholesale/content";
-import { getPublicWholesaleProducts } from "@/features/wholesale/products";
+import { getPublicWholesaleProducts, toWholesaleSaleProduct } from "@/features/wholesale/products";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { getWholesaleSettings } from "@/features/wholesale/settings";
 import { getStoreSettings } from "@/features/settings/queries";
@@ -143,14 +143,7 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
     null;
   // Productos, precios y mínimo salen del admin mayorista (Productos y precios / Condiciones), no del contenido de la página.
   const products = wholesaleProducts.map((product) => ({
-    id: product.id,
-    name: product.name,
-    description: product.description,
-    imageUrl: product.imageUrl,
-    imageAlt: product.imageAlt,
-    priceArs: product.priceArs,
-    unitsPerDisplay: product.unitsPerDisplay,
-    soldOut: product.soldOut,
+    ...toWholesaleSaleProduct(product),
     theme: buildWholesaleProductTheme(product.product),
     highlighted: product.id === highlightedId,
   }));

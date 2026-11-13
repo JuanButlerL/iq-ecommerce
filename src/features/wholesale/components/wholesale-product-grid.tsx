@@ -13,16 +13,9 @@ import { trackWholesaleAddToCart } from "@/lib/integrations/wholesale-commerce-t
 import { cn } from "@/lib/utils/cn";
 import { formatArs } from "@/lib/utils/currency";
 import { getWholesaleProductTheme, type WholesaleProductTheme } from "@/features/wholesale/product-theme";
+import { describeComposition, resolveCartLines, saleUnitLabel, shortProductName, type WholesaleSaleProduct } from "@/features/wholesale/bundles";
 
-export type WholesaleGridProduct = {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  imageAlt: string;
-  priceArs: number;
-  unitsPerDisplay: number;
-  soldOut: boolean;
+export type WholesaleGridProduct = WholesaleSaleProduct & {
   // Colores del producto de la tienda vinculado; sin vínculo se usan los del sabor.
   theme?: WholesaleProductTheme | null;
   // La tarjeta destacada, como el "Más elegido" de la home minorista.
@@ -34,9 +27,25 @@ export function wholesaleProductHref(id: string) {
 }
 
 function WholesaleProductCardActions({ product, accent }: { product: WholesaleGridProduct; accent: string }) {
+  // La caja a elección se arma en su ficha: ahí se eligen los sabores.
+  if (product.kind === "CUSTOM") {
+    return (
+      <Link
+        href={wholesaleProductHref(product.id)}
+        className="flex h-11 w-full items-center justify-center rounded-[0.9rem] bg-brand-pink text-sm font-extrabold text-white transition hover:bg-[#EA737D]"
+      >
+        Armar mi caja →
+      </Link>
+    );
+  }
+
+  return <WholesaleFixedCardActions product={product} accent={accent} />;
+}
+
+function WholesaleFixedCardActions({ product, accent }: { product: WholesaleGridProduct; accent: string }) {
   const { items } = useHydratedWholesaleCart();
   const setQuantity = useWholesaleCartStore((state) => state.setQuantity);
-  const quantity = items.find((item) => item.productId === product.id)?.quantity ?? 0;
+  const quantity = items.find((item) => item.key === product.id)?.quantity ?? 0;
   const [added, setAdded] = useState(false);
   const addOne = () => {
     setQuantity(product.id, quantity + 1);
@@ -65,7 +74,13 @@ function WholesaleProductCardActions({ product, accent }: { product: WholesaleGr
 function WholesaleProductCard({ product, inScroller }: { product: WholesaleGridProduct; inScroller: boolean }) {
   const theme = product.theme ?? getWholesaleProductTheme(product.name);
   const href = wholesaleProductHref(product.id);
-  const unitPrice = formatArs(Math.round(product.priceArs / Math.max(1, product.unitsPerDisplay)));
+  const unitPrice = formatArs(Math.round(product.priceArs / Math.max(1, product.unitsPerDisplay * product.displays)));
+  const composition =
+    product.kind === "CUSTOM"
+      ? `Elegí entre ${product.components.map((component) => shortProductName(component.name)).join(", ")}`
+      : product.displays > 1
+        ? describeComposition(product.components)
+        : null;
 
   return (
     <article
@@ -99,18 +114,22 @@ function WholesaleProductCard({ product, inScroller }: { product: WholesaleGridP
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="space-y-2">
           <p className="text-xs font-extrabold uppercase tracking-[0.22em]" style={{ color: theme.accent }}>
-            Display x {product.unitsPerDisplay}
+            {product.displays === 1 && product.kind === "FIXED" ? `Display x ${product.unitsPerDisplay}` : saleUnitLabel(product)}
           </p>
           <Link href={href} className="block">
             <h3 className="font-display text-2xl leading-tight">{product.name}</h3>
           </Link>
+          {composition ? <p className="text-sm font-bold leading-6 text-brand-ink">{composition}</p> : null}
           {product.description ? <p className="whitespace-pre-line text-sm leading-6 text-brand-ink/80">{product.description}</p> : null}
         </div>
         <div className="mt-auto space-y-4">
           <div className="space-y-3">
             <div>
               <ProductPrice className="text-lg font-extrabold" priceArs={product.priceArs} />
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">{unitPrice} por unidad</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">
+                {product.displays > 1 ? `${formatArs(Math.round(product.priceArs / product.displays))} por display · ` : ""}
+                {unitPrice} por unidad
+              </p>
             </div>
             {product.soldOut ? (
               <p className="flex h-11 items-center justify-center rounded-[0.9rem] bg-brand-ink/5 text-sm font-extrabold text-brand-ink/50">Volvé pronto</p>
@@ -133,7 +152,8 @@ export function WholesaleProductGrid({ products, minDisplays }: { products: Whol
         ))}
       </HomeProductsScroller>
       <p className="mt-5 text-center text-sm text-brand-ink/60">
-        Precios por display con IVA incluido. Pedido mínimo: {minDisplays} display{minDisplays === 1 ? "" : "s"} en total, podés combinar sabores.
+        Precios con IVA incluido. Pedido mínimo: {minDisplays} display{minDisplays === 1 ? "" : "s"} en total
+        {products.some((product) => product.displays >= minDisplays) ? " (un bulto o una caja ya lo cumplen)" : ""}, podés combinar productos.
       </p>
     </>
   );
@@ -142,12 +162,9 @@ export function WholesaleProductGrid({ products, minDisplays }: { products: Whol
 // Barra fija con el pedido en curso. Recibe todos los productos a la venta para calcular bien el subtotal.
 export function WholesaleOrderBar({ products, minDisplays }: { products: WholesaleGridProduct[]; minDisplays: number }) {
   const { items } = useHydratedWholesaleCart();
-  const lines = products
-    .filter((product) => !product.soldOut)
-    .map((product) => ({ product, quantity: items.find((item) => item.productId === product.id)?.quantity ?? 0 }))
-    .filter((line) => line.quantity > 0);
-  const displays = lines.reduce((sum, line) => sum + line.quantity, 0);
-  const subtotal = lines.reduce((sum, line) => sum + line.quantity * line.product.priceArs, 0);
+  const lines = resolveCartLines(items, products).filter((line) => !line.problem);
+  const displays = lines.reduce((sum, line) => sum + line.displays, 0);
+  const subtotal = lines.reduce((sum, line) => sum + line.lineTotalArs, 0);
   const missing = Math.max(0, minDisplays - displays);
 
   if (displays === 0) {

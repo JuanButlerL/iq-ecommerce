@@ -5,7 +5,7 @@ import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesaleCheckout } from "@/features/wholesale/components/wholesale-checkout";
 import { getTrustedWholesaleCustomerIds } from "@/features/wholesale/device";
 import { toWholesaleCustomerProfile } from "@/features/wholesale/identify";
-import { getPublicWholesaleProducts } from "@/features/wholesale/products";
+import { getPublicWholesaleProducts, toWholesaleSaleProduct } from "@/features/wholesale/products";
 import { isPaymentMethodEnabled } from "@/features/wholesale/orders";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { getWholesaleSettings, getWholesaleShippingRule } from "@/features/wholesale/settings";
@@ -41,15 +41,7 @@ export default async function WholesaleCartPage() {
 
   return (
     <WholesaleCheckout
-      products={products.map((product) => ({
-        id: product.id,
-        name: product.name,
-        imageUrl: product.imageUrl,
-        imageAlt: product.imageAlt,
-        priceArs: product.priceArs,
-        unitsPerDisplay: product.unitsPerDisplay,
-        soldOut: product.soldOut,
-      }))}
+      products={products.map(toWholesaleSaleProduct)}
       settings={{
         minDisplays: settings.minDisplays,
         enableMercadoPago: isPaymentMethodEnabled("MERCADO_PAGO", settings),

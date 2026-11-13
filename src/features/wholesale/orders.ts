@@ -7,6 +7,7 @@ import { ensureMercadoPagoPreference } from "@/features/orders/services/mercado-
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { getTrustedWholesaleCustomerIds, trustWholesaleCustomer } from "@/features/wholesale/device";
 import { sendWholesaleMetaPurchase } from "@/features/wholesale/meta-purchase";
+import { buildOrderItemName, countComponentDisplays, resolveCustomSelection, type WholesaleComponent } from "@/features/wholesale/bundles";
 import { buildWholesaleOrderAdminEmail, buildWholesaleOrderCustomerEmail, type WholesaleOrderEmailData } from "@/features/wholesale/order-email";
 import {
   WHOLESALE_PAYMENT_METHOD_LABELS,
@@ -73,10 +74,11 @@ export async function createWholesaleOrder(payload: unknown) {
     throw new AppError("Ese medio de pago no está disponible. Elegí otro.", 400, true);
   }
 
-  // Productos: precio y disponibilidad salen siempre de la base, nunca del navegador.
+  // Productos: precio, composición y disponibilidad salen siempre de la base, nunca del navegador.
   const productIds = [...new Set(input.items.map((item) => item.wholesaleProductId))];
   const products = await prisma.wholesaleProduct.findMany({
     where: { id: { in: productIds }, active: true, soldOut: false, productId: { not: null } },
+    include: { components: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { product: { select: { name: true } } } } },
   });
 
   if (products.length !== productIds.length) {
@@ -85,9 +87,34 @@ export async function createWholesaleOrder(payload: unknown) {
 
   const lines = input.items.map((item) => {
     const product = products.find((entry) => entry.id === item.wholesaleProductId)!;
-    return { product, quantity: item.quantity, priceArs: product.priceArs };
+    const options = product.components.map((component) => ({ productId: component.productId, name: component.product.name, quantity: component.quantity }));
+    let components: WholesaleComponent[];
+
+    if (product.kind === "CUSTOM") {
+      const resolved = resolveCustomSelection(item.selection ?? [], options, product.boxDisplays);
+      if (!resolved.ok) {
+        throw new AppError(`${product.name}: ${resolved.error}`, 400, true);
+      }
+      components = resolved.components;
+    } else {
+      components = options.filter((component) => component.quantity > 0);
+    }
+
+    if (components.length === 0) {
+      throw new AppError(`${product.name} no está disponible por ahora. Sacalo del pedido.`, 400, true);
+    }
+
+    const displaysPerUnit = countComponentDisplays(components);
+    return {
+      product,
+      components,
+      quantity: item.quantity,
+      priceArs: product.priceArs,
+      displays: displaysPerUnit * item.quantity,
+      name: buildOrderItemName(product, components),
+    };
   });
-  const displays = lines.reduce((sum, line) => sum + line.quantity, 0);
+  const displays = lines.reduce((sum, line) => sum + line.displays, 0);
 
   if (displays < settings.minDisplays) {
     throw new AppError(`El pedido mínimo es de ${settings.minDisplays} displays (podés combinar productos).`, 400, true);
@@ -172,12 +199,14 @@ export async function createWholesaleOrder(payload: unknown) {
         await tx.orderItem.createMany({
           data: lines.map((line) => ({
             orderId: order.id,
-            productId: line.product.productId,
+            // Un ítem de un solo producto de la tienda queda vinculado a él; un bulto mixto se abre al sincronizar.
+            productId: line.components.length === 1 ? line.components[0]!.productId : null,
             wholesaleProductId: line.product.id,
-            productNameSnapshot: `${line.product.name} (display x${line.product.unitsPerDisplay})`,
+            productNameSnapshot: line.name,
             unitPriceArs: line.priceArs,
             quantity: line.quantity,
             lineTotalArs: line.priceArs * line.quantity,
+            wholesaleComponents: line.components.map(({ productId, name, quantity }) => ({ productId, name, quantity })),
           })),
         });
 
@@ -268,7 +297,7 @@ export async function createWholesaleOrder(payload: unknown) {
       notes: input.notes,
       paymentMethod: input.paymentMethod,
       items: lines.map((line) => ({
-        name: `${line.product.name} (display x${line.product.unitsPerDisplay})`,
+        name: line.name,
         quantity: line.quantity,
         unitPriceArs: line.priceArs,
         lineTotalArs: line.priceArs * line.quantity,
