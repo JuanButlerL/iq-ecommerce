@@ -512,6 +512,12 @@ model WholesaleProduct {
   id              String      @id @default(uuid()) @db.Uuid
   name            String
   description     String      @default("")
+  // Textos de la tarjeta y la ficha. Vacío = el texto automático (ver wholesaleProductTexts en bundles.ts).
+  label           String      @default("")
+  subtitle        String      @default("")
+  priceNote       String      @default("") @map("price_note")
+  buttonLabel     String      @default("") @map("button_label")
+  linkLabel       String      @default("") @map("link_label")
   imageUrl        String      @default("") @map("image_url")
   imageAlt        String      @default("") @map("image_alt")
   priceArs        Int         @map("price_ars")

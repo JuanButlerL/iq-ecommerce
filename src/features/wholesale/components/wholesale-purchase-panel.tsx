@@ -12,11 +12,13 @@ export function WholesalePurchasePanel({
   productName,
   priceArs,
   unitLabel = "displays",
+  buttonLabel = "Agregar al carrito",
 }: {
   productId: string;
   productName: string;
   priceArs: number;
   unitLabel?: "displays" | "bultos";
+  buttonLabel?: string;
 }) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -37,7 +39,7 @@ export function WholesalePurchasePanel({
           window.setTimeout(() => setAdded(false), 1200);
         }}
       >
-        {added ? "Agregado al carrito" : "Agregar al carrito"}
+        {added ? "Agregado al carrito" : buttonLabel}
       </Button>
     </div>
   );

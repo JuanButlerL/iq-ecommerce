@@ -7,6 +7,8 @@ type ProductCardActionsViewProps = {
   added: boolean;
   accent: string;
   buttonLabel: string;
+  // Texto del botón principal. Sin valor, "Agregar al carrito" (la tienda no lo cambia).
+  addLabel?: string;
   productHref: string;
   onAdd: () => void;
   onDecrease: () => void;
@@ -19,6 +21,7 @@ export function ProductCardActionsView({
   added,
   accent,
   buttonLabel,
+  addLabel,
   productHref,
   onAdd,
   onDecrease,
@@ -32,7 +35,7 @@ export function ProductCardActionsView({
           className="h-11 w-full rounded-[0.9rem] bg-brand-pink text-sm font-extrabold text-white shadow-none hover:bg-[#EA737D]"
           onClick={onAdd}
         >
-          Agregar al carrito
+          {addLabel ?? "Agregar al carrito"}
         </Button>
       ) : (
         <div className="flex items-stretch gap-2">
@@ -63,6 +66,8 @@ export function ProductCardActionsView({
           >
             {added ? (
               "Agregado"
+            ) : addLabel ? (
+              <span className="truncate">{addLabel}</span>
             ) : (
               <>
                 {/* Con cuatro tarjetas por fila no entra el texto completo al lado del contador. */}
