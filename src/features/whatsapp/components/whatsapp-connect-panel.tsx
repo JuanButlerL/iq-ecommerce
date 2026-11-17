@@ -139,10 +139,10 @@ export function WhatsappConnectPanel({ appId, configId, graphVersion, missingCon
     url.searchParams.set("response_type", "code");
     url.searchParams.set("override_default_response_type", "true");
     url.searchParams.set("state", state);
-    url.searchParams.set(
-      "extras",
-      JSON.stringify({ setup: {}, featureType: "whatsapp_business_app_onboarding", sessionInfoVersion: "3" }),
-    );
+    // Embedded Signup v5: la coexistencia (conectar la app WhatsApp Business existente) viene activa por defecto.
+    // v2/v3 se dieron de baja el 15/10/2026: sin "version", Meta sirve v4 y caia en el alta comun con SMS.
+    // v5 no acepta sessionInfoVersion ni hace falta featureType.
+    url.searchParams.set("extras", JSON.stringify({ setup: {}, version: "v5" }));
 
     setRunning(true);
     window.location.assign(url.toString());

@@ -239,6 +239,14 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-11-17 - Alta de WhatsApp en coexistencia con Embedded Signup v5 (rama `fix/whatsapp-signup-v5`, pendiente de deploy)
+
+- Síntoma: con bot_ia_iqkids ya registrada como proveedor de tecnología, "Conectar WhatsApp Business" en `/admin/whatsapp` abría el alta común de Meta ("Agrega tu número de teléfono" con verificación por SMS) en vez de ofrecer conectar la app WhatsApp Business existente. Verificar el número por SMS lo sacaría de la app.
+- Causa: Meta dio de baja Embedded Signup v2/v3 el 15/10/2026; los pedidos sin `version` se sirven como v4 y `sessionInfoVersion: "3"` (de v2) deja de aplicar.
+- Cambio: `extras` pasa a `{ setup: {}, version: "v5" }`. En v5 la coexistencia viene activa por defecto; se quitan `featureType` y `sessionInfoVersion`. El server no cambia: saca la WABA del token, busca el número con `is_on_biz_app=true` y nunca llama a `/register`.
+- Requisito: la configuración de Facebook Login for Business del `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID` tiene que tener WhatsApp entre sus productos.
+- Sin migraciones. Archivo: `src/features/whatsapp/components/whatsapp-connect-panel.tsx`.
+
 ### 2026-11-12 - Ajustes de UX en /mayoristas: checkout, producto destacado y carrusel (rama `feature/mayoristas-ajustes-ux`, mergeada a `main`)
 
 - Checkout mayorista igual que el minorista: el botón "Confirmar pedido" siempre se puede tocar; si falta algo, marca en rojo cada campo (CUIT, condición de IVA, datos de entrega, medio de pago, mínimo de displays), muestra el primer faltante debajo del botón y baja hasta ese campo. Los errores se limpian a medida que se completan.
