@@ -8,7 +8,7 @@ import { ProductPrice } from "@/features/catalog/components/product-price";
 import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesaleOrderBar, WholesaleProductGrid } from "@/features/wholesale/components/wholesale-product-grid";
 import { WholesalePurchasePanel } from "@/features/wholesale/components/wholesale-purchase-panel";
-import { saleUnitLabel, shortProductName } from "@/features/wholesale/bundles";
+import { resolveWholesaleTexts, shortProductName } from "@/features/wholesale/bundles";
 import { WholesaleBoxBuilder } from "@/features/wholesale/components/wholesale-box-builder";
 import { getPublicWholesaleProducts, toWholesaleSaleProduct } from "@/features/wholesale/products";
 import { getWholesaleContent } from "@/features/wholesale/queries";
@@ -44,6 +44,7 @@ export default async function WholesaleProductPage({ params }: { params: Promise
   const others = products.filter((item) => item.id !== product.id);
   const unitPrice = formatArs(Math.round(product.priceArs / Math.max(1, product.unitsPerDisplay * product.displays)));
   const isSingle = product.kind === "FIXED" && product.displays === 1;
+  const texts = resolveWholesaleTexts(product);
   const priceTitle = product.kind === "CUSTOM" ? "Precio por caja" : isSingle ? "Precio por display" : "Precio por bulto";
 
   return (
@@ -74,7 +75,11 @@ export default async function WholesaleProductPage({ params }: { params: Promise
               iQ Kids Mayoristas
             </Link>
             <h1 className="font-display text-3xl leading-none text-brand-ink md:text-5xl">{product.name}</h1>
-            {isSingle ? null : <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-brand-ink/55">{saleUnitLabel(product)}</p>}
+            {/* La etiqueta automática de un display suelto no se repite acá; una cargada en el admin, sí. */}
+            {isSingle && !product.label.trim() ? null : (
+              <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-brand-ink/55">{texts.label}</p>
+            )}
+            {texts.subtitle ? <p className="whitespace-pre-line text-base font-bold leading-7 text-brand-ink">{texts.subtitle}</p> : null}
           </div>
 
           <div className="rounded-[2rem] bg-white p-5 shadow-card">
@@ -83,7 +88,9 @@ export default async function WholesaleProductPage({ params }: { params: Promise
               <ProductPrice priceArs={product.priceArs} />
             </p>
             <p className="mt-2 text-sm font-bold text-brand-ink/60">
-              {isSingle
+              {product.priceNote.trim()
+                ? product.priceNote.trim()
+                : isSingle
                 ? `${product.unitsPerDisplay} barritas · ${unitPrice} por unidad · IVA incluido`
                 : `${product.displays} displays · ${product.displays * product.unitsPerDisplay} barritas · ${formatArs(Math.round(product.priceArs / product.displays))} por display · IVA incluido`}
             </p>
@@ -127,7 +134,13 @@ export default async function WholesaleProductPage({ params }: { params: Promise
           ) : product.kind === "CUSTOM" ? (
             <WholesaleBoxBuilder product={product} />
           ) : (
-            <WholesalePurchasePanel productId={product.id} productName={product.name} priceArs={product.priceArs} unitLabel={isSingle ? "displays" : "bultos"} />
+            <WholesalePurchasePanel
+              productId={product.id}
+              productName={product.name}
+              priceArs={product.priceArs}
+              unitLabel={isSingle ? "displays" : "bultos"}
+              buttonLabel={product.buttonLabel.trim() || undefined}
+            />
           )}
         </div>
       </div>

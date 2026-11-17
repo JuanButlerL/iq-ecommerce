@@ -5,7 +5,13 @@ import { WHOLESALE_MAX_BOX_DISPLAYS } from "@/features/wholesale/bundles";
 export const wholesaleProductSchema = z
   .object({
     name: z.string().trim().min(1, "Completá el nombre.").max(120, "Nombre: máximo 120 caracteres."),
-    description: z.string().trim().max(400, "Descripción: máximo 400 caracteres."),
+    description: z.string().trim().max(1000, "Descripción: máximo 1000 caracteres."),
+    // Textos de la tarjeta y la ficha. Vacío = el automático. Opcionales para no romper llamadas viejas.
+    label: z.string().trim().max(80, "Etiqueta: máximo 80 caracteres.").default(""),
+    subtitle: z.string().trim().max(300, "Subtítulo: máximo 300 caracteres.").default(""),
+    priceNote: z.string().trim().max(120, "Texto debajo del precio: máximo 120 caracteres.").default(""),
+    buttonLabel: z.string().trim().max(40, "Texto del botón: máximo 40 caracteres.").default(""),
+    linkLabel: z.string().trim().max(40, "Texto del botón secundario: máximo 40 caracteres.").default(""),
     imageUrl: z.string().trim().max(500),
     imageAlt: z.string().trim().max(200, "Texto alternativo: máximo 200 caracteres."),
     priceArs: z

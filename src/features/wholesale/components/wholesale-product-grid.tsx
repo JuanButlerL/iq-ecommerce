@@ -13,7 +13,7 @@ import { trackWholesaleAddToCart } from "@/lib/integrations/wholesale-commerce-t
 import { cn } from "@/lib/utils/cn";
 import { formatArs } from "@/lib/utils/currency";
 import { getWholesaleProductTheme, type WholesaleProductTheme } from "@/features/wholesale/product-theme";
-import { describeComposition, resolveCartLines, saleUnitLabel, shortProductName, type WholesaleSaleProduct } from "@/features/wholesale/bundles";
+import { resolveCartLines, resolveWholesaleTexts, type WholesaleProductTextOverrides, type WholesaleSaleProduct } from "@/features/wholesale/bundles";
 
 export type WholesaleGridProduct = WholesaleSaleProduct & {
   // Colores del producto de la tienda vinculado; sin vínculo se usan los del sabor.
@@ -24,7 +24,7 @@ export function wholesaleProductHref(id: string) {
   return `/mayoristas/productos/${id}`;
 }
 
-function WholesaleProductCardActions({ product, accent }: { product: WholesaleGridProduct; accent: string }) {
+function WholesaleProductCardActions({ product, accent, texts }: { product: WholesaleGridProduct; accent: string; texts: WholesaleProductTextOverrides }) {
   // La caja a elección se arma en su ficha: ahí se eligen los sabores.
   if (product.kind === "CUSTOM") {
     return (
@@ -32,15 +32,15 @@ function WholesaleProductCardActions({ product, accent }: { product: WholesaleGr
         href={wholesaleProductHref(product.id)}
         className="flex h-11 w-full items-center justify-center rounded-[0.9rem] bg-brand-pink text-sm font-extrabold text-white transition hover:bg-[#EA737D]"
       >
-        Armar mi caja →
+        {texts.buttonLabel}
       </Link>
     );
   }
 
-  return <WholesaleFixedCardActions product={product} accent={accent} />;
+  return <WholesaleFixedCardActions product={product} accent={accent} texts={texts} />;
 }
 
-function WholesaleFixedCardActions({ product, accent }: { product: WholesaleGridProduct; accent: string }) {
+function WholesaleFixedCardActions({ product, accent, texts }: { product: WholesaleGridProduct; accent: string; texts: WholesaleProductTextOverrides }) {
   const { items } = useHydratedWholesaleCart();
   const setQuantity = useWholesaleCartStore((state) => state.setQuantity);
   const quantity = items.find((item) => item.key === product.id)?.quantity ?? 0;
@@ -55,7 +55,9 @@ function WholesaleFixedCardActions({ product, accent }: { product: WholesaleGrid
       quantity={quantity}
       added={added}
       accent={accent}
-      buttonLabel="Ver producto →"
+      buttonLabel={texts.linkLabel}
+      // Solo si se cargó en el admin: el de siempre se achica solo en pantallas angostas.
+      addLabel={product.buttonLabel.trim() || undefined}
       productHref={wholesaleProductHref(product.id)}
       onAdd={() => {
         addOne();
@@ -72,13 +74,8 @@ function WholesaleFixedCardActions({ product, accent }: { product: WholesaleGrid
 function WholesaleProductCard({ product, inScroller }: { product: WholesaleGridProduct; inScroller: boolean }) {
   const theme = product.theme ?? getWholesaleProductTheme(product.name);
   const href = wholesaleProductHref(product.id);
-  const unitPrice = formatArs(Math.round(product.priceArs / Math.max(1, product.unitsPerDisplay * product.displays)));
-  const composition =
-    product.kind === "CUSTOM"
-      ? `Elegí entre ${product.components.map((component) => shortProductName(component.name)).join(", ")}`
-      : product.displays > 1
-        ? describeComposition(product.components)
-        : null;
+  // Cada texto sale del admin; si el campo está vacío, el automático de siempre.
+  const texts = resolveWholesaleTexts(product);
 
   return (
     <article
@@ -112,27 +109,24 @@ function WholesaleProductCard({ product, inScroller }: { product: WholesaleGridP
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="space-y-2">
           <p className="text-xs font-extrabold uppercase tracking-[0.22em]" style={{ color: theme.accent }}>
-            {product.displays === 1 && product.kind === "FIXED" ? `Display x ${product.unitsPerDisplay}` : saleUnitLabel(product)}
+            {texts.label}
           </p>
           <Link href={href} className="block">
             <h3 className="font-display text-2xl leading-tight">{product.name}</h3>
           </Link>
-          {composition ? <p className="text-sm font-bold leading-6 text-brand-ink">{composition}</p> : null}
+          {texts.subtitle ? <p className="whitespace-pre-line text-sm font-bold leading-6 text-brand-ink">{texts.subtitle}</p> : null}
           {product.description ? <p className="whitespace-pre-line text-sm leading-6 text-brand-ink/80">{product.description}</p> : null}
         </div>
         <div className="mt-auto space-y-4">
           <div className="space-y-3">
             <div>
               <ProductPrice className="text-lg font-extrabold" priceArs={product.priceArs} />
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">
-                {product.displays > 1 ? `${formatArs(Math.round(product.priceArs / product.displays))} por display · ` : ""}
-                {unitPrice} por unidad
-              </p>
+              {texts.priceNote ? <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-ink/45">{texts.priceNote}</p> : null}
             </div>
             {product.soldOut ? (
               <p className="flex h-11 items-center justify-center rounded-[0.9rem] bg-brand-ink/5 text-sm font-extrabold text-brand-ink/50">Volvé pronto</p>
             ) : (
-              <WholesaleProductCardActions product={product} accent={theme.accent} />
+              <WholesaleProductCardActions product={product} accent={theme.accent} texts={texts} />
             )}
           </div>
         </div>

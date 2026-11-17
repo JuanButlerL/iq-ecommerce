@@ -42,6 +42,56 @@ export function saleUnitLabel(product: { kind: WholesaleKind; boxDisplays: numbe
   return displays === 1 ? "Display" : `Bulto · ${displays} displays`;
 }
 
+// Textos que se pueden pisar desde el admin. Vacío = el automático.
+export type WholesaleProductTextOverrides = {
+  label: string;
+  subtitle: string;
+  priceNote: string;
+  buttonLabel: string;
+  linkLabel: string;
+};
+
+// Igual que formatArs (src/lib/utils/currency.ts), copiado para que este módulo siga sin dependencias.
+const arsFormatter = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+const formatArs = (value: number) => arsFormatter.format(value);
+
+
+// Los textos automáticos de la tarjeta y la ficha. El admin los muestra como ejemplo en cada campo vacío.
+export function defaultWholesaleTexts(product: {
+  kind: WholesaleKind;
+  boxDisplays: number;
+  priceArs: number;
+  unitsPerDisplay: number;
+  components: Pick<WholesaleComponent, "name" | "quantity">[];
+}): WholesaleProductTextOverrides {
+  const displays = displaysPerUnit(product);
+  const single = product.kind === "FIXED" && displays === 1;
+  const unitPrice = formatArs(Math.round(product.priceArs / Math.max(1, product.unitsPerDisplay * displays)));
+  return {
+    label: single ? `Display x ${product.unitsPerDisplay}` : saleUnitLabel(product),
+    subtitle:
+      product.kind === "CUSTOM"
+        ? product.components.length > 0
+          ? `Elegí entre ${product.components.map((component) => shortProductName(component.name)).join(", ")}`
+          : ""
+        : displays > 1
+          ? describeComposition(product.components)
+          : "",
+    priceNote: `${displays > 1 ? `${formatArs(Math.round(product.priceArs / displays))} por display · ` : ""}${unitPrice} por unidad`,
+    buttonLabel: product.kind === "CUSTOM" ? "Armar mi caja →" : "Agregar al carrito",
+    linkLabel: "Ver producto →",
+  };
+}
+
+// El texto final de cada campo: lo cargado en el admin o, si está vacío, el automático.
+export function resolveWholesaleTexts(
+  product: Parameters<typeof defaultWholesaleTexts>[0] & Partial<WholesaleProductTextOverrides>,
+): WholesaleProductTextOverrides {
+  const defaults = defaultWholesaleTexts(product);
+  const pick = (key: keyof WholesaleProductTextOverrides) => product[key]?.trim() || defaults[key];
+  return { label: pick("label"), subtitle: pick("subtitle"), priceNote: pick("priceNote"), buttonLabel: pick("buttonLabel"), linkLabel: pick("linkLabel") };
+}
+
 export function isSingleDisplay(product: { kind: WholesaleKind; components: Pick<WholesaleComponent, "quantity">[] }) {
   return product.kind === "FIXED" && product.components.length === 1 && product.components[0]!.quantity === 1;
 }
@@ -185,6 +235,12 @@ export type WholesaleSaleProduct = {
   priceArs: number;
   unitsPerDisplay: number;
   soldOut: boolean;
+  // Textos cargados en el admin (vacío = automático).
+  label: string;
+  subtitle: string;
+  priceNote: string;
+  buttonLabel: string;
+  linkLabel: string;
   // Lleva la etiqueta "Más elegido".
   highlighted: boolean;
   kind: WholesaleKind;

@@ -8,8 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ImageField } from "@/features/admin/components/wholesale-admin-panel";
-import { WHOLESALE_MAX_BOX_DISPLAYS, describeComposition, saleUnitLabel, shortProductName, type WholesaleKind } from "@/features/wholesale/bundles";
+import {
+  WHOLESALE_MAX_BOX_DISPLAYS,
+  defaultWholesaleTexts,
+  describeComposition,
+  saleUnitLabel,
+  shortProductName,
+  type WholesaleKind,
+} from "@/features/wholesale/bundles";
 import { cn } from "@/lib/utils/cn";
 import { formatArs } from "@/lib/utils/currency";
 
@@ -17,6 +25,11 @@ type WholesaleProductItem = {
   id: string;
   name: string;
   description: string;
+  label: string;
+  subtitle: string;
+  priceNote: string;
+  buttonLabel: string;
+  linkLabel: string;
   imageUrl: string;
   imageAlt: string;
   priceArs: number;
@@ -66,6 +79,31 @@ function KindOption({ active, icon: Icon, title, text, onClick }: { active: bool
   );
 }
 
+function TextOverride({
+  label,
+  value,
+  placeholder,
+  onChange,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+  multiline?: boolean;
+}) {
+  return (
+    <label className="grid gap-1.5 text-sm font-bold text-brand-ink">
+      {label}
+      {multiline ? (
+        <Textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className="min-h-16" />
+      ) : (
+        <Input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      )}
+    </label>
+  );
+}
+
 function ProductRow({
   product,
   retailProducts,
@@ -109,6 +147,9 @@ function ProductRow({
   const unitLabel = saleUnitLabel({ kind: values.kind, boxDisplays, components });
   const priceLabel = values.kind === "CUSTOM" ? "Precio por caja" : displays === 0 ? "Precio" : displays === 1 ? "Precio por display" : "Precio por bulto";
   const savedUnitLabel = saleUnitLabel(product);
+  // Lo que se ve en la web si el campo queda vacío: se muestra como ejemplo dentro de cada campo.
+  const autoTexts = defaultWholesaleTexts({ kind: values.kind, boxDisplays, priceArs: price, unitsPerDisplay: units || 1, components });
+  const isSingle = values.kind === "FIXED" && displays === 1;
 
   function set<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -134,6 +175,11 @@ function ProductRow({
         body: JSON.stringify({
           name: values.name,
           description: values.description,
+          label: values.label,
+          subtitle: values.subtitle,
+          priceNote: values.priceNote,
+          buttonLabel: values.buttonLabel,
+          linkLabel: values.linkLabel,
           imageUrl: values.imageUrl,
           imageAlt: values.imageAlt,
           priceArs: Math.round(price),
@@ -287,7 +333,14 @@ function ProductRow({
         <p className="mt-1 text-xs text-brand-ink/55">En la planilla y en la app el pedido llega abierto en estos displays. No hace falta configurar nada más.</p>
       </div>
 
-      <ImageField value={values.imageUrl} onChange={(imageUrl) => set("imageUrl", imageUrl)} />
+      <div className="space-y-1.5">
+        <ImageField value={values.imageUrl} onChange={(imageUrl) => set("imageUrl", imageUrl)} />
+        {isSingle ? (
+          <p className="text-xs text-brand-ink/55">
+            Ojo: un display suelto muestra la misma foto que el producto en la tienda. Esta foto solo se usa si ese producto no tiene fotos.
+          </p>
+        ) : null}
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="grid gap-1.5 text-sm font-bold text-brand-ink">
@@ -300,7 +353,8 @@ function ProductRow({
         </label>
         <label className="grid gap-1.5 text-sm font-bold text-brand-ink md:col-span-2">
           Descripción
-          <Input value={values.description} onChange={(event) => set("description", event.target.value)} />
+          <Textarea value={values.description} onChange={(event) => set("description", event.target.value)} className="min-h-20" />
+          <span className="text-xs font-normal text-brand-ink/50">Texto gris de la tarjeta y de la ficha. Podés usar varias líneas.</span>
         </label>
         <label className="grid gap-1.5 text-sm font-bold text-brand-ink">
           {priceLabel} (ARS)
@@ -323,6 +377,50 @@ function ProductRow({
             checked={values.highlighted}
             onChange={(event) => set("highlighted", event.target.checked)}
           />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-brand-ink/10 bg-brand-cream/30 p-4">
+        <p className="text-sm font-extrabold text-brand-ink">Textos de la tarjeta y la ficha</p>
+        <p className="mt-0.5 text-xs text-brand-ink/55">
+          Si dejás un campo vacío se usa el texto automático (el que aparece en gris adentro del campo), que se actualiza solo con el precio y la composición.
+        </p>
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <TextOverride
+            label="Etiqueta (texto chico de color, arriba del nombre)"
+            value={values.label}
+            placeholder={autoTexts.label}
+            onChange={(label) => set("label", label)}
+          />
+          <TextOverride
+            label={values.kind === "CUSTOM" ? "Texto del botón “Armar mi caja”" : "Texto del botón “Agregar al carrito”"}
+            value={values.buttonLabel}
+            placeholder={autoTexts.buttonLabel}
+            onChange={(buttonLabel) => set("buttonLabel", buttonLabel)}
+          />
+          <div className="md:col-span-2">
+            <TextOverride
+              label="Subtítulo (texto en negrita, debajo del nombre)"
+              value={values.subtitle}
+              placeholder={autoTexts.subtitle || "Sin subtítulo"}
+              onChange={(subtitle) => set("subtitle", subtitle)}
+              multiline
+            />
+          </div>
+          <TextOverride
+            label="Texto debajo del precio"
+            value={values.priceNote}
+            placeholder={autoTexts.priceNote}
+            onChange={(priceNote) => set("priceNote", priceNote)}
+          />
+          {values.kind === "FIXED" ? (
+            <TextOverride
+              label="Texto del botón “Ver producto”"
+              value={values.linkLabel}
+              placeholder={autoTexts.linkLabel}
+              onChange={(linkLabel) => set("linkLabel", linkLabel)}
+            />
+          ) : null}
         </div>
       </div>
 

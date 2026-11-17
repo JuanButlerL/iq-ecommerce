@@ -189,3 +189,20 @@ test('admin: valida la composición del producto mayorista', () => {
   assert.equal(wholesaleProductSchema.safeParse({ ...base, kind: 'FIXED', active: false, components: [] }).success, true);
   assert.equal(wholesaleProductSchema.safeParse({ ...base, kind: 'CUSTOM', boxDisplays: 0, components: [{ productId: BANANA, quantity: 0 }] }).success, false);
 });
+
+test('textos de la tarjeta: automáticos si el admin los deja vacíos, los del admin si están cargados', () => {
+  const box = { kind: 'CUSTOM', boxDisplays: 10, priceArs: 160000, unitsPerDisplay: 12, components: [{ productId: MANI, name: 'Barrita de Maní', quantity: 0 }, { productId: CACAO, name: 'Barrita de Cacao', quantity: 0 }] };
+  const auto = plain(bundles.resolveWholesaleTexts({ ...box, label: '', subtitle: '  ', priceNote: '', buttonLabel: '', linkLabel: '' }));
+  assert.equal(auto.label, 'Armá tu caja · 10 displays');
+  assert.equal(auto.subtitle, 'Elegí entre Barrita de Maní, Barrita de Cacao');
+  assert.match(auto.priceNote, /16\.000 por display · .*1\.333 por unidad/);
+  assert.equal(auto.buttonLabel, 'Armar mi caja →');
+
+  const custom = plain(bundles.resolveWholesaleTexts({ ...box, label: 'Caja surtida', subtitle: 'Elegí tus sabores', priceNote: 'Precio final', buttonLabel: 'Armala', linkLabel: '' }));
+  assert.deepEqual(custom, { label: 'Caja surtida', subtitle: 'Elegí tus sabores', priceNote: 'Precio final', buttonLabel: 'Armala', linkLabel: 'Ver producto →' });
+
+  const single = plain(bundles.defaultWholesaleTexts({ kind: 'FIXED', boxDisplays: 10, priceArs: 12000, unitsPerDisplay: 12, components: [{ productId: MANI, name: 'Maní', quantity: 1 }] }));
+  assert.equal(single.label, 'Display x 12');
+  assert.equal(single.subtitle, '');
+  assert.match(single.priceNote, /^\$\s?1\.000 por unidad$/);
+});
