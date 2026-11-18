@@ -258,7 +258,7 @@ export async function retryOrderSync(orderId: string) {
 // Solo los últimos días, para no reenviar historia vieja.
 const PENDING_SYNC_GRACE_MS = 1000 * 60 * 5;
 const RETRY_LOOKBACK_MS = 1000 * 60 * 60 * 24 * 14;
-const RETRY_BATCH_SIZE = 20;
+const RETRY_BATCH_SIZE = 10;
 
 export async function retryFailedOrderSyncs() {
   const now = Date.now();
