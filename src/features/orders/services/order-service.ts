@@ -596,6 +596,24 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, no
   if (status === OrderStatus.PAID || status === OrderStatus.PROOF_UPLOADED) {
     await logOrderConfirmedFromStoredAttribution(orderId);
   }
+
+  // El cambio de estado hecho desde el admin también tiene que llegar a la planilla.
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { syncStatus: SyncStatus.PENDING, syncLastError: null },
+  });
+
+  await syncOrder(orderId).catch(async (syncError) => {
+    const message = syncError instanceof Error ? syncError.message : "Sync error";
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        syncStatus: SyncStatus.ERROR,
+        syncLastError: message,
+      },
+    });
+  });
 }
 
 
