@@ -1,4 +1,4 @@
-import { Prisma, SyncJobStatus, SyncLogStatus, SyncStatus } from "@prisma/client";
+import { OrderStatus, Prisma, SyncJobStatus, SyncLogStatus, SyncProvider, SyncStatus } from "@prisma/client";
 
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/db/prisma";
@@ -275,6 +275,17 @@ export async function retryFailedOrderSyncs() {
     select: { id: true, publicOrderNumber: true },
   });
 
+  // Red de seguridad: pedidos pagos marcados como enviados cuyo último envío a la planilla
+  // no fue confirmado por el Apps Script o mandó otro estado (ej. se envió PENDING_PAYMENT y hoy es PAID).
+  if (orders.length < RETRY_BATCH_SIZE) {
+    const pending = new Set(orders.map((order) => order.id));
+    const outOfSync = await findPaidOrdersOutOfSync(now - RETRY_LOOKBACK_MS);
+    for (const order of outOfSync) {
+      if (orders.length >= RETRY_BATCH_SIZE) break;
+      if (!pending.has(order.id)) orders.push(order);
+    }
+  }
+
   const results: { orderNumber: string; success: boolean; error?: string }[] = [];
 
   for (const order of orders) {
@@ -297,6 +308,57 @@ export async function retryFailedOrderSyncs() {
     failed: results.filter((r) => !r.success).length,
     results,
   };
+}
+
+async function findPaidOrdersOutOfSync(since: number) {
+  const orders = await prisma.order.findMany({
+    where: {
+      createdAt: { gte: new Date(since) },
+      syncStatus: SyncStatus.SUCCESS,
+      orderStatus: { in: [OrderStatus.PAID, OrderStatus.PROOF_UPLOADED] },
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      publicOrderNumber: true,
+      orderStatus: true,
+      syncJobs: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          provider: true,
+          logs: {
+            where: { status: SyncLogStatus.SUCCESS },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { requestPayload: true, responsePayload: true },
+          },
+        },
+      },
+    },
+  });
+
+  return orders
+    .filter((order) => isOutOfSync(order.orderStatus, order.syncJobs[0]))
+    .map((order) => ({ id: order.id, publicOrderNumber: order.publicOrderNumber }));
+}
+
+export function isOutOfSync(
+  orderStatus: string,
+  job: { provider: string; logs: { requestPayload: unknown; responsePayload: unknown }[] } | undefined,
+) {
+  const log = job?.logs[0];
+  if (!job || !log) return true;
+
+  const sentStatus = (log.requestPayload as { order?: { estado?: unknown } } | null)?.order?.estado;
+  if (sentStatus !== orderStatus) return true;
+
+  if (job.provider === SyncProvider.APPS_SCRIPT) {
+    const response = log.responsePayload as { ok?: unknown } | null;
+    if (!response || typeof response !== "object" || response.ok !== true) return true;
+  }
+
+  return false;
 }
 
 async function findExistingSyncJobId(orderId: string) {

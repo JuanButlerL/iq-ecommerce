@@ -46,3 +46,37 @@ test('non-2xx is a failure', () => {
   assert.equal(r.success, false);
   assert.match(r.errorMessage, /500/);
 });
+
+const { isOutOfSync } = load('src/features/orders/services/sync-service.ts', {
+  '@prisma/client': {
+    OrderStatus: { PAID: 'PAID', PROOF_UPLOADED: 'PROOF_UPLOADED' },
+    SyncProvider: { APPS_SCRIPT: 'APPS_SCRIPT' },
+    SyncJobStatus: {}, SyncLogStatus: { SUCCESS: 'SUCCESS' }, SyncStatus: {}, Prisma: {},
+  },
+  '@/lib/env': { env: {} },
+  '@/lib/db/prisma': { prisma: {} },
+  '@/lib/integrations/sheets/factory': {},
+  '@/features/wholesale/bundles': {},
+  '@/features/wholesale/tax-condition': {},
+  '@/lib/storage/payment-proofs': {},
+  '@/lib/utils/datetime': {},
+});
+
+const job = (estado, response) => ({ provider: 'APPS_SCRIPT', logs: [{ requestPayload: { order: { estado } }, responsePayload: response }] });
+
+test('paid order whose last confirmed send matches is in sync', () => {
+  assert.equal(isOutOfSync('PROOF_UPLOADED', job('PROOF_UPLOADED', { ok: true })), false);
+});
+
+test('marked as sent but Apps Script answered ok:false is out of sync', () => {
+  assert.equal(isOutOfSync('PAID', job('PAID', { ok: false, error: 'Lock timeout' })), true);
+});
+
+test('sheet got an older status (PENDING_PAYMENT) is out of sync', () => {
+  assert.equal(isOutOfSync('PAID', job('PENDING_PAYMENT', { ok: true })), true);
+});
+
+test('never sent is out of sync', () => {
+  assert.equal(isOutOfSync('PAID', undefined), true);
+  assert.equal(isOutOfSync('PAID', { provider: 'APPS_SCRIPT', logs: [] }), true);
+});
