@@ -1,13 +1,20 @@
-import { Prisma, SyncJobStatus, SyncLogStatus, SyncStatus } from "@prisma/client";
+import { OrderStatus, Prisma, SyncJobStatus, SyncLogStatus, SyncProvider, SyncStatus } from "@prisma/client";
 
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/db/prisma";
 import { getOrderSyncProvider } from "@/lib/integrations/sheets/factory";
-import type { OrderItemSheetRow, OrderSheetRow, OrderSyncPayload } from "@/lib/integrations/sheets/types";
+import type { OrderItemSheetRow, OrderSheetRow, OrderSyncPayload, OrderSyncResult } from "@/lib/integrations/sheets/types";
 import { explodeOrderItem, parseComponentsSnapshot } from "@/features/wholesale/bundles";
 import { getInvoiceType, TAX_CONDITION_LABELS } from "@/features/wholesale/tax-condition";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
+
+// Primer intento y un reintento rápido (el cliente está esperando); el resto lo levanta el cron.
+const SYNC_RETRY_DELAYS_MS = [0, 3_000];
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload> {
   const provider = getOrderSyncProvider();
@@ -153,18 +160,53 @@ export async function syncOrder(orderId: string) {
     },
   });
 
-  const result = await provider.syncOrder(payload);
+  // La planilla a veces está ocupada (Apps Script devuelve "Lock timeout") o tarda en responder.
+  // Reintentamos acá mismo unas veces antes de dejar el pedido en ERROR; el cron de reintentos
+  // (/api/cron/order-sync) levanta lo que siga fallando.
+  let result: OrderSyncResult | undefined;
+  let attemptNumber = syncJob.attempts;
 
-  await prisma.syncLog.create({
-    data: {
-      syncJobId: syncJob.id,
-      attemptNumber: syncJob.attempts,
-      requestPayload: result.requestPayload,
-      responsePayload: toJsonValue(result.responsePayload),
-      status: result.success ? SyncLogStatus.SUCCESS : SyncLogStatus.ERROR,
-      errorMessage: result.errorMessage,
-    },
-  });
+  for (let i = 0; i < SYNC_RETRY_DELAYS_MS.length; i += 1) {
+    if (SYNC_RETRY_DELAYS_MS[i] > 0) {
+      await sleep(SYNC_RETRY_DELAYS_MS[i]);
+      attemptNumber += 1;
+    }
+
+    result = await provider.syncOrder(payload).catch(
+      (error): OrderSyncResult => ({
+        success: false,
+        provider: provider.provider,
+        requestPayload: payload,
+        errorMessage: error instanceof Error ? error.message : "Sync error",
+      }),
+    );
+
+    await prisma.syncLog.create({
+      data: {
+        syncJobId: syncJob.id,
+        attemptNumber,
+        requestPayload: result.requestPayload,
+        responsePayload: toJsonValue(result.responsePayload),
+        status: result.success ? SyncLogStatus.SUCCESS : SyncLogStatus.ERROR,
+        errorMessage: result.errorMessage,
+      },
+    });
+
+    if (result.success) {
+      break;
+    }
+  }
+
+  if (!result) {
+    throw new Error("Sync did not run.");
+  }
+
+  if (attemptNumber !== syncJob.attempts) {
+    await prisma.syncJob.update({
+      where: { id: syncJob.id },
+      data: { attempts: attemptNumber },
+    });
+  }
 
   if (!result.success) {
     await prisma.syncJob.update({
@@ -172,7 +214,7 @@ export async function syncOrder(orderId: string) {
       data: {
         status: SyncJobStatus.ERROR,
         lastError: result.errorMessage,
-        nextRetryAt: new Date(Date.now() + 1000 * 60 * 30),
+        nextRetryAt: new Date(Date.now() + 1000 * 60 * 10),
       },
     });
 
@@ -210,6 +252,113 @@ export async function syncOrder(orderId: string) {
 
 export async function retryOrderSync(orderId: string) {
   return syncOrder(orderId);
+}
+
+// Pedidos que quedaron sin llegar a la planilla (ERROR, o PENDING colgado por un corte a mitad de camino).
+// Solo los últimos días, para no reenviar historia vieja.
+const PENDING_SYNC_GRACE_MS = 1000 * 60 * 5;
+const RETRY_LOOKBACK_MS = 1000 * 60 * 60 * 24 * 14;
+const RETRY_BATCH_SIZE = 10;
+
+export async function retryFailedOrderSyncs() {
+  const now = Date.now();
+  const orders = await prisma.order.findMany({
+    where: {
+      createdAt: { gte: new Date(now - RETRY_LOOKBACK_MS) },
+      OR: [
+        { syncStatus: SyncStatus.ERROR },
+        { syncStatus: SyncStatus.PENDING, updatedAt: { lte: new Date(now - PENDING_SYNC_GRACE_MS) } },
+      ],
+    },
+    orderBy: { updatedAt: "asc" },
+    take: RETRY_BATCH_SIZE,
+    select: { id: true, publicOrderNumber: true },
+  });
+
+  // Red de seguridad: pedidos pagos marcados como enviados cuyo último envío a la planilla
+  // no fue confirmado por el Apps Script o mandó otro estado (ej. se envió PENDING_PAYMENT y hoy es PAID).
+  if (orders.length < RETRY_BATCH_SIZE) {
+    const pending = new Set(orders.map((order) => order.id));
+    const outOfSync = await findPaidOrdersOutOfSync(now - RETRY_LOOKBACK_MS);
+    for (const order of outOfSync) {
+      if (orders.length >= RETRY_BATCH_SIZE) break;
+      if (!pending.has(order.id)) orders.push(order);
+    }
+  }
+
+  const results: { orderNumber: string; success: boolean; error?: string }[] = [];
+
+  for (const order of orders) {
+    try {
+      const result = await syncOrder(order.id);
+      results.push({ orderNumber: order.publicOrderNumber, success: result.success, error: result.errorMessage });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Sync error";
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { syncStatus: SyncStatus.ERROR, syncLastError: message },
+      });
+      results.push({ orderNumber: order.publicOrderNumber, success: false, error: message });
+    }
+  }
+
+  return {
+    checked: orders.length,
+    synced: results.filter((r) => r.success).length,
+    failed: results.filter((r) => !r.success).length,
+    results,
+  };
+}
+
+async function findPaidOrdersOutOfSync(since: number) {
+  const orders = await prisma.order.findMany({
+    where: {
+      createdAt: { gte: new Date(since) },
+      syncStatus: SyncStatus.SUCCESS,
+      orderStatus: { in: [OrderStatus.PAID, OrderStatus.PROOF_UPLOADED] },
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      publicOrderNumber: true,
+      orderStatus: true,
+      syncJobs: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          provider: true,
+          logs: {
+            where: { status: SyncLogStatus.SUCCESS },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { requestPayload: true, responsePayload: true },
+          },
+        },
+      },
+    },
+  });
+
+  return orders
+    .filter((order) => isOutOfSync(order.orderStatus, order.syncJobs[0]))
+    .map((order) => ({ id: order.id, publicOrderNumber: order.publicOrderNumber }));
+}
+
+export function isOutOfSync(
+  orderStatus: string,
+  job: { provider: string; logs: { requestPayload: unknown; responsePayload: unknown }[] } | undefined,
+) {
+  const log = job?.logs[0];
+  if (!job || !log) return true;
+
+  const sentStatus = (log.requestPayload as { order?: { estado?: unknown } } | null)?.order?.estado;
+  if (sentStatus !== orderStatus) return true;
+
+  if (job.provider === SyncProvider.APPS_SCRIPT) {
+    const response = log.responsePayload as { ok?: unknown } | null;
+    if (!response || typeof response !== "object" || response.ok !== true) return true;
+  }
+
+  return false;
 }
 
 async function findExistingSyncJobId(orderId: string) {
