@@ -239,7 +239,7 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
-### 2026-11-23 - Plan de referidos "Club de Familias iQ" (rama `feature/referidos`, pendiente de deploy)
+### 2026-11-23 - Plan de referidos "Club de Familias iQ" (rama `feature/referidos`, mergeada a `main` y deployada el 2026-11-23, commit `c3600d2`)
 
 - Portal `/referidos`: la embajadora entra con su DNI y recibe un link de un solo uso al email de su última compra confirmada. Ahí arma su código para amigas (15%) y obtiene un código personal de crédito ($5.000 por amiga nueva, vence a los 90 días y el resto queda de saldo).
 - Los dos códigos son filas de `coupons` con `referral_kind`, así que checkout, pedido y sync al Sheets no cambian de forma (`cupon` y `descuento`). Controles: amiga nueva por DNI, email, teléfono y dirección; sin autorreferidos; el crédito solo se usa con el DNI de la titular; descuento con lock contra doble gasto; límite de intentos en Postgres.
