@@ -384,8 +384,13 @@ model Coupon {
   updatedAt          DateTime @updatedAt @map("updated_at")
   orders             Order[]
   emailAutomations   EmailAutomation[]
+  // Referral program coupons are created from the referral portal and managed in /admin/referidos.
+  referralKind       ReferralCouponKind? @map("referral_kind")
+  referralAccountId  String?  @map("referral_account_id") @db.Uuid
+  referralAccount    ReferralAccount? @relation(fields: [referralAccountId], references: [id], onDelete: SetNull)
 
   @@index([active, code], map: "coupons_active_code_idx")
+  @@unique([referralAccountId, referralKind], map: "coupons_referral_account_kind_key")
   @@map("coupons")
 }
 
@@ -984,6 +989,8 @@ model Order {
   extraDiscountArs                Int                    @default(0) @map("extra_discount_ars")
   deliveryAddressChanged          Boolean                @default(false) @map("delivery_address_changed")
   wholesaleCustomer               WholesaleCustomer?     @relation(fields: [wholesaleCustomerId], references: [id], onDelete: SetNull)
+  referralCredit                  ReferralCredit?
+  referralCreditUses              ReferralCreditUse[]
 
   @@index([couponId], map: "orders_coupon_idx")
   @@index([createdAt], map: "orders_created_at_idx")
@@ -1234,4 +1241,141 @@ model FreeShippingLink {
   @@index([email], map: "free_shipping_links_email_idx")
   @@index([createdAt], map: "free_shipping_links_created_at_idx")
   @@map("free_shipping_links")
+}
+
+// ---------------------------------------------------------------------------
+// Referral program ("Club de Familias iQ")
+// ---------------------------------------------------------------------------
+
+enum ReferralCouponKind {
+  // The code the referrer shares: a percentage off for a new customer.
+  FRIEND_DISCOUNT
+  // The referrer's personal code to spend the credit; only works with the owner's DNI.
+  REFERRER_CREDIT
+}
+
+enum ReferralAccountStatus {
+  // Signed in but has not created the codes yet.
+  INVITED
+  ACTIVE
+  BLOCKED
+}
+
+enum ReferralCreditStatus {
+  PENDING
+  AVAILABLE
+  REJECTED
+  VOIDED
+}
+
+model ReferralSettings {
+  id                       Int      @id @default(1)
+  enabled                  Boolean  @default(false)
+  friendDiscountPercentage Decimal  @default(15) @map("friend_discount_percentage") @db.Decimal(5, 2)
+  creditAmountArs          Int      @default(5000) @map("credit_amount_ars")
+  creditValidityDays       Int      @default(90) @map("credit_validity_days")
+  // Days after the friend's payment is confirmed (Mercado Pago paid or transfer proof uploaded)
+  // before the credit becomes available. 0 = right away.
+  creditHoldDays           Int      @default(0) @map("credit_hold_days")
+  // true: credits wait for an admin approval instead of turning available after the hold days.
+  requireManualApproval    Boolean  @default(false) @map("require_manual_approval")
+  shareMessage             String   @default("") @map("share_message")
+  shareImageUrl            String?  @map("share_image_url")
+  termsText                String   @default("") @map("terms_text")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  @@map("referral_settings")
+}
+
+model ReferralAccount {
+  id              String                @id @default(uuid()) @db.Uuid
+  // Digits only.
+  taxId           String                @unique @map("tax_id")
+  firstName       String?               @map("first_name")
+  email           String?
+  phone           String?
+  status          ReferralAccountStatus @default(INVITED)
+  invitedBy       String?               @map("invited_by")
+  activatedAt     DateTime?             @map("activated_at")
+  termsAcceptedAt DateTime?             @map("terms_accepted_at")
+  lastLoginAt     DateTime?             @map("last_login_at")
+  // Bumped to sign the account out of every browser.
+  sessionVersion  Int                   @default(1) @map("session_version")
+  notes           String?
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  coupons         Coupon[]
+  credits         ReferralCredit[]
+  loginTokens     ReferralLoginToken[]
+
+  @@index([status], map: "referral_accounts_status_idx")
+  @@map("referral_accounts")
+}
+
+model ReferralLoginToken {
+  id        String          @id @default(uuid()) @db.Uuid
+  accountId String          @map("account_id") @db.Uuid
+  tokenHash String          @unique @map("token_hash")
+  email     String
+  expiresAt DateTime        @map("expires_at")
+  usedAt    DateTime?       @map("used_at")
+  createdAt DateTime        @default(now()) @map("created_at")
+  account   ReferralAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt], map: "referral_login_tokens_account_idx")
+  @@map("referral_login_tokens")
+}
+
+// One per order placed with a friend code. It turns into credit for the referrer once the order is
+// confirmed and the hold period passes.
+model ReferralCredit {
+  id              String               @id @default(uuid()) @db.Uuid
+  accountId       String               @map("account_id") @db.Uuid
+  referredOrderId String               @unique @map("referred_order_id") @db.Uuid
+  referredTaxId   String               @map("referred_tax_id")
+  amountArs       Int                  @map("amount_ars")
+  status          ReferralCreditStatus @default(PENDING)
+  confirmedAt     DateTime?            @map("confirmed_at")
+  holdUntil       DateTime?            @map("hold_until")
+  availableAt     DateTime?            @map("available_at")
+  expiresAt       DateTime?            @map("expires_at")
+  reviewedBy      String?              @map("reviewed_by")
+  reviewNote      String?              @map("review_note")
+  notifiedAt      DateTime?            @map("notified_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  account         ReferralAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  referredOrder   Order                @relation(fields: [referredOrderId], references: [id], onDelete: Cascade)
+  uses            ReferralCreditUse[]
+
+  @@index([accountId, status], map: "referral_credits_account_status_idx")
+  @@index([referredTaxId], map: "referral_credits_referred_tax_idx")
+  @@index([status, holdUntil], map: "referral_credits_status_hold_idx")
+  @@map("referral_credits")
+}
+
+// Part of a credit spent on an order. It stops counting when that order is cancelled, expires or
+// stays unpaid past the reservation window.
+model ReferralCreditUse {
+  id        String         @id @default(uuid()) @db.Uuid
+  creditId  String         @map("credit_id") @db.Uuid
+  orderId   String         @map("order_id") @db.Uuid
+  amountArs Int            @map("amount_ars")
+  createdAt DateTime       @default(now()) @map("created_at")
+  credit    ReferralCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([creditId, orderId], map: "referral_credit_uses_credit_order_key")
+  @@index([orderId], map: "referral_credit_uses_order_idx")
+  @@map("referral_credit_uses")
+}
+
+// Fixed-window counters for public endpoints (survive restarts, unlike in-memory maps).
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt], map: "rate_limit_buckets_expires_idx")
+  @@map("rate_limit_buckets")
 }

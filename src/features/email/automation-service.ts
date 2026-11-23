@@ -361,7 +361,7 @@ export async function getEmailAutomationPreview(options: { logFrom?: Date; logTo
       orderBy: [{ checkoutStartedAt: "desc" }, { createdAt: "desc" }],
     }),
     prisma.coupon.findMany({
-      where: { active: true },
+      where: { active: true, referralKind: null },
       orderBy: { code: "asc" },
       select: {
         id: true,

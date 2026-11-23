@@ -229,8 +229,12 @@ export async function saveCoupon(payload: unknown, couponId?: string) {
 export async function deleteCoupon(couponId: string) {
   const coupon = await prisma.coupon.findUnique({
     where: { id: couponId },
-    select: { description: true },
+    select: { description: true, referralKind: true },
   });
+
+  if (coupon?.referralKind) {
+    throw new AppError("Los códigos de referidos se administran desde Referidos.", 400);
+  }
 
   if (coupon && isWelcomePopupCoupon(coupon.description)) {
     throw new AppError("Ese cupon esta siendo usado por el popup de bienvenida. Quitale primero la marca desde editar cupon.", 400);

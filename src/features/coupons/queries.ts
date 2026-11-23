@@ -12,6 +12,8 @@ import {
   normalizeCouponCode,
   type CouponLine,
 } from "@/features/coupons/lib/coupon-pricing";
+import { getReferralCouponSummary } from "@/features/referrals/coupon";
+import type { CustomerIdentity } from "@/features/referrals/eligibility";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { couponPreviewSchema } from "@/lib/validations/coupon";
@@ -21,6 +23,8 @@ const cancelledCouponOrderStatuses = [OrderStatus.CANCELLED, OrderStatus.EXPIRED
 
 export const getCoupons = cache(async () => {
   return prisma.coupon.findMany({
+    // Referral program coupons live in /admin/referidos.
+    where: { referralKind: null },
     orderBy: [{ active: "desc" }, { createdAt: "desc" }],
     include: {
       _count: {
@@ -116,6 +120,12 @@ export async function assertCouponUsageIsAvailable(
  * subtotal keep working for percentage and fixed amount coupons.
  */
 export async function getCouponPreview(payload: unknown) {
+  // The referral account id stays on the server.
+  const { referral: _referral, ...summary } = await getCouponPreviewFromPayload(payload);
+  return { ...summary, referralKind: _referral?.kind ?? null };
+}
+
+async function getCouponPreviewFromPayload(payload: unknown) {
   const parsed = couponPreviewSchema.safeParse(payload);
 
   if (!parsed.success) {
@@ -167,6 +177,8 @@ export async function getCouponPreviewForLines(input: {
   taxId?: string | null;
   subtotalArs: number;
   eligibleLines: CouponLine[] | null;
+  // Full checkout data, only when the order is being created (referral friend checks).
+  customer?: CustomerIdentity;
 }) {
   const couponCode = normalizeCouponCode(input.code);
   const coupon = await prisma.coupon.findUnique({
@@ -179,11 +191,15 @@ export async function getCouponPreviewForLines(input: {
     throw new AppError(`El cupón ${couponCode} no existe o no está activo.`, 400);
   }
 
+  if (coupon.referralKind) {
+    return getReferralCouponSummary(coupon, input);
+  }
+
   if (coupon.discountType === "BUY_X_PAY_Y" && !input.eligibleLines) {
     throw new AppError("Actualizá la página para aplicar este cupón.", 400);
   }
 
   await assertCouponUsageIsAvailable(coupon, input.taxId);
 
-  return buildCouponSummary(coupon, input.subtotalArs, input.eligibleLines ?? []);
+  return { ...buildCouponSummary(coupon, input.subtotalArs, input.eligibleLines ?? []), referral: null };
 }
