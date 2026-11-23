@@ -97,6 +97,8 @@ export class CarrierError extends Error {
 
 export interface CarrierAdapter {
   readonly code: CarrierCode;
+  // true = el transportista rechaza un alta repetida con la misma referencia: un alta ambigua se puede reintentar sola.
+  readonly idempotentCreate?: boolean;
   isConfigured(): boolean;
   quote(request: QuoteRequest): Promise<CarrierQuote>;
   branches(postalCode: string, province: string): Promise<CarrierBranch[]>;

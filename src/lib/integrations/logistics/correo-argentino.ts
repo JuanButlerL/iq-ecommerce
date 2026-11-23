@@ -34,9 +34,11 @@ async function token() {
       timeoutMs: 8_000,
       retryOnce: true,
     });
-    const body = (response.json ?? {}) as { token?: unknown; expires?: unknown };
+    // La API devuelve "expire" (el manual dice "expires"): se aceptan los dos. Hora de Argentina.
+    const body = (response.json ?? {}) as { token?: unknown; expires?: unknown; expire?: unknown };
     if (typeof body.token !== "string" || !body.token) throw new CarrierError("Correo Argentino no devolvió el token.", "RETRYABLE");
-    const expires = typeof body.expires === "string" ? Date.parse(body.expires.replace(" ", "T")) : NaN;
+    const rawExpiry = typeof body.expire === "string" ? body.expire : typeof body.expires === "string" ? body.expires : "";
+    const expires = rawExpiry ? Date.parse(rawExpiry.replace(" ", "T") + "-03:00") : NaN;
     return { token: body.token, ttlMs: Number.isFinite(expires) ? Math.max(60_000, expires - Date.now()) : 60 * 60 * 1000 };
   });
 }
@@ -114,11 +116,23 @@ export function parseCorreoAgencies(json: unknown, postalCode: string): CarrierB
         locality: String(address.locality ?? address.city ?? ""),
         province: String(address.province ?? ""),
         postalCode: String(address.postalCode ?? ""),
+        hours: formatAgencyHours(item.hours),
       },
     ];
   });
   // /agencies filtra por provincia: primero las del mismo CP.
   return branches.sort((a, b) => Number(b.postalCode === postalCode) - Number(a.postalCode === postalCode));
+}
+
+// { monday: { start: "0930", end: "1800" }, ... } -> "Lun a vie 9:30 a 18:00"
+export function formatAgencyHours(hours: unknown) {
+  if (!hours || typeof hours !== "object") return undefined;
+  const h = hours as Record<string, { start?: string; end?: string } | null>;
+  const fmt = (v?: string) => (v && v.length === 4 ? Number(v.slice(0, 2)) + ":" + v.slice(2) : "");
+  const weekday = h.monday ?? h.tuesday ?? h.friday;
+  if (!weekday?.start || !weekday.end) return undefined;
+  const sat = h.saturday?.start && h.saturday.end ? " · sáb " + fmt(h.saturday.start) + " a " + fmt(h.saturday.end) : "";
+  return "Lun a vie " + fmt(weekday.start) + " a " + fmt(weekday.end) + sat;
 }
 
 function onlyDigits(value: string | null | undefined) {
@@ -168,6 +182,8 @@ export function buildCorreoImport(request: CreateShipmentRequest, customer: stri
 
 export const correoArgentinoAdapter: CarrierAdapter = {
   code: "CORREO_AR",
+  // MiCorreo rechaza importar dos veces el mismo extOrderId: reintentar un alta ambigua no duplica.
+  idempotentCreate: true,
 
   isConfigured() {
     const cfg = config();
@@ -218,40 +234,33 @@ export const correoArgentinoAdapter: CarrierAdapter = {
   async createShipment(request) {
     const cfg = config();
     const body = buildCorreoImport(request, await customerId());
-    const response = await authed((authToken) =>
-      carrierFetch(NAME, `${cfg.baseUrl}/shipping/import`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${authToken}` },
-        body,
-        timeoutMs: CREATE_TIMEOUT_MS,
-        creates: true,
-      }),
-    );
+    let response;
+    try {
+      response = await authed((authToken) =>
+        carrierFetch(NAME, `${cfg.baseUrl}/shipping/import`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+          body,
+          timeoutMs: CREATE_TIMEOUT_MS,
+          creates: true,
+        }),
+      );
+    } catch (error) {
+      // Un intento anterior ya lo importó (la respuesta se había perdido): cuenta como creado.
+      if (error instanceof CarrierError && /ya fue importada/i.test(error.message)) {
+        return { trackingNumber: request.reference, carrierShipmentId: request.reference, label: null, raw: { alreadyImported: true } };
+      }
+      throw error;
+    }
     const json = (response.json ?? {}) as Record<string, unknown>;
     // MiCorreo no devuelve el número al importar: se usa la referencia hasta tenerlo.
     const tracking = String(json.trackingNumber ?? json.shippingId ?? "").trim();
     return { trackingNumber: tracking || request.reference, carrierShipmentId: request.reference, label: null, raw: json };
   },
 
-  async findByReference(reference): Promise<CreatedShipment | null> {
-    const cfg = config();
-    try {
-      const response = await authed(async (authToken) =>
-        carrierFetch(NAME, `${cfg.baseUrl}/shipping/tracking?extOrderId=${encodeURIComponent(reference)}&customerId=${encodeURIComponent(await customerId())}`, {
-          headers: { Authorization: `Bearer ${authToken}` },
-          timeoutMs: 6_000,
-          retryOnce: true,
-        }),
-      );
-      const list = Array.isArray(response.json) ? (response.json as Record<string, unknown>[]) : [response.json as Record<string, unknown>];
-      const found = list.find((item) => item && (item.extOrderId === reference || item.orderNumber === reference));
-      if (!found) return null;
-      const tracking = String(found.trackingNumber ?? found.shippingId ?? reference);
-      return { trackingNumber: tracking, carrierShipmentId: reference, label: null, raw: found };
-    } catch (error) {
-      if (error instanceof CarrierError && error.kind === "INVALID_DATA") return null;
-      throw error;
-    }
+  // No hace falta buscar: reimportar el mismo pedido devuelve "ya fue importada" y se toma como creado.
+  async findByReference(): Promise<CreatedShipment | null> {
+    return null;
   },
 
   // MiCorreo no entrega la etiqueta por API: se imprime desde el panel de MiCorreo.

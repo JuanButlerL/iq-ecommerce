@@ -6,13 +6,18 @@ function read(name: string) {
   return value && value.trim() ? value.trim() : "";
 }
 
+// Ambiente: ANDREANI_ENV=qa|prod. Sin definir: prod en el servidor (NODE_ENV=production), qa en desarrollo.
+// En qa se usan ANDREANI_USER_DEV / ANDREANI_PASSWORD_DEV si están cargadas.
 export function getAndreaniConfig() {
-  const environment = read("ANDREANI_ENV") === "qa" ? "qa" : "prod";
+  const explicit = read("ANDREANI_ENV");
+  const environment = explicit ? (explicit === "qa" ? "qa" : "prod") : process.env.NODE_ENV === "production" ? "prod" : "qa";
+  const devUser = read("ANDREANI_USER_DEV");
+  const useDev = environment === "qa" && Boolean(devUser);
   return {
     environment,
     baseUrl: read("ANDREANI_BASE_URL") || (environment === "qa" ? "https://apisqa.andreani.com" : "https://apis.andreani.com"),
-    user: read("ANDREANI_USER"),
-    password: read("ANDREANI_PASSWORD"),
+    user: useDev ? devUser : read("ANDREANI_USER"),
+    password: useDev ? read("ANDREANI_PASSWORD_DEV") : read("ANDREANI_PASSWORD"),
     clientNumber: read("ANDREANI_CLIENT_NUMBER"),
     contractHome: read("ANDREANI_CONTRACT_DOMICILIO"),
     contractBranch: read("ANDREANI_CONTRACT_SUCURSAL"),

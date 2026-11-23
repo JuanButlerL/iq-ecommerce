@@ -239,8 +239,10 @@ async function finishOwn(shipment: ShipmentWithOrder, actor: string) {
 async function finishFailed(shipment: ShipmentWithOrder, error: unknown, attempts: number) {
   const carrierError = error instanceof CarrierError ? error : null;
   const message = error instanceof Error ? error.message : String(error);
-  // Una respuesta ambigua puede haber creado el envío: no se reintenta sola para no duplicar la etiqueta.
-  const status: ShipmentStatus = carrierError?.kind === "AMBIGUOUS" ? "NEEDS_REVIEW" : "ERROR";
+  // Una respuesta ambigua puede haber creado el envío: no se reintenta sola para no duplicar la etiqueta,
+  // salvo que el transportista rechace las altas repetidas (Correo).
+  const idempotent = shipment.carrier !== "OWN" && Boolean(getCarrierAdapter(shipment.carrier as CarrierCode).idempotentCreate);
+  const status: ShipmentStatus = carrierError?.kind === "AMBIGUOUS" && !idempotent ? "NEEDS_REVIEW" : "ERROR";
   const delay = carrierError?.kind === "INVALID_DATA" ? Math.max(60, nextAttemptDelayMinutes(attempts)) : nextAttemptDelayMinutes(attempts);
   await prisma.shipment.update({
     where: { id: shipment.id },
