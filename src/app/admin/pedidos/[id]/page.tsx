@@ -5,6 +5,7 @@ import { CheckCircle2, Clock3, FileText, RefreshCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { RetrySyncButton } from "@/features/admin/components/retry-sync-button";
 import { OrderStatusForm } from "@/features/admin/components/order-status-form";
+import { OrderShipmentCard } from "@/features/logistics/components/order-shipment-card";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { PAYMENT_METHOD_LABELS } from "@/features/orders/labels";
 import { getOrderDetail } from "@/features/orders/queries";
@@ -175,6 +176,7 @@ export default async function AdminOrderDetailPage({
         </Card>
 
         <div className="space-y-6">
+          <OrderShipmentCard orderId={order.id} />
           <Card className="space-y-4 p-6">
             <div className="flex items-start justify-between gap-4">
               <div>

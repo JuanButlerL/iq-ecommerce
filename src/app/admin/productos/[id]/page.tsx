@@ -37,6 +37,10 @@ export default async function AdminEditProductPage({
         manualSoldOut: product.manualSoldOut,
         featured: product.featured,
         sortOrder: product.sortOrder,
+        weightGrams: product.weightGrams,
+        lengthCm: product.lengthCm,
+        widthCm: product.widthCm,
+        heightCm: product.heightCm,
         images: product.images.map((image) => ({
           filePath: image.filePath,
           publicUrl: image.publicUrl,

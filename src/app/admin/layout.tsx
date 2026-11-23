@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgePercent, BarChart3, CircleHelp, GalleryHorizontalEnd, Gift, HeartHandshake, Inbox, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, Receipt, RefreshCcw, Settings, ShoppingBag, Store, Tag, Truck, Users } from "lucide-react";
+import { BadgePercent, BarChart3, CircleHelp, FileCheck2, MapPinned, PackageCheck, GalleryHorizontalEnd, Gift, HeartHandshake, Inbox, LayoutDashboard, LayoutTemplate, Link2, Mail, MessageCircle, MessageSquareQuote, Newspaper, Package, Receipt, RefreshCcw, Settings, ShoppingBag, Store, Tag, Truck, Users } from "lucide-react";
 
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { canAccessAdminSection, isPrincipalAdminEmail, type AdminSectionId } from "@/lib/auth/admin-permissions";
@@ -9,6 +9,8 @@ import { env } from "@/lib/env";
 const navigation = [
   { group: "Ventas", section: "dashboard", href: "/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, prefetch: false },
   { group: "Ventas", section: "orders", href: "/admin/pedidos", label: "Pedidos", icon: <ShoppingBag className="h-4 w-4" />, prefetch: false },
+  { group: "Ventas", section: "orders", href: "/admin/comprobantes", label: "Comprobantes", icon: <FileCheck2 className="h-4 w-4" />, prefetch: false },
+  { group: "Ventas", section: "orders", href: "/admin/etiquetas", label: "Etiquetas y envíos", icon: <PackageCheck className="h-4 w-4" />, prefetch: false },
   { group: "Minorista", section: "products", href: "/admin/productos", label: "Productos", icon: <Package className="h-4 w-4" />, matchPrefix: true },
   { group: "Minorista", section: "discounts", href: "/admin/descuentos", label: "Descuentos", icon: <Tag className="h-4 w-4" /> },
   { group: "Minorista", section: "coupons", href: "/admin/cupones", label: "Cupones", icon: <BadgePercent className="h-4 w-4" /> },
@@ -30,6 +32,7 @@ const navigation = [
   { group: "Marketing", section: "referrals", href: "/admin/referidos", label: "Referidos", icon: <HeartHandshake className="h-4 w-4" />, prefetch: false },
   { group: "Marketing", section: "links", href: "/admin/links", label: "Links", icon: <Link2 className="h-4 w-4" /> },
   { group: "Sistema", section: "settings", href: "/admin/configuracion", label: "Configuracion", icon: <Settings className="h-4 w-4" /> },
+  { group: "Sistema", section: "shipping", href: "/admin/logistica", label: "Logística", icon: <MapPinned className="h-4 w-4" />, prefetch: false },
   { group: "Sistema", section: "users", href: "/admin/usuarios", label: "Usuarios", icon: <Users className="h-4 w-4" /> },
   { group: "Sistema", section: "whatsapp", href: "/admin/whatsapp", label: "WhatsApp", icon: <MessageCircle className="h-4 w-4" />, prefetch: false },
   { group: "Sistema", section: "sync", href: "/admin/sync", label: "Sync", icon: <RefreshCcw className="h-4 w-4" /> },

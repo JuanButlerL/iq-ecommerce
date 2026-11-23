@@ -18,6 +18,7 @@ export type WholesaleCustomerFormValues = {
   postalCode: string;
   reference: string;
   allowDeferredPayment: boolean;
+  preferredCarrier: "" | "OWN" | "ANDREANI" | "CORREO_AR";
   extraDiscountPercentage: string;
   active: boolean;
   adminNotes: string;
@@ -39,6 +40,7 @@ export const EMPTY_WHOLESALE_CUSTOMER: WholesaleCustomerFormValues = {
   postalCode: "",
   reference: "",
   allowDeferredPayment: false,
+  preferredCarrier: "",
   extraDiscountPercentage: "0",
   active: true,
   adminNotes: "",

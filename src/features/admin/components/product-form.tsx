@@ -63,6 +63,10 @@ type ProductFormProps = {
     manualSoldOut: boolean;
     featured: boolean;
     sortOrder: number;
+    weightGrams?: number | null;
+    lengthCm?: number | null;
+    widthCm?: number | null;
+    heightCm?: number | null;
     images: ProductImageInput[];
   };
 };
@@ -88,6 +92,10 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
     manualSoldOut: initialValue?.manualSoldOut ?? false,
     featured: initialValue?.featured ?? false,
     sortOrder: initialValue?.sortOrder ?? 1,
+    weightGrams: initialValue?.weightGrams ?? null,
+    lengthCm: initialValue?.lengthCm ?? null,
+    widthCm: initialValue?.widthCm ?? null,
+    heightCm: initialValue?.heightCm ?? null,
   });
 
   return (
@@ -173,6 +181,33 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
             checked={form.featured}
             onChange={(event) => setForm((current) => ({ ...current, featured: event.target.checked }))}
           />
+        </div>
+        <div className="md:col-span-2">
+          <p className="mb-2 text-sm font-bold text-brand-ink/70">
+            Paquete de una unidad (para cotizar con Andreani y Correo). Vacío = valores por defecto de Logística.
+          </p>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {(
+              [
+                ["weightGrams", "Peso (g)"],
+                ["lengthCm", "Largo (cm)"],
+                ["widthCm", "Ancho (cm)"],
+                ["heightCm", "Alto (cm)"],
+              ] as const
+            ).map(([key, label]) => (
+              <Input
+                key={key}
+                placeholder={label}
+                aria-label={label}
+                type="number"
+                min={1}
+                value={form[key] ?? ""}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, [key]: event.target.value === "" ? null : Number(event.target.value) }))
+                }
+              />
+            ))}
+          </div>
         </div>
         <div className="md:col-span-2">
           <Textarea

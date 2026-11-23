@@ -67,6 +67,7 @@ export default async function AdminWholesaleCustomerPage({ params }: { params: P
           postalCode: customer.postalCode,
           reference: customer.reference ?? "",
           allowDeferredPayment: customer.allowDeferredPayment,
+          preferredCarrier: customer.preferredCarrier ?? "",
           extraDiscountPercentage: String(Number(customer.extraDiscountPercentage)),
           active: customer.active,
           adminNotes: customer.adminNotes ?? "",

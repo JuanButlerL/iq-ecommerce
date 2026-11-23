@@ -75,6 +75,7 @@ export function WholesaleCustomerForm({ customerId, leadId, initialValues, busin
         body: JSON.stringify({
           ...values,
           taxCondition: values.taxCondition || null,
+          preferredCarrier: values.preferredCarrier || null,
           extraDiscountPercentage: Number(values.extraDiscountPercentage.replace(",", ".")) || 0,
           leadId: leadId ?? null,
         }),
@@ -210,6 +211,14 @@ export function WholesaleCustomerForm({ customerId, leadId, initialValues, busin
             onChange={(event) => set("active", event.target.checked)}
           />
         </div>
+        <Field label="Logística" hint="Vacío = la decide la tabla de códigos postales (reparto propio o Andreani/Correo).">
+          <Select value={values.preferredCarrier} onChange={(event) => set("preferredCarrier", event.target.value as WholesaleCustomerFormValues["preferredCarrier"])}>
+            <option value="">Según el código postal</option>
+            <option value="OWN">Reparto propio</option>
+            <option value="ANDREANI">Andreani</option>
+            <option value="CORREO_AR">Correo Argentino</option>
+          </Select>
+        </Field>
         <Field label="Descuento extra para este CUIT (%)" hint="Se suma a los precios mayoristas. 0 = sin descuento especial.">
           <Input
             inputMode="decimal"

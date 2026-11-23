@@ -22,6 +22,11 @@ export const productFormSchema = z.object({
   manualSoldOut: z.boolean().default(false),
   featured: z.boolean().default(false),
   sortOrder: z.coerce.number().int().min(0).max(999),
+  // Paquete de una unidad, para cotizar el envío. Vacío = valores por defecto de Admin > Logística.
+  weightGrams: z.coerce.number().int().min(1).max(30000).nullable().optional(),
+  lengthCm: z.coerce.number().int().min(1).max(150).nullable().optional(),
+  widthCm: z.coerce.number().int().min(1).max(150).nullable().optional(),
+  heightCm: z.coerce.number().int().min(1).max(150).nullable().optional(),
 });
 
 export type ProductFormInput = z.infer<typeof productFormSchema>;
