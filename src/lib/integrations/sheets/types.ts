@@ -37,6 +37,14 @@ export type OrderSheetRow = {
   tipo_factura: string;
   descuento_mayorista: number;
   domicilio_fiscal: string;
+  // Logística (al final, igual que el resto de lo agregado). Vacío en pedidos sin la integración.
+  logistica: "" | "PROPIA" | "ANDREANI" | "CORREO";
+  tipo_entrega: "" | "DOMICILIO" | "SUCURSAL";
+  sucursal: string;
+  tracking: string;
+  etiqueta_url: string;
+  fecha_despacho: string;
+  estado_envio: string;
 };
 
 export type OrderItemSheetRow = {

@@ -59,6 +59,7 @@ const { isOutOfSync } = load('src/features/orders/services/sync-service.ts', {
   '@/features/wholesale/bundles': {},
   '@/features/wholesale/tax-condition': {},
   '@/lib/storage/payment-proofs': {},
+  '@/lib/storage/shipping-labels': {},
   '@/lib/utils/datetime': {},
 });
 

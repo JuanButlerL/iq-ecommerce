@@ -41,7 +41,14 @@ const ORDER_COLUMNS = [
   'condicion_iva',
   'tipo_factura',
   'descuento_mayorista',
-  'domicilio_fiscal'
+  'domicilio_fiscal',
+  'logistica',
+  'tipo_entrega',
+  'sucursal',
+  'tracking',
+  'etiqueta_url',
+  'fecha_despacho',
+  'estado_envio'
 ];
 
 const ITEM_COLUMNS = [

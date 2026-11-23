@@ -8,6 +8,37 @@ import { explodeOrderItem, parseComponentsSnapshot } from "@/features/wholesale/
 import { getInvoiceType, TAX_CONDITION_LABELS } from "@/features/wholesale/tax-condition";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
+import { createShippingLabelUrl } from "@/lib/storage/shipping-labels";
+
+const CARRIER_SHEET_LABELS = { OWN: "PROPIA", ANDREANI: "ANDREANI", CORREO_AR: "CORREO" } as const;
+
+// dd/mm/aaaa, como el resto de las fechas de la planilla.
+function formatSheetDate(date: Date | null | undefined) {
+  if (!date) return "";
+  const [y, m, d] = date.toISOString().slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
+}
+
+async function buildShippingColumns(order: {
+  shippingCarrier: "OWN" | "ANDREANI" | "CORREO_AR" | null;
+  shippingDeliveryType: "HOME" | "BRANCH" | null;
+  shippingBranchId: string | null;
+  shippingBranchName: string | null;
+  estimatedDispatchDate: Date | null;
+  shipment: { status: string; trackingNumber: string | null; labelStoragePath: string | null; dispatchDate: Date | null } | null;
+}) {
+  const shipment = order.shipment;
+  const labelUrl = shipment?.labelStoragePath ? await createShippingLabelUrl(shipment.labelStoragePath).catch(() => "") : "";
+  return {
+    logistica: order.shippingCarrier ? CARRIER_SHEET_LABELS[order.shippingCarrier] : "",
+    tipo_entrega: order.shippingDeliveryType === "BRANCH" ? "SUCURSAL" : order.shippingDeliveryType === "HOME" ? "DOMICILIO" : "",
+    sucursal: order.shippingDeliveryType === "BRANCH" ? [order.shippingBranchId, order.shippingBranchName].filter(Boolean).join(" - ") : "",
+    tracking: shipment?.trackingNumber ?? "",
+    etiqueta_url: labelUrl,
+    fecha_despacho: formatSheetDate(shipment?.dispatchDate ?? order.estimatedDispatchDate),
+    estado_envio: shipment?.status ?? "",
+  } as const;
+}
 
 // Primer intento y un reintento rápido (el cliente está esperando); el resto lo levanta el cron.
 const SYNC_RETRY_DELAYS_MS = [0, 3_000];
@@ -23,6 +54,7 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     include: {
       items: { include: { wholesaleProduct: { select: { productId: true } } } },
       wholesaleCustomer: true,
+      shipment: true,
       paymentProofs: {
         orderBy: {
           uploadedAt: "desc",
@@ -93,6 +125,7 @@ async function buildOrderSyncPayload(orderId: string): Promise<OrderSyncPayload>
     tipo_factura: getInvoiceType(order.customerTaxCondition) ?? "",
     descuento_mayorista: order.extraDiscountArs,
     domicilio_fiscal: fiscalAddress,
+    ...(await buildShippingColumns(order)),
   };
 
   const itemRows: OrderItemSheetRow[] = order.items.flatMap((item) => {
