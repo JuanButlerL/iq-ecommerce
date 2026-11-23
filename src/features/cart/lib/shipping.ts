@@ -34,12 +34,15 @@ export type ShippingQuote = {
  * @param subtotalArs what the products cost (used for the minimum order amount)
  * @param freeShippingSubtotalArs amount compared against the free shipping and shipping discount
  *   thresholds. Defaults to the subtotal; buy X pay Y promos can add back or take off free units.
+ * @param baseShippingOverrideArs price of the chosen carrier or own delivery zone. When given it replaces the
+ *   province table; free shipping and the partial shipping discount still apply on top.
  */
 export function calculateShippingQuote(
   subtotalArs: number,
   provinceName: string | undefined,
   settings: Settings,
   freeShippingSubtotalArs: number = subtotalArs,
+  baseShippingOverrideArs?: number | null,
 ): ShippingQuote {
   if (!settings) {
     return {
@@ -68,6 +71,10 @@ export function calculateShippingQuote(
     } else if (settings.activeShippingRule.flatPrice) {
       baseShippingArs = settings.activeShippingRule.flatPrice;
     }
+  }
+
+  if (typeof baseShippingOverrideArs === "number" && Number.isFinite(baseShippingOverrideArs) && baseShippingOverrideArs >= 0) {
+    baseShippingArs = Math.round(baseShippingOverrideArs);
   }
 
   const discountThresholdArs = settings.activeShippingRule?.discountThresholdArs ?? null;
