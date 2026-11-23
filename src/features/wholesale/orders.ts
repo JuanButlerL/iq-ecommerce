@@ -3,6 +3,9 @@ import { MarketingEventType, OrderStatus, PaymentMethod, PaymentProvider, Prisma
 import { sendEmail } from "@/features/email/provider";
 import { ensureMarketingSessionSafely, logMarketingEvent } from "@/features/marketing/attribution-service";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { dateKeyToDbDate } from "@/features/logistics/business-days";
+import { resolveCheckoutShipping } from "@/features/logistics/checkout";
+import { createShipmentForOrder } from "@/features/logistics/shipments";
 import { ensureMercadoPagoPreference } from "@/features/orders/services/mercado-pago-service";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { getTrustedWholesaleCustomerIds, trustWholesaleCustomer } from "@/features/wholesale/device";
@@ -78,7 +81,12 @@ export async function createWholesaleOrder(payload: unknown) {
   const productIds = [...new Set(input.items.map((item) => item.wholesaleProductId))];
   const products = await prisma.wholesaleProduct.findMany({
     where: { id: { in: productIds }, active: true, soldOut: false, productId: { not: null } },
-    include: { components: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { product: { select: { name: true } } } } },
+    include: {
+      components: {
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        include: { product: { select: { name: true, weightGrams: true, lengthCm: true, widthCm: true, heightCm: true } } },
+      },
+    },
   });
 
   if (products.length !== productIds.length) {
@@ -133,7 +141,33 @@ export async function createWholesaleOrder(payload: unknown) {
   }
 
   const subtotalArs = lines.reduce((sum, line) => sum + line.priceArs * line.quantity, 0);
-  const shippingQuote = calculateShippingQuote(subtotalArs, input.delivery.province, buildWholesaleShippingSettings(shippingRule, settings.freeShippingThresholdArs));
+  const wholesaleShippingSettings = buildWholesaleShippingSettings(shippingRule, settings.freeShippingThresholdArs);
+  const provinceShippingQuote = calculateShippingQuote(subtotalArs, input.delivery.province, wholesaleShippingSettings);
+  // Con la integración logística prendida: la logística del cliente si tiene una cargada, si no la tabla de CP.
+  const logistics = await resolveCheckoutShipping({
+    channel: "WHOLESALE",
+    postalCode: input.delivery.postalCode,
+    province: input.delivery.province,
+    locality: input.delivery.city,
+    lines: lines.map((line) => ({
+      quantity: line.quantity,
+      unit: { weightGrams: line.product.weightGrams, lengthCm: line.product.lengthCm, widthCm: line.product.widthCm, heightCm: line.product.heightCm },
+      components: line.components.map((component) => {
+        const dims = line.product.components.find((entry) => entry.productId === component.productId)?.product;
+        return {
+          quantity: component.quantity,
+          unit: { weightGrams: dims?.weightGrams ?? null, lengthCm: dims?.lengthCm ?? null, widthCm: dims?.widthCm ?? null, heightCm: dims?.heightCm ?? null },
+        };
+      }),
+    })),
+    declaredValueArs: subtotalArs,
+    fallbackPriceArs: provinceShippingQuote.baseShippingArs,
+    preferredCarrier: "preferredCarrier" in customer ? (customer.preferredCarrier ?? null) : null,
+    selection: input.shipping,
+  });
+  const shippingQuote = logistics.enabled
+    ? calculateShippingQuote(subtotalArs, input.delivery.province, wholesaleShippingSettings, subtotalArs, logistics.option.carrierPriceArs)
+    : provinceShippingQuote;
   const pricing = calculateWholesalePricing({
     lines,
     extraDiscountPercentage: Number(customer.extraDiscountPercentage),
@@ -193,8 +227,25 @@ export async function createWholesaleOrder(payload: unknown) {
             syncStatus: SyncStatus.PENDING,
             marketingSessionId: marketingSession?.id ?? null,
             marketingVisitorId: marketingSession?.visitorId ?? null,
+            ...(logistics.enabled
+              ? {
+                  shippingCarrier: logistics.option.carrier,
+                  shippingDeliveryType: logistics.option.deliveryType,
+                  shippingBranchId: logistics.branch?.id ?? null,
+                  shippingBranchName: logistics.branch?.name ?? null,
+                  shippingBranchAddress: logistics.branch ? [logistics.branch.address, logistics.branch.locality].filter(Boolean).join(", ") : null,
+                  shippingCarrierPriceArs: logistics.option.carrierPriceArs,
+                  shippingPriceSource: logistics.option.priceSource,
+                  shippingZoneName: logistics.option.zoneName,
+                  estimatedDispatchDate: dateKeyToDbDate(logistics.dispatchDate),
+                }
+              : {}),
           },
         });
+
+        if (logistics.enabled) {
+          await createShipmentForOrder(tx, { orderId: order.id, carrier: logistics.option.carrier, deliveryType: logistics.option.deliveryType });
+        }
 
         await tx.orderItem.createMany({
           data: lines.map((line) => ({

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
 import { marketingSessionContextSchema } from "@/lib/marketing/attribution";
+import { shippingSelectionSchema } from "@/features/logistics/selection";
 
 const nameRegex = /^[\p{L}' -]+$/u;
 const localityRegex = /^[\p{L}0-9'.,()\/ -]+$/u;
@@ -141,6 +142,8 @@ const checkoutBaseSchema = z.object({
   newsletterOptIn: z.boolean().default(false),
   cartRecoveryFreeShippingToken: z.string().uuid().optional(),
   marketing: marketingSessionContextSchema.optional(),
+  // Transportista elegido (solo con la integración logística prendida).
+  shipping: shippingSelectionSchema.optional(),
   items: z.array(checkoutItemSchema).min(1),
 });
 

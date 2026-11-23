@@ -1,6 +1,6 @@
 import { Prisma, ReferralCreditStatus } from "@prisma/client";
 
-import { CANCELLED_ORDER_STATUSES, CONFIRMED_PAYMENT_STATUSES, getFriendIneligibility } from "@/features/referrals/eligibility";
+import { CANCELLED_ORDER_STATUSES, CONFIRMED_PAYMENT_STATUSES, CREDIT_RELEASE_PAYMENT_STATUSES, getFriendIneligibility } from "@/features/referrals/eligibility";
 import { taxIdIdentity } from "@/features/referrals/normalize";
 import { getReferralSettings, type ReferralSettingsView } from "@/features/referrals/settings";
 import { prisma } from "@/lib/db/prisma";
@@ -186,7 +186,12 @@ export async function refreshReferralCredits(options: { accountId?: string } = {
       continue;
     }
 
-    const isConfirmed = (CONFIRMED_PAYMENT_STATUSES as string[]).includes(order.paymentStatus);
+    const isConfirmed = (CREDIT_RELEASE_PAYMENT_STATUSES as string[]).includes(order.paymentStatus);
+
+    // Comprobante subido: espera la revisión del equipo, sin vencer.
+    if (!isConfirmed && order.paymentStatus === "PROOF_UPLOADED") {
+      continue;
+    }
 
     if (!isConfirmed) {
       if (now.getTime() - order.createdAt.getTime() > UNPAID_FRIEND_ORDER_MAX_AGE_MS) {

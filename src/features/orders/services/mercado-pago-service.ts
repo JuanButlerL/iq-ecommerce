@@ -21,6 +21,7 @@ import { sendGoogleAnalyticsPurchaseForOrder } from "@/lib/integrations/google-a
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { buildMetaPurchaseData } from "@/lib/meta-commerce";
 import { syncOrder } from "@/features/orders/services/sync-service";
+import { cancelShipmentForOrder, releaseShipment } from "@/features/logistics/shipments";
 import { markCartRecoveryConverted } from "@/features/cart-recovery/services";
 import { logOrderConfirmedFromStoredAttribution } from "@/features/marketing/attribution-service";
 
@@ -397,6 +398,18 @@ async function upsertMercadoPagoPayment(
           syncLastError: syncError instanceof Error ? syncError.message : "Sync error",
         },
       });
+    });
+  }
+
+  // Pago acreditado: se genera la etiqueta. Cancelado o vencido: se cancela el envío.
+  if (transitionApplied && nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID") {
+    await releaseShipment(order.id, webhookEventId ? "mercadopago:webhook" : "mercadopago:return").catch((error) => {
+      console.error("[logistica] no se pudo liberar el envío del pedido pagado", { orderId: order.id, error });
+    });
+  }
+  if (transitionApplied && (nextOrderStatus === "CANCELLED" || nextOrderStatus === "EXPIRED")) {
+    await cancelShipmentForOrder(order.id, "mercadopago", "Pago cancelado o vencido en Mercado Pago.").catch((error) => {
+      console.error("[logistica] no se pudo cancelar el envío", { orderId: order.id, error });
     });
   }
 

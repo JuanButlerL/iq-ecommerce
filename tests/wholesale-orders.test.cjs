@@ -26,6 +26,7 @@ const customerValidation = load('src/lib/validations/wholesale-customer.ts', { z
 const attribution = load('src/lib/marketing/attribution.ts', { zod, '@prisma/client': require('@prisma/client') });
 const { wholesaleOrderSchema, wholesaleIdentifySchema } = load('src/lib/validations/wholesale-order.ts', {
   zod,
+  '@/features/logistics/selection': load('src/features/logistics/selection.ts', { zod }),
   '@/features/wholesale/pricing': pricing,
   '@/lib/utils/cuit': cuit,
   '@/lib/marketing/attribution': attribution,

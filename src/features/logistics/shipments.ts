@@ -6,6 +6,7 @@ import { sendEmail } from "@/features/email/provider";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { computeDispatchDate, dateKeyToDbDate, dbDateToKey, formatDispatchDate } from "@/features/logistics/business-days";
 import { CARRIER_LABELS } from "@/features/logistics/options";
+import { splitStreetNumber } from "@/features/logistics/checkout";
 import { computePackage, type PackageLine } from "@/features/logistics/package";
 import { getDefaultWarehouse, getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
 import { buildShipmentConfirmedEmail, trackingUrlFor } from "@/features/logistics/shipping-email";
@@ -129,6 +130,14 @@ function packageLinesForOrder(order: ShipmentWithOrder["order"]): PackageLine[] 
   });
 }
 
+// Los pedidos mayoristas guardan calle y altura juntas: se separan para la etiqueta.
+function destinationStreet(order: { addressLine: string; addressNumber: string | null; addressWithoutNumber: boolean | null }) {
+  if (order.addressWithoutNumber) return { street: order.addressLine, number: "S/N" };
+  if (order.addressNumber) return { street: order.addressLine, number: order.addressNumber };
+  const split = splitStreetNumber(order.addressLine);
+  return { street: split.street, number: split.number || "S/N" };
+}
+
 async function buildCreateRequest(shipment: ShipmentWithOrder): Promise<CreateShipmentRequest> {
   const order = shipment.order;
   const [settings, warehouse] = await Promise.all([getShippingSettings(), getDefaultWarehouse()]);
@@ -157,8 +166,7 @@ async function buildCreateRequest(shipment: ShipmentWithOrder): Promise<CreateSh
       taxId: order.customerTaxId,
     },
     destination: {
-      street: order.addressLine,
-      number: order.addressWithoutNumber ? "S/N" : order.addressNumber ?? "S/N",
+      ...destinationStreet(order),
       floor: order.addressExtra,
       locality: order.locality,
       province: order.province,

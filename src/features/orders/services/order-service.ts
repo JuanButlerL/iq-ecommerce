@@ -21,6 +21,9 @@ import {
 import { canUseFreeShippingLink, redeemFreeShippingLink } from "@/features/free-shipping-links/service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { resolveCheckoutShipping } from "@/features/logistics/checkout";
+import { dateKeyToDbDate } from "@/features/logistics/business-days";
+import { cancelShipmentForOrder, createShipmentForOrder, releaseShipment } from "@/features/logistics/shipments";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
@@ -153,7 +156,25 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     productTotals.freeShippingSubtotalArs - (coupon?.freeShippingDeductionArs ?? 0),
     0,
   );
-  const shippingQuote = calculateShippingQuote(subtotalArs, input.province, settings, freeShippingSubtotalArs);
+  const provinceShippingQuote = calculateShippingQuote(subtotalArs, input.province, settings, freeShippingSubtotalArs);
+  // Con la integración logística prendida, el precio base sale del transportista o de la zona propia;
+  // el envío gratis y el descuento parcial se aplican igual que siempre.
+  const logistics = await resolveCheckoutShipping({
+    channel: "RETAIL",
+    postalCode: input.postalCode,
+    province: input.province,
+    locality: input.locality,
+    lines: cartLines.map((line) => ({
+      quantity: line.quantity,
+      unit: { weightGrams: line.weightGrams, lengthCm: line.lengthCm, widthCm: line.widthCm, heightCm: line.heightCm },
+    })),
+    declaredValueArs: subtotalArs,
+    fallbackPriceArs: provinceShippingQuote.baseShippingArs,
+    selection: input.shipping,
+  });
+  const shippingQuote = logistics.enabled
+    ? calculateShippingQuote(subtotalArs, input.province, settings, freeShippingSubtotalArs, logistics.option.carrierPriceArs)
+    : provinceShippingQuote;
   const hasRecoveryFreeShipping = await canUseCartRecoveryFreeShippingBenefit({
     token: input.cartRecoveryFreeShippingToken,
     email: input.email,
@@ -238,8 +259,31 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             reservationExpiresAt,
             marketingSessionId: marketingSession?.id ?? null,
             marketingVisitorId: marketingSession?.visitorId ?? null,
+            ...(logistics.enabled
+              ? {
+                  shippingCarrier: logistics.option.carrier,
+                  shippingDeliveryType: logistics.option.deliveryType,
+                  shippingBranchId: logistics.branch?.id ?? null,
+                  shippingBranchName: logistics.branch?.name ?? null,
+                  shippingBranchAddress: logistics.branch
+                    ? [logistics.branch.address, logistics.branch.locality].filter(Boolean).join(", ")
+                    : null,
+                  shippingCarrierPriceArs: logistics.option.carrierPriceArs,
+                  shippingPriceSource: logistics.option.priceSource,
+                  shippingZoneName: logistics.option.zoneName,
+                  estimatedDispatchDate: dateKeyToDbDate(logistics.dispatchDate),
+                }
+              : {}),
           },
         });
+
+        if (logistics.enabled) {
+          await createShipmentForOrder(tx, {
+            orderId: order.id,
+            carrier: logistics.option.carrier,
+            deliveryType: logistics.option.deliveryType,
+          });
+        }
 
         await tx.orderItem.createMany({
           data: input.items.map((item) => {
@@ -582,7 +626,7 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
   };
 }
 
-export async function updateOrderStatus(orderId: string, status: OrderStatus, note?: string) {
+export async function updateOrderStatus(orderId: string, status: OrderStatus, note?: string, changedBy = "admin") {
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: orderId },
@@ -608,9 +652,17 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, no
         orderId,
         status,
         note,
-        changedBy: "admin",
+        changedBy,
       },
     });
+
+    // Pagado a mano desde el admin con un comprobante sin revisar: el comprobante queda aprobado.
+    if (status === OrderStatus.PAID) {
+      await tx.paymentProof.updateMany({
+        where: { orderId, reviewStatus: "PENDING" },
+        data: { reviewStatus: "APPROVED", reviewedAt: new Date(), reviewedBy: changedBy },
+      });
+    }
   });
   if (status === OrderStatus.PAID || status === OrderStatus.PROOF_UPLOADED) {
     await logOrderConfirmedFromStoredAttribution(orderId);
@@ -633,6 +685,18 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, no
       },
     });
   });
+
+  // Pago confirmado (o pedido mayorista aprobado para preparar): se genera la etiqueta.
+  if (status === OrderStatus.PAID || status === OrderStatus.PREPARING) {
+    await releaseShipment(orderId, changedBy).catch((error) => {
+      console.error("[logistica] no se pudo liberar el envío", { orderId, error });
+    });
+  }
+  if (status === OrderStatus.CANCELLED || status === OrderStatus.EXPIRED) {
+    await cancelShipmentForOrder(orderId, changedBy, note || "Pedido cancelado desde el admin.").catch((error) => {
+      console.error("[logistica] no se pudo cancelar el envío", { orderId, error });
+    });
+  }
 }
 
 

@@ -1,3 +1,4 @@
+import { shippingSelectionSchema } from "@/features/logistics/selection";
 import { z } from "zod";
 
 import { WHOLESALE_PAYMENT_METHODS } from "@/features/wholesale/pricing";
@@ -76,6 +77,8 @@ export const wholesaleOrderSchema = z.object({
   taxCondition: z.enum(TAX_CONDITIONS, { errorMap: () => ({ message: "Elegí tu condición frente al IVA." }) }),
   delivery: wholesaleDeliverySchema,
   paymentMethod: z.enum(WHOLESALE_PAYMENT_METHODS, { errorMap: () => ({ message: "Elegí cómo vas a pagar." }) }),
+  // Transportista elegido (solo con la integración logística prendida).
+  shipping: shippingSelectionSchema.optional(),
   notes: optional("Comentarios", 1000),
   // Origen de la visita (UTM, referrer). Si llega mal formado se ignora: nunca frena el pedido.
   marketing: marketingSessionContextSchema.optional().catch(undefined),
