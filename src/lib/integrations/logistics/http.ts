@@ -90,8 +90,10 @@ async function doFetch(carrierName: string, url: string, options: CarrierHttpOpt
     const message = `${carrierName} respondió ${response.status}${detail ? `: ${detail}` : ""}`;
     if (response.status === 401 || response.status === 403) throw new CarrierError(message, "RETRYABLE", response.status, redact(json));
     if (response.status === 408 || response.status === 429 || response.status >= 500) {
-      // Un 5xx en un POST que crea también puede haber creado el envío.
-      throw new CarrierError(message, options.creates && response.status !== 429 ? "AMBIGUOUS" : "RETRYABLE", response.status, redact(json));
+      // 503 (no disponible) y 429 (demasiados pedidos) significan que no se procesó: se reintenta.
+      // Otro 5xx o un 408 en un POST que crea puede haber creado el envío igual: es ambiguo.
+      const notProcessed = response.status === 503 || response.status === 429;
+      throw new CarrierError(message, options.creates && !notProcessed ? "AMBIGUOUS" : "RETRYABLE", response.status, redact(json));
     }
     throw new CarrierError(message, "INVALID_DATA", response.status, redact(json));
   }
