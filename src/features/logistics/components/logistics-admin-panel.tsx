@@ -86,7 +86,7 @@ export function LogisticsAdminPanel({ data }: Props) {
 
   function saveSettings(event: FormEvent) {
     event.preventDefault();
-    const { id: _id, updatedAt: _updatedAt, ...payload } = settings;
+    const payload = Object.fromEntries(Object.entries(settings).filter(([key]) => key !== "id" && key !== "updatedAt"));
     run(() => callAdmin("settings", payload), "Configuración guardada.");
   }
 

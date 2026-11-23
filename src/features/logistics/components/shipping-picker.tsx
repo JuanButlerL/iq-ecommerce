@@ -109,7 +109,7 @@ type PickerProps = {
 
 export function ShippingPicker({ state, value, onChange, postalCode, province, freeShipping, error }: PickerProps) {
   const [branches, setBranches] = useState<{ key: string; list: Branch[]; status: "loading" | "ready" | "error" } | null>(null);
-  const options = state.status === "ready" ? state.options : [];
+  const options = useMemo(() => (state.status === "ready" ? state.options : []), [state]);
   const selected = useMemo(() => options.find((option) => option.carrier === value?.carrier && option.deliveryType === value?.deliveryType) ?? null, [options, value]);
   const lastOptionsKey = useRef("");
 
