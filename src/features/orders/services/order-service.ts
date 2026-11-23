@@ -10,6 +10,7 @@ import {
 } from "@/features/catalog/lib/product-discount";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getCouponPreviewForLines } from "@/features/coupons/queries";
+import { recordReferralOrder } from "@/features/referrals/checkout";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { subscribeToNewsletter } from "@/features/email/newsletter-service";
 import { markCartRecoveryCheckoutStarted, markCartRecoveryConverted } from "@/features/cart-recovery/services";
@@ -136,6 +137,14 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
         subtotalArs: couponEligibleSubtotalArs,
         eligibleLines: couponEligibleLines,
         taxId: input.taxId,
+        customer: {
+          taxId: input.taxId,
+          email: input.email,
+          phone: input.phone,
+          addressLine: input.addressLine,
+          addressNumber: input.addressWithoutNumber ? null : input.addressNumber,
+          postalCode: input.postalCode,
+        },
       })
     : null;
   // The free shipping threshold is checked against the products value; free promo units count
@@ -254,6 +263,16 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             };
           }),
         });
+
+        if (coupon?.referral) {
+          // Friend code: tracks the credit for the referrer. Credit code: spends the balance.
+          await recordReferralOrder(tx, {
+            referral: coupon.referral,
+            orderId: order.id,
+            taxId: input.taxId,
+            discountArs: coupon.discountArs,
+          });
+        }
 
         if (hasRecoveryFreeShipping) {
           const redeemed = await redeemCartRecoveryFreeShippingBenefit(tx, {

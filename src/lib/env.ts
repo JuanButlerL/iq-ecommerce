@@ -34,6 +34,8 @@ const envSchema = z.object({
   ADMIN_LOCAL_EMAIL: z.string().email().optional(),
   ADMIN_LOCAL_PASSWORD: z.string().min(8).optional(),
   ADMIN_SESSION_SECRET: z.string().min(16).optional(),
+  // Signs the referral portal session. Falls back to a key derived from ADMIN_SESSION_SECRET.
+  REFERRAL_SESSION_SECRET: z.string().min(32).optional().or(z.literal("")),
   ENABLE_PROOF_PUBLIC_URL_SYNC: z.enum(["true", "false"]).default("false"),
   EMAIL_SENDING_ENABLED: z.enum(["true", "false"]).default("false"),
   EMAIL_POST_PURCHASE_SEND_FROM: z.string().optional(),
@@ -100,6 +102,7 @@ const parsedEnv = envSchema.parse({
   ADMIN_LOCAL_EMAIL: process.env.ADMIN_LOCAL_EMAIL,
   ADMIN_LOCAL_PASSWORD: process.env.ADMIN_LOCAL_PASSWORD,
   ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET,
+  REFERRAL_SESSION_SECRET: process.env.REFERRAL_SESSION_SECRET,
   ENABLE_PROOF_PUBLIC_URL_SYNC: process.env.ENABLE_PROOF_PUBLIC_URL_SYNC,
   EMAIL_SENDING_ENABLED: process.env.EMAIL_SENDING_ENABLED,
   EMAIL_POST_PURCHASE_SEND_FROM: process.env.EMAIL_POST_PURCHASE_SEND_FROM,

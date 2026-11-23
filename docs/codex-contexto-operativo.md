@@ -239,6 +239,13 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-11-23 - Plan de referidos "Club de Familias iQ" (rama `feature/referidos`, pendiente de deploy)
+
+- Portal `/referidos`: la embajadora entra con su DNI y recibe un link de un solo uso al email de su última compra confirmada. Ahí arma su código para amigas (15%) y obtiene un código personal de crédito ($5.000 por amiga nueva, vence a los 90 días y el resto queda de saldo).
+- Los dos códigos son filas de `coupons` con `referral_kind`, así que checkout, pedido y sync al Sheets no cambian de forma (`cupon` y `descuento`). Controles: amiga nueva por DNI, email, teléfono y dirección; sin autorreferidos; el crédito solo se usa con el DNI de la titular; descuento con lock contra doble gasto; límite de intentos en Postgres.
+- El crédito se acredita al confirmarse la compra de la amiga (MP pagado o comprobante subido). Se configura en Admin > Referidos, donde también se aprueban, anulan o bloquean créditos y embajadoras y se exporta el CSV para la AppSheet. El cron de emails avanza los créditos y avisa por email.
+- Migración solo aditiva `202611231200_add_referral_program`. El programa queda apagado hasta prenderlo desde el admin. Detalle y deploy en `docs/deploy-referidos.md`.
+
 ### 2026-11-12 - Ajustes de UX en /mayoristas: checkout, producto destacado y carrusel (rama `feature/mayoristas-ajustes-ux`, mergeada a `main`)
 
 - Checkout mayorista igual que el minorista: el botón "Confirmar pedido" siempre se puede tocar; si falta algo, marca en rojo cada campo (CUIT, condición de IVA, datos de entrega, medio de pago, mínimo de displays), muestra el primer faltante debajo del botón y baja hasta ese campo. Los errores se limpian a medida que se completan.
