@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
+import { ShippingPicker, useShippingOptions, type ShippingSelectionValue } from "@/features/logistics/components/shipping-picker";
 import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/components/address-map-preview";
 import { FieldShell } from "@/features/checkout/components/field-shell";
 import { PaymentOptionCard } from "@/features/checkout/components/payment-option-card";
@@ -337,8 +338,39 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
   // Si el medio elegido deja de estar disponible (por ejemplo, cambió la dirección), hay que volver a elegir.
   const paymentMethod = selectedPaymentMethod && paymentOptions.includes(selectedPaymentMethod) ? selectedPaymentMethod : null;
 
+  // Integración logística: la logística del cliente (si tiene una cargada) o la tabla de CP.
+  const [shippingSelection, setShippingSelection] = useState<ShippingSelectionValue | null>(null);
+  const [shippingError, setShippingError] = useState<string | null>(null);
+  const shippingItems = useMemo(
+    () =>
+      availableLines.map((line) => ({
+        wholesaleProductId: line.product.id,
+        quantity: line.quantity,
+        ...(line.product.kind === "CUSTOM" ? { selection: line.components.map(({ productId, quantity }) => ({ productId, quantity })) } : {}),
+      })),
+    [availableLines],
+  );
+  const shippingState = useShippingOptions({
+    enabled: true,
+    channel: "WHOLESALE",
+    postalCode: delivery.postalCode,
+    province: delivery.province,
+    locality: delivery.city,
+    items: shippingItems,
+    wholesaleCustomerId: identity.stage === "recognized" ? identity.customerId : null,
+  });
+  const selectedShippingOption =
+    shippingState.status === "ready"
+      ? shippingState.options.find((option) => option.carrier === shippingSelection?.carrier && option.deliveryType === shippingSelection?.deliveryType) ?? null
+      : null;
   const shippingQuote = delivery.province
-    ? calculateShippingQuote(subtotalArs, delivery.province, buildWholesaleShippingSettings(shippingRule, settings.freeShippingThresholdArs))
+    ? calculateShippingQuote(
+        subtotalArs,
+        delivery.province,
+        buildWholesaleShippingSettings(shippingRule, settings.freeShippingThresholdArs),
+        subtotalArs,
+        selectedShippingOption ? selectedShippingOption.carrierPriceArs : null,
+      )
     : null;
   const pricing = calculateWholesalePricing({
     lines: availableLines.map((line) => ({ priceArs: line.product.priceArs, quantity: line.quantity })),
@@ -542,6 +574,16 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
       return;
     }
 
+    if (shippingState.status === "loading") {
+      setShippingError("Esperá un segundo: estamos calculando el envío.");
+      return;
+    }
+    if (shippingState.status === "ready" && (!selectedShippingOption || (selectedShippingOption.deliveryType === "BRANCH" && !shippingSelection?.branchId))) {
+      setShippingError(!selectedShippingOption ? "Elegí cómo querés recibir el pedido." : "Elegí la sucursal donde vas a retirar el pedido.");
+      openStep(3);
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
     const result = await postJson<{ orderNumber: string; paymentMethod: WholesalePaymentMethod }>("/api/mayoristas/pedidos", {
@@ -569,6 +611,7 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
       },
       paymentMethod,
       notes,
+      shipping: shippingState.status === "ready" && shippingSelection ? shippingSelection : undefined,
       marketing: getBrowserMarketingContext() ?? undefined,
     });
 
@@ -1041,6 +1084,20 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                   />
                 </FieldShell>
               </div>
+            </div>
+            <div className="mt-4">
+              <ShippingPicker
+                state={shippingState}
+                value={shippingSelection}
+                onChange={(next) => {
+                  setShippingSelection(next);
+                  setShippingError(null);
+                }}
+                postalCode={delivery.postalCode}
+                province={delivery.province}
+                freeShipping={Boolean(shippingQuote?.freeShippingReached)}
+                error={shippingError}
+              />
             </div>
             {customer && addressChanged ? (
               <p className="mt-4 rounded-2xl bg-brand-yellow/40 px-4 py-3 text-sm text-brand-ink">

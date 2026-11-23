@@ -30,6 +30,7 @@ import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/components/address-map-preview";
 import { FieldShell } from "@/features/checkout/components/field-shell";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
+import { ShippingPicker, useShippingOptions, type ShippingSelectionValue } from "@/features/logistics/components/shipping-picker";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { productFallbackImageMap } from "@/features/catalog/product-theme";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
@@ -220,7 +221,29 @@ export function CheckoutPage({
     productTotals.freeShippingSubtotalArs - (appliedCoupon?.freeShippingDeductionArs ?? 0),
     0,
   );
-  const shippingQuote = calculateShippingQuote(subtotal, province, settings, freeShippingSubtotal);
+  // Integración logística: opciones por CP (reparto propio, Andreani, Correo). Apagada, todo sigue como antes.
+  const [shippingSelection, setShippingSelection] = useState<ShippingSelectionValue | null>(null);
+  const [shippingError, setShippingError] = useState<string | null>(null);
+  const shippingItems = useMemo(() => productItems.map((item) => ({ productId: item.productId, quantity: item.quantity })), [productItems]);
+  const shippingState = useShippingOptions({
+    enabled: true,
+    channel: "RETAIL",
+    postalCode: watchedPostalCode,
+    province,
+    locality: watchedLocality,
+    items: shippingItems,
+  });
+  const selectedShippingOption =
+    shippingState.status === "ready"
+      ? shippingState.options.find((option) => option.carrier === shippingSelection?.carrier && option.deliveryType === shippingSelection?.deliveryType) ?? null
+      : null;
+  const shippingQuote = calculateShippingQuote(
+    subtotal,
+    province,
+    settings,
+    freeShippingSubtotal,
+    selectedShippingOption ? selectedShippingOption.carrierPriceArs : null,
+  );
   const displayedShippingArs = recoveryFreeShippingActive ? 0 : shippingQuote.shippingArs;
   const couponDiscountArs = appliedCoupon?.discountArs ?? 0;
   const pricing = calculateCheckoutPricing({
@@ -419,6 +442,21 @@ export function CheckoutPage({
       className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]"
       onSubmit={form.handleSubmit((values) => {
         setError(null);
+        setShippingError(null);
+        if (shippingState.status === "loading") {
+          setShippingError("Esperá un segundo: estamos calculando el envío.");
+          return;
+        }
+        if (shippingState.status === "ready") {
+          if (!selectedShippingOption) {
+            setShippingError("Elegí cómo querés recibir el pedido.");
+            return;
+          }
+          if (selectedShippingOption.deliveryType === "BRANCH" && !shippingSelection?.branchId) {
+            setShippingError("Elegí la sucursal donde vas a retirar el pedido.");
+            return;
+          }
+        }
         startTransition(async () => {
           trackEvent("add_payment_info", {
             currency: "ARS",
@@ -444,6 +482,7 @@ export function CheckoutPage({
               cartRecoveryFreeShippingToken: recoveryFreeShippingActive ? initialCartRecoveryFreeShippingToken : undefined,
               couponCode: appliedCoupon?.couponCode ?? "",
               marketing: getBrowserMarketingContext() ?? undefined,
+              shipping: shippingState.status === "ready" && shippingSelection ? shippingSelection : undefined,
               items: productItems.map((item) => ({
                 productId: item.productId,
                 quantity: item.quantity,
@@ -678,6 +717,19 @@ export function CheckoutPage({
           </div>
           </div>
         </section>
+
+        <ShippingPicker
+          state={shippingState}
+          value={shippingSelection}
+          onChange={(next) => {
+            setShippingSelection(next);
+            setShippingError(null);
+          }}
+          postalCode={watchedPostalCode}
+          province={province}
+          freeShipping={recoveryFreeShippingActive || shippingQuote.freeShippingReached}
+          error={shippingError}
+        />
 
         <PaymentMethodSelector
           value={form.watch("paymentMethod")}
