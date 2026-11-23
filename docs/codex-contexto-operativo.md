@@ -239,6 +239,14 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-11-23 - Logística: Andreani, Correo Argentino y reparto propio (rama `feature/logistica-andreani-correo`, sin deployar)
+
+- El checkout (tienda y mayoristas) ofrece reparto propio según la zona del CP, o Andreani / Correo Argentino a domicilio o sucursal con precio de la API (con caché y respaldo). Mayoristas: logística fija desde el maestro de clientes.
+- Fecha de despacho con hora de corte, días hábiles, feriados nacionales y feriados cargados en el admin.
+- La etiqueta se genera al confirmarse la venta: MP pagado o comprobante aprobado en el nuevo Admin > Comprobantes. Reintentos sin cambiar de transportista; casos ambiguos quedan para revisar. Seguimiento y despacho en mail y confirmación. Columnas nuevas en la planilla.
+- Referidos: el crédito se libera con el pago confirmado (comprobante aprobado), no al subir el comprobante.
+- Migración solo aditiva `202611241200_add_logistics`; integración apagada por defecto. Detalle, pruebas y deploy en `docs/deploy-logistica.md`.
+
 ### 2026-11-23 - Plan de referidos "Club de Familias iQ" (rama `feature/referidos`, mergeada a `main` y deployada el 2026-11-23, commit `c3600d2`)
 
 - Portal `/referidos`: la embajadora entra con su DNI y recibe un link de un solo uso al email de su última compra confirmada. Ahí arma su código para amigas (15%) y obtiene un código personal de crédito ($5.000 por amiga nueva, vence a los 90 días y el resto queda de saldo).
