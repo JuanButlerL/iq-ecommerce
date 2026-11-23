@@ -5,7 +5,7 @@ Rama `feature/referidos`. Basado en la PPT de marketing "IQ Kids — Plan de ref
 ## Cómo funciona
 
 1. La embajadora entra a `/referidos` y pone su DNI (o CUIL).
-2. Si ese DNI tiene al menos una compra confirmada en la web (Mercado Pago pagado o comprobante subido), le mandamos un link de acceso al **email de su última compra**. La respuesta en pantalla es siempre la misma, exista o no el DNI.
+2. Si ese DNI tiene al menos una compra confirmada en la web (Mercado Pago pagado o comprobante subido), le mandamos un link de acceso al **email de su última compra** y la pantalla le muestra a qué email fue, enmascarado (primera y última letra y el dominio, ej. `s***a@gmail.com`). Si no tiene compras, se le avisa y se le ofrece escribir por WhatsApp. Esto lo pidió Juan: a cambio, alguien que pruebe DNIs puede saber si una persona compró en la web. Lo frenan los límites por IP y por DNI.
 3. El link abre `/referidos/ingresar`. El token viaja en el `#` de la URL (no llega a logs ni a Referer) y solo se canjea al tocar "Entrar", así los escáneres de links de Outlook no lo queman. Es de un solo uso y vence a los 30 minutos.
 4. La sesión es una cookie `iqkids_ref_session` firmada con HMAC (httpOnly, SameSite=Lax, 30 días). Se invalida al bloquear a la embajadora.
 5. Arma su **código para amigas** (ej. `SOFI15`, 4 a 15 letras o números) y acepta las reglas. Al mismo tiempo se genera su **código de crédito** personal y aleatorio (`CRED-XXXXX-XXXXX`). Los dos son filas de `coupons` con `referral_kind`, así el checkout, el pedido y el sync al Sheets los tratan como un cupón más (`cupon` y `descuento` en la planilla).
@@ -57,4 +57,4 @@ Variables: no hace falta ninguna nueva. Se usa `ADMIN_SESSION_SECRET` para deriv
 
 ## Prueba hecha (local, 2026-11-23)
 
-Script de punta a punta contra `next start`, 47 de 47 OK: respuesta igual para DNI existente o no, límite por DNI, token de un solo uso, cookie adulterada, origen ajeno, reglas obligatorias, código reservado, 15% en el checkout, autorreferido por DNI, CUIL y dirección, amiga que ya compró (por DNI, email con +tag y teléfono con +54 9), pedido cancelado rechazado, solo el primer pedido de la misma amiga acredita, canje de $5.000, saldo agotado, saldo devuelto al cancelar, sin doble gasto con dos compras simultáneas, bloqueo, cupón común intacto y programa apagado.
+Script de punta a punta contra `next start`, 47 de 47 OK: email enmascarado para DNI con compras y aviso para DNI sin compras, límite por DNI, token de un solo uso, cookie adulterada, origen ajeno, reglas obligatorias, código reservado, 15% en el checkout, autorreferido por DNI, CUIL y dirección, amiga que ya compró (por DNI, email con +tag y teléfono con +54 9), pedido cancelado rechazado, solo el primer pedido de la misma amiga acredita, canje de $5.000, saldo agotado, saldo devuelto al cancelar, sin doble gasto con dos compras simultáneas, bloqueo, cupón común intacto y programa apagado.

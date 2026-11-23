@@ -4,7 +4,7 @@ import { z } from "zod";
 import { sendEmail } from "@/features/email/provider";
 import { findLatestConfirmedRetailOrderByTaxId } from "@/features/referrals/eligibility";
 import { buildReferralLoginEmail } from "@/features/referrals/emails";
-import { isValidReferralTaxId, normalizeTaxId, taxIdIdentity } from "@/features/referrals/normalize";
+import { isValidReferralTaxId, maskEmail, normalizeTaxId, taxIdIdentity } from "@/features/referrals/normalize";
 import { generateLoginToken, hashLoginToken, isReferralSessionConfigured } from "@/features/referrals/session";
 import { getReferralSettings } from "@/features/referrals/settings";
 import { prisma } from "@/lib/db/prisma";
@@ -14,9 +14,8 @@ import { consumeRateLimits } from "@/lib/security/rate-limit";
 
 const LOGIN_TOKEN_MINUTES = 30;
 
-// Same answer whether the DNI exists or not, so the form cannot be used to find out who is a customer.
-export const ACCESS_REQUESTED_MESSAGE =
-  "Si tu DNI tiene compras en iqkids.com.ar, te mandamos un link al email de tu última compra. Revisá también spam o promociones.";
+export const ACCESS_NOT_FOUND_MESSAGE =
+  "No encontramos compras en iqkids.com.ar con ese DNI. Si compraste con otro DNI o por otro canal, escribinos y lo vemos.";
 
 const accessSchema = z.object({ taxId: z.string().trim().min(1).max(20) });
 
@@ -45,29 +44,30 @@ export async function requestReferralAccess(payload: unknown, request: { ip: str
     throw new AppError("Hiciste muchos intentos seguidos. Esperá un rato y probá de nuevo.", 429);
   }
 
-  // The lookup and the email run after the response, so timing does not reveal anything either.
+  const existing = await prisma.referralAccount.findUnique({ where: { taxId: identity } });
+  // Only customers with a confirmed web purchase can join; their email comes from that purchase.
+  const order = existing?.status === "BLOCKED" ? null : await findLatestConfirmedRetailOrderByTaxId(identity);
+
+  if (!order) {
+    return { found: false, maskedEmail: null, message: ACCESS_NOT_FOUND_MESSAGE };
+  }
+
+  // The link is sent after the response, so a slow email provider does not hold the form.
   after(() =>
-    sendAccessLink(identity).catch((error) => {
+    sendAccessLink(identity, existing, order).catch((error) => {
       console.error("referral access link failed", error);
     }),
   );
 
-  return { message: ACCESS_REQUESTED_MESSAGE };
+  // Only a hint (first and last letter + domain) so the person knows which inbox to check.
+  return { found: true, maskedEmail: maskEmail(order.customerEmail), message: null };
 }
 
-async function sendAccessLink(identity: string) {
-  const existing = await prisma.referralAccount.findUnique({ where: { taxId: identity } });
-
-  if (existing?.status === "BLOCKED") {
-    return;
-  }
-
-  // Only customers with a confirmed web purchase can join; their email comes from that purchase.
-  const order = await findLatestConfirmedRetailOrderByTaxId(identity);
-
-  if (!order) {
-    return;
-  }
+async function sendAccessLink(
+  identity: string,
+  existing: Awaited<ReturnType<typeof prisma.referralAccount.findUnique>>,
+  order: NonNullable<Awaited<ReturnType<typeof findLatestConfirmedRetailOrderByTaxId>>>,
+) {
 
   const account = existing
     ? await prisma.referralAccount.update({

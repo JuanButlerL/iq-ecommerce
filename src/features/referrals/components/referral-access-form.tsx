@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null }) {
   const [taxId, setTaxId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<{ found: boolean; maskedEmail: string | null; message: string | null } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -28,14 +28,36 @@ export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null
         return;
       }
 
-      setMessage(payload.data.message);
+      setResult(payload.data);
     });
   }
 
-  if (message) {
+  if (result && !result.found) {
     return (
       <div className="space-y-4" role="status">
-        <p className="rounded-2xl bg-brand-mint px-4 py-3 text-sm font-bold leading-6 text-brand-ink">{message}</p>
+        <p className="rounded-2xl bg-brand-yellow/30 px-4 py-3 text-sm font-bold leading-6 text-brand-ink">{result.message}</p>
+        {whatsappUrl ? (
+          <a href={whatsappUrl} className="inline-block text-sm font-bold text-brand-pink underline" target="_blank" rel="noreferrer">
+            Escribinos por WhatsApp
+          </a>
+        ) : null}
+        <div>
+          <button type="button" className="text-sm font-bold text-brand-ink/60 underline" onClick={() => setResult(null)}>
+            Probar con otro DNI
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (result) {
+    return (
+      <div className="space-y-4" role="status">
+        <div className="rounded-2xl bg-brand-mint px-4 py-3 text-sm leading-6 text-brand-ink">
+          <p className="font-bold">¡Listo! Te mandamos el link de acceso a</p>
+          <p className="font-display text-xl tracking-wide">{result.maskedEmail}</p>
+          <p>Es el email de tu última compra en la web. Revisá también spam o promociones.</p>
+        </div>
         <p className="text-sm leading-6 text-brand-ink/70">
           El link vence en 30 minutos.{" "}
           {whatsappUrl ? (
@@ -48,7 +70,7 @@ export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null
             </>
           ) : null}
         </p>
-        <button type="button" className="text-sm font-bold text-brand-ink/60 underline" onClick={() => setMessage(null)}>
+        <button type="button" className="text-sm font-bold text-brand-ink/60 underline" onClick={() => setResult(null)}>
           Probar con otro DNI
         </button>
       </div>

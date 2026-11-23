@@ -97,5 +97,9 @@ export function maskEmail(email: string) {
     return "";
   }
 
-  return `${local.slice(0, 1)}${"*".repeat(Math.max(local.length - 1, 2))}@${domain}`;
+  if (local.length <= 2) {
+    return `${local.slice(0, 1)}***@${domain}`;
+  }
+
+  return `${local.slice(0, 1)}${"*".repeat(Math.min(Math.max(local.length - 2, 3), 8))}${local.slice(-1)}@${domain.toLowerCase()}`;
 }
