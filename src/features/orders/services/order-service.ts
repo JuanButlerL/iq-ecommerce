@@ -514,6 +514,15 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     throw new AppError("Este pedido no requiere comprobante manual.", 400);
   }
 
+  // Un pedido ya aprobado (o cancelado) no vuelve a "comprobante subido": se generaría otra revisión y el
+  // envío ya está en marcha.
+  if (order.paymentStatus === PaymentStatus.PAID || order.orderStatus === OrderStatus.CANCELLED || order.orderStatus === OrderStatus.EXPIRED) {
+    throw new AppError(
+      order.paymentStatus === PaymentStatus.PAID ? "Este pedido ya tiene el pago confirmado." : "Este pedido está cancelado. Escribinos por WhatsApp.",
+      409,
+    );
+  }
+
   const transferSenderName = details.transferSenderName || order.customerTaxId || null;
 
   const uploaded = await uploadPaymentProof(file, orderNumber);

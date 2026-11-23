@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { MetaPixelPurchase } from "@/components/analytics/meta-pixel-purchase";
 import { PaymentProofForm } from "@/features/checkout/components/payment-proof-form";
+import { OrderShippingStatus } from "@/features/logistics/components/order-shipping-status";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { getStoreSettings } from "@/features/settings/queries";
 import { WHOLESALE_PAYMENT_METHOD_LABELS, type WholesalePaymentMethod } from "@/features/wholesale/pricing";
@@ -141,6 +142,8 @@ export default async function WholesaleOrderPage({ params }: { params: Promise<{
             </p>
           </Card>
         ) : null}
+
+        <OrderShippingStatus orderNumber={order.publicOrderNumber} />
 
         <Card title="Detalle">
           <ul className="divide-y divide-brand-ink/10 text-sm">

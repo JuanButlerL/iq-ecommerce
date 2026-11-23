@@ -111,7 +111,7 @@ export async function rejectPaymentProof(orderId: string, actor: string, reason:
   let emailSent = false;
   if (env.canSendEmail) {
     const siteUrl = env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
-    const uploadUrl = order.channel === "WHOLESALE" ? `${siteUrl}/mayoristas/pedido/${order.publicOrderNumber}` : `${siteUrl}/checkout/confirmacion/${order.publicOrderNumber}`;
+    const uploadUrl = order.channel === "WHOLESALE" ? `${siteUrl}/mayoristas/pedido/${order.publicOrderNumber}` : `${siteUrl}/checkout/transfer/${order.publicOrderNumber}`;
     const email = buildProofRejectedEmail({ firstName: order.customerFirstName, orderNumber: order.publicOrderNumber, reason: cleanReason || null, uploadUrl });
     try {
       await sendEmail({ fromEmail: env.EMAIL_FROM_DEFAULT, senderName: "IQ Kids", to: order.customerEmail, subject: email.subject, html: email.html, text: email.text });

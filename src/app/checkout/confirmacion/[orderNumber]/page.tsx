@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
+import { OrderShippingStatus } from "@/features/logistics/components/order-shipping-status";
 import { getStoreSettings } from "@/features/settings/queries";
 import { formatArs } from "@/lib/utils/currency";
 import { getProductsValue } from "@/lib/meta-commerce";
@@ -122,6 +123,7 @@ export default async function ConfirmationPage({
           </div>
           <p className="mt-4 text-sm text-brand-ink/70">{paymentCopy}</p>
         </div>
+        <OrderShippingStatus orderNumber={order.publicOrderNumber} />
         <div className="grid gap-3 text-left md:grid-cols-3">
           <div className="rounded-[1.5rem] bg-background p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estado actual</p>
