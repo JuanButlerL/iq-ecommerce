@@ -15,3 +15,4 @@ public/uploads
 tsconfig.tsbuildinfo
 pnpm-lock.yaml
 yarn.lock
+.env.production
