@@ -181,8 +181,8 @@ export const andreaniAdapter: CarrierAdapter = {
 
   isConfigured() {
     const cfg = config();
-    // Sin número de cliente Andreani no cotiza ("Contrato, cliente y codigo postal de destino son parametros requeridos").
-    return Boolean(cfg.user && cfg.password && cfg.contractHome && cfg.clientNumber);
+    // Con contrato real cotiza sin número de cliente (probado 2026-11-24). El cliente se manda solo si está cargado.
+    return Boolean(cfg.user && cfg.password && cfg.contractHome);
   },
 
   async quote(request) {
