@@ -14,10 +14,16 @@ import { consumeRateLimits } from "@/lib/security/rate-limit";
 
 const LOGIN_TOKEN_MINUTES = 30;
 
-export const ACCESS_NOT_FOUND_MESSAGE =
-  "No encontramos compras en iqkids.com.ar con ese DNI. Si compraste con otro DNI o por otro canal, escribinos y lo vemos.";
+export const ACCESS_NEEDS_EMAIL_MESSAGE =
+  "No encontramos compras en iqkids.com.ar con ese DNI. Dejanos tu email y te mandamos el link para armar tu código.";
+const ACCESS_UNAVAILABLE_MESSAGE = "No pudimos darte acceso con ese DNI. Escribinos por WhatsApp y lo vemos.";
 
-const accessSchema = z.object({ taxId: z.string().trim().min(1).max(20) });
+const accessSchema = z.object({
+  taxId: z.string().trim().min(1).max(20),
+  email: z.string().trim().max(120).optional().or(z.literal("")),
+});
+
+type AccessTarget = { email: string; firstName: string | null; phone: string | null };
 
 export async function requestReferralAccess(payload: unknown, request: { ip: string }) {
   const settings = await getReferralSettings();
@@ -33,11 +39,18 @@ export async function requestReferralAccess(payload: unknown, request: { ip: str
     throw new AppError("Ingresá tu DNI sin puntos (7 u 8 números) o tu CUIL.", 400);
   }
 
+  const typedEmail = parsed.success ? parsed.data.email?.trim().toLowerCase() ?? "" : "";
+
+  if (typedEmail && !z.string().email().safeParse(typedEmail).success) {
+    throw new AppError("Revisá el formato del email.", 400);
+  }
+
   const identity = taxIdIdentity(taxId);
   const allowed = await consumeRateLimits([
     { scope: "referral-access-ip", identifier: request.ip, limit: 8, windowSeconds: 15 * 60 },
     { scope: "referral-access-ip-day", identifier: request.ip, limit: 40, windowSeconds: 24 * 60 * 60 },
-    { scope: "referral-access-dni", identifier: identity, limit: 3, windowSeconds: 60 * 60 },
+    { scope: "referral-access-dni", identifier: identity, limit: 5, windowSeconds: 60 * 60 },
+    ...(typedEmail ? [{ scope: "referral-access-email", identifier: typedEmail, limit: 3, windowSeconds: 60 * 60 }] : []),
   ]);
 
   if (!allowed) {
@@ -45,37 +58,57 @@ export async function requestReferralAccess(payload: unknown, request: { ip: str
   }
 
   const existing = await prisma.referralAccount.findUnique({ where: { taxId: identity } });
-  // Only customers with a confirmed web purchase can join; their email comes from that purchase.
-  const order = existing?.status === "BLOCKED" ? null : await findLatestConfirmedRetailOrderByTaxId(identity);
 
-  if (!order) {
-    return { found: false, maskedEmail: null, message: ACCESS_NOT_FOUND_MESSAGE };
+  if (existing?.status === "BLOCKED") {
+    return { found: false, needsEmail: false, maskedEmail: null, message: ACCESS_UNAVAILABLE_MESSAGE };
+  }
+
+  // 1. Customers: the link always goes to the email of their last confirmed purchase (a typed email is ignored).
+  const order = await findLatestConfirmedRetailOrderByTaxId(identity);
+  // 2. Someone without purchases who already signed in: the link goes to the email they verified. Nobody
+  //    can take over that DNI by typing another email.
+  // 3. Someone new without purchases: we ask for an email; it becomes theirs when they open the link.
+  const target: AccessTarget | null = order
+    ? { email: order.customerEmail, firstName: order.customerFirstName, phone: order.customerPhone }
+    : existing?.lastLoginAt && existing.email
+      ? { email: existing.email, firstName: existing.firstName, phone: existing.phone }
+      : typedEmail
+        ? { email: typedEmail, firstName: null, phone: null }
+        : null;
+
+  if (!target) {
+    return { found: false, needsEmail: true, maskedEmail: null, message: ACCESS_NEEDS_EMAIL_MESSAGE };
   }
 
   // The link is sent after the response, so a slow email provider does not hold the form.
   after(() =>
-    sendAccessLink(identity, existing, order).catch((error) => {
+    sendAccessLink(identity, existing, target, Boolean(order)).catch((error) => {
       console.error("referral access link failed", error);
     }),
   );
 
   // Only a hint (first and last letter + domain) so the person knows which inbox to check.
-  return { found: true, maskedEmail: maskEmail(order.customerEmail), message: null };
+  return { found: true, needsEmail: false, maskedEmail: maskEmail(target.email), message: null };
 }
 
 async function sendAccessLink(
   identity: string,
   existing: Awaited<ReturnType<typeof prisma.referralAccount.findUnique>>,
-  order: NonNullable<Awaited<ReturnType<typeof findLatestConfirmedRetailOrderByTaxId>>>,
+  target: AccessTarget,
+  fromPurchase: boolean,
 ) {
-
+  // Without a purchase, the email is stored only when the link is opened (see consumeReferralLoginToken).
   const account = existing
-    ? await prisma.referralAccount.update({
-        where: { id: existing.id },
-        data: { email: order.customerEmail, phone: order.customerPhone, firstName: existing.firstName ?? order.customerFirstName },
-      })
+    ? fromPurchase
+      ? await prisma.referralAccount.update({
+          where: { id: existing.id },
+          data: { email: target.email, phone: target.phone, firstName: existing.firstName ?? target.firstName },
+        })
+      : existing
     : await prisma.referralAccount.create({
-        data: { taxId: identity, email: order.customerEmail, phone: order.customerPhone, firstName: order.customerFirstName },
+        data: fromPurchase
+          ? { taxId: identity, email: target.email, phone: target.phone, firstName: target.firstName }
+          : { taxId: identity },
       });
   const { token, tokenHash } = generateLoginToken();
 
@@ -83,7 +116,7 @@ async function sendAccessLink(
     data: {
       accountId: account.id,
       tokenHash,
-      email: order.customerEmail,
+      email: target.email,
       expiresAt: new Date(Date.now() + LOGIN_TOKEN_MINUTES * 60 * 1000),
     },
   });
@@ -100,7 +133,7 @@ async function sendAccessLink(
   await sendEmail({
     fromEmail: env.EMAIL_FROM_DEFAULT,
     senderName: "IQ Kids",
-    to: order.customerEmail,
+    to: target.email,
     subject: email.subject,
     html: email.html,
     text: email.text,
@@ -142,5 +175,7 @@ export async function consumeReferralLoginToken(payload: unknown, request: { ip:
     throw invalid;
   }
 
-  return prisma.referralAccount.update({ where: { id: loginToken.accountId }, data: { lastLoginAt: now } });
+  // Opening the link proves the email: from now on it is the account's email (for people without
+  // purchases this is the first time it gets stored).
+  return prisma.referralAccount.update({ where: { id: loginToken.accountId }, data: { lastLoginAt: now, email: loginToken.email } });
 }

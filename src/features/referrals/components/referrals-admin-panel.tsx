@@ -243,6 +243,24 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
             <input type="checkbox" className="h-4 w-4 accent-brand-pink" checked={settings.enabled} onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} />
             Programa activo (muestra /referidos y hace funcionar los códigos)
           </label>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-brand-ink">
+            <label className="flex items-center gap-3 font-bold">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-brand-pink"
+                checked={settings.showInHeader}
+                onChange={(event) => setSettings({ ...settings, showInHeader: event.target.checked })}
+              />
+              Mostrar en el menú de la tienda con el texto
+            </label>
+            <Input
+              className="h-10 max-w-[220px]"
+              maxLength={30}
+              value={settings.headerLabel}
+              onChange={(event) => setSettings({ ...settings, headerLabel: event.target.value })}
+            />
+            <span className="text-xs text-brand-ink/55">Solo aparece mientras el programa está activo.</span>
+          </div>
           <div className="grid gap-3 md:grid-cols-4">
             <label className="space-y-1 text-sm font-bold text-brand-ink">
               <span>% para quien invitan</span>

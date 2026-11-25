@@ -9,6 +9,7 @@ import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { MicrosoftClarity } from "@/components/analytics/microsoft-clarity";
 import { WebVitals } from "@/components/analytics/web-vitals";
 import { AppChrome } from "@/components/layout/app-chrome";
+import { getReferralSettings } from "@/features/referrals/settings";
 import { getStoreSettings } from "@/features/settings/queries";
 import { getWholesaleContent } from "@/features/wholesale/queries";
 import { env } from "@/lib/env";
@@ -48,7 +49,14 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const [settings, lastUpdatedAt, wholesaleContent] = await Promise.all([getStoreSettings(), getSiteLastUpdatedAt(), getWholesaleContent()]);
+  const [settings, lastUpdatedAt, wholesaleContent, referralSettings] = await Promise.all([
+    getStoreSettings(),
+    getSiteLastUpdatedAt(),
+    getWholesaleContent(),
+    // The header link must never take the store down.
+    getReferralSettings().catch(() => null),
+  ]);
+  const referralNavLabel = referralSettings?.enabled && referralSettings.showInHeader ? referralSettings.headerLabel : null;
   const clarityProjectId = env.NEXT_PUBLIC_MICROSOFT_CLARITY_ID || "wqhtpsarz4";
   const facebookPixelId = env.hasFacebookPixel ? env.NEXT_PUBLIC_FB_PIXEL_ID : null;
   const googleTagManagerId = env.hasGoogleTagManager ? env.NEXT_PUBLIC_GTM_ID : null;
@@ -99,6 +107,7 @@ export default async function RootLayout({
           subscriptionSectionEnabled={settings?.subscriptionSectionEnabled}
           faqSectionEnabled={settings?.faqSectionEnabled}
           newsletterSectionEnabled={settings?.newsletterSectionEnabled}
+          referralNavLabel={referralNavLabel}
           wholesaleEnabled={wholesaleContent.enabled}
           wholesaleNav={{
             products: wholesaleContent.sections.products,
