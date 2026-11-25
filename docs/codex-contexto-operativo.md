@@ -244,8 +244,20 @@ Si se va a hacer `git pull`:
 - El checkout (tienda y mayoristas) ofrece reparto propio según la zona del CP, o Andreani / Correo Argentino a domicilio o sucursal con precio de la API (con caché y respaldo). Mayoristas: logística fija desde el maestro de clientes.
 - Fecha de despacho con hora de corte, días hábiles, feriados nacionales y feriados cargados en el admin.
 - La etiqueta se genera al confirmarse la venta: MP pagado o comprobante aprobado en el nuevo Admin > Comprobantes. Reintentos sin cambiar de transportista; casos ambiguos quedan para revisar. Seguimiento y despacho en mail y confirmación. Columnas nuevas en la planilla.
-- Referidos: el crédito se libera con el pago confirmado (comprobante aprobado), no al subir el comprobante.
+- Referidos no cambia: el crédito sigue acreditándose con MP pagado o comprobante subido. La aprobación de comprobantes es solo para la etiqueta.
 - Migración solo aditiva `202611241200_add_logistics`; integración apagada por defecto. Detalle, pruebas y deploy en `docs/deploy-logistica.md`.
+
+### 2026-11-25 - Referidos: link en el menú y acceso sin compras (rama `feature/referidos-menu-y-sin-compra`, deployada el 2026-11-25, commit `58a042c`)
+
+- Admin > Referidos: "Mostrar en el menú de la tienda" con texto editable; el link a `/referidos` solo aparece con el programa activo. Migración aditiva `202611251900_add_referral_header_link`.
+- Si el DNI no tiene compras, el portal pide un email y manda el link ahí; el email se guarda al abrir el link y desde ahí el DNI queda atado a ese email. Con compras, siempre el email de la última compra. Detalle en `docs/deploy-referidos.md`.
+
+### 2026-11-25 - Referidos: lenguaje neutro y carga masiva de códigos (rama `feature/referidos-carga-masiva`, deployada el 2026-11-25, commit `e05cb28`)
+
+- Textos del portal, reglas, emails, checkout y admin en neutro: "familias", "quien invites", "invitados", "referidor/a". Las reglas guardadas en `referral_settings.terms_text` (que eran el texto por defecto viejo) se vaciaron para que tome el nuevo texto por defecto.
+- Admin > Referidos > Carga masiva: un renglón "DNI CÓDIGO" por persona crea los dos códigos para cada DNI con compra confirmada y devuelve los renglones con error y el motivo. Funciona con el programa apagado. Ruta `POST /api/admin/referrals/bulk`.
+- En referidos, PROOF_UPLOADED sigue contando como venta confirmada (decisión de Juan del 2026-11-25). La aprobación de comprobantes aplica solo a logística.
+- Sin migraciones.
 
 ### 2026-11-23 - Plan de referidos "Club de Familias iQ" (rama `feature/referidos`, mergeada a `main` y deployada el 2026-11-23, commit `c3600d2`)
 

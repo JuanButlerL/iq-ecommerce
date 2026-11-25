@@ -105,6 +105,8 @@ const settingsSchema = z.object({
   creditValidityDays: z.coerce.number().int().min(7).max(730),
   creditHoldDays: z.coerce.number().int().min(0).max(60),
   requireManualApproval: z.boolean(),
+  showInHeader: z.boolean().default(false),
+  headerLabel: z.string().trim().min(1, "Poné el texto del link del menú.").max(30).default("Referidos"),
   shareMessage: z.string().trim().max(1000),
   shareImageUrl: z
     .string()

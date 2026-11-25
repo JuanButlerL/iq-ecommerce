@@ -5,21 +5,36 @@ import { useState, useTransition, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+type AccessResult = { found: boolean; needsEmail: boolean; maskedEmail: string | null; message: string | null };
+
 export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null }) {
   const [taxId, setTaxId] = useState("");
+  const [email, setEmail] = useState("");
+  // Shown when the DNI has no purchases: the second step asks for an email.
+  const [askEmail, setAskEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ found: boolean; maskedEmail: string | null; message: string | null } | null>(null);
+  const [result, setResult] = useState<AccessResult | null>(null);
+  const [sentToTypedEmail, setSentToTypedEmail] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  function reset() {
+    setResult(null);
+    setAskEmail(null);
+    setEmail("");
+    setError(null);
+    setSentToTypedEmail(false);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    const withEmail = Boolean(askEmail);
 
     startTransition(async () => {
       const response = await fetch("/api/referidos/acceso", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taxId }),
+        body: JSON.stringify(withEmail ? { taxId, email } : { taxId }),
       });
       const payload = await response.json().catch(() => ({}));
 
@@ -28,7 +43,15 @@ export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null
         return;
       }
 
-      setResult(payload.data);
+      const data = payload.data as AccessResult;
+
+      if (data.needsEmail) {
+        setAskEmail(data.message);
+        return;
+      }
+
+      setSentToTypedEmail(withEmail);
+      setResult(data);
     });
   }
 
@@ -42,7 +65,7 @@ export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null
           </a>
         ) : null}
         <div>
-          <button type="button" className="text-sm font-bold text-brand-ink/60 underline" onClick={() => setResult(null)}>
+          <button type="button" className="text-sm font-bold text-brand-ink/60 underline" onClick={reset}>
             Probar con otro DNI
           </button>
         </div>
@@ -56,7 +79,11 @@ export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null
         <div className="rounded-2xl bg-brand-mint px-4 py-3 text-sm leading-6 text-brand-ink">
           <p className="font-bold">¡Listo! Te mandamos el link de acceso a</p>
           <p className="font-display text-xl tracking-wide">{result.maskedEmail}</p>
-          <p>Es el email de tu última compra en la web. Revisá también spam o promociones.</p>
+          <p>
+            {sentToTypedEmail && result.maskedEmail?.endsWith(`@${email.split("@")[1] ?? ""}`)
+              ? "Revisá también spam o promociones."
+              : "Es el email que tenemos registrado con tu DNI. Revisá también spam o promociones."}
+          </p>
         </div>
         <p className="text-sm leading-6 text-brand-ink/70">
           El link vence en 30 minutos.{" "}
@@ -70,7 +97,7 @@ export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null
             </>
           ) : null}
         </p>
-        <button type="button" className="text-sm font-bold text-brand-ink/60 underline" onClick={() => setResult(null)}>
+        <button type="button" className="text-sm font-bold text-brand-ink/60 underline" onClick={reset}>
           Probar con otro DNI
         </button>
       </div>
@@ -87,17 +114,49 @@ export function ReferralAccessForm({ whatsappUrl }: { whatsappUrl: string | null
           placeholder="Sin puntos, ej. 30123456"
           maxLength={13}
           value={taxId}
+          readOnly={Boolean(askEmail)}
           onChange={(event) => setTaxId(event.target.value.replace(/[^\d.-]/g, ""))}
-          aria-invalid={error ? "true" : "false"}
+          aria-invalid={error && !askEmail ? "true" : "false"}
         />
       </label>
+
+      {askEmail ? (
+        <>
+          <p className="rounded-2xl bg-brand-yellow/30 px-4 py-3 text-sm leading-6 text-brand-ink">{askEmail}</p>
+          <label className="block space-y-2">
+            <span className="text-sm font-extrabold text-brand-ink">Tu email</span>
+            <Input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="tu@email.com"
+              maxLength={120}
+              value={email}
+              autoFocus
+              onChange={(event) => setEmail(event.target.value.trim())}
+              aria-invalid={error ? "true" : "false"}
+            />
+          </label>
+        </>
+      ) : null}
+
       {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
-      <Button type="submit" className="w-full" disabled={isPending || taxId.replace(/\D/g, "").length < 7}>
-        {isPending ? "Enviando..." : "Mandarme el link de acceso"}
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isPending || taxId.replace(/\D/g, "").length < 7 || (Boolean(askEmail) && !/^\S+@\S+\.\S+$/.test(email))}
+      >
+        {isPending ? "Enviando..." : askEmail ? "Mandarme el link" : "Mandarme el link de acceso"}
       </Button>
-      <p className="text-xs leading-5 text-brand-ink/55">
-        Te mandamos un link al email de tu última compra en la web. Así nadie más puede entrar con tu DNI.
-      </p>
+      {askEmail ? (
+        <button type="button" className="text-sm font-bold text-brand-ink/60 underline" onClick={reset}>
+          Usar otro DNI
+        </button>
+      ) : (
+        <p className="text-xs leading-5 text-brand-ink/55">
+          Si ya compraste en la web, te mandamos el link al email de tu última compra. Así nadie más puede entrar con tu DNI.
+        </p>
+      )}
     </form>
   );
 }

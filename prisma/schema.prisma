@@ -1309,6 +1309,9 @@ model ReferralSettings {
   creditHoldDays           Int      @default(0) @map("credit_hold_days")
   // true: credits wait for an admin approval instead of turning available after the hold days.
   requireManualApproval    Boolean  @default(false) @map("require_manual_approval")
+  // Link to /referidos in the store header (only while the program is enabled).
+  showInHeader             Boolean  @default(false) @map("show_in_header")
+  headerLabel              String   @default("Referidos") @map("header_label")
   shareMessage             String   @default("") @map("share_message")
   shareImageUrl            String?  @map("share_image_url")
   termsText                String   @default("") @map("terms_text")
