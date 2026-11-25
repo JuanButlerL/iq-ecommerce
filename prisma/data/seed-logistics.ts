@@ -69,9 +69,32 @@ async function main() {
     console.log(`Producto "${product.name}": ${displays} display(s), ${displays * DISPLAY_WEIGHT_GRAMS} g.`);
   }
 
-  await prisma.shippingSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1, cutoffHour: 13, cutoffMinute: 0 } });
+  // Configuración del pase (Juan, 2026-11-25): Andreani con tarifa real -25% + $2.500, Correo apagado hasta Paq.ar,
+  // reparto propio y retiro en sucursal prendidos. Solo la primera vez (si ya se tocó desde el admin, no se pisa).
+  // La integración queda APAGADA: se prende desde el admin después de la prueba de punta a punta.
+  await prisma.shippingSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  const before = await prisma.shippingSettings.findUniqueOrThrow({ where: { id: 1 } });
+  if (!before.enabled && before.andreaniDiscountPct === 0 && before.carrierPricing === "TABLE") {
+    await prisma.shippingSettings.update({
+      where: { id: 1 },
+      data: {
+        cutoffHour: 13,
+        cutoffMinute: 0,
+        carrierPricing: "LIVE",
+        andreaniDiscountPct: 25,
+        andreaniSurchargeArs: 2500,
+        andreaniEnabled: true,
+        correoEnabled: false,
+        ownEnabled: true,
+        branchPickupEnabled: true,
+      },
+    });
+  }
   const settings = await prisma.shippingSettings.findUniqueOrThrow({ where: { id: 1 } });
-  console.log(`Corte ${settings.cutoffHour}:${String(settings.cutoffMinute).padStart(2, "0")}. Integración ${settings.enabled ? "PRENDIDA" : "apagada"}.`);
+  console.log(
+    `Corte ${settings.cutoffHour}:${String(settings.cutoffMinute).padStart(2, "0")}. Precio ${settings.carrierPricing}, descuento Andreani ${settings.andreaniDiscountPct}%, recargo $${settings.andreaniSurchargeArs}. ` +
+      `Andreani ${settings.andreaniEnabled ? "sí" : "no"}, Correo ${settings.correoEnabled ? "sí" : "no"}, propio ${settings.ownEnabled ? "sí" : "no"}. Integración ${settings.enabled ? "PRENDIDA" : "apagada"}.`,
+  );
 }
 
 main()
