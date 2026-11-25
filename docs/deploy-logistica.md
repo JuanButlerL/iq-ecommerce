@@ -82,7 +82,7 @@ Migración `202611241200_add_logistics`: **solo agrega** tablas, tipos y columna
 4. Probar un pedido real chico con transferencia: aprobarlo en Admin > Comprobantes y verificar etiqueta, mail, planilla y que la etiqueta aparezca en la app.
 
 ### Apps Script (con clasp, sin publicar hasta este paso)
-- Script de etiquetas (`C:\dev\WebIQKidspps-scripts\etiquetas`): respeta la logística que elige la web y baja a la app las etiquetas de Andreani/Correo (`EtiquetasWeb.js`). Prueba local: `node test-etiquetas-web.cjs`. Publicar: `clasp push` y, si el lote de impresión es Web App, nueva versión de la implementación. Corre dentro del trigger de 15 minutos que ya existe.
+- Script de etiquetas (carpeta `apps-scripts/etiquetas` al lado del repo, en la máquina de Juan): respeta la logística que elige la web y baja a la app las etiquetas de Andreani/Correo (`EtiquetasWeb.js`). Prueba local: `node test-etiquetas-web.cjs`. Publicar: `clasp push` y, si el lote de impresión es Web App, nueva versión de la implementación. Corre dentro del trigger de 15 minutos que ya existe.
 - Sin la integración prendida, el script se comporta igual que hoy (la columna `logistica` viene vacía y decide la tabla de CP del sheet).
 
 ### Vuelta atrás
