@@ -239,6 +239,11 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-11-25 - Referidos: link en el menú y acceso sin compras (rama `feature/referidos-menu-y-sin-compra`, deployada el 2026-11-25, commit `58a042c`)
+
+- Admin > Referidos: "Mostrar en el menú de la tienda" con texto editable; el link a `/referidos` solo aparece con el programa activo. Migración aditiva `202611251900_add_referral_header_link`.
+- Si el DNI no tiene compras, el portal pide un email y manda el link ahí; el email se guarda al abrir el link y desde ahí el DNI queda atado a ese email. Con compras, siempre el email de la última compra. Detalle en `docs/deploy-referidos.md`.
+
 ### 2026-11-25 - Referidos: lenguaje neutro y carga masiva de códigos (rama `feature/referidos-carga-masiva`, deployada el 2026-11-25, commit `e05cb28`)
 
 - Textos del portal, reglas, emails, checkout y admin en neutro: "familias", "quien invites", "invitados", "referidor/a". Las reglas guardadas en `referral_settings.terms_text` (que eran el texto por defecto viejo) se vaciaron para que tome el nuevo texto por defecto.
