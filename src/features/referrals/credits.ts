@@ -188,11 +188,6 @@ export async function refreshReferralCredits(options: { accountId?: string } = {
 
     const isConfirmed = (CREDIT_RELEASE_PAYMENT_STATUSES as string[]).includes(order.paymentStatus);
 
-    // Comprobante subido: espera la revisión del equipo, sin vencer.
-    if (!isConfirmed && order.paymentStatus === "PROOF_UPLOADED") {
-      continue;
-    }
-
     if (!isConfirmed) {
       if (now.getTime() - order.createdAt.getTime() > UNPAID_FRIEND_ORDER_MAX_AGE_MS) {
         await reject(credit.id, "pedido sin pago");

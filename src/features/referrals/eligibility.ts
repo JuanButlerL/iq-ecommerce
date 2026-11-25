@@ -5,9 +5,9 @@ import { prisma } from "@/lib/db/prisma";
 
 // A purchase counts once the customer paid with Mercado Pago or uploaded the transfer proof.
 export const CONFIRMED_PAYMENT_STATUSES = [PaymentStatus.PAID, PaymentStatus.PROOF_UPLOADED];
-// The friend's credit is released only once the payment is confirmed: Mercado Pago paid or the transfer
-// proof approved in Admin > Comprobantes (both end up as PAID). An uploaded proof waits for that review.
-export const CREDIT_RELEASE_PAYMENT_STATUSES: PaymentStatus[] = [PaymentStatus.PAID];
+// The friend's credit is released when the purchase is confirmed: Mercado Pago paid or transfer proof
+// uploaded (Juan, 2026-11-25: the proof review in Admin > Comprobantes is for logistics, not for referrals).
+export const CREDIT_RELEASE_PAYMENT_STATUSES: PaymentStatus[] = [PaymentStatus.PAID, PaymentStatus.PROOF_UPLOADED];
 export const CANCELLED_ORDER_STATUSES = [OrderStatus.CANCELLED, OrderStatus.EXPIRED];
 
 export const confirmedOrderWhere: Prisma.OrderWhereInput = {
