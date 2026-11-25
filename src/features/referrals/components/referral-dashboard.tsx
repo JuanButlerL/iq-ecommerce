@@ -67,7 +67,7 @@ export function ReferralDashboard(props: Props) {
             {props.firstName ? `¡Hola ${props.firstName}!` : "¡Hola!"}
           </h1>
           <p className="mt-1 text-sm leading-6 text-brand-ink/70">
-            Tus amigas tienen {props.friendDiscountPercentage}% en su primera compra y vos sumás {formatArs(props.creditAmountArs)} por cada una, sin tope.
+            Las familias que invites tienen {props.friendDiscountPercentage}% en su primera compra y vos sumás {formatArs(props.creditAmountArs)} por cada una, sin tope.
           </p>
         </div>
         <button type="button" onClick={handleLogout} className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-ink/55 hover:text-brand-ink">
@@ -115,7 +115,7 @@ export function ReferralDashboard(props: Props) {
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-brand-ink/50">Tu crédito disponible</p>
             <p className="font-display text-4xl text-brand-ink md:text-5xl">{formatArs(props.balanceArs)}</p>
             <p className="text-sm text-brand-ink/60">
-              {props.friendsCount === 1 ? "1 amiga compró con tu código" : `${props.friendsCount} amigas compraron con tu código`}
+              {props.friendsCount === 1 ? "1 familia compró con tu código" : `${props.friendsCount} familias compraron con tu código`}
               {props.nextExpiry ? ` · vence el ${formatArgentinaDate(new Date(props.nextExpiry))}` : ""}
             </p>
           </div>
@@ -133,7 +133,7 @@ export function ReferralDashboard(props: Props) {
       </div>
 
       <Card className="p-5 md:p-6">
-        <h2 className="mb-3 font-display text-2xl text-brand-ink">Tus amigas</h2>
+        <h2 className="mb-3 font-display text-2xl text-brand-ink">Tus invitados</h2>
         {props.history.length ? (
           <ul className="divide-y divide-brand-ink/5">
             {props.history.map((item) => (
