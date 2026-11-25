@@ -4,10 +4,10 @@ export const DEFAULT_REFERRAL_SHARE_MESSAGE =
   "Te paso las barritas que comen mis chicos 🍌🥜🍫 Pocos ingredientes reales y sin azúcar agregada. Con mi código {codigo} tenés {descuento} en tu primera compra en iqkids.com.ar 💛";
 
 export const DEFAULT_REFERRAL_TERMS = [
-  "Tu código le da {descuento} a una amiga en su primera compra en la web, sin mínimo, sobre los productos. El envío se cobra como siempre.",
-  "Vos sumás {credito} de crédito por cada amiga nueva que compre con tu código, sin tope.",
-  "Amiga nueva: su DNI, email, teléfono y dirección no tienen compras anteriores en IQ Kids.",
-  "El crédito se acredita cuando se confirma la compra de tu amiga (pago con Mercado Pago o comprobante de transferencia). Si el pedido se cancela o el pago no llega, el crédito se anula.",
+  "Tu código le da {descuento} a quien invites en su primera compra en la web, sin mínimo, sobre los productos. El envío se cobra como siempre.",
+  "Vos sumás {credito} de crédito por cada familia nueva que compre con tu código, sin tope.",
+  "Familia nueva: su DNI, email, teléfono y dirección no tienen compras anteriores en IQ Kids.",
+  "El crédito se acredita cuando se confirma la compra de quien invitaste (pago con Mercado Pago o comprobante de transferencia). Si el pedido se cancela o el pago no llega, el crédito se anula.",
   "El crédito vence a los {vigencia} días y se usa en la web con tu código de crédito y tu DNI.",
   "No se suma a otras promociones ni vale con tu propio código. Si el crédito supera la compra, el resto queda para la próxima.",
   "Podemos anular créditos ante usos indebidos. Los cambios en las reglas se avisan con 15 días.",

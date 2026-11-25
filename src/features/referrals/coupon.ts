@@ -9,7 +9,7 @@ import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 
 export const FRIEND_NOT_NEW_MESSAGE =
-  "Este código es para familias que compran por primera vez en IQ Kids. Si ya compraste, podés pedirle a tu amiga que te lo cuente por otro lado 😉";
+  "Este código es para familias que compran por primera vez en IQ Kids. Si ya compraste antes, pedile a quien te lo pasó otro beneficio 😉";
 const SELF_REFERRAL_MESSAGE = "No podés usar tu propio código de referidos.";
 
 /**
