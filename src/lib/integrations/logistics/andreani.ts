@@ -231,7 +231,9 @@ export const andreaniAdapter: CarrierAdapter = {
       }),
     );
     const created = parseAndreaniCreated(response.json);
-    const label = created.labelReady ? await this.fetchLabel(created).catch(() => null) : null;
+    // La etiqueta suele estar lista apenas se crea aunque el estado diga "Pendiente" (probado 2026-11-24).
+    // Si todavía no está, el cron la vuelve a pedir.
+    const label = await this.fetchLabel(created).catch(() => null);
     return { trackingNumber: created.trackingNumber, carrierShipmentId: created.carrierShipmentId, label, raw: response.json };
   },
 
