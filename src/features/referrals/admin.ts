@@ -2,6 +2,9 @@ import { ReferralCouponKind, ReferralCreditStatus } from "@prisma/client";
 import { z } from "zod";
 
 import { getReferralBalance, refreshReferralCredits } from "@/features/referrals/credits";
+import { findLatestConfirmedRetailOrderByTaxId } from "@/features/referrals/eligibility";
+import { isValidReferralTaxId, normalizeFriendCode, normalizeTaxId, taxIdIdentity } from "@/features/referrals/normalize";
+import { createCodesForAccount } from "@/features/referrals/portal";
 import { DEFAULT_REFERRAL_SHARE_MESSAGE, DEFAULT_REFERRAL_TERMS, getReferralSettings } from "@/features/referrals/settings";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
@@ -140,7 +143,7 @@ export async function setReferralAccountBlocked(accountId: string, blocked: bool
   const account = await prisma.referralAccount.findUnique({ where: { id: accountId }, include: { coupons: { select: { id: true } } } });
 
   if (!account) {
-    throw new AppError("Embajadora no encontrada.", 404);
+    throw new AppError("Referidor/a no encontrado/a.", 404);
   }
 
   const nextStatus = blocked ? "BLOCKED" : account.coupons.length ? "ACTIVE" : "INVITED";
@@ -172,10 +175,10 @@ export async function buildReferralCreditsCsv() {
   const header = [
     "fecha",
     "codigo",
-    "embajadora_dni",
-    "embajadora_nombre",
+    "referidor_dni",
+    "referidor_nombre",
     "pedido",
-    "amiga",
+    "invitado",
     "pago",
     "estado_pedido",
     "estado_credito",
@@ -203,4 +206,94 @@ export async function buildReferralCreditsCsv() {
   ]);
 
   return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+}
+
+const BULK_MAX_LINES = 300;
+
+export type ReferralBulkResult = { line: number; taxId: string; code: string; ok: boolean; message: string };
+
+/**
+ * Admin bulk load: one "DNI CODE" per line (space, tab, comma or semicolon; either order). Creates the
+ * account and both codes for each DNI with a confirmed web purchase. Works with the program off, so
+ * the codes can be ready before the launch. The person accepts the rules when they open the portal.
+ */
+export async function bulkCreateReferralCodes(payload: unknown, adminEmail: string) {
+  const parsed = z.object({ text: z.string().max(20000) }).safeParse(payload);
+
+  if (!parsed.success) {
+    throw new AppError("Pegá la lista de DNI y código, uno por renglón.", 400);
+  }
+
+  const lines = parsed.data.text
+    .split(/\r?\n/)
+    .map((line, index) => ({ line: index + 1, raw: line.trim() }))
+    .filter((entry) => entry.raw);
+
+  if (!lines.length) {
+    throw new AppError("La lista está vacía.", 400);
+  }
+
+  if (lines.length > BULK_MAX_LINES) {
+    throw new AppError(`Se pueden cargar hasta ${BULK_MAX_LINES} renglones por vez.`, 400);
+  }
+
+  const settings = await getReferralSettings();
+  const results: ReferralBulkResult[] = [];
+
+  for (const entry of lines) {
+    const tokens = entry.raw.split(/[\s,;]+/).filter(Boolean);
+    const taxToken = tokens.find((token) => isValidReferralTaxId(normalizeTaxId(token)) && /^[\d.\-]+$/.test(token)) ?? "";
+    const codeToken = tokens.find((token) => token !== taxToken) ?? "";
+    const taxId = taxIdIdentity(taxToken);
+    const code = normalizeFriendCode(codeToken);
+    const fail = (message: string) => results.push({ line: entry.line, taxId, code, ok: false, message });
+
+    if (!taxToken || !codeToken || tokens.length > 2) {
+      fail("Formato: DNI y código, por ejemplo 30123456 SOFI15.");
+      continue;
+    }
+
+    try {
+      const existing = await prisma.referralAccount.findUnique({
+        where: { taxId },
+        include: { coupons: { select: { code: true, referralKind: true } } },
+      });
+
+      if (existing?.status === "BLOCKED") {
+        fail("Está bloqueado/a en Referidos.");
+        continue;
+      }
+
+      const existingCode = existing?.coupons.find((coupon) => coupon.referralKind === ReferralCouponKind.FRIEND_DISCOUNT)?.code;
+
+      if (existingCode) {
+        fail(`Ya tiene su código: ${existingCode}.`);
+        continue;
+      }
+
+      const order = await findLatestConfirmedRetailOrderByTaxId(taxId);
+
+      if (!order) {
+        fail("El DNI no tiene compras confirmadas en la web.");
+        continue;
+      }
+
+      const account = existing
+        ? await prisma.referralAccount.update({
+            where: { id: existing.id },
+            data: { email: order.customerEmail, phone: order.customerPhone, firstName: existing.firstName ?? order.customerFirstName },
+          })
+        : await prisma.referralAccount.create({
+            data: { taxId, email: order.customerEmail, phone: order.customerPhone, firstName: order.customerFirstName, invitedBy: adminEmail },
+          });
+
+      await createCodesForAccount(account, code, { percentage: settings.friendDiscountPercentage, termsAccepted: false });
+      results.push({ line: entry.line, taxId, code, ok: true, message: `Creado para ${order.customerFirstName}.` });
+    } catch (error) {
+      fail(error instanceof AppError ? error.message : "Error inesperado.");
+      if (!(error instanceof AppError)) console.error("referral bulk load failed", { line: entry.line, error });
+    }
+  }
+
+  return { created: results.filter((result) => result.ok).length, failed: results.filter((result) => !result.ok).length, results };
 }

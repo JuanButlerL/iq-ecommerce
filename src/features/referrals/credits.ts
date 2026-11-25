@@ -143,7 +143,7 @@ async function getCreditRejection(credit: {
     select: { id: true },
   });
 
-  return duplicated ? "la amiga ya generó un crédito con otro pedido" : null;
+  return duplicated ? "la persona invitada ya generó un crédito con otro pedido" : null;
 }
 
 /**
@@ -250,7 +250,7 @@ export async function approveReferralCredit(creditId: string, reviewedBy: string
 
   const order = credit.referredOrder;
   if (!(CONFIRMED_PAYMENT_STATUSES as string[]).includes(order.paymentStatus) || (CANCELLED_ORDER_STATUSES as string[]).includes(order.orderStatus)) {
-    throw new AppError("El pedido de la amiga todavía no está confirmado.", 400);
+    throw new AppError("El pedido de la persona invitada todavía no está confirmado.", 400);
   }
 
   if (!force) {

@@ -48,6 +48,12 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
   });
   const [creditFilter, setCreditFilter] = useState<"ALL" | "PENDING" | "AVAILABLE" | "REJECTED" | "VOIDED">("ALL");
   const [search, setSearch] = useState("");
+  const [bulkText, setBulkText] = useState("");
+  const [bulkResult, setBulkResult] = useState<{
+    created: number;
+    failed: number;
+    results: Array<{ line: number; taxId: string; code: string; ok: boolean; message: string }>;
+  } | null>(null);
   const normalizedSearch = search.trim().toLowerCase();
 
   const filteredCredits = useMemo(
@@ -134,8 +140,41 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
     );
   }
 
+  function handleBulkSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    setBulkResult(null);
+
+    startTransition(async () => {
+      const response = await fetch("/api/admin/referrals/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: bulkText }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setError(payload.error ?? "No se pudo hacer la carga.");
+        return;
+      }
+
+      setBulkResult(payload.data);
+      // Keeps only the lines that failed, so they can be fixed and loaded again.
+      const failedLines = new Set<number>(payload.data.results.filter((result: { ok: boolean }) => !result.ok).map((result: { line: number }) => result.line));
+      setBulkText(
+        bulkText
+          .split(/\r?\n/)
+          // Line numbers from the server count every line, blank ones included.
+          .filter((line, index) => line.trim() && failedLines.has(index + 1))
+          .join("\n"),
+      );
+      router.refresh();
+    });
+  }
+
   function toggleBlocked(id: string, blocked: boolean) {
-    if (blocked && !window.confirm("¿Bloquear a esta embajadora? Sus códigos dejan de funcionar y se cierra su sesión.")) {
+    if (blocked && !window.confirm("¿Bloquear a este referidor/a? Sus códigos dejan de funcionar y se cierra su sesión.")) {
       return;
     }
 
@@ -146,7 +185,7 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ blocked }),
         }),
-      blocked ? "Embajadora bloqueada." : "Embajadora desbloqueada.",
+      blocked ? "Referidor/a bloqueado/a." : "Referidor/a desbloqueado/a.",
     );
   }
 
@@ -157,7 +196,7 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Marketing</p>
           <h1 className="font-display text-3xl text-brand-ink md:text-5xl">Referidos</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/65">
-            Club de Familias iQ. Cualquier DNI con una compra confirmada entra en /referidos, arma su código para amigas y recibe un código
+            Club de Familias iQ. Cualquier DNI con una compra confirmada entra en /referidos, arma su código para invitar y recibe un código
             personal para gastar el crédito.
           </p>
         </div>
@@ -185,7 +224,7 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          ["Embajadoras con código", String(totals.accounts)],
+          ["Referidores con código", String(totals.accounts)],
           ["Créditos acreditados", String(totals.credited)],
           ["Créditos en espera", String(totals.pending)],
           ["Saldo sin usar", formatArs(totals.balance)],
@@ -206,11 +245,11 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
           </label>
           <div className="grid gap-3 md:grid-cols-4">
             <label className="space-y-1 text-sm font-bold text-brand-ink">
-              <span>% para la amiga</span>
+              <span>% para quien invitan</span>
               <Input type="number" min={1} max={50} value={settings.friendDiscountPercentage} onChange={(event) => setSettings({ ...settings, friendDiscountPercentage: Number(event.target.value) })} />
             </label>
             <label className="space-y-1 text-sm font-bold text-brand-ink">
-              <span>Crédito por amiga ($)</span>
+              <span>Crédito por invitado/a ($)</span>
               <Input type="number" min={100} value={settings.creditAmountArs} onChange={(event) => setSettings({ ...settings, creditAmountArs: Number(event.target.value) })} />
             </label>
             <label className="space-y-1 text-sm font-bold text-brand-ink">
@@ -234,7 +273,7 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
           <label className="block space-y-1 text-sm font-bold text-brand-ink">
             <span>Mensaje para compartir</span>
             <Textarea rows={3} value={settings.shareMessage} onChange={(event) => setSettings({ ...settings, shareMessage: event.target.value })} />
-            <span className="block text-xs font-normal text-brand-ink/55">Usá {"{codigo}"} y {"{descuento}"}; se reemplazan por los de cada embajadora.</span>
+            <span className="block text-xs font-normal text-brand-ink/55">Usá {"{codigo}"} y {"{descuento}"}; se reemplazan por los de cada referidor/a.</span>
           </label>
           <label className="block space-y-1 text-sm font-bold text-brand-ink">
             <span>Imagen para compartir (link)</span>
@@ -249,6 +288,39 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
             {isPending ? "Guardando..." : "Guardar configuración"}
           </Button>
         </form>
+      </Card>
+
+      <Card className="p-5 md:p-6">
+        <form onSubmit={handleBulkSubmit} className="space-y-3">
+          <h2 className="font-display text-2xl text-brand-ink">Carga masiva de códigos</h2>
+          <p className="text-sm leading-6 text-brand-ink/65">
+            Un renglón por persona: DNI y el código para invitar, por ejemplo <span className="font-mono">30123456 SOFI15</span>. Se crean los dos
+            códigos (el de invitar y el de crédito) para cada DNI con una compra confirmada en la web. Funciona aunque el programa esté apagado.
+            Después, cada persona entra a /referidos con su DNI y ya ve todo armado.
+          </p>
+          <Textarea rows={6} value={bulkText} placeholder={"30123456 SOFI15\n27999888 MARTU15"} onChange={(event) => setBulkText(event.target.value)} />
+          <Button type="submit" disabled={isPending || !bulkText.trim()}>
+            {isPending ? "Creando..." : "Crear códigos"}
+          </Button>
+        </form>
+        {bulkResult ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-sm font-bold text-brand-ink">
+              {bulkResult.created} creado{bulkResult.created === 1 ? "" : "s"}
+              {bulkResult.failed ? ` · ${bulkResult.failed} con problemas (quedaron en el cuadro para corregirlos)` : ""}
+            </p>
+            <ul className="max-h-72 divide-y divide-brand-ink/5 overflow-y-auto text-sm">
+              {bulkResult.results.map((result) => (
+                <li key={result.line} className="flex flex-wrap gap-x-3 py-1.5">
+                  <span className={result.ok ? "font-bold text-green-700" : "font-bold text-red-600"}>{result.ok ? "OK" : "Error"}</span>
+                  <span className="font-mono">{result.taxId || "—"}</span>
+                  <span className="font-bold">{result.code || "—"}</span>
+                  <span className="text-brand-ink/65">{result.message}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </Card>
 
       <Input placeholder="Buscar por código, pedido, DNI o nombre" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -275,7 +347,7 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
               <tr>
                 <th className="py-2">Fecha</th>
                 <th>Código</th>
-                <th>Pedido de la amiga</th>
+                <th>Pedido del invitado/a</th>
                 <th>Pago</th>
                 <th>Crédito</th>
                 <th>Vence / usado</th>
@@ -336,16 +408,16 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
       </Card>
 
       <Card className="p-5 md:p-6">
-        <h2 className="mb-3 font-display text-2xl text-brand-ink">Embajadoras</h2>
+        <h2 className="mb-3 font-display text-2xl text-brand-ink">Referidores</h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="text-xs uppercase text-brand-ink/50">
               <tr>
                 <th className="py-2">Nombre</th>
                 <th>DNI</th>
-                <th>Código amigas</th>
+                <th>Código para invitar</th>
                 <th>Código crédito</th>
-                <th>Amigas</th>
+                <th>Invitados</th>
                 <th>Saldo</th>
                 <th>Estado</th>
                 <th></th>
@@ -381,7 +453,7 @@ export function ReferralsAdminPanel({ data, warnings }: Props) {
               ))}
             </tbody>
           </table>
-          {!filteredAccounts.length ? <p className="py-6 text-center text-sm text-brand-ink/55">Todavía no entró ninguna embajadora.</p> : null}
+          {!filteredAccounts.length ? <p className="py-6 text-center text-sm text-brand-ink/55">Todavía no entró ningún referidor/a.</p> : null}
         </div>
       </Card>
     </div>

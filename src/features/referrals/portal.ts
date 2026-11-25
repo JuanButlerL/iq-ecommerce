@@ -55,7 +55,19 @@ export async function createReferralCodes(account: ReferralAccount, payload: unk
     throw new AppError(parsed.error.issues[0]?.message ?? "Revisá los datos.", 400);
   }
 
-  const friendCode = normalizeFriendCode(parsed.data.friendCode);
+  return createCodesForAccount(account, parsed.data.friendCode, { percentage: settings.friendDiscountPercentage, termsAccepted: true });
+}
+
+/**
+ * Creates the friend code and the personal credit code of an account. Used by the portal and by the
+ * admin bulk load (which leaves the terms to be accepted by the person in the portal).
+ */
+export async function createCodesForAccount(
+  account: { id: string; taxId: string },
+  rawFriendCode: string,
+  options: { percentage: number; termsAccepted: boolean },
+) {
+  const friendCode = normalizeFriendCode(rawFriendCode);
   assertFriendCodeAllowed(friendCode);
 
   const taken = await prisma.coupon.findFirst({ where: { code: { equals: friendCode, mode: "insensitive" } }, select: { id: true } });
@@ -72,9 +84,9 @@ export async function createReferralCodes(account: ReferralAccount, payload: unk
         await tx.coupon.create({
           data: {
             code: friendCode,
-            description: `Referidos: código para amigas de DNI ${maskedDni}`,
+            description: `Referidos: código para invitar de DNI ${maskedDni}`,
             discountType: CouponDiscountType.PERCENTAGE,
-            discountPercentage: settings.friendDiscountPercentage,
+            discountPercentage: options.percentage,
             usageType: CouponUsageType.UNLIMITED,
             active: true,
             referralKind: ReferralCouponKind.FRIEND_DISCOUNT,
@@ -94,7 +106,7 @@ export async function createReferralCodes(account: ReferralAccount, payload: unk
         });
         await tx.referralAccount.update({
           where: { id: account.id },
-          data: { status: "ACTIVE", activatedAt: new Date(), termsAcceptedAt: new Date() },
+          data: { status: "ACTIVE", activatedAt: new Date(), ...(options.termsAccepted ? { termsAcceptedAt: new Date() } : {}) },
         });
       });
 
@@ -125,7 +137,7 @@ export async function createReferralCodes(account: ReferralAccount, payload: unk
 }
 
 const creditStatusLabels = {
-  waiting: "Esperando que tu amiga pague",
+  waiting: "Esperando el pago",
   pending: "Confirmado, se acredita pronto",
   available: "Acreditado",
   used: "Usado",

@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Club de Familias iQ",
-  description: "Compartí IQ Kids con tus amigas: ellas tienen un descuento en su primera compra y vos sumás crédito.",
+  description: "Compartí IQ Kids: las familias que invites tienen un descuento en su primera compra y vos sumás crédito.",
   robots: { index: false, follow: false },
 };
 
@@ -77,7 +77,7 @@ export default async function ReferralPortalPage() {
           <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Club de Familias iQ</p>
           <h1 className="font-display text-4xl leading-none text-brand-ink md:text-5xl">Lo bueno se comparte</h1>
           <p className="text-sm leading-6 text-brand-ink/70 md:text-base">
-            Tus amigas tienen <strong>{settings.friendDiscountPercentage}% off</strong> en su primera compra con tu código, y vos sumás{" "}
+            Las familias que invites tienen <strong>{settings.friendDiscountPercentage}% off</strong> en su primera compra con tu código, y vos sumás{" "}
             <strong>{formatArs(settings.creditAmountArs)}</strong> de crédito por cada una que compre. Sin tope.
           </p>
         </div>

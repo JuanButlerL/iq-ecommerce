@@ -26,7 +26,7 @@ export function buildReferralLoginEmail(input: { firstName: string | null; url: 
   const greeting = input.firstName ? `¡Hola ${input.firstName}!` : "¡Hola!";
   const subject = "Tu acceso al Club de Familias iQ";
   const html = layout(
-    "Entrá a tu portal de embajadora",
+    "Entrá a tu portal del Club",
     `<p style="margin:0 0 12px;font-size:15px;line-height:1.5">${escapeHtml(greeting)} Tocá el botón para entrar y armar o ver tus códigos.</p>
 ${button(input.url, "Entrar al portal")}
 <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#6b6070">El link vence en ${input.minutes} minutos y sirve una sola vez. Si no lo pediste vos, ignorá este email: nadie puede entrar sin él.</p>`,
@@ -40,12 +40,12 @@ export function buildReferralCreditEmail(input: { firstName: string | null; amou
   const greeting = input.firstName ? `¡Hola ${input.firstName}!` : "¡Hola!";
   const subject = `¡Sumaste ${formatArs(input.amountArs)} de crédito en IQ Kids! 🎉`;
   const html = layout(
-    `Una amiga compró con tu código 🎉`,
+    `¡Alguien compró con tu código! 🎉`,
     `<p style="margin:0 0 12px;font-size:15px;line-height:1.5">${escapeHtml(greeting)} Ya tenés ${formatArs(input.amountArs)} más de crédito. Tu saldo es de <strong>${formatArs(input.balanceArs)}</strong>.</p>
 <p style="margin:0 0 12px;font-size:15px;line-height:1.5">Usalo antes del ${formatArgentinaDate(input.expiresAt)} en iqkids.com.ar con tu código de crédito y tu DNI. Y seguí compartiendo: no hay tope.</p>
 ${button(input.portalUrl, "Ver mi portal")}`,
   );
-  const text = `${greeting}\n\nUna amiga compró con tu código: ya tenés ${formatArs(input.amountArs)} más de crédito (saldo ${formatArs(input.balanceArs)}). Usalo antes del ${formatArgentinaDate(input.expiresAt)} en iqkids.com.ar con tu código de crédito y tu DNI.\n\nTu portal: ${input.portalUrl}`;
+  const text = `${greeting}\n\nAlguien compró con tu código: ya tenés ${formatArs(input.amountArs)} más de crédito (saldo ${formatArs(input.balanceArs)}). Usalo antes del ${formatArgentinaDate(input.expiresAt)} en iqkids.com.ar con tu código de crédito y tu DNI.\n\nTu portal: ${input.portalUrl}`;
 
   return { subject, html, text };
 }
