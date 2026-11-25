@@ -66,6 +66,7 @@ const settingsSchema = z.object({
   quoteCacheHours: z.coerce.number().int().min(1).max(168),
   carrierPricing: z.enum(["TABLE", "LIVE"]),
   andreaniSurchargeArs: z.coerce.number().int().min(0).max(1_000_000),
+  andreaniDiscountPct: z.coerce.number().int().min(0).max(90),
   correoSurchargeArs: z.coerce.number().int().min(0).max(1_000_000),
 });
 

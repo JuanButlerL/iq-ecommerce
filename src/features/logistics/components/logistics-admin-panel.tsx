@@ -273,6 +273,11 @@ export function LogisticsAdminPanel({ data }: Props) {
               <span className="block text-xs font-normal text-brand-ink/55">Se suma a la tarifa: llevarlo hasta Andreani.</span>
             </label>
             <label className="space-y-1 text-sm font-bold text-brand-ink">
+              <span>Descuento sobre tarifa Andreani (%)</span>
+              <Input type="number" min={0} max={90} value={settings.andreaniDiscountPct} onChange={(e) => set("andreaniDiscountPct", num(e.target.value))} />
+              <span className="block text-xs font-normal text-brand-ink/55">Solo si la API no trae el descuento del contrato. 0 = ninguno.</span>
+            </label>
+            <label className="space-y-1 text-sm font-bold text-brand-ink">
               <span>Recargo Correo ($)</span>
               <Input type="number" min={0} value={settings.correoSurchargeArs} onChange={(e) => set("correoSurchargeArs", num(e.target.value))} />
               <span className="block text-xs font-normal text-brand-ink/55">Se suma a la tarifa: llevarlo hasta el Correo.</span>

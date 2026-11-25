@@ -42,7 +42,7 @@ El crédito de la amiga ahora se libera con el pago confirmado (MP pagado o comp
 
 ## Deploy (Caso B: con migración) — paso a paso
 
-Migraciones `202611241200_add_logistics`, `202611250600_logistics_surcharges`, `202611250610_price_source_customer` y `202611250620_carrier_pricing_mode`: **solo agregan** tablas, tipos y columnas nullable; marca como aprobados los comprobantes de pedidos ya pagos y crea la configuración con la integración **apagada**. Apagada, el checkout cobra como hoy y no se generan etiquetas. Lo único que cambia desde el primer minuto: los comprobantes se aprueban en Admin > Comprobantes y el crédito de referidos se libera al aprobar.
+Migraciones `202611241200_add_logistics`, `202611250600_logistics_surcharges`, `202611250610_price_source_customer`, `202611250620_carrier_pricing_mode` y `202611251230_andreani_discount`: **solo agregan** tablas, tipos y columnas nullable; marca como aprobados los comprobantes de pedidos ya pagos y crea la configuración con la integración **apagada**. Apagada, el checkout cobra como hoy y no se generan etiquetas. Lo único que cambia desde el primer minuto: los comprobantes se aprueban en Admin > Comprobantes y el crédito de referidos se libera al aprobar.
 
 ### Antes (sin tocar producción)
 1. Juan carga en `/opt/iqkids/web/.env.production` (nunca en el repo ni en el chat):
@@ -121,4 +121,4 @@ Antes del build se guarda la imagen que está corriendo: `docker tag web-app:lat
 - Andreani y Correo: tarifa del transportista + recargo por llevarlo ($2.500 cada uno, editable). El precio de respaldo (tabla por provincia) no lleva recargo.
 - Cliente mayorista con "Precio de envío fijo" en el maestro: ese precio reemplaza al calculado (ej. $25.000 por bulto en CABA).
 - Precio de Andreani / Correo al cliente: selector en Admin > Logística. **Tabla actual por provincia** (por defecto, el cliente paga lo mismo que hoy) o **tarifa real + recargo**. Cotización real a Rosario (24/11): 1 display $15.317 domicilio / $11.343 sucursal, sin recargo.
-
+- Descuento sobre la tarifa de Andreani (%) en Admin > Logística, por si la API no trae el descuento del contrato (25% según el acuerdo; la API devuelve casi el precio público). Se aplica antes del recargo.

@@ -234,12 +234,15 @@ async function computeShippingOptions(input: ShippingOptionsInput): Promise<Ship
         // La cotización del transportista más llevar el paquete hasta él. El precio de respaldo (tabla por
         // provincia) ya es un precio al cliente: no lleva recargo.
         const surcharge = quote.source === "FALLBACK" ? 0 : carrier === "ANDREANI" ? settings.andreaniSurchargeArs : settings.correoSurchargeArs;
+        // Descuento del contrato de Andreani que la API no trae aplicado (configurable en el admin).
+        const discountPct = quote.source !== "FALLBACK" && carrier === "ANDREANI" ? Math.min(90, Math.max(0, settings.andreaniDiscountPct)) : 0;
+        const carrierPrice = Math.round(quote.priceArs * (1 - discountPct / 100));
         return {
           id: optionId(carrier, deliveryType),
           carrier,
           deliveryType,
           label: `${CARRIER_LABELS[carrier]} · ${deliveryType === "BRANCH" ? "retiro en sucursal" : "a domicilio"}`,
-          carrierPriceArs: quote.priceArs + Math.max(0, surcharge),
+          carrierPriceArs: carrierPrice + Math.max(0, surcharge),
           priceSource: quote.source,
           deliveryDaysMin: quote.deliveryDaysMin,
           deliveryDaysMax: quote.deliveryDaysMax,

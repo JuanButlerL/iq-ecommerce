@@ -1484,6 +1484,8 @@ model ShippingSettings {
   // "LIVE" = la tarifa real del transportista + recargo.
   carrierPricing          String   @default("TABLE") @map("carrier_pricing")
   andreaniSurchargeArs    Int      @default(2500) @map("andreani_surcharge_ars")
+  // Descuento del contrato que la API de Andreani no aplica (ej. 25% sobre el tarifario). 0 = ninguno.
+  andreaniDiscountPct     Int      @default(0) @map("andreani_discount_pct")
   correoSurchargeArs      Int      @default(2500) @map("correo_surcharge_ars")
   updatedAt               DateTime @updatedAt @map("updated_at")
 
