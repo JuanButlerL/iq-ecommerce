@@ -21,10 +21,24 @@ async function main() {
   const result = await importPostalCodes(readFileSync(CSV, "utf8"));
   console.log(`CP: ${result.rows} filas, ${result.created} nuevas, ${result.updated} actualizadas, ${result.own} de reparto propio.`);
 
+  // Mayoristas: el precio de su tabla de envíos de hoy para esa provincia (CABA hoy es sin cargo), así no
+  // cambia lo que paga un mayorista. Si la tabla no tiene la provincia, el mismo precio que minoristas.
   const zones = [
-    { name: "CABA", priceArs: 5000, sortOrder: 0 },
-    { name: "GBA Norte", priceArs: 7500, sortOrder: 1 },
+    { name: "CABA", priceArs: 5000, wholesaleProvinces: ["CABA"], sortOrder: 0 },
+    { name: "GBA Norte", priceArs: 7500, wholesaleProvinces: ["GBA", "Buenos Aires"], sortOrder: 1 },
   ];
+  const wholesaleRule = await prisma.shippingRule.findFirst({
+    where: { channel: "WHOLESALE", active: true },
+    include: { provinces: { where: { active: true } } },
+    orderBy: { updatedAt: "desc" },
+  });
+  const wholesalePrice = (names: string[]) => {
+    for (const name of names) {
+      const row = wholesaleRule?.provinces.find((p) => p.provinceName.trim().toLowerCase() === name.toLowerCase());
+      if (row) return row.shippingPrice;
+    }
+    return null;
+  };
   for (const zone of zones) {
     const current = await prisma.ownDeliveryZone.findUnique({ where: { name: zone.name } });
     // Una zona que ya tiene precio (cargado en el admin) no se toca.
@@ -34,7 +48,7 @@ async function main() {
     }
     const data = {
       priceArs: zone.priceArs,
-      wholesalePriceArs: null,
+      wholesalePriceArs: wholesalePrice(zone.wholesaleProvinces),
       deliveryDaysMin: 1,
       deliveryDaysMax: 2,
       sortOrder: zone.sortOrder,

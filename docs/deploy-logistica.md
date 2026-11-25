@@ -87,9 +87,20 @@ Migraciones `202611241200_add_logistics`, `202611250600_logistics_surcharges`, `
 - Sin la integración prendida, el script se comporta igual que hoy (la columna `logistica` viene vacía y decide la tabla de CP del sheet).
 
 ### Vuelta atrás
-- **Rápida (sin deploy):** apagar "Integración logística activa" en Admin > Logística. El checkout vuelve a cobrar por provincia y no se generan etiquetas nuevas. Los envíos ya creados quedan como están.
-- **Código:** `git checkout <commit anterior>`, `docker compose build app`, `docker compose up -d app`. La migración es solo aditiva: el código anterior funciona con la base nueva, no hace falta revertirla.
-- **Apps Script:** en el editor, Implementaciones > versión anterior, o `git checkout` del commit "Copia original (clasp clone)" en la carpeta del script y `clasp push`.
+
+Antes del build se guarda la imagen que está corriendo: `docker tag web-app:latest web-app:rollback-c3600d2`.
+
+- **Rápida (sin deploy, segundos):** apagar "Integración logística activa" en Admin > Logística. El checkout vuelve a cobrar por provincia y no se generan etiquetas nuevas.
+- **Código (menos de 1 minuto, sin build):**
+  ```
+  cd /opt/iqkids/web
+  git checkout c3600d2
+  docker tag web-app:rollback-c3600d2 web-app:latest
+  docker compose up -d --no-build app
+  ```
+  Las migraciones solo agregan: el código anterior funciona con la base nueva, no se revierten.
+- **Apps Script de etiquetas:** `git checkout` del commit "Copia original (clasp clone)" en `apps-scripts/etiquetas` y `clasp push`. La planilla de pedidos (versión 10) solo agregó columnas y no hace falta volverla atrás.
+- **Último recurso:** restaurar el backup de la base tomado antes del deploy (borra lo creado después: decisión explícita de Juan).
 
 ## Estado de la validación con las cuentas reales
 
