@@ -1,4 +1,5 @@
-import { dbDateToKey, formatDispatchDate } from "@/features/logistics/business-days";
+import { computeDispatchDate, dbDateToKey, formatDispatchDate } from "@/features/logistics/business-days";
+import { getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
 import { AutoRefresh } from "@/features/logistics/components/auto-refresh";
 import { trackingUrlFor } from "@/features/logistics/shipping-email";
 import { prisma } from "@/lib/db/prisma";
@@ -24,7 +25,17 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
   const shipment = order.shipment;
   const created = shipment.status === "CREATED";
   const confirmed = shipment.status !== "WAITING_PAYMENT" && shipment.status !== "CANCELLED";
-  const dispatch = shipment.dispatchDate ?? order.estimatedDispatchDate;
+  // Confirmado: la fecha que quedó fijada. Sin confirmar: la que correspondería si se confirma ahora
+  // (la del día del pedido ya puede haber pasado).
+  const dispatchKey = confirmed
+    ? shipment.dispatchDate
+      ? dbDateToKey(shipment.dispatchDate)
+      : order.estimatedDispatchDate
+        ? dbDateToKey(order.estimatedDispatchDate)
+        : null
+    : shipment.status === "CANCELLED"
+      ? null
+      : computeDispatchDate(new Date(), await getShippingSettings(), await getHolidayCalendar());
   const trackingUrl = trackingUrlFor(order.shippingCarrier, shipment.trackingNumber);
   const isOwn = order.shippingCarrier === "OWN";
   // Mercado Pago avisa el pago unos segundos después de volver: la página se actualiza sola un rato.
@@ -59,10 +70,10 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
             )}
           </p>
         </div>
-        {dispatch ? (
+        {dispatchKey ? (
           <div>
             <p className="text-xs text-brand-ink/55">{confirmed ? "Despachamos el" : "Si se confirma hoy, sale el"}</p>
-            <p className="font-bold text-brand-ink">{formatDispatchDate(dbDateToKey(dispatch))}</p>
+            <p className="font-bold text-brand-ink">{formatDispatchDate(dispatchKey)}</p>
           </div>
         ) : null}
       </div>
