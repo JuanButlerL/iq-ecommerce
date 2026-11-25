@@ -254,6 +254,16 @@ export function LogisticsAdminPanel({ data }: Props) {
               <span className="block text-xs font-normal text-brand-ink/55">Días hábiles extra antes de despachar.</span>
             </label>
             <label className="space-y-1 text-sm font-bold text-brand-ink">
+              <span>Recargo Andreani ($)</span>
+              <Input type="number" min={0} value={settings.andreaniSurchargeArs} onChange={(e) => set("andreaniSurchargeArs", num(e.target.value))} />
+              <span className="block text-xs font-normal text-brand-ink/55">Se suma a la tarifa: llevarlo hasta Andreani.</span>
+            </label>
+            <label className="space-y-1 text-sm font-bold text-brand-ink">
+              <span>Recargo Correo ($)</span>
+              <Input type="number" min={0} value={settings.correoSurchargeArs} onChange={(e) => set("correoSurchargeArs", num(e.target.value))} />
+              <span className="block text-xs font-normal text-brand-ink/55">Se suma a la tarifa: llevarlo hasta el Correo.</span>
+            </label>
+            <label className="space-y-1 text-sm font-bold text-brand-ink">
               <span>Cotización guardada (horas)</span>
               <Input type="number" min={1} max={168} value={settings.quoteCacheHours} onChange={(e) => set("quoteCacheHours", num(e.target.value))} />
               <span className="block text-xs font-normal text-brand-ink/55">Cada cuánto se vuelve a pedir el precio.</span>

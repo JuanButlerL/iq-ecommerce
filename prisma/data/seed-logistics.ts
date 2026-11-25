@@ -3,8 +3,7 @@
 //
 // 1. Tabla de códigos postales: copia de codigos_postales_db de la app (iq_app_db) al 2026-11-24.
 //    Es el punto de partida; de acá en adelante se edita desde Admin > Logística.
-// 2. Zonas de reparto propio "CABA" y "GBA Norte" con el precio que hoy cobra la tabla por provincia
-//    (CABA y GBA / Buenos Aires), minorista y mayorista, así el cliente paga lo mismo que hoy.
+// 2. Zonas de reparto propio "CABA" ($5.000) y "GBA Norte" ($7.500), precios que pasó Juan el 2026-11-24.
 // 3. Hora de corte 13:00 (config_corte de la app).
 // 4. Peso y medidas de los productos que no los tienen: 1 cajita = 1 display (360 g, 10x12x7);
 //    "3 Cajitas ..." = 3 displays (1080 g). La web arma el bulto según la cantidad de displays.
@@ -18,30 +17,13 @@ import { DISPLAY_BOXES, DISPLAY_WEIGHT_GRAMS } from "@/features/logistics/packag
 
 const CSV = path.join(process.cwd(), "prisma", "data", "codigos-postales-app-2026-11-24.csv");
 
-function norm(value: string) {
-  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
-}
-
-async function provincePrice(channel: "RETAIL" | "WHOLESALE", names: string[]) {
-  const rule =
-    channel === "RETAIL"
-      ? (await prisma.storeSettings.findUnique({ where: { id: "default" }, include: { activeShippingRule: { include: { provinces: true } } } }))?.activeShippingRule
-      : await prisma.shippingRule.findFirst({ where: { channel: "WHOLESALE", active: true }, include: { provinces: true }, orderBy: { updatedAt: "desc" } });
-  if (!rule) return null;
-  for (const name of names) {
-    const row = rule.provinces.find((p) => p.active && norm(p.provinceName) === norm(name));
-    if (row) return row.shippingPrice;
-  }
-  return rule.flatPrice ?? null;
-}
-
 async function main() {
   const result = await importPostalCodes(readFileSync(CSV, "utf8"));
   console.log(`CP: ${result.rows} filas, ${result.created} nuevas, ${result.updated} actualizadas, ${result.own} de reparto propio.`);
 
   const zones = [
-    { name: "CABA", provinces: ["CABA"], sortOrder: 0 },
-    { name: "GBA Norte", provinces: ["GBA", "Buenos Aires"], sortOrder: 1 },
+    { name: "CABA", priceArs: 5000, sortOrder: 0 },
+    { name: "GBA Norte", priceArs: 7500, sortOrder: 1 },
   ];
   for (const zone of zones) {
     const current = await prisma.ownDeliveryZone.findUnique({ where: { name: zone.name } });
@@ -50,15 +32,13 @@ async function main() {
       console.log(`Zona ${zone.name}: ya tenía precio ${current.priceArs}, no se cambia.`);
       continue;
     }
-    const retail = await provincePrice("RETAIL", zone.provinces);
-    const wholesale = await provincePrice("WHOLESALE", zone.provinces);
     const data = {
-      priceArs: retail ?? 0,
-      wholesalePriceArs: wholesale !== null && wholesale !== retail ? wholesale : null,
+      priceArs: zone.priceArs,
+      wholesalePriceArs: null,
       deliveryDaysMin: 1,
       deliveryDaysMax: 2,
       sortOrder: zone.sortOrder,
-      active: (retail ?? 0) > 0,
+      active: true,
     };
     await prisma.ownDeliveryZone.upsert({ where: { name: zone.name }, update: data, create: { name: zone.name, ...data } });
     console.log(`Zona ${zone.name}: precio ${data.priceArs}${data.wholesalePriceArs !== null ? `, mayorista ${data.wholesalePriceArs}` : ""}, ${data.active ? "activa" : "APAGADA (sin precio)"}.`);

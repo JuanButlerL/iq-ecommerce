@@ -41,6 +41,8 @@ export const wholesaleCustomerSchema = z.object({
   allowDeferredPayment: z.boolean(),
   // Logística fija del cliente. null = la decide la tabla de códigos postales.
   preferredCarrier: z.enum(["OWN", "ANDREANI", "CORREO_AR"]).nullable().optional(),
+  // Precio de envío fijo para este cliente. null = el que calcule la web.
+  shippingPriceArs: z.number().int().min(0).max(10_000_000).nullable().optional(),
   extraDiscountPercentage: z
     .number({ invalid_type_error: "El descuento debe ser un número." })
     .min(0, "El descuento no puede ser negativo.")

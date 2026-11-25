@@ -68,6 +68,7 @@ export default async function AdminWholesaleCustomerPage({ params }: { params: P
           reference: customer.reference ?? "",
           allowDeferredPayment: customer.allowDeferredPayment,
           preferredCarrier: customer.preferredCarrier ?? "",
+          shippingPriceArs: customer.shippingPriceArs === null ? "" : String(customer.shippingPriceArs),
           extraDiscountPercentage: String(Number(customer.extraDiscountPercentage)),
           active: customer.active,
           adminNotes: customer.adminNotes ?? "",

@@ -27,6 +27,7 @@ export async function resolveCheckoutShipping(input: {
   declaredValueArs: number;
   fallbackPriceArs: number;
   preferredCarrier?: ShippingCarrier | null;
+  customerShippingPriceArs?: number | null;
   selection?: ShippingSelection | null;
 }): Promise<ResolvedCheckoutShipping> {
   const result = await getShippingOptions(input);

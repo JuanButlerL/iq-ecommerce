@@ -45,6 +45,8 @@ export type ShippingOptionsInput = {
   declaredValueArs: number;
   // Logística fija del cliente mayorista (vacío = la decide la tabla de CP).
   preferredCarrier?: ShippingCarrier | null;
+  // Precio de envío fijo del cliente mayorista: reemplaza el de la zona o el transportista.
+  customerShippingPriceArs?: number | null;
   // Precio de la tabla por provincia, para cuando no hay ninguna cotización.
   fallbackPriceArs: number;
   now?: Date;
@@ -135,6 +137,16 @@ export async function quoteWithCache(
 }
 
 export async function getShippingOptions(input: ShippingOptionsInput): Promise<ShippingOptionsResult> {
+  const result = await computeShippingOptions(input);
+  const fixed = input.customerShippingPriceArs;
+  if (!result.enabled || fixed === null || fixed === undefined || fixed < 0) return result;
+  return {
+    ...result,
+    options: result.options.map((option) => ({ ...option, carrierPriceArs: fixed, priceSource: "CUSTOMER" as ShippingPriceSource })),
+  };
+}
+
+async function computeShippingOptions(input: ShippingOptionsInput): Promise<ShippingOptionsResult> {
   const settings = await getShippingSettings();
   if (!settings.enabled) return { enabled: false };
 
@@ -195,12 +207,15 @@ export async function getShippingOptions(input: ShippingOptionsInput): Promise<S
           settings,
           input.fallbackPriceArs,
         );
+        // La cotización del transportista más llevar el paquete hasta él. El precio de respaldo (tabla por
+        // provincia) ya es un precio al cliente: no lleva recargo.
+        const surcharge = quote.source === "FALLBACK" ? 0 : carrier === "ANDREANI" ? settings.andreaniSurchargeArs : settings.correoSurchargeArs;
         return {
           id: optionId(carrier, deliveryType),
           carrier,
           deliveryType,
           label: `${CARRIER_LABELS[carrier]} · ${deliveryType === "BRANCH" ? "retiro en sucursal" : "a domicilio"}`,
-          carrierPriceArs: quote.priceArs,
+          carrierPriceArs: quote.priceArs + Math.max(0, surcharge),
           priceSource: quote.source,
           deliveryDaysMin: quote.deliveryDaysMin,
           deliveryDaysMax: quote.deliveryDaysMax,

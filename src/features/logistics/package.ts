@@ -1,8 +1,8 @@
 // Arma los bultos de un pedido. Sin dependencias: lo usan el servidor y los tests.
 //
 // IQ Kids despacha displays de 12 barritas (360 g, 10x12x7 cm). Según cuántos displays lleva el pedido se
-// arma una caja de medida conocida (tabla de logística, 2026-11-24); de 10 en adelante se completan bultos de
-// 10 y el resto va en otra caja. Un producto que trae varios displays (ej. "3 Display Mix") cuenta como esos
+// arma una caja de medida conocida (tabla de logística, 2026-11-24); de 10 en adelante se completan cajas
+// madres de 10, cada 100 displays un bulto mayorista (10 cajas madres) y el resto va en otra caja. Un producto que trae varios displays (ej. "3 Display Mix") cuenta como esos
 // displays: se deduce de su peso cargado en el admin (1080 g = 3 displays).
 
 export type UnitDimensions = {
@@ -34,6 +34,9 @@ export type ComputedPackage = Box & { boxes: Box[]; displays: number };
 
 export const DISPLAY_WEIGHT_GRAMS = 360;
 export const DISPLAYS_PER_FULL_BOX = 10;
+// Bulto mayorista: 10 cajas madres (100 displays), 40x60x35 cm, 36 kg.
+export const DISPLAYS_PER_WHOLESALE_BULTO = 100;
+export const WHOLESALE_BULTO: [number, number, number] = [40, 60, 35];
 
 // Cantidad de displays -> caja (largo x ancho x alto en cm). Peso = 360 g por display.
 export const DISPLAY_BOXES: Record<number, [number, number, number]> = {
@@ -70,8 +73,14 @@ export function countDisplays(lines: PackageLine[]) {
 export function boxesForDisplays(displays: number): Box[] {
   const n = Math.max(1, Math.round(displays));
   const boxes: Box[] = [];
-  const full = Math.floor(n / DISPLAYS_PER_FULL_BOX);
-  const rest = n % DISPLAYS_PER_FULL_BOX;
+  const bultos = Math.floor(n / DISPLAYS_PER_WHOLESALE_BULTO);
+  for (let i = 0; i < bultos; i += 1) {
+    const [lengthCm, widthCm, heightCm] = WHOLESALE_BULTO;
+    boxes.push({ weightGrams: DISPLAYS_PER_WHOLESALE_BULTO * DISPLAY_WEIGHT_GRAMS, lengthCm, widthCm, heightCm });
+  }
+  const afterBultos = n % DISPLAYS_PER_WHOLESALE_BULTO;
+  const full = Math.floor(afterBultos / DISPLAYS_PER_FULL_BOX);
+  const rest = afterBultos % DISPLAYS_PER_FULL_BOX;
   const box = (count: number): Box => {
     const [lengthCm, widthCm, heightCm] = DISPLAY_BOXES[count];
     return { weightGrams: count * DISPLAY_WEIGHT_GRAMS, lengthCm, widthCm, heightCm };

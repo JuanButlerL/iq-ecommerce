@@ -76,6 +76,7 @@ export function WholesaleCustomerForm({ customerId, leadId, initialValues, busin
           ...values,
           taxCondition: values.taxCondition || null,
           preferredCarrier: values.preferredCarrier || null,
+          shippingPriceArs: values.shippingPriceArs.trim() === "" ? null : Math.round(Number(values.shippingPriceArs.replace(/\D/g, "")) || 0),
           extraDiscountPercentage: Number(values.extraDiscountPercentage.replace(",", ".")) || 0,
           leadId: leadId ?? null,
         }),
@@ -218,6 +219,9 @@ export function WholesaleCustomerForm({ customerId, leadId, initialValues, busin
             <option value="ANDREANI">Andreani</option>
             <option value="CORREO_AR">Correo Argentino</option>
           </Select>
+        </Field>
+        <Field label="Precio de envío fijo ($)" hint="Para entregas grandes con costo propio (ej. 25.000 por bulto en CABA). Vacío = el que calcula la web.">
+          <Input inputMode="numeric" value={values.shippingPriceArs} onChange={(event) => set("shippingPriceArs", event.target.value)} placeholder="Ej: 25000" />
         </Field>
         <Field label="Descuento extra para este CUIT (%)" hint="Se suma a los precios mayoristas. 0 = sin descuento especial.">
           <Input

@@ -506,6 +506,8 @@ model WholesaleCustomer {
   adminNotes              String?          @map("admin_notes") @db.Text
   // Logística fija para este cliente. Vacío = la decide la tabla de códigos postales.
   preferredCarrier        ShippingCarrier? @map("preferred_carrier")
+  // Precio de envío fijo para este cliente (entregas grandes con costo propio). Vacío = el que calcule la web.
+  shippingPriceArs        Int?             @map("shipping_price_ars")
   leadId                  String?          @map("lead_id") @db.Uuid
   createdAt               DateTime         @default(now()) @map("created_at")
   updatedAt               DateTime         @updatedAt @map("updated_at")
@@ -1432,6 +1434,8 @@ enum ShippingPriceSource {
   OWN_ZONE
   // Integración apagada: precio de la tabla por provincia, como antes.
   LEGACY
+  // Precio de envío fijo cargado en el cliente mayorista.
+  CUSTOMER
 }
 
 enum ShipmentStatus {
@@ -1475,6 +1479,9 @@ model ShippingSettings {
   defaultUnitHeightCm     Int      @default(10) @map("default_unit_height_cm")
   // Cuánto vale una cotización guardada antes de volver a pedirla.
   quoteCacheHours         Int      @default(24) @map("quote_cache_hours")
+  // Se suma a la tarifa del transportista: llevar los paquetes hasta Andreani / Correo.
+  andreaniSurchargeArs    Int      @default(2500) @map("andreani_surcharge_ars")
+  correoSurchargeArs      Int      @default(2500) @map("correo_surcharge_ars")
   updatedAt               DateTime @updatedAt @map("updated_at")
 
   @@map("shipping_settings")

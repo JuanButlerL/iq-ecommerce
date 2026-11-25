@@ -163,6 +163,7 @@ export async function createWholesaleOrder(payload: unknown) {
     declaredValueArs: subtotalArs,
     fallbackPriceArs: provinceShippingQuote.baseShippingArs,
     preferredCarrier: "preferredCarrier" in customer ? (customer.preferredCarrier ?? null) : null,
+    customerShippingPriceArs: "shippingPriceArs" in customer ? (customer.shippingPriceArs ?? null) : null,
     selection: input.shipping,
   });
   const shippingQuote = logistics.enabled

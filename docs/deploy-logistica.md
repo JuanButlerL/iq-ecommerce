@@ -42,7 +42,7 @@ El crédito de la amiga ahora se libera con el pago confirmado (MP pagado o comp
 
 ## Deploy (Caso B: con migración) — paso a paso
 
-Migración `202611241200_add_logistics`: **solo agrega** tablas, tipos y columnas nullable; marca como aprobados los comprobantes de pedidos ya pagos y crea la configuración con la integración **apagada**. Apagada, el checkout cobra como hoy y no se generan etiquetas. Lo único que cambia desde el primer minuto: los comprobantes se aprueban en Admin > Comprobantes y el crédito de referidos se libera al aprobar.
+Migraciones `202611241200_add_logistics`, `202611250600_logistics_surcharges` y `202611250610_price_source_customer`: **solo agregan** tablas, tipos y columnas nullable; marca como aprobados los comprobantes de pedidos ya pagos y crea la configuración con la integración **apagada**. Apagada, el checkout cobra como hoy y no se generan etiquetas. Lo único que cambia desde el primer minuto: los comprobantes se aprueban en Admin > Comprobantes y el crédito de referidos se libera al aprobar.
 
 ### Antes (sin tocar producción)
 1. Juan carga en `/opt/iqkids/web/.env.production` (nunca en el repo ni en el chat):
@@ -72,7 +72,7 @@ Migración `202611241200_add_logistics`: **solo agrega** tablas, tipos y columna
 2. Código: `git fetch origin` y `git checkout <commit de main con la rama mergeada>`.
 3. `docker compose build app`
 4. `docker compose run --rm app npx prisma migrate deploy`
-5. `docker compose run --rm app npx tsx prisma/data/seed-logistics.ts` — carga los 2.352 CP de la app y las zonas "CABA" y "GBA Norte" con los precios por provincia de hoy. Se puede repetir sin duplicar.
+5. `docker compose run --rm app npx tsx prisma/data/seed-logistics.ts` — carga los 2.352 CP de la app, las zonas "CABA" ($5.000) y "GBA Norte" ($7.500) y el peso de cada producto (360 g por cajita, 1.080 g la de 3). Se puede repetir sin duplicar.
 6. `docker compose up -d app`
 7. Verificar: la home y el checkout abren; Admin > Logística muestra las conexiones en verde, 2.352 CP y 460 de reparto propio; Admin > Comprobantes abre.
 
@@ -102,3 +102,12 @@ Migración `202611241200_add_logistics`: **solo agrega** tablas, tipos y columna
 - Script de punta a punta contra `next start` y un Andreani/Correo simulados, **48 de 48 OK**: opciones por CP propio e interior, precio de la API, caché, API caída con y sin cotización guardada, sucursales, sucursal inventada rechazada, comprobante → aprobar → etiqueta + planilla + confirmación, aprobar dos veces, comprobante sobre pedido pago, Andreani caído → error → cron lo resuelve sin cambiar de transportista, timeout → revisar a mano sin duplicar + seguimiento manual, rechazo y nuevo comprobante, Correo importado, reparto propio, cancelación, pago desde el admin, precio mayorista de zona, logística fija ignorada sin identificarse, integración apagada igual que antes, admin de logística (CSV, feriado, validación, permisos).
 - Checkout mirado en Chrome: opciones, sucursales, precio en el resumen y fecha de despacho.
 - 2026-11-24: misma prueba ampliada, **54 de 54 OK**: suma URL completa de la etiqueta en la planilla y descarga del PDF, admin desde otro origen rechazado, etiqueta falsa (HTML con nombre .pdf) rechazada, tabla inicial de CP y zonas cargada, CP de zona norte (Olivos) por reparto propio. Script de la app probado con `test-etiquetas-web.cjs` (solo copia etiquetas de la web, rechaza dominios ajenos, no duplica, la logística de la web manda sobre el CP del sheet).
+
+## Bultos y precios (2026-11-24)
+
+- Bultos según la tabla de logística: 1 a 10 displays en cajas de 10x12x7 hasta 20x12x35 (360 g por display); cada 10 una caja madre; cada 100 un bulto mayorista de 40x60x35 y 36 kg. Andreani recibe un bulto por caja.
+- Reparto propio: CABA $5.000, GBA Norte $7.500 (editable en Admin > Logística).
+- Andreani y Correo: tarifa del transportista + recargo por llevarlo ($2.500 cada uno, editable). El precio de respaldo (tabla por provincia) no lleva recargo.
+- Cliente mayorista con "Precio de envío fijo" en el maestro: ese precio reemplaza al calculado (ej. $25.000 por bulto en CABA).
+- Cotización real a Rosario (24/11): 1 display $15.317 domicilio / $11.343 sucursal, sin recargo. Decidir antes de prender si se cobra la tarifa real o se topea.
+

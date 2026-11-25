@@ -53,6 +53,7 @@ async function retailContext(request: ShippingOptionsRequest) {
     declaredValueArs: totals.subtotalArs,
     fallbackPriceArs: fallback.baseShippingArs,
     preferredCarrier: null,
+    customerShippingPriceArs: null,
   };
 }
 
@@ -84,13 +85,16 @@ async function wholesaleContext(request: ShippingOptionsRequest) {
 
   // La logística fija del cliente solo se respeta si este navegador ya se identificó con ese cliente.
   let preferredCarrier = null;
+  let customerShippingPriceArs: number | null = null;
   if (request.wholesaleCustomerId) {
     const trusted = await getTrustedWholesaleCustomerIds();
     if (trusted.includes(request.wholesaleCustomerId)) {
-      preferredCarrier = (await prisma.wholesaleCustomer.findUnique({ where: { id: request.wholesaleCustomerId }, select: { preferredCarrier: true } }))?.preferredCarrier ?? null;
+      const customer = await prisma.wholesaleCustomer.findUnique({ where: { id: request.wholesaleCustomerId }, select: { preferredCarrier: true, shippingPriceArs: true } });
+      preferredCarrier = customer?.preferredCarrier ?? null;
+      customerShippingPriceArs = customer?.shippingPriceArs ?? null;
     }
   }
-  return { lines, declaredValueArs, fallbackPriceArs: fallback.baseShippingArs, preferredCarrier };
+  return { lines, declaredValueArs, fallbackPriceArs: fallback.baseShippingArs, preferredCarrier, customerShippingPriceArs };
 }
 
 export async function getCheckoutShippingOptions(request: ShippingOptionsRequest) {

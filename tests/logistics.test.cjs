@@ -67,6 +67,14 @@ test('bultos: más de 10 displays van en bultos de 10 más el resto; total apila
   assert.equal(p.heightCm, 35 + 35 + 21);
 });
 
+test('bultos: cada 100 displays un bulto mayorista de 40x60x35 y 36 kg', () => {
+  const boxes = pkg.boxesForDisplays(213);
+  assert.equal(boxes.length, 4);
+  assert.deepEqual(plain(boxes[0]), { weightGrams: 36000, lengthCm: 40, widthCm: 60, heightCm: 35 });
+  assert.deepEqual(plain(boxes[2]), { weightGrams: 3600, lengthCm: 20, widthCm: 12, heightCm: 35 });
+  assert.deepEqual(plain(boxes[3]), { weightGrams: 1080, lengthCm: 10, widthCm: 12, heightCm: 21 });
+});
+
 test('Andreani: un bulto por caja y el valor declarado repartido', () => {
   const boxes = pkg.boxesForDisplays(13);
   const bultos = andreani.andreaniBultos({ weightGrams: 0, lengthCm: 0, widthCm: 0, heightCm: 0, declaredValueArs: 10000, boxes });
