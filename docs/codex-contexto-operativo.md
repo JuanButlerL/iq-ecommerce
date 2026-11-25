@@ -239,6 +239,13 @@ Si se va a hacer `git pull`:
 
 ## Historial de ajustes relevantes
 
+### 2026-11-25 - Referidos: lenguaje neutro y carga masiva de códigos (rama `feature/referidos-carga-masiva`, deployada el 2026-11-25, commit `e05cb28`)
+
+- Textos del portal, reglas, emails, checkout y admin en neutro: "familias", "quien invites", "invitados", "referidor/a". Las reglas guardadas en `referral_settings.terms_text` (que eran el texto por defecto viejo) se vaciaron para que tome el nuevo texto por defecto.
+- Admin > Referidos > Carga masiva: un renglón "DNI CÓDIGO" por persona crea los dos códigos para cada DNI con compra confirmada y devuelve los renglones con error y el motivo. Funciona con el programa apagado. Ruta `POST /api/admin/referrals/bulk`.
+- En referidos, PROOF_UPLOADED sigue contando como venta confirmada (decisión de Juan del 2026-11-25). La aprobación de comprobantes aplica solo a logística.
+- Sin migraciones.
+
 ### 2026-11-23 - Plan de referidos "Club de Familias iQ" (rama `feature/referidos`, mergeada a `main` y deployada el 2026-11-23, commit `c3600d2`)
 
 - Portal `/referidos`: la embajadora entra con su DNI y recibe un link de un solo uso al email de su última compra confirmada. Ahí arma su código para amigas (15%) y obtiene un código personal de crédito ($5.000 por amiga nueva, vence a los 90 días y el resto queda de saldo).
