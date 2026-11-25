@@ -40,15 +40,21 @@ export default async function ConfirmationPage({
     quantity: item.quantity,
     itemPrice: item.unitPriceArs,
   }));
+  // Transferencia aprobada en Admin > Comprobantes: el pedido queda PAID.
+  const isTransferApproved = !isMercadoPago && order.paymentStatus === "PAID";
   const paymentCopy = isMercadoPago
     ? order.paymentStatus === "PAID"
       ? "Mercado Pago confirmo el pago y el pedido ya quedo registrado."
       : "Tu pedido esta guardado. Estamos esperando la confirmacion final de Mercado Pago."
-    : "Tu comprobante ya fue enviado. Si el equipo necesita algo mas, te contacta con estos datos.";
+    : isTransferApproved
+      ? "Ya validamos tu pago y estamos preparando el pedido."
+      : "Tu comprobante ya fue enviado. Si el equipo necesita algo mas, te contacta con estos datos.";
   const successCopy = isMercadoPago
     ? "Recibimos tu pedido y seguimos la confirmacion del pago online."
-    : settings?.purchaseSuccessMessage ??
-      "Recibimos tu comprobante. Vamos a validar el pago y seguir con la preparacion del pedido.";
+    : isTransferApproved
+      ? "Tu pago esta aprobado y el pedido ya esta en preparacion."
+      : settings?.purchaseSuccessMessage ??
+        "Recibimos tu comprobante. Vamos a validar el pago y seguir con la preparacion del pedido.";
 
   return (
     <Container className="py-16">
@@ -128,7 +134,7 @@ export default async function ConfirmationPage({
           <div className="rounded-[1.5rem] bg-background p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estado actual</p>
             <p className="mt-2 font-bold text-brand-ink">
-              {isMercadoPago ? order.paymentProviderStatus ?? order.paymentStatus : "Pago en revision"}
+              {isMercadoPago ? order.paymentProviderStatus ?? order.paymentStatus : isTransferApproved ? "Pago aprobado" : "Pago en revision"}
             </p>
           </div>
           <div className="rounded-[1.5rem] bg-background p-4">
