@@ -253,6 +253,20 @@ export function LogisticsAdminPanel({ data }: Props) {
               <Input type="number" min={0} max={10} value={settings.preparationBusinessDays} onChange={(e) => set("preparationBusinessDays", num(e.target.value))} />
               <span className="block text-xs font-normal text-brand-ink/55">Días hábiles extra antes de despachar.</span>
             </label>
+            <label className="space-y-1 text-sm font-bold text-brand-ink md:col-span-2">
+              <span>Precio de Andreani / Correo al cliente</span>
+              <select
+                className="h-12 w-full rounded-2xl border border-brand-ink/15 bg-white px-4 text-sm"
+                value={settings.carrierPricing}
+                onChange={(e) => set("carrierPricing", e.target.value)}
+              >
+                <option value="TABLE">Tabla actual por provincia (Envíos)</option>
+                <option value="LIVE">Tarifa real del transportista + recargo</option>
+              </select>
+              <span className="block text-xs font-normal text-brand-ink/55">
+                Con la tabla, el cliente paga lo mismo que hoy aunque elija Andreani o Correo. El reparto propio usa siempre el precio de su zona.
+              </span>
+            </label>
             <label className="space-y-1 text-sm font-bold text-brand-ink">
               <span>Recargo Andreani ($)</span>
               <Input type="number" min={0} value={settings.andreaniSurchargeArs} onChange={(e) => set("andreaniSurchargeArs", num(e.target.value))} />

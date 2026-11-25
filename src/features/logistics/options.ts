@@ -194,6 +194,30 @@ async function computeShippingOptions(input: ShippingOptionsInput): Promise<Ship
   const pkg = computePackage(input.lines, settings);
   const types: ShippingDeliveryType[] = settings.branchPickupEnabled ? ["HOME", "BRANCH"] : ["HOME"];
 
+  // Precio por tabla (elegido en Admin > Logística): se cobra la tabla por provincia de siempre y no se
+  // consulta la API para el precio; la elección de transportista y sucursal funciona igual.
+  if (settings.carrierPricing !== "LIVE") {
+    options.push(
+      ...carriers.flatMap((carrier) =>
+        types.map(
+          (deliveryType) =>
+            ({
+              id: optionId(carrier, deliveryType),
+              carrier,
+              deliveryType,
+              label: `${CARRIER_LABELS[carrier]} · ${deliveryType === "BRANCH" ? "retiro en sucursal" : "a domicilio"}`,
+              carrierPriceArs: input.fallbackPriceArs,
+              priceSource: "LEGACY",
+              deliveryDaysMin: null,
+              deliveryDaysMax: null,
+              zoneName: null,
+            }) satisfies ShippingOption,
+        ),
+      ),
+    );
+    return { enabled: true, options, dispatchDate, postalCodeKnown: Boolean(zone) || (await postalCodeExists(input.postalCode)) };
+  }
+
   const quotes = await Promise.all(
     carriers.flatMap((carrier) =>
       types.map(async (deliveryType) => {

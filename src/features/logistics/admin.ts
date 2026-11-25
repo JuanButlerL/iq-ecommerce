@@ -64,6 +64,7 @@ const settingsSchema = z.object({
   defaultUnitWidthCm: z.coerce.number().int().min(1).max(150),
   defaultUnitHeightCm: z.coerce.number().int().min(1).max(150),
   quoteCacheHours: z.coerce.number().int().min(1).max(168),
+  carrierPricing: z.enum(["TABLE", "LIVE"]),
   andreaniSurchargeArs: z.coerce.number().int().min(0).max(1_000_000),
   correoSurchargeArs: z.coerce.number().int().min(0).max(1_000_000),
 });

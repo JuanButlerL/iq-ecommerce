@@ -42,7 +42,7 @@ El crédito de la amiga ahora se libera con el pago confirmado (MP pagado o comp
 
 ## Deploy (Caso B: con migración) — paso a paso
 
-Migraciones `202611241200_add_logistics`, `202611250600_logistics_surcharges` y `202611250610_price_source_customer`: **solo agregan** tablas, tipos y columnas nullable; marca como aprobados los comprobantes de pedidos ya pagos y crea la configuración con la integración **apagada**. Apagada, el checkout cobra como hoy y no se generan etiquetas. Lo único que cambia desde el primer minuto: los comprobantes se aprueban en Admin > Comprobantes y el crédito de referidos se libera al aprobar.
+Migraciones `202611241200_add_logistics`, `202611250600_logistics_surcharges`, `202611250610_price_source_customer` y `202611250620_carrier_pricing_mode`: **solo agregan** tablas, tipos y columnas nullable; marca como aprobados los comprobantes de pedidos ya pagos y crea la configuración con la integración **apagada**. Apagada, el checkout cobra como hoy y no se generan etiquetas. Lo único que cambia desde el primer minuto: los comprobantes se aprueban en Admin > Comprobantes y el crédito de referidos se libera al aprobar.
 
 ### Antes (sin tocar producción)
 1. Juan carga en `/opt/iqkids/web/.env.production` (nunca en el repo ni en el chat):
@@ -109,5 +109,5 @@ Migraciones `202611241200_add_logistics`, `202611250600_logistics_surcharges` y 
 - Reparto propio: CABA $5.000, GBA Norte $7.500 (editable en Admin > Logística).
 - Andreani y Correo: tarifa del transportista + recargo por llevarlo ($2.500 cada uno, editable). El precio de respaldo (tabla por provincia) no lleva recargo.
 - Cliente mayorista con "Precio de envío fijo" en el maestro: ese precio reemplaza al calculado (ej. $25.000 por bulto en CABA).
-- Cotización real a Rosario (24/11): 1 display $15.317 domicilio / $11.343 sucursal, sin recargo. Decidir antes de prender si se cobra la tarifa real o se topea.
+- Precio de Andreani / Correo al cliente: selector en Admin > Logística. **Tabla actual por provincia** (por defecto, el cliente paga lo mismo que hoy) o **tarifa real + recargo**. Cotización real a Rosario (24/11): 1 display $15.317 domicilio / $11.343 sucursal, sin recargo.
 

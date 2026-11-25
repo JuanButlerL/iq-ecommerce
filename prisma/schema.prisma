@@ -1480,6 +1480,9 @@ model ShippingSettings {
   // Cuánto vale una cotización guardada antes de volver a pedirla.
   quoteCacheHours         Int      @default(24) @map("quote_cache_hours")
   // Se suma a la tarifa del transportista: llevar los paquetes hasta Andreani / Correo.
+  // De dónde sale el precio al cliente de Andreani / Correo: "TABLE" = la tabla por provincia de siempre;
+  // "LIVE" = la tarifa real del transportista + recargo.
+  carrierPricing          String   @default("TABLE") @map("carrier_pricing")
   andreaniSurchargeArs    Int      @default(2500) @map("andreani_surcharge_ars")
   correoSurchargeArs      Int      @default(2500) @map("correo_surcharge_ars")
   updatedAt               DateTime @updatedAt @map("updated_at")
