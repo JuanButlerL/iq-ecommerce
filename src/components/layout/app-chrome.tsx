@@ -21,6 +21,7 @@ type AppChromeProps = {
   subscriptionSectionEnabled?: boolean | null;
   faqSectionEnabled?: boolean | null;
   newsletterSectionEnabled?: boolean | null;
+  referralNavLabel?: string | null;
   wholesaleEnabled?: boolean;
   wholesaleNav?: WholesaleNavVisibility;
   lastUpdatedAt?: string;
@@ -37,6 +38,7 @@ export function AppChrome({
   subscriptionSectionEnabled,
   faqSectionEnabled,
   newsletterSectionEnabled,
+  referralNavLabel,
   wholesaleEnabled,
   wholesaleNav,
   lastUpdatedAt,
@@ -60,6 +62,7 @@ export function AppChrome({
           subscriptionSectionEnabled={subscriptionSectionEnabled}
           faqSectionEnabled={faqSectionEnabled}
           newsletterSectionEnabled={newsletterSectionEnabled}
+          referralNavLabel={referralNavLabel}
           wholesaleEnabled={wholesaleEnabled}
           wholesaleNav={wholesaleNav}
         />

@@ -20,6 +20,8 @@ type SiteHeaderProps = {
   subscriptionSectionEnabled?: boolean | null;
   faqSectionEnabled?: boolean | null;
   newsletterSectionEnabled?: boolean | null;
+  // Link to /referidos, set from Admin > Referidos.
+  referralNavLabel?: string | null;
   // Con la sección mayorista habilitada, la tienda muestra el acceso a /mayoristas.
   wholesaleEnabled?: boolean;
   wholesaleNav?: WholesaleNavVisibility;
@@ -31,6 +33,7 @@ export function SiteHeader({
   subscriptionSectionEnabled,
   faqSectionEnabled,
   newsletterSectionEnabled,
+  referralNavLabel,
   wholesaleEnabled = false,
   wholesaleNav = { products: true, faq: true, contact: true },
 }: SiteHeaderProps) {
@@ -60,6 +63,7 @@ export function SiteHeader({
     { href: "/productos", label: "Productos" },
     ...(faqSectionEnabled ? [{ href: "/preguntas-frecuentes", label: "Preguntas frecuentes" }] : []),
     ...(newsletterSectionEnabled ? [{ href: "/newsletter", label: "Newsletter" }] : []),
+    ...(referralNavLabel ? [{ href: "/referidos", label: referralNavLabel }] : []),
     { href: "/contacto", label: "Contacto" },
   ];
   const navigation = isWholesaleRoute ? wholesaleNavigation : retailNavigation;
@@ -70,6 +74,7 @@ export function SiteHeader({
     ...(subscriptionSectionEnabled ? [{ id: "suscripcion", label: "Suscripción" }] : []),
     ...(faqSectionEnabled ? [{ id: "faq", label: "Preguntas frecuentes", href: "/preguntas-frecuentes" }] : []),
     ...(newsletterSectionEnabled ? [{ id: "newsletter", label: "Newsletter", href: "/newsletter" }] : []),
+    ...(referralNavLabel ? [{ id: "referidos", label: referralNavLabel, href: "/referidos" }] : []),
     { id: "contacto", label: "Contacto" },
   ];
 

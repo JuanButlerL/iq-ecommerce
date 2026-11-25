@@ -20,6 +20,8 @@ export type ReferralSettingsView = {
   creditValidityDays: number;
   creditHoldDays: number;
   requireManualApproval: boolean;
+  showInHeader: boolean;
+  headerLabel: string;
   shareMessage: string;
   shareImageUrl: string | null;
   termsText: string;
@@ -35,6 +37,8 @@ export async function getReferralSettings(): Promise<ReferralSettingsView> {
     creditValidityDays: settings?.creditValidityDays ?? 90,
     creditHoldDays: settings?.creditHoldDays ?? 0,
     requireManualApproval: settings?.requireManualApproval ?? false,
+    showInHeader: settings?.showInHeader ?? false,
+    headerLabel: settings?.headerLabel?.trim() || "Referidos",
     shareMessage: settings?.shareMessage?.trim() || DEFAULT_REFERRAL_SHARE_MESSAGE,
     shareImageUrl: settings?.shareImageUrl?.trim() || null,
     termsText: settings?.termsText?.trim() || DEFAULT_REFERRAL_TERMS,

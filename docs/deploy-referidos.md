@@ -58,3 +58,8 @@ Variables: no hace falta ninguna nueva. Se usa `ADMIN_SESSION_SECRET` para deriv
 ## Prueba hecha (local, 2026-11-23)
 
 Script de punta a punta contra `next start`, 47 de 47 OK: email enmascarado para DNI con compras y aviso para DNI sin compras, límite por DNI, token de un solo uso, cookie adulterada, origen ajeno, reglas obligatorias, código reservado, 15% en el checkout, autorreferido por DNI, CUIL y dirección, amiga que ya compró (por DNI, email con +tag y teléfono con +54 9), pedido cancelado rechazado, solo el primer pedido de la misma amiga acredita, canje de $5.000, saldo agotado, saldo devuelto al cancelar, sin doble gasto con dos compras simultáneas, bloqueo, cupón común intacto y programa apagado.
+
+## 2026-11-25: menú y acceso sin compras
+
+- Admin > Referidos tiene "Mostrar en el menú de la tienda" con texto editable (por defecto "Referidos"). El link a `/referidos` aparece solo mientras el programa está activo. Migración aditiva `202611251900_add_referral_header_link` (`show_in_header`, `header_label`).
+- Acceso sin compras (pedido de marketing): si el DNI no tiene compras, se pide un email y el link va ahí. El email se guarda en la cuenta recién cuando se abre el link. Una vez verificado, ese DNI queda atado a ese email: si alguien vuelve a pedir acceso con el mismo DNI y otro email, el link va igual al email verificado. Si el DNI tiene compras, siempre se usa el email de la última compra y se ignora el que se escriba. Límites: 5 pedidos por DNI por hora y 3 por email por hora, además de los de IP.
