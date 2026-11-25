@@ -5,6 +5,8 @@ import { assertAdminSection } from "@/lib/auth/admin";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import { routeError, routeOk } from "@/lib/http/route";
+import { env } from "@/lib/env";
+import { isSameOriginRequest } from "@/lib/security/rate-limit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,6 +19,9 @@ const bodySchema = z.object({
 // Acciones sobre el envío de un pedido: reintentar o generar ahora, cargar seguimiento a mano, cancelar, subir etiqueta.
 export async function POST(request: Request, { params }: Params) {
   try {
+    if (!isSameOriginRequest(request, env.NEXT_PUBLIC_SITE_URL)) {
+      return Response.json({ error: "Origen no permitido." }, { status: 403 });
+    }
     const session = await assertAdminSection("orders");
     const actor = session.adminUser.email;
     const { id } = await params;
@@ -30,7 +35,12 @@ export async function POST(request: Request, { params }: Params) {
       if (file.size > 5 * 1024 * 1024 || !/pdf|image/.test(file.type)) {
         throw new AppError("La etiqueta tiene que ser un PDF o una imagen de hasta 5 MB.", 400, true);
       }
-      await attachManualLabel(id, file, actor);
+      try {
+        await attachManualLabel(id, file, actor);
+      } catch (error) {
+        if (error instanceof Error && !(error instanceof AppError)) throw new AppError(error.message, 400, true);
+        throw error;
+      }
       return routeOk({ success: true });
     }
 

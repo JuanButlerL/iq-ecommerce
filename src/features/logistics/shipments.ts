@@ -462,10 +462,19 @@ export async function setManualTracking(shipmentId: string, trackingNumber: stri
   await afterCreated(shipmentId);
 }
 
+export function detectLabelType(data: Buffer) {
+  if (data.subarray(0, 5).toString("latin1") === "%PDF-") return "application/pdf";
+  if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "image/jpeg";
+  return null;
+}
+
 export async function attachManualLabel(shipmentId: string, file: File, actor: string) {
   const shipment = await prisma.shipment.findUniqueOrThrow({ where: { id: shipmentId }, include: { order: true } });
   const data = Buffer.from(await file.arrayBuffer());
-  const { storagePath } = await uploadShippingLabel(data, shipment.order.publicOrderNumber, file.type || "application/pdf");
+  const contentType = detectLabelType(data);
+  if (!contentType) throw new Error("La etiqueta tiene que ser un PDF, PNG o JPG.");
+  const { storagePath } = await uploadShippingLabel(data, shipment.order.publicOrderNumber, contentType);
   await prisma.shipment.update({ where: { id: shipmentId }, data: { labelStoragePath: storagePath } });
   await logEvent(prisma, shipmentId, "manual_label", `Etiqueta subida a mano (${file.name}).`, actor);
   await prisma.order.update({ where: { id: shipment.orderId }, data: { syncStatus: "PENDING" } });

@@ -15,12 +15,17 @@ import {
 import { assertAdminSection } from "@/lib/auth/admin";
 import { AppError } from "@/lib/errors/app-error";
 import { routeError, routeOk } from "@/lib/http/route";
+import { env } from "@/lib/env";
+import { isSameOriginRequest } from "@/lib/security/rate-limit";
 
 const actionSchema = z.object({ action: z.string(), id: z.string().uuid().optional(), data: z.unknown().optional() });
 
 // Admin > Logística: configuración, zonas propias, feriados, depósitos y códigos postales.
 export async function POST(request: Request) {
   try {
+    if (!isSameOriginRequest(request, env.NEXT_PUBLIC_SITE_URL)) {
+      return Response.json({ error: "Origen no permitido." }, { status: 403 });
+    }
     await assertAdminSection("shipping");
     const { action, id, data } = actionSchema.parse(await request.json());
     const needId = () => {
