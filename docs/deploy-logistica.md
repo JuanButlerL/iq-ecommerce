@@ -40,39 +40,64 @@ El crédito de la amiga ahora se libera con el pago confirmado (MP pagado o comp
 - Pedido: tarjeta "Envío" con estado, seguimiento, etiqueta, historial y acciones.
 - Productos: peso y medidas del paquete. Clientes mayoristas: logística fija.
 
-## Deploy (Caso B: con migración)
+## Deploy (Caso B: con migración) — paso a paso
 
-Migración `202611241200_add_logistics`: **solo agrega** tablas, tipos y columnas nullable; marca como aprobados los comprobantes de pedidos ya pagos y crea la fila de configuración con la integración **apagada**. Con la integración apagada el checkout cobra como hoy y no se generan etiquetas. Lo único que cambia sin prenderla es la revisión de comprobantes (y referidos al aprobar).
+Migración `202611241200_add_logistics`: **solo agrega** tablas, tipos y columnas nullable; marca como aprobados los comprobantes de pedidos ya pagos y crea la configuración con la integración **apagada**. Apagada, el checkout cobra como hoy y no se generan etiquetas. Lo único que cambia desde el primer minuto: los comprobantes se aprueban en Admin > Comprobantes y el crédito de referidos se libera al aprobar.
 
-1. Backup de la base (ver `deploy-produccion-digitalocean.md`).
-2. Agregar las variables a `/opt/iqkids/web/.env.production` (las carga Juan):
+### Antes (sin tocar producción)
+1. Juan carga en `/opt/iqkids/web/.env.production` (nunca en el repo ni en el chat):
    ```
+   ANDREANI_ENV=prod
    ANDREANI_USER=
    ANDREANI_PASSWORD=
-   ANDREANI_CLIENT_NUMBER=
-   ANDREANI_CONTRACT_DOMICILIO=
-   ANDREANI_CONTRACT_SUCURSAL=
-   # opcional: ANDREANI_ORIGIN_BRANCH= (sucursal de origen si el contrato la pide para cotizar)
+   ANDREANI_CLIENT_NUMBER=0012013100
+   ANDREANI_CONTRACT_DOMICILIO=400043954
+   ANDREANI_CONTRACT_SUCURSAL=400043956
    CORREO_AR_USER=
    CORREO_AR_PASSWORD=
    CORREO_AR_CUSTOMER_ID=
-   # o, si no se tiene el customerId: CORREO_AR_ACCOUNT_EMAIL= y CORREO_AR_ACCOUNT_PASSWORD=
    ```
-3. `git fetch origin` + `git checkout <commit>`.
-4. `docker compose build app`.
-5. `docker compose run --rm app npx prisma migrate deploy`.
-6. `docker compose up -d app`.
-7. Apps Script de la planilla de pedidos: agregar las columnas nuevas a `ORDER_COLUMNS` (copia en `docs/apps-script-pedidos.gs`) y que el "envío app" copie `logistica`, `tracking` y la etiqueta a `movements` / `movements_docs`. Script de etiquetas propias: versión que respeta `logistica` (en `C:\dev\WebIQKids\apps-scripts\etiquetas`, sin publicar).
-8. En Admin > Logística: depósito, importar CP, precios de zonas y activarlas, cargar medidas de productos, revisar el estado de las credenciales. Prender transportistas y por último "Integración logística activa".
+   (`NEXT_PUBLIC_SITE_URL` está repetida en ese archivo con el mismo valor: dejar una sola.)
+2. Planilla `ecommerce_propio_iq` > hoja `pedidos`: agregar al final de la fila 1 los encabezados `logistica`, `tipo_entrega`, `sucursal`, `tracking`, `etiqueta_url`, `fecha_despacho`, `estado_envio`. Sin esos encabezados el script de la planilla descarta esos datos sin avisar. (Alternativa: sumarlos a `ORDER_COLUMNS` del script, copia en `docs/apps-script-pedidos.gs`.)
 
-Para volver atrás: apagar "Integración logística activa" (no hace falta redeploy).
+### Deploy (en el Droplet, horario de poco tráfico)
+1. Backup de la base y de los archivos subidos (comprobantes y etiquetas viven en `/opt/iqkids/data/uploads`):
+   ```
+   cd /opt/iqkids/web
+   docker compose exec -T postgres pg_dump -U postgres -d postgres -Fc > /opt/iqkids/backups/pre-logistica-$(date +%Y%m%d-%H%M).dump
+   pg_restore --list /opt/iqkids/backups/pre-logistica-*.dump | head
+   tar czf /opt/iqkids/backups/uploads-pre-logistica-$(date +%Y%m%d-%H%M).tgz -C /opt/iqkids/data uploads
+   ```
+2. Código: `git fetch origin` y `git checkout <commit de main con la rama mergeada>`.
+3. `docker compose build app`
+4. `docker compose run --rm app npx prisma migrate deploy`
+5. `docker compose run --rm app npx tsx prisma/data/seed-logistics.ts` — carga los 2.352 CP de la app y las zonas "CABA" y "GBA Norte" con los precios por provincia de hoy. Se puede repetir sin duplicar.
+6. `docker compose up -d app`
+7. Verificar: la home y el checkout abren; Admin > Logística muestra las conexiones en verde, 2.352 CP y 460 de reparto propio; Admin > Comprobantes abre.
 
-## Pendiente de validar con las credenciales reales
+### Activación (después del deploy, desde el admin)
+1. Admin > Logística: cargar el **depósito de origen** (remitente real de las etiquetas), revisar precios y días de las zonas, cargar feriados extra si hay.
+2. Admin > Productos: peso y medidas del paquete de cada producto (si no, se usan los valores por defecto de Logística).
+3. Prender "Reparto propio" y "Andreani" (Correo cuando esté Paq.ar) y por último **"Integración logística activa"**.
+4. Probar un pedido real chico con transferencia: aprobarlo en Admin > Comprobantes y verificar etiqueta, mail, planilla y que la etiqueta aparezca en la app.
 
-Los adaptadores siguen la documentación pública; antes de prender hay que probar contra las cuentas reales: login y tarifas de Andreani (nombres de campos y contrato), alta y etiqueta (con permiso de Juan: crear una y anularla), sucursales; token, `customerId`, rates, agencies e import de MiCorreo (MiCorreo no devuelve etiqueta ni seguimiento al importar; si el contrato es Paq.ar hay que adaptar).
+### Apps Script (con clasp, sin publicar hasta este paso)
+- Script de etiquetas (`C:\dev\WebIQKidspps-scripts\etiquetas`): respeta la logística que elige la web y baja a la app las etiquetas de Andreani/Correo (`EtiquetasWeb.js`). Prueba local: `node test-etiquetas-web.cjs`. Publicar: `clasp push` y, si el lote de impresión es Web App, nueva versión de la implementación. Corre dentro del trigger de 15 minutos que ya existe.
+- Sin la integración prendida, el script se comporta igual que hoy (la columna `logistica` viene vacía y decide la tabla de CP del sheet).
 
-## Prueba hecha (local, 2026-11-23)
+### Vuelta atrás
+- **Rápida (sin deploy):** apagar "Integración logística activa" en Admin > Logística. El checkout vuelve a cobrar por provincia y no se generan etiquetas nuevas. Los envíos ya creados quedan como están.
+- **Código:** `git checkout <commit anterior>`, `docker compose build app`, `docker compose up -d app`. La migración es solo aditiva: el código anterior funciona con la base nueva, no hace falta revertirla.
+- **Apps Script:** en el editor, Implementaciones > versión anterior, o `git checkout` del commit "Copia original (clasp clone)" en la carpeta del script y `clasp push`.
+
+## Estado de la validación con las cuentas reales
+
+- **Andreani (producción, 2026-11-24):** login, sucursales, cotización con contrato (sin número de cliente) y alta con etiqueta PDF 10x15 probadas con la cuenta real. Envío de prueba 360003272906250, a anular desde el portal.
+- **Correo Argentino:** token probado. MiCorreo no devuelve rótulo ni seguimiento por API: se pidió a Correo el alta en Paq.ar. Hasta entonces dejar Correo apagado o imprimir desde MiCorreo y subir la etiqueta al pedido. Falta el `customerId`.
+
+## Pruebas hechas (local)
 
 - 172 tests unitarios OK (fecha de despacho y feriados, paquete, parsers de Andreani/Correo, payloads, mails).
 - Script de punta a punta contra `next start` y un Andreani/Correo simulados, **48 de 48 OK**: opciones por CP propio e interior, precio de la API, caché, API caída con y sin cotización guardada, sucursales, sucursal inventada rechazada, comprobante → aprobar → etiqueta + planilla + confirmación, aprobar dos veces, comprobante sobre pedido pago, Andreani caído → error → cron lo resuelve sin cambiar de transportista, timeout → revisar a mano sin duplicar + seguimiento manual, rechazo y nuevo comprobante, Correo importado, reparto propio, cancelación, pago desde el admin, precio mayorista de zona, logística fija ignorada sin identificarse, integración apagada igual que antes, admin de logística (CSV, feriado, validación, permisos).
 - Checkout mirado en Chrome: opciones, sucursales, precio en el resumen y fecha de despacho.
+- 2026-11-24: misma prueba ampliada, **54 de 54 OK**: suma URL completa de la etiqueta en la planilla y descarga del PDF, admin desde otro origen rechazado, etiqueta falsa (HTML con nombre .pdf) rechazada, tabla inicial de CP y zonas cargada, CP de zona norte (Olivos) por reparto propio. Script de la app probado con `test-etiquetas-web.cjs` (solo copia etiquetas de la web, rechaza dominios ajenos, no duplica, la logística de la web manda sobre el CP del sheet).
