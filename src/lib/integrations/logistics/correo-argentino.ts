@@ -120,8 +120,14 @@ export function parseCorreoAgencies(json: unknown, postalCode: string): CarrierB
       },
     ];
   });
-  // /agencies filtra por provincia: primero las del mismo CP.
-  return branches.sort((a, b) => Number(b.postalCode === postalCode) - Number(a.postalCode === postalCode));
+  // /agencies trae toda la provincia (ej. 340 en Santa Fe) con CP en formato CPA ("S2000ABC"): se ordenan por
+  // cercanía del CP de 4 números al del cliente, así las de su ciudad quedan primero.
+  const target = Number(String(postalCode).replace(/\D/g, "").slice(0, 4));
+  const cp4 = (value: string) => Number((String(value).match(/\d{4}/) ?? ["99999"])[0]);
+  return branches
+    .map((branch) => ({ branch, distance: Number.isFinite(target) ? Math.abs(cp4(branch.postalCode) - target) : 0 }))
+    .sort((a, b) => a.distance - b.distance)
+    .map(({ branch }) => branch);
 }
 
 // { monday: { start: "0930", end: "1800" }, ... } -> "Lun a vie 9:30 a 18:00"
