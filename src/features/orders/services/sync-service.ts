@@ -28,7 +28,9 @@ async function buildShippingColumns(order: {
   shipment: { status: string; trackingNumber: string | null; labelStoragePath: string | null; dispatchDate: Date | null } | null;
 }) {
   const shipment = order.shipment;
-  const labelUrl = shipment?.labelStoragePath ? await createShippingLabelUrl(shipment.labelStoragePath).catch(() => "") : "";
+  const rawLabelUrl = shipment?.labelStoragePath ? await createShippingLabelUrl(shipment.labelStoragePath).catch(() => "") : "";
+  // Sin Supabase la etiqueta queda en /uploads: la app la descarga, así que va con el dominio completo.
+  const labelUrl = rawLabelUrl.startsWith("/") ? `${env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}${rawLabelUrl}` : rawLabelUrl;
   return {
     logistica: order.shippingCarrier ? CARRIER_SHEET_LABELS[order.shippingCarrier] : "",
     tipo_entrega: order.shippingDeliveryType === "BRANCH" ? "SUCURSAL" : order.shippingDeliveryType === "HOME" ? "DOMICILIO" : "",
