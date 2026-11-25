@@ -58,7 +58,8 @@ Migración `202611241200_add_logistics`: **solo agrega** tablas, tipos y columna
    CORREO_AR_CUSTOMER_ID=
    ```
    (`NEXT_PUBLIC_SITE_URL` está repetida en ese archivo con el mismo valor: dejar una sola.)
-2. Planilla `ecommerce_propio_iq` > hoja `pedidos`: agregar al final de la fila 1 los encabezados `logistica`, `tipo_entrega`, `sucursal`, `tracking`, `etiqueta_url`, `fecha_despacho`, `estado_envio`. Sin esos encabezados el script de la planilla descarta esos datos sin avisar. (Alternativa: sumarlos a `ORDER_COLUMNS` del script, copia en `docs/apps-script-pedidos.gs`.)
+2. Planilla `ecommerce_propio_iq`: **hecho el 2026-11-24.** El script de la planilla (ID `1QVFozj...`, copia en `apps-scripts/ecommerce-pedidos`) suma las columnas de logística a `ORDER_COLUMNS`; publicado como versión 10 de la implementación que usa la web (la URL no cambia). Las columnas aparecen en la hoja con el próximo pedido. Probado: el webhook responde.
+3. Script de etiquetas (`apps-scripts/etiquetas`): `clasp push` el día del deploy (ver abajo).
 
 ### Deploy (en el Droplet, horario de poco tráfico)
 1. Backup de la base y de los archivos subidos (comprobantes y etiquetas viven en `/opt/iqkids/data/uploads`):
