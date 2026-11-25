@@ -3,11 +3,14 @@ import type { ShippingCarrier, ShippingDeliveryType } from "@prisma/client";
 export type CarrierCode = Extract<ShippingCarrier, "ANDREANI" | "CORREO_AR">;
 
 export type PackageSpec = {
+  // Total como un solo paquete (para APIs de un bulto).
   weightGrams: number;
   lengthCm: number;
   widthCm: number;
   heightCm: number;
   declaredValueArs: number;
+  // Los bultos reales (cajas de displays). Si no viene, se usa el total como un bulto.
+  boxes?: { weightGrams: number; lengthCm: number; widthCm: number; heightCm: number }[];
 };
 
 export type QuoteRequest = {

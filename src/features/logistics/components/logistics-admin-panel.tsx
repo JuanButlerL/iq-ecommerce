@@ -260,7 +260,7 @@ export function LogisticsAdminPanel({ data }: Props) {
             </label>
           </div>
           <div>
-            <p className="text-sm font-bold text-brand-ink">Paquete por defecto de un producto sin medidas</p>
+            <p className="text-sm font-bold text-brand-ink">Paquete por defecto (reservado; hoy los bultos salen de la tabla de displays: 1 display 360 g 10x12x7 cm hasta 10 displays 20x12x35 cm)</p>
             <div className="mt-1 grid grid-cols-2 gap-3 md:grid-cols-4">
               {(
                 [

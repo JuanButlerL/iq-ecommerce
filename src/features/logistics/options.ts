@@ -108,7 +108,7 @@ export async function quoteWithCache(
       destinationPostalCode: cp,
       destinationProvince: destination.province,
       deliveryType,
-      pkg: { ...pkg, weightGrams: Math.max(pkg.weightGrams, bucket.weight), declaredValueArs },
+      pkg: { ...pkg, declaredValueArs },
     });
     await prisma.shippingQuoteCache.upsert({
       where: { cacheKey },

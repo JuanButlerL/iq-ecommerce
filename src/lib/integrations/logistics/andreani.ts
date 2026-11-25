@@ -123,6 +123,28 @@ function onlyDigits(value: string | null | undefined) {
   return String(value ?? "").replace(/\D/g, "");
 }
 
+// Un bulto por caja; el valor declarado se reparte según el peso.
+export function andreaniBultos(pkg: CreateShipmentRequest["pkg"]) {
+  const boxes = pkg.boxes?.length ? pkg.boxes : [pkg];
+  const totalWeight = boxes.reduce((s, b) => s + b.weightGrams, 0) || 1;
+  let assigned = 0;
+  return boxes.map((box, index) => {
+    const value =
+      index === boxes.length - 1
+        ? Math.max(0, Math.round(pkg.declaredValueArs) - assigned)
+        : Math.round((pkg.declaredValueArs * box.weightGrams) / totalWeight);
+    assigned += value;
+    return {
+      kilos: Math.max(0.1, Math.round(box.weightGrams / 10) / 100),
+      largoCm: box.lengthCm,
+      anchoCm: box.widthCm,
+      altoCm: box.heightCm,
+      volumenCm: volumeCm3(box),
+      valorDeclaradoConImpuestos: value,
+    };
+  });
+}
+
 export function buildAndreaniOrder(request: CreateShipmentRequest, contract: string) {
   const phone = (value: string) => [{ tipo: 1, numero: onlyDigits(value) || value }];
   const postal = (a: CreateShipmentRequest["origin"]) => ({
@@ -159,20 +181,13 @@ export function buildAndreaniOrder(request: CreateShipmentRequest, contract: str
       },
     ],
     productoAEntregar: "Alimentos envasados",
-    bultos: [
-      {
-        kilos: Math.max(0.1, Math.round(request.pkg.weightGrams / 10) / 100),
-        largoCm: request.pkg.lengthCm,
-        anchoCm: request.pkg.widthCm,
-        altoCm: request.pkg.heightCm,
-        volumenCm: volumeCm3(request.pkg),
-        valorDeclaradoConImpuestos: Math.round(request.pkg.declaredValueArs),
-        referencias: [
-          { meta: "idCliente", contenido: request.reference },
-          ...(request.notes ? [{ meta: "observaciones", contenido: request.notes.slice(0, 120) }] : []),
-        ],
-      },
-    ],
+    bultos: andreaniBultos(request.pkg).map((bulto) => ({
+      ...bulto,
+      referencias: [
+        { meta: "idCliente", contenido: request.reference },
+        ...(request.notes ? [{ meta: "observaciones", contenido: request.notes.slice(0, 120) }] : []),
+      ],
+    })),
   };
 }
 
@@ -192,9 +207,11 @@ export const andreaniAdapter: CarrierAdapter = {
       contrato: contractFor(request.deliveryType),
       ...(cfg.clientNumber ? { cliente: cfg.clientNumber } : {}),
       ...(cfg.originBranch ? { sucursalOrigen: cfg.originBranch } : {}),
-      "bultos[0][valorDeclarado]": String(Math.round(request.pkg.declaredValueArs)),
-      "bultos[0][volumen]": String(volumeCm3(request.pkg)),
-      "bultos[0][kilos]": String(Math.max(0.1, Math.round(request.pkg.weightGrams / 10) / 100)),
+    });
+    andreaniBultos(request.pkg).forEach((bulto, i) => {
+      params.set(`bultos[${i}][valorDeclarado]`, String(bulto.valorDeclaradoConImpuestos));
+      params.set(`bultos[${i}][volumen]`, String(bulto.volumenCm));
+      params.set(`bultos[${i}][kilos]`, String(bulto.kilos));
     });
     const response = await authed((authToken) =>
       carrierFetch(NAME, `${cfg.baseUrl}/v1/tarifas?${params.toString()}`, {

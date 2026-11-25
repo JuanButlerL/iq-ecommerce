@@ -184,7 +184,7 @@ export function ProductForm({ mode, productId, initialValue }: ProductFormProps)
         </div>
         <div className="md:col-span-2">
           <p className="mb-2 text-sm font-bold text-brand-ink/70">
-            Paquete de una unidad (para cotizar con Andreani y Correo). Vacío = valores por defecto de Logística.
+            Paquete de una unidad. El peso define cuántos displays trae (360 g = 1 display, 1080 g = 3): con eso la web arma la caja según la tabla de logística. Vacío = 1 display.
           </p>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {(

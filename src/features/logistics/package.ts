@@ -1,4 +1,9 @@
-// Arma el paquete (peso y medidas) de un pedido. Sin dependencias: lo usan el servidor y los tests.
+// Arma los bultos de un pedido. Sin dependencias: lo usan el servidor y los tests.
+//
+// IQ Kids despacha displays de 12 barritas (360 g, 10x12x7 cm). Según cuántos displays lleva el pedido se
+// arma una caja de medida conocida (tabla de logística, 2026-11-24); de 10 en adelante se completan bultos de
+// 10 y el resto va en otra caja. Un producto que trae varios displays (ej. "3 Display Mix") cuenta como esos
+// displays: se deduce de su peso cargado en el admin (1080 g = 3 displays).
 
 export type UnitDimensions = {
   weightGrams: number | null;
@@ -16,60 +21,83 @@ export type PackageDefaults = {
 
 export type PackageLine = {
   quantity: number;
-  // Medidas de una unidad de venta. Si faltan, se usan `components` o los valores por defecto.
+  // Medidas de una unidad de venta (de ahí sale cuántos displays trae).
   unit: UnitDimensions;
-  // Displays de la tienda que trae una unidad (bultos mayoristas sin medidas propias).
+  // Displays de la tienda que trae una unidad (bultos mayoristas).
   components?: { quantity: number; unit: UnitDimensions }[];
 };
 
-export type ComputedPackage = { weightGrams: number; lengthCm: number; widthCm: number; heightCm: number };
+export type Box = { weightGrams: number; lengthCm: number; widthCm: number; heightCm: number };
 
-function complete(unit: UnitDimensions) {
-  return Boolean(unit.weightGrams && unit.lengthCm && unit.widthCm && unit.heightCm);
+// Lo que se cotiza y se manda al transportista: los bultos, y un total para las APIs de un solo paquete.
+export type ComputedPackage = Box & { boxes: Box[]; displays: number };
+
+export const DISPLAY_WEIGHT_GRAMS = 360;
+export const DISPLAYS_PER_FULL_BOX = 10;
+
+// Cantidad de displays -> caja (largo x ancho x alto en cm). Peso = 360 g por display.
+export const DISPLAY_BOXES: Record<number, [number, number, number]> = {
+  1: [10, 12, 7],
+  2: [10, 12, 14],
+  3: [10, 12, 21],
+  4: [17, 12, 21],
+  5: [20, 12, 21],
+  6: [20, 12, 21],
+  7: [20, 12, 28],
+  8: [20, 12, 28],
+  9: [20, 12, 35],
+  10: [20, 12, 35],
+};
+
+function displaysPerUnit(unit: UnitDimensions) {
+  if (!unit.weightGrams || unit.weightGrams <= 0) return 1;
+  return Math.max(1, Math.round(unit.weightGrams / DISPLAY_WEIGHT_GRAMS));
 }
 
-function withDefaults(unit: UnitDimensions, defaults: PackageDefaults) {
+export function countDisplays(lines: PackageLine[]) {
+  return lines
+    .filter((line) => line.quantity > 0)
+    .reduce((total, line) => {
+      // Bulto mayorista sin peso propio: cuenta los displays de su composición.
+      if (!line.unit.weightGrams && line.components?.length) {
+        const perUnit = line.components.reduce((sum, c) => sum + Math.max(0, c.quantity) * displaysPerUnit(c.unit), 0);
+        return total + line.quantity * Math.max(1, perUnit);
+      }
+      return total + line.quantity * displaysPerUnit(line.unit);
+    }, 0);
+}
+
+export function boxesForDisplays(displays: number): Box[] {
+  const n = Math.max(1, Math.round(displays));
+  const boxes: Box[] = [];
+  const full = Math.floor(n / DISPLAYS_PER_FULL_BOX);
+  const rest = n % DISPLAYS_PER_FULL_BOX;
+  const box = (count: number): Box => {
+    const [lengthCm, widthCm, heightCm] = DISPLAY_BOXES[count];
+    return { weightGrams: count * DISPLAY_WEIGHT_GRAMS, lengthCm, widthCm, heightCm };
+  };
+  for (let i = 0; i < full; i += 1) boxes.push(box(DISPLAYS_PER_FULL_BOX));
+  if (rest > 0) boxes.push(box(rest));
+  return boxes;
+}
+
+// Un solo paquete equivalente (para APIs que cotizan un bulto): peso total, base más grande y alturas apiladas.
+function combine(boxes: Box[]): Box {
   return {
-    weightGrams: unit.weightGrams || defaults.defaultUnitWeightGrams,
-    lengthCm: unit.lengthCm || defaults.defaultUnitLengthCm,
-    widthCm: unit.widthCm || defaults.defaultUnitWidthCm,
-    heightCm: unit.heightCm || defaults.defaultUnitHeightCm,
+    weightGrams: boxes.reduce((s, b) => s + b.weightGrams, 0),
+    lengthCm: Math.max(...boxes.map((b) => b.lengthCm)),
+    widthCm: Math.max(...boxes.map((b) => b.widthCm)),
+    heightCm: boxes.reduce((s, b) => s + b.heightCm, 0),
   };
 }
 
-type Piece = { weightGrams: number; lengthCm: number; widthCm: number; heightCm: number; count: number };
-
-function pieces(line: PackageLine, defaults: PackageDefaults): Piece[] {
-  if (!complete(line.unit) && line.components?.length) {
-    return line.components.flatMap((component) =>
-      pieces({ quantity: component.quantity * line.quantity, unit: component.unit }, defaults),
-    );
-  }
-  return [{ ...withDefaults(line.unit, defaults), count: line.quantity }];
+export function computePackage(lines: PackageLine[], _defaults?: PackageDefaults): ComputedPackage {
+  const displays = Math.max(1, countDisplays(lines));
+  const boxes = boxesForDisplays(displays);
+  return { ...combine(boxes), boxes, displays };
 }
 
-// Las unidades se apilan: el largo y ancho del paquete son los mayores, y la altura sale del volumen total.
-export function computePackage(lines: PackageLine[], defaults: PackageDefaults): ComputedPackage {
-  const all = lines.filter((line) => line.quantity > 0).flatMap((line) => pieces(line, defaults));
-  if (all.length === 0) {
-    return {
-      weightGrams: defaults.defaultUnitWeightGrams,
-      lengthCm: defaults.defaultUnitLengthCm,
-      widthCm: defaults.defaultUnitWidthCm,
-      heightCm: defaults.defaultUnitHeightCm,
-    };
-  }
-  const weightGrams = all.reduce((sum, p) => sum + p.weightGrams * p.count, 0);
-  const volume = all.reduce((sum, p) => sum + p.lengthCm * p.widthCm * p.heightCm * p.count, 0);
-  const lengthCm = Math.max(...all.map((p) => p.lengthCm));
-  const widthCm = Math.max(...all.map((p) => p.widthCm));
-  const heightCm = Math.max(Math.max(...all.map((p) => p.heightCm)), Math.ceil(volume / (lengthCm * widthCm)));
-  return { weightGrams: Math.round(weightGrams), lengthCm, widthCm, heightCm };
-}
-
-// Para guardar cotizaciones: paquetes parecidos comparten precio (peso cada 500 g, volumen cada 2.000 cm³).
+// Clave de la cotización guardada: misma cantidad de displays = mismos bultos = mismo precio.
 export function quoteBucket(pkg: ComputedPackage) {
-  const weight = Math.ceil(pkg.weightGrams / 500) * 500;
-  const volume = Math.ceil((pkg.lengthCm * pkg.widthCm * pkg.heightCm) / 2000) * 2000;
-  return { weight, volume };
+  return { weight: pkg.weightGrams, volume: pkg.displays };
 }

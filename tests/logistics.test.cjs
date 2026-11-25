@@ -38,29 +38,41 @@ const email = load('src/features/logistics/shipping-email.ts');
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const defaults = { defaultUnitWeightGrams: 400, defaultUnitLengthCm: 20, defaultUnitWidthCm: 15, defaultUnitHeightCm: 10 };
 
-test('paquete: suma pesos, apila por volumen y usa los valores por defecto', () => {
-  const p = pkg.computePackage([
-    { quantity: 2, unit: { weightGrams: 300, lengthCm: 20, widthCm: 15, heightCm: 5 } },
-    { quantity: 1, unit: { weightGrams: null, lengthCm: null, widthCm: null, heightCm: null } },
-  ], defaults);
-  assert.equal(p.weightGrams, 1000);
-  assert.equal(p.lengthCm, 20);
-  assert.equal(p.widthCm, 15);
-  assert.equal(p.heightCm, 20); // 2*5 + 10
+test('bultos: tabla de displays de logística', () => {
+  const unit = { weightGrams: 360, lengthCm: 10, widthCm: 12, heightCm: 7 };
+  const p1 = pkg.computePackage([{ quantity: 1, unit }]);
+  assert.deepEqual(plain(p1.boxes), [{ weightGrams: 360, lengthCm: 10, widthCm: 12, heightCm: 7 }]);
+  const p4 = pkg.computePackage([{ quantity: 4, unit }]);
+  assert.deepEqual(plain(p4.boxes), [{ weightGrams: 1440, lengthCm: 17, widthCm: 12, heightCm: 21 }]);
+  const p10 = pkg.computePackage([{ quantity: 10, unit }]);
+  assert.deepEqual(plain(p10.boxes), [{ weightGrams: 3600, lengthCm: 20, widthCm: 12, heightCm: 35 }]);
 });
 
-test('paquete: un bulto mayorista sin medidas se arma con sus displays', () => {
-  const display = { weightGrams: 500, lengthCm: 20, widthCm: 15, heightCm: 10 };
+test('bultos: "3 Cajitas" (1080 g) cuenta como 3 displays y sin peso cuenta 1', () => {
   const p = pkg.computePackage([
-    { quantity: 2, unit: { weightGrams: null, lengthCm: null, widthCm: null, heightCm: null }, components: [{ quantity: 5, unit: display }] },
-  ], defaults);
-  assert.equal(p.weightGrams, 5000);
-  assert.equal(p.heightCm, 100);
+    { quantity: 1, unit: { weightGrams: 1080, lengthCm: null, widthCm: null, heightCm: null } },
+    { quantity: 2, unit: { weightGrams: null, lengthCm: null, widthCm: null, heightCm: null } },
+  ]);
+  assert.equal(p.displays, 5);
+  assert.deepEqual(plain(p.boxes), [{ weightGrams: 1800, lengthCm: 20, widthCm: 12, heightCm: 21 }]);
 });
 
-test('cotización guardada: paquetes parecidos comparten precio', () => {
-  assert.deepEqual(plain(pkg.quoteBucket({ weightGrams: 1001, lengthCm: 20, widthCm: 15, heightCm: 10 })), { weight: 1500, volume: 4000 });
-  assert.deepEqual(plain(pkg.quoteBucket({ weightGrams: 1400, lengthCm: 20, widthCm: 15, heightCm: 10 })), { weight: 1500, volume: 4000 });
+test('bultos: más de 10 displays van en bultos de 10 más el resto; total apilado', () => {
+  const display = { weightGrams: 360, lengthCm: 10, widthCm: 12, heightCm: 7 };
+  const p = pkg.computePackage([{ quantity: 2, unit: { weightGrams: null, lengthCm: null, widthCm: null, heightCm: null }, components: [{ quantity: 12, unit: display }] }]);
+  assert.equal(p.displays, 24);
+  assert.equal(p.boxes.length, 3);
+  assert.deepEqual(plain(p.boxes[2]), { weightGrams: 1440, lengthCm: 17, widthCm: 12, heightCm: 21 });
+  assert.equal(p.weightGrams, 24 * 360);
+  assert.equal(p.heightCm, 35 + 35 + 21);
+});
+
+test('Andreani: un bulto por caja y el valor declarado repartido', () => {
+  const boxes = pkg.boxesForDisplays(13);
+  const bultos = andreani.andreaniBultos({ weightGrams: 0, lengthCm: 0, widthCm: 0, heightCm: 0, declaredValueArs: 10000, boxes });
+  assert.equal(bultos.length, 2);
+  assert.equal(bultos[0].kilos, 3.6);
+  assert.equal(bultos[0].valorDeclaradoConImpuestos + bultos[1].valorDeclaradoConImpuestos, 10000);
 });
 
 test('Andreani: tarifa con IVA redondeada hacia arriba', () => {

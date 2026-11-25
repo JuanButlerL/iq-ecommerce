@@ -6,12 +6,15 @@
 // 2. Zonas de reparto propio "CABA" y "GBA Norte" con el precio que hoy cobra la tabla por provincia
 //    (CABA y GBA / Buenos Aires), minorista y mayorista, así el cliente paga lo mismo que hoy.
 // 3. Hora de corte 13:00 (config_corte de la app).
+// 4. Peso y medidas de los productos que no los tienen: 1 cajita = 1 display (360 g, 10x12x7);
+//    "3 Cajitas ..." = 3 displays (1080 g). La web arma el bulto según la cantidad de displays.
 // No prende la integración: eso se hace a mano desde el admin.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { prisma } from "@/lib/db/prisma";
 import { importPostalCodes } from "@/features/logistics/postal-codes";
+import { DISPLAY_BOXES, DISPLAY_WEIGHT_GRAMS } from "@/features/logistics/package";
 
 const CSV = path.join(process.cwd(), "prisma", "data", "codigos-postales-app-2026-11-24.csv");
 
@@ -59,6 +62,17 @@ async function main() {
     };
     await prisma.ownDeliveryZone.upsert({ where: { name: zone.name }, update: data, create: { name: zone.name, ...data } });
     console.log(`Zona ${zone.name}: precio ${data.priceArs}${data.wholesalePriceArs !== null ? `, mayorista ${data.wholesalePriceArs}` : ""}, ${data.active ? "activa" : "APAGADA (sin precio)"}.`);
+  }
+
+  for (const product of await prisma.product.findMany({ where: { weightGrams: null } })) {
+    const match = product.name.match(/^\s*(\d+)\s+(cajitas?|displays?)/i);
+    const displays = Math.min(10, Math.max(1, match ? Number(match[1]) : 1));
+    const [lengthCm, widthCm, heightCm] = DISPLAY_BOXES[displays];
+    await prisma.product.update({
+      where: { id: product.id },
+      data: { weightGrams: displays * DISPLAY_WEIGHT_GRAMS, lengthCm, widthCm, heightCm },
+    });
+    console.log(`Producto "${product.name}": ${displays} display(s), ${displays * DISPLAY_WEIGHT_GRAMS} g.`);
   }
 
   await prisma.shippingSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1, cutoffHour: 13, cutoffMinute: 0 } });
