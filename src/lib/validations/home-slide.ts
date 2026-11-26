@@ -26,6 +26,25 @@ const argentinaDateTime = (field: string) =>
     .optional()
     .or(z.literal(""));
 
+const hexColor = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Color inválido.");
+const percent = z.coerce.number().min(0).max(100);
+const buttonSize = z.coerce.number().min(1).max(10);
+
+export const slideButtonSchema = z.object({
+  label: z.string().trim().min(1, "Escribí el texto del botón.").max(60, "Texto del botón: máximo 60 caracteres."),
+  url: linkUrl.refine((value) => value !== "", { message: "Cargá el link del botón." }),
+  bgColor: hexColor,
+  textColor: hexColor,
+  outline: z.boolean().default(false),
+  shape: z.enum(["pill", "rounded"]).default("rounded"),
+  x: percent,
+  y: percent,
+  size: buttonSize,
+  mobileX: percent,
+  mobileY: percent,
+  mobileSize: buttonSize,
+});
+
 export const homeSlideFormSchema = z
   .object({
     eyebrow: optionalText("Encabezado", 60),
@@ -43,6 +62,8 @@ export const homeSlideFormSchema = z
     mobileImageUrl: optionalText("Imagen de celular", 500),
     imageAlt: optionalText("Texto alternativo", 200),
     imageOverlay: z.boolean().default(true),
+    fitImage: z.boolean().default(false),
+    overlayButton: slideButtonSchema.nullable().optional(),
     active: z.boolean().default(true),
     startsAt: argentinaDateTime("Fecha de inicio"),
     endsAt: argentinaDateTime("Fecha de fin"),

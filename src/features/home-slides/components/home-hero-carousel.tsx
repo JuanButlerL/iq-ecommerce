@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { BannerFrame, type SlideButton } from "@/features/home-slides/components/banner-slide";
 import { cn } from "@/lib/utils/cn";
 
 export type HomeHeroSlide = {
@@ -21,6 +22,9 @@ export type HomeHeroSlide = {
   imageOverlay?: boolean;
   // Framing override for the original hero photo; uploaded slides use the default.
   imageClassName?: string;
+  // Banner: imagen completa (sin recortar) con un botón configurable encima.
+  fitImage?: boolean;
+  overlayButton?: SlideButton | null;
 };
 
 type HomeHeroCarouselProps = {
@@ -103,6 +107,47 @@ export function HomeHeroCarousel({
       <div className="grid">
         {slides.map((slide, index) => {
           const isActive = index === activeIndex;
+
+          if (slide.fitImage) {
+            const mobileImage = slide.mobileImageUrl || slide.imageUrl;
+            return (
+              <div
+                key={slide.id}
+                className={cn(
+                  "relative col-start-1 row-start-1 flex items-center overflow-hidden bg-brand-ink transition-opacity duration-700 ease-out motion-reduce:transition-none",
+                  isActive ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0",
+                )}
+                aria-hidden={isActive ? undefined : true}
+                inert={isActive ? undefined : true}
+                role={hasMultipleSlides ? "group" : undefined}
+                aria-roledescription={hasMultipleSlides ? "slide" : undefined}
+                aria-label={hasMultipleSlides ? `${index + 1} de ${slides.length}` : undefined}
+              >
+                {/* Si el banner es más bajo que el carrusel, el resto se rellena con la misma imagen desenfocada. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
+                <BannerFrame
+                  className="sm:hidden"
+                  imageUrl={mobileImage}
+                  alt={slide.imageAlt ?? ""}
+                  button={slide.overlayButton ?? null}
+                  href={slide.ctaUrl}
+                  mobile
+                  eager={index === 0}
+                />
+                <BannerFrame
+                  className="mx-auto hidden max-w-[1920px] sm:block"
+                  imageUrl={slide.imageUrl}
+                  alt={slide.imageAlt ?? ""}
+                  button={slide.overlayButton ?? null}
+                  href={slide.ctaUrl}
+                  mobile={false}
+                  eager={index === 0}
+                />
+              </div>
+            );
+          }
+
           const TitleTag = index === 0 ? "h1" : "h2";
           const hasButton = Boolean(slide.ctaLabel && slide.ctaUrl);
           const hasText = Boolean(slide.title || slide.eyebrow || slide.subtitle || slide.badges.length > 0 || hasButton);

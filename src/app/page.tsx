@@ -422,6 +422,7 @@ export default async function HomePage() {
             mobileImageUrl: null,
             imageAlt: settings?.storeName ?? "IQ Kids",
             imageClassName: ORIGINAL_HERO_IMAGE_CLASS,
+            overlayButton: null,
           },
         ];
   const landingProducts = findProductsForLanding(products);

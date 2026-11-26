@@ -10,6 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { HomeSlidesPreviewDialog } from "@/features/admin/components/home-slides-preview-dialog";
+import { HomeSlideButtonDesigner } from "@/features/admin/components/home-slide-button-designer";
+import { parseSlideButton, type SlideButton } from "@/features/home-slides/components/banner-slide";
 import type { HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
 import { withHeroImageFraming } from "@/features/home-slides/lib/hero-slides";
 import {
@@ -32,6 +34,8 @@ type HomeSlideListItem = {
   mobileImageUrl: string | null;
   imageAlt: string | null;
   imageOverlay: boolean;
+  fitImage: boolean;
+  overlayButton: unknown;
   active: boolean;
   startsAt: Date | null;
   endsAt: Date | null;
@@ -55,6 +59,8 @@ type HomeSlideFormState = {
   mobileImageUrl: string;
   imageAlt: string;
   imageOverlay: boolean;
+  fitImage: boolean;
+  overlayButton: SlideButton | null;
   active: boolean;
   // datetime-local values in Argentina time ("" = no limit).
   startsAt: string;
@@ -73,6 +79,8 @@ const emptyForm: HomeSlideFormState = {
   mobileImageUrl: "",
   imageAlt: "",
   imageOverlay: true,
+  fitImage: false,
+  overlayButton: null,
   active: true,
   startsAt: "",
   endsAt: "",
@@ -117,6 +125,8 @@ function toHeroSlide(slide: HomeSlideListItem): HomeHeroSlide {
     mobileImageUrl: slide.mobileImageUrl,
     imageAlt: slide.imageAlt,
     imageOverlay: slide.imageOverlay,
+    fitImage: slide.fitImage,
+    overlayButton: slide.overlayButton,
   });
 }
 
@@ -177,6 +187,8 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
       mobileImageUrl: form.mobileImageUrl || null,
       imageAlt: form.imageAlt.trim() || null,
       imageOverlay: form.imageOverlay,
+      fitImage: form.fitImage,
+      overlayButton: form.fitImage ? form.overlayButton : null,
       active: form.active,
       startsAt: argentinaInputToDate(form.startsAt),
       endsAt: argentinaInputToDate(form.endsAt),
@@ -225,6 +237,8 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
       mobileImageUrl: slide.mobileImageUrl ?? "",
       imageAlt: slide.imageAlt ?? "",
       imageOverlay: slide.imageOverlay,
+      fitImage: slide.fitImage,
+      overlayButton: parseSlideButton(slide.overlayButton),
       active: slide.active,
       startsAt: slide.startsAt ? isoToArgentinaLocalInput(slide.startsAt) : "",
       endsAt: slide.endsAt ? isoToArgentinaLocalInput(slide.endsAt) : "",
@@ -242,6 +256,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
       body: JSON.stringify({
         ...form,
         badges: parseBadges(form.badges),
+        overlayButton: form.fitImage ? form.overlayButton : null,
       }),
     });
     const payload = await response.json();
@@ -377,15 +392,36 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
           </div>
 
           <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-2 rounded-[1.5rem] bg-background p-1.5">
+              {(
+                [
+                  [false, "Foto con textos", "Título, textos y botón de la web sobre una foto."],
+                  [true, "Banner diseñado", "Imagen con los textos ya diseñados, completa, y un botón que ubicás vos."],
+                ] as const
+              ).map(([fit, label, hint]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setForm((current) => ({ ...current, fitImage: fit }))}
+                  className={cn(
+                    "rounded-[1.1rem] px-3 py-2.5 text-left transition",
+                    form.fitImage === fit ? "bg-white shadow-card ring-1 ring-brand-pink/40" : "hover:bg-white/60",
+                  )}
+                >
+                  <span className="block text-sm font-extrabold text-brand-ink">{label}</span>
+                  <span className="mt-0.5 block text-[11px] leading-4 text-brand-ink/55">{hint}</span>
+                </button>
+              ))}
+            </div>
             <SlideImageField
               label="Imagen (escritorio)"
-              hint="Horizontal, idealmente 1920×1080 o más. Dejá el lado izquierdo libre: ahí va el texto."
+              hint={form.fitImage ? "El banner tal como lo pasó la agencia, sin el botón (por ejemplo 1440×810). Se muestra completo, sin recortes." : "Horizontal, idealmente 1920×1080 o más. Dejá el lado izquierdo libre: ahí va el texto."}
               url={form.imageUrl}
               onChange={(imageUrl) => setForm((current) => ({ ...current, imageUrl }))}
             />
             <SlideImageField
               label="Imagen (celular, opcional)"
-              hint="Vertical. Si no la cargás, se usa la de escritorio recortada."
+              hint={form.fitImage ? "Versión para celular (vertical o cuadrada). Si no la cargás, en celular se ve la de escritorio completa." : "Vertical. Si no la cargás, se usa la de escritorio recortada."}
               url={form.mobileImageUrl}
               onChange={(mobileImageUrl) => setForm((current) => ({ ...current, mobileImageUrl }))}
             />
@@ -396,6 +432,26 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                 onChange={(event) => setForm((current) => ({ ...current, imageAlt: event.target.value }))}
               />
             </Field>
+            {form.fitImage ? (
+              <>
+                <HomeSlideButtonDesigner
+                  imageUrl={form.imageUrl}
+                  mobileImageUrl={form.mobileImageUrl}
+                  value={form.overlayButton}
+                  onChange={(overlayButton) => setForm((current) => ({ ...current, overlayButton }))}
+                />
+                {!form.overlayButton ? (
+                  <Field label="Link al tocar la imagen (opcional)">
+                    <Input
+                      value={form.ctaUrl}
+                      placeholder="/productos"
+                      onChange={(event) => setForm((current) => ({ ...current, ctaUrl: event.target.value, ctaLabel: "" }))}
+                    />
+                  </Field>
+                ) : null}
+              </>
+            ) : (
+              <>
             <Field label="Encabezado (texto chico arriba)">
               <Input
                 value={form.eyebrow}
@@ -465,6 +521,8 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                 En slides de solo imagen no se aplica.
               </p>
             </div>
+              </>
+            )}
             <Checkbox
               label="Slide activo"
               checked={form.active}
@@ -660,12 +718,16 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
                             {slide.eyebrow}
                           </p>
                         ) : null}
-                        {slide.title ? (
+                        {slide.fitImage ? (
+                          <p className="mt-1 font-bold text-brand-ink">
+                            Banner diseñado{parseSlideButton(slide.overlayButton) ? ` · botón "${parseSlideButton(slide.overlayButton)?.label.replace(/\n/g, " ")}"` : ""}
+                          </p>
+                        ) : slide.title ? (
                           <p className="mt-1 whitespace-pre-line font-bold text-brand-ink">{slide.title}</p>
                         ) : (
                           <p className="mt-1 font-bold italic text-brand-ink/50">Solo imagen, sin textos</p>
                         )}
-                        {slide.ctaLabel ? (
+                        {slide.ctaLabel && !slide.fitImage ? (
                           <p className="mt-2 break-words text-sm text-brand-ink/60">
                             Botón: {slide.ctaLabel} → {slide.ctaUrl}
                           </p>

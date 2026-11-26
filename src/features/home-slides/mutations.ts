@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { argentinaLocalInputToIso } from "@/features/newsletter/components/newsletter-admin-labels";
@@ -31,6 +32,9 @@ export async function saveHomeSlide(payload: unknown, slideId?: string) {
     mobileImageUrl: parsed.data.mobileImageUrl || null,
     imageAlt: parsed.data.imageAlt || null,
     imageOverlay: parsed.data.imageOverlay,
+    fitImage: parsed.data.fitImage,
+    // El botón del banner solo se guarda en modo banner.
+    overlayButton: parsed.data.fitImage && parsed.data.overlayButton ? parsed.data.overlayButton : Prisma.DbNull,
     active: parsed.data.active,
     startsAt: parseArgentinaDateTime(parsed.data.startsAt),
     endsAt: parseArgentinaDateTime(parsed.data.endsAt),

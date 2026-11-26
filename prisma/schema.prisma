@@ -427,6 +427,10 @@ model HomeSlide {
   imageAlt       String?   @map("image_alt")
   // Soft wash over the photo behind the text; some artworks look better without it.
   imageOverlay   Boolean   @default(true) @map("image_overlay")
+  // Banner: la imagen se muestra completa (el diseño ya trae los textos) y el botón va encima.
+  fitImage       Boolean   @default(false) @map("fit_image")
+  // Botón del banner: texto, link, colores, forma, posición y tamaño (escritorio y celular).
+  overlayButton  Json?     @map("overlay_button")
   active         Boolean   @default(true)
   // Optional publishing window; the home only shows the slide between these moments.
   startsAt       DateTime? @map("starts_at")
