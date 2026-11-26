@@ -172,6 +172,25 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
     fallbackPriceArs: provinceShippingQuote.baseShippingArs,
     selection: input.shipping,
   });
+  // Retiro en sucursal: no se pide domicilio; el pedido (planilla, app, mail) lleva la dirección de la sucursal.
+  const branch = logistics.enabled ? logistics.branch : null;
+  const delivery = branch
+    ? {
+        locality: branch.locality || input.locality,
+        postalCode: /^\d{4,8}$/.test(branch.postalCode ?? "") ? branch.postalCode : input.postalCode,
+        addressLine: branch.address || input.addressLine,
+        addressNumber: null,
+        addressWithoutNumber: true,
+        addressExtra: `Retira en sucursal ${logistics.enabled && logistics.option.carrier === "CORREO_AR" ? "Correo Argentino" : "Andreani"}: ${branch.name}`.slice(0, 120),
+      }
+    : {
+        locality: input.locality,
+        postalCode: input.postalCode,
+        addressLine: input.addressLine,
+        addressNumber: input.addressWithoutNumber ? null : input.addressNumber || null,
+        addressWithoutNumber: input.addressWithoutNumber,
+        addressExtra: input.addressExtra || null,
+      };
   const shippingQuote = logistics.enabled
     ? calculateShippingQuote(subtotalArs, input.province, settings, freeShippingSubtotalArs, logistics.option.carrierPriceArs)
     : provinceShippingQuote;
@@ -228,12 +247,12 @@ export async function createOrderFromCheckout(input: CheckoutInput) {
             customerPhone: input.phone,
             customerTaxId: input.taxId || null,
             province: input.province,
-            locality: input.locality,
-            postalCode: input.postalCode,
-            addressLine: input.addressLine,
-            addressNumber: input.addressWithoutNumber ? null : input.addressNumber || null,
-            addressWithoutNumber: input.addressWithoutNumber,
-            addressExtra: input.addressExtra || null,
+            locality: delivery.locality,
+            postalCode: delivery.postalCode,
+            addressLine: delivery.addressLine,
+            addressNumber: delivery.addressNumber,
+            addressWithoutNumber: delivery.addressWithoutNumber,
+            addressExtra: delivery.addressExtra,
             notes: input.notes || null,
             newsletterOptIn: input.newsletterOptIn,
             newsletterOptInAt: input.newsletterOptIn ? new Date() : null,

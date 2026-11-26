@@ -17,7 +17,7 @@ export type CheckoutShippingOption = {
   estimated: boolean;
 };
 
-type Branch = { id: string; name: string; address: string; locality: string; province: string; postalCode: string; hours?: string };
+export type Branch = { id: string; name: string; address: string; locality: string; province: string; postalCode: string; hours?: string };
 
 export type ShippingSelectionValue = { carrier: CheckoutShippingOption["carrier"]; deliveryType: CheckoutShippingOption["deliveryType"]; branchId?: string };
 
@@ -105,9 +105,10 @@ type PickerProps = {
   // El precio final de la opción elegida (con envío gratis o descuento), para mostrarlo al lado.
   freeShipping?: boolean;
   error?: string | null;
+  onBranchChange?: (branch: Branch | null) => void;
 };
 
-export function ShippingPicker({ state, value, onChange, postalCode, province, freeShipping, error }: PickerProps) {
+export function ShippingPicker({ state, value, onChange, postalCode, province, freeShipping, error, onBranchChange }: PickerProps) {
   const [branches, setBranches] = useState<{ key: string; list: Branch[]; status: "loading" | "ready" | "error" } | null>(null);
   const options = useMemo(() => (state.status === "ready" ? state.options : []), [state]);
   const selected = useMemo(() => options.find((option) => option.carrier === value?.carrier && option.deliveryType === value?.deliveryType) ?? null, [options, value]);
@@ -202,7 +203,11 @@ export function ShippingPicker({ state, value, onChange, postalCode, province, f
               id="shipping-branch"
               className="h-12 w-full rounded-2xl border border-brand-ink/15 bg-white px-4 text-sm"
               value={value?.branchId ?? ""}
-              onChange={(event) => value && onChange({ ...value, branchId: event.target.value || undefined })}
+              onChange={(event) => {
+                if (!value) return;
+                onChange({ ...value, branchId: event.target.value || undefined });
+                onBranchChange?.(branches.list.find((b) => b.id === event.target.value) ?? null);
+              }}
             >
               <option value="">Elegí una sucursal</option>
               {branches.list.map((branch) => (

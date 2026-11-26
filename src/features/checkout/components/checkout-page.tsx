@@ -30,7 +30,7 @@ import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/components/address-map-preview";
 import { FieldShell } from "@/features/checkout/components/field-shell";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
-import { ShippingPicker, useShippingOptions, type ShippingSelectionValue } from "@/features/logistics/components/shipping-picker";
+import { ShippingPicker, useShippingOptions, type Branch, type ShippingSelectionValue } from "@/features/logistics/components/shipping-picker";
 import { usePostalCodeInfo } from "@/features/logistics/components/use-postal-code";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { productFallbackImageMap } from "@/features/catalog/product-theme";
@@ -254,10 +254,13 @@ export function CheckoutPage({
     locality: watchedLocality,
     items: shippingItems,
   });
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const selectedShippingOption =
     shippingState.status === "ready"
       ? shippingState.options.find((option) => option.carrier === shippingSelection?.carrier && option.deliveryType === shippingSelection?.deliveryType) ?? null
       : null;
+  // Retiro en sucursal: no se pide domicilio (el servidor guarda la dirección de la sucursal).
+  const isBranchPickup = selectedShippingOption?.deliveryType === "BRANCH";
   const shippingQuote = calculateShippingQuote(
     subtotal,
     province,
@@ -461,7 +464,22 @@ export function CheckoutPage({
   return (
     <form
       className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]"
-      onSubmit={form.handleSubmit((values) => {
+      onSubmit={(event) => {
+        // Con sucursal los campos de domicilio están ocultos: se completan con la sucursal para pasar la validación
+        // (el servidor igual usa la dirección oficial de la sucursal elegida).
+        if (isBranchPickup && selectedBranch) {
+          const clean = (value: string, fallback: string) => {
+            const out = value.replace(/[^\p{L}0-9'.,()/#° -]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+            return out.length >= 2 ? out : fallback;
+          };
+          form.setValue("addressLine", clean(selectedBranch.address, "Sucursal"));
+          form.setValue("addressNumber", "");
+          form.setValue("addressWithoutNumber", true);
+          form.setValue("addressExtra", "");
+          if (!form.getValues("locality")?.trim()) form.setValue("locality", clean(selectedBranch.locality, "Sucursal"));
+          form.clearErrors(["addressLine", "addressNumber", "locality"]);
+        }
+        return form.handleSubmit((values) => {
         setError(null);
         setShippingError(null);
         if (shippingState.status === "loading") {
@@ -525,7 +543,8 @@ export function CheckoutPage({
 
           router.push(`/checkout/transfer/${payload.data.orderNumber}`);
         });
-      })}
+        })(event);
+      }}
     >
       <TrackEventOnView
         eventName="begin_checkout"
@@ -634,6 +653,15 @@ export function CheckoutPage({
             ]}
           />
           <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
+          <FieldShell label="Código postal" error={errors.postalCode?.message}>
+            <Input
+              placeholder="Ej: 1425"
+              autoComplete="postal-code"
+              inputMode="numeric"
+              aria-invalid={errors.postalCode ? "true" : "false"}
+              {...form.register("postalCode")}
+            />
+          </FieldShell>
           <FieldShell label="Provincia" error={errors.province?.message}>
             <Select
               autoComplete="address-level1"
@@ -647,21 +675,14 @@ export function CheckoutPage({
               ))}
             </Select>
           </FieldShell>
+          {!isBranchPickup ? (
+            <>
           <FieldShell label="Localidad" error={errors.locality?.message}>
             <Input
               placeholder="Ej: Vicente López"
               autoComplete="address-level2"
               aria-invalid={errors.locality ? "true" : "false"}
               {...form.register("locality")}
-            />
-          </FieldShell>
-          <FieldShell label="Código postal" error={errors.postalCode?.message}>
-            <Input
-              placeholder="Ej: 1425"
-              autoComplete="postal-code"
-              inputMode="numeric"
-              aria-invalid={errors.postalCode ? "true" : "false"}
-              {...form.register("postalCode")}
             />
           </FieldShell>
           <FieldShell
@@ -727,7 +748,29 @@ export function CheckoutPage({
             </div>
           ) : null}
 
-          <div className="md:col-span-3">
+            </>
+          ) : null}
+          </div>
+
+          <div className="mt-4">
+            <ShippingPicker
+              state={shippingState}
+              value={shippingSelection}
+              onChange={(next) => {
+                setShippingSelection(next);
+                setShippingError(null);
+                if (next?.deliveryType !== "BRANCH") setSelectedBranch(null);
+              }}
+              onBranchChange={setSelectedBranch}
+              postalCode={watchedPostalCode}
+              province={province}
+              freeShipping={recoveryFreeShippingActive || shippingQuote.freeShippingReached}
+              error={shippingError}
+            />
+          </div>
+
+          <div className="mt-3 grid gap-x-4 gap-y-3">
+          <div>
             <FieldShell label="Observaciones" error={errors.notes?.message}>
               <Textarea
                 placeholder="Ej: Timbre roto. Tocar portería. Recibe Lucía por la tarde."
@@ -738,19 +781,6 @@ export function CheckoutPage({
           </div>
           </div>
         </section>
-
-        <ShippingPicker
-          state={shippingState}
-          value={shippingSelection}
-          onChange={(next) => {
-            setShippingSelection(next);
-            setShippingError(null);
-          }}
-          postalCode={watchedPostalCode}
-          province={province}
-          freeShipping={recoveryFreeShippingActive || shippingQuote.freeShippingReached}
-          error={shippingError}
-        />
 
         <PaymentMethodSelector
           value={form.watch("paymentMethod")}
