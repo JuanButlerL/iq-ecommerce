@@ -38,7 +38,7 @@ type Item = {
 
 const carrierLabels: Record<string, string> = { OWN: "Reparto propio", ANDREANI: "Andreani", CORREO_AR: "Correo Argentino" };
 
-export function ProofReviewPanel({ items, emailEnabled }: { items: Item[]; emailEnabled: boolean }) {
+export function ProofReviewPanel({ items }: { items: Item[]; emailEnabled?: boolean }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export function ProofReviewPanel({ items, emailEnabled }: { items: Item[]; email
   function act(item: Item, action: "approve" | "reject") {
     let reason = "";
     if (action === "reject") {
-      const answer = window.prompt(`¿Por qué se rechaza el comprobante de ${item.publicOrderNumber}? (le llega al cliente por mail)`);
+      const answer = window.prompt(`¿Por qué se rechaza el comprobante de ${item.publicOrderNumber}? (queda anotado en el pedido)`);
       if (answer === null) return;
       reason = answer;
     } else if (!window.confirm(`¿Aprobar el pago de ${item.publicOrderNumber} por ${formatArs(item.totalArs)}? Se genera la etiqueta y pasa a la app.`)) {
@@ -72,7 +72,7 @@ export function ProofReviewPanel({ items, emailEnabled }: { items: Item[]; email
       setMessage(
         action === "approve"
           ? `${item.publicOrderNumber} aprobado.`
-          : `${item.publicOrderNumber} rechazado.${payload.data?.emailSent ? " Le mandamos un mail al cliente." : " No se pudo mandar el mail: avisale por WhatsApp."}`,
+          : `${item.publicOrderNumber} rechazado. Avisale al cliente por WhatsApp para que suba el comprobante correcto.`,
       );
       router.refresh();
     });
@@ -88,7 +88,7 @@ export function ProofReviewPanel({ items, emailEnabled }: { items: Item[]; email
           cliente y viaja a la app. Al rechazar, vuelve a pendiente de pago y le pedimos que lo suba de nuevo.
         </p>
       </div>
-      {!emailEnabled ? <p className="rounded-2xl bg-brand-yellow/30 p-4 text-sm font-bold text-brand-ink">El envío de emails está apagado: los clientes no reciben el aviso.</p> : null}
+      
       {error ? <p className="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">{error}</p> : null}
       {message ? <p className="rounded-2xl bg-brand-mint p-4 text-sm font-bold text-green-800">{message}</p> : null}
       {items.length === 0 ? <Card className="p-6 text-sm text-brand-ink/70">No hay comprobantes pendientes.</Card> : null}

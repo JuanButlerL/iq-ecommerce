@@ -1,11 +1,8 @@
 import { OrderStatus, PaymentStatus, SyncStatus } from "@prisma/client";
 
-import { sendEmail } from "@/features/email/provider";
-import { buildProofRejectedEmail } from "@/features/logistics/shipping-email";
 import { updateOrderStatus } from "@/features/orders/services/order-service";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { prisma } from "@/lib/db/prisma";
-import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors/app-error";
 import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 
@@ -120,17 +117,6 @@ export async function rejectPaymentProof(orderId: string, actor: string, reason:
     await prisma.order.update({ where: { id: orderId }, data: { syncStatus: SyncStatus.ERROR, syncLastError: error instanceof Error ? error.message : "Sync error" } });
   });
 
-  let emailSent = false;
-  if (env.canSendEmail) {
-    const siteUrl = env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
-    const uploadUrl = order.channel === "WHOLESALE" ? `${siteUrl}/mayoristas/pedido/${order.publicOrderNumber}` : `${siteUrl}/checkout/transfer/${order.publicOrderNumber}`;
-    const email = buildProofRejectedEmail({ firstName: order.customerFirstName, orderNumber: order.publicOrderNumber, reason: cleanReason || null, uploadUrl });
-    try {
-      await sendEmail({ fromEmail: env.EMAIL_FROM_DEFAULT, senderName: "IQ Kids", to: order.customerEmail, subject: email.subject, html: email.html, text: email.text });
-      emailSent = true;
-    } catch (error) {
-      console.error("[comprobantes] no se pudo mandar el mail de rechazo", { orderId, error });
-    }
-  }
-  return { emailSent };
+  // Sin mail automático al cliente (decisión de Juan, 26/11): el equipo le avisa por WhatsApp.
+  return { emailSent: false };
 }
