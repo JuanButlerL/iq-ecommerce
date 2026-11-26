@@ -6,7 +6,7 @@ import { sendEmail } from "@/features/email/provider";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { computeDispatchDate, dateKeyToDbDate, dbDateToKey, formatDispatchDate } from "@/features/logistics/business-days";
 import { CARRIER_LABELS, findOwnZone } from "@/features/logistics/options";
-import { arrivalRange, withWindow } from "@/features/logistics/transit";
+import { arrivalRange, carrierTransitDays, withWindow } from "@/features/logistics/transit";
 import { splitStreetNumber } from "@/features/logistics/checkout";
 import { computePackage, type PackageLine } from "@/features/logistics/package";
 import { getDefaultWarehouse, getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
@@ -338,17 +338,23 @@ export function shipmentDestinationLabel(order: {
   return [[order.addressLine, order.addressNumber].filter(Boolean).join(" "), order.locality, order.province].filter(Boolean).join(", ");
 }
 
-// Reparto propio: "hoy, jueves 26/11, entre las 14 y las 17 h" (días de la zona desde el despacho + franja).
-export async function ownArrivalLabel(
+// Cuándo llega: reparto propio = días de la zona + franja ("hoy, jueves 26/11, entre las 14 y las 17 h");
+// Andreani/Correo = días por región de Admin > Logística ("entre el lunes 30/11 y el martes 01/12").
+export async function arrivalLabelFor(
   carrier: string,
-  order: { postalCode: string; locality: string },
+  order: { postalCode: string; locality: string; province: string },
   dispatchDate: Date | null,
 ) {
-  if (carrier !== "OWN" || !dispatchDate) return null;
-  const [zone, settings, calendar] = await Promise.all([findOwnZone(order.postalCode, order.locality), getShippingSettings(), getHolidayCalendar()]);
-  const min = zone?.deliveryDaysMin ?? 0;
-  const max = zone?.deliveryDaysMax ?? min;
-  return withWindow(arrivalRange(dbDateToKey(dispatchDate), min, max, calendar).label, settings.ownDeliveryWindow);
+  if (!dispatchDate) return null;
+  const [settings, calendar] = await Promise.all([getShippingSettings(), getHolidayCalendar()]);
+  if (carrier === "OWN") {
+    const zone = await findOwnZone(order.postalCode, order.locality);
+    const min = zone?.deliveryDaysMin ?? 0;
+    const max = zone?.deliveryDaysMax ?? min;
+    return withWindow(arrivalRange(dbDateToKey(dispatchDate), min, max, calendar).label, settings.ownDeliveryWindow);
+  }
+  const [min, max] = carrierTransitDays(order.province, settings);
+  return arrivalRange(dbDateToKey(dispatchDate), min, max, calendar).label;
 }
 
 export async function notifyCustomer(shipmentId: string) {
@@ -366,7 +372,7 @@ export async function notifyCustomer(shipmentId: string) {
     trackingNumber: shipment.trackingNumber,
     trackingUrl: trackingUrlFor(shipment.carrier, shipment.trackingNumber),
     dispatchDateLabel: shipment.dispatchDate ? formatDispatchDate(dbDateToKey(shipment.dispatchDate)) : null,
-    deliveryWindowLabel: await ownArrivalLabel(shipment.carrier, order, shipment.dispatchDate),
+    deliveryWindowLabel: await arrivalLabelFor(shipment.carrier, order, shipment.dispatchDate),
     destination: shipmentDestinationLabel(order),
     orderUrl,
   });

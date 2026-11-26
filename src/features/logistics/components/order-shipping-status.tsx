@@ -1,5 +1,5 @@
 import { computeDispatchDate, dateKeyToDbDate, dbDateToKey, formatDispatchDate } from "@/features/logistics/business-days";
-import { ownArrivalLabel } from "@/features/logistics/shipments";
+import { arrivalLabelFor } from "@/features/logistics/shipments";
 import { getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
 import { AutoRefresh } from "@/features/logistics/components/auto-refresh";
 import { trackingUrlFor } from "@/features/logistics/shipping-email";
@@ -21,6 +21,7 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
       estimatedDispatchDate: true,
       postalCode: true,
       locality: true,
+      province: true,
       shipment: { select: { status: true, trackingNumber: true, dispatchDate: true } },
     },
   });
@@ -41,7 +42,8 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
       : computeDispatchDate(new Date(), await getShippingSettings(), await getHolidayCalendar());
   const trackingUrl = trackingUrlFor(order.shippingCarrier, shipment.trackingNumber);
   const isOwn = order.shippingCarrier === "OWN";
-  const ownArrival = isOwn && dispatchKey ? await ownArrivalLabel("OWN", order, dateKeyToDbDate(dispatchKey)) : null;
+  const arrival = dispatchKey ? await arrivalLabelFor(order.shippingCarrier, order, dateKeyToDbDate(dispatchKey)) : null;
+  const isBranch = order.shippingDeliveryType === "BRANCH";
   // Mercado Pago avisa el pago unos segundos después de volver: la página se actualiza sola un rato.
   const waitingForCarrier = !created && (shipment.status === "PENDING" || shipment.status === "PROCESSING" || (order.paymentMethod === "MERCADO_PAGO" && order.paymentStatus !== "PAID"));
 
@@ -80,10 +82,25 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
             <p className="font-bold text-brand-ink">{formatDispatchDate(dispatchKey)}</p>
           </div>
         ) : null}
-        {ownArrival ? (
+        {arrival ? (
           <div className="md:col-span-2">
-            <p className="text-xs text-brand-ink/55">{confirmed ? "Llega" : "Si se confirma hoy, llega"}</p>
-            <p className="font-bold text-emerald-700">{ownArrival.charAt(0).toUpperCase() + ownArrival.slice(1)}</p>
+            <p className="text-xs text-brand-ink/55">
+              {confirmed ? (isBranch ? "Lo retirás" : "Llega") : isBranch ? "Si se confirma hoy, lo retirás" : "Si se confirma hoy, llega"}
+            </p>
+            <p className="font-bold text-emerald-700">{arrival.charAt(0).toUpperCase() + arrival.slice(1)}</p>
+          </div>
+        ) : null}
+        {created && trackingUrl ? (
+          <div className="md:col-span-2">
+            <a
+              href={trackingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-pink px-5 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90"
+            >
+              Seguir mi envío en {carrierLabels[order.shippingCarrier]}
+              <span aria-hidden="true">→</span>
+            </a>
           </div>
         ) : null}
       </div>

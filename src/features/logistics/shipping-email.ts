@@ -68,7 +68,13 @@ export function buildShipmentConfirmedEmail(data: ShippingEmailData) {
     `¡Gracias, ${data.firstName}! Ya preparamos tu pedido`,
     `<p style="margin:0 0 16px;font-size:15px;line-height:1.5">${escapeHtml(intro)}</p>
      <table style="width:100%;border-collapse:collapse">${rows}</table>
-     <p style="margin:24px 0 0"><a href="${escapeHtml(data.orderUrl)}" style="display:inline-block;background:#F48991;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:999px">Ver mi pedido</a></p>`,
+     <p style="margin:24px 0 0">${
+       data.trackingUrl
+         ? `<a href="${escapeHtml(data.trackingUrl)}" style="display:inline-block;background:#F48991;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:999px;margin:0 8px 8px 0">Seguir mi envío</a>`
+         : ""
+     }<a href="${escapeHtml(data.orderUrl)}" style="display:inline-block;${
+       data.trackingUrl ? "background:#ffffff;color:#2c2241;border:1px solid #e6e1ea;" : "background:#F48991;color:#ffffff;"
+     }text-decoration:none;font-weight:700;padding:12px 20px;border-radius:999px">Ver mi pedido</a></p>`,
   );
 
   const text = [
