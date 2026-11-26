@@ -686,15 +686,15 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
                 <span className="font-bold text-emerald-700">Gratis</span>
               ) : shippingQuote.freeShippingReached ? (
                 <span className="font-bold text-emerald-700">Gratis</span>
+              ) : !shippingKnown ? (
+                <span className="text-sm font-bold text-brand-ink/45">Poné tu CP</span>
               ) : shippingQuote.shippingDiscountReached ? (
                 <span className="flex items-center gap-2 font-bold">
                   <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
                   <span className="text-emerald-700">{formatArs(shippingQuote.shippingArs)}</span>
                 </span>
-              ) : shippingKnown ? (
-                <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
               ) : (
-                <span className="text-sm font-bold text-brand-ink/45">Poné tu CP</span>
+                <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
               )}
             </div>
             <div className="flex items-center justify-between border-t border-brand-ink/10 pt-3">
