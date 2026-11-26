@@ -4,7 +4,7 @@ import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { applyProductDiscount, summarizeProductLines } from "@/features/catalog/lib/product-discount";
 import { formatDispatchDate } from "@/features/logistics/business-days";
 import { getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
-import { arrivalRange, carrierTransitDays } from "@/features/logistics/transit";
+import { arrivalRange, carrierTransitDays, withWindow } from "@/features/logistics/transit";
 import { getBranches, getShippingOptions } from "@/features/logistics/options";
 import type { PackageLine } from "@/features/logistics/package";
 import { getStoreSettings } from "@/features/settings/queries";
@@ -130,10 +130,12 @@ export async function getCheckoutShippingOptions(request: ShippingOptionsRequest
       deliveryDaysMax: option.deliveryDaysMax,
       zoneName: option.zoneName,
       arrivalLabel:
-        option.deliveryDaysMin != null || option.deliveryDaysMax != null
-          ? arrival(option.deliveryDaysMin, option.deliveryDaysMax)
-          : option.carrier === "OWN"
-            ? null
+        option.carrier === "OWN"
+          ? option.deliveryDaysMin != null || option.deliveryDaysMax != null
+            ? withWindow(arrival(option.deliveryDaysMin, option.deliveryDaysMax) ?? "", shippingSettings.ownDeliveryWindow)
+            : null
+          : option.deliveryDaysMin != null || option.deliveryDaysMax != null
+            ? arrival(option.deliveryDaysMin, option.deliveryDaysMax)
             : arrival(...carrierTransitDays(request.province, shippingSettings)),
       // El navegador no necesita saber si fue en vivo o de respaldo; solo si el precio es estimado.
       estimated: option.priceSource === "FALLBACK",

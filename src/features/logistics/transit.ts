@@ -35,6 +35,12 @@ export function carrierTransitDays(province: string, days: TransitDays): [number
   return [Math.max(0, Math.min(min, max)), Math.max(0, Math.max(min, max))];
 }
 
+// Agrega la franja del reparto propio: "hoy, jueves 26/11, entre las 14 y las 17 h".
+export function withWindow(label: string, window: string | null | undefined) {
+  const clean = (window ?? "").trim();
+  return clean ? `${label}, ${clean}` : label;
+}
+
 // "el viernes 27/11" o "entre el lunes 30/11 y el miércoles 02/12": días hábiles desde el despacho.
 export function arrivalRange(dispatchDate: DateKey, min: number, max: number, calendar: HolidayCalendar, now: Date = new Date()) {
   const from = addBusinessDays(dispatchDate, Math.max(0, min), calendar);

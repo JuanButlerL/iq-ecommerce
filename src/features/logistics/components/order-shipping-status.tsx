@@ -1,4 +1,5 @@
-import { computeDispatchDate, dbDateToKey, formatDispatchDate } from "@/features/logistics/business-days";
+import { computeDispatchDate, dateKeyToDbDate, dbDateToKey, formatDispatchDate } from "@/features/logistics/business-days";
+import { ownArrivalLabel } from "@/features/logistics/shipments";
 import { getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
 import { AutoRefresh } from "@/features/logistics/components/auto-refresh";
 import { trackingUrlFor } from "@/features/logistics/shipping-email";
@@ -18,6 +19,8 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
       shippingBranchName: true,
       shippingBranchAddress: true,
       estimatedDispatchDate: true,
+      postalCode: true,
+      locality: true,
       shipment: { select: { status: true, trackingNumber: true, dispatchDate: true } },
     },
   });
@@ -38,6 +41,7 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
       : computeDispatchDate(new Date(), await getShippingSettings(), await getHolidayCalendar());
   const trackingUrl = trackingUrlFor(order.shippingCarrier, shipment.trackingNumber);
   const isOwn = order.shippingCarrier === "OWN";
+  const ownArrival = isOwn && dispatchKey ? await ownArrivalLabel("OWN", order, dateKeyToDbDate(dispatchKey)) : null;
   // Mercado Pago avisa el pago unos segundos después de volver: la página se actualiza sola un rato.
   const waitingForCarrier = !created && (shipment.status === "PENDING" || shipment.status === "PROCESSING" || (order.paymentMethod === "MERCADO_PAGO" && order.paymentStatus !== "PAID"));
 
@@ -66,7 +70,7 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
             ) : order.paymentMethod === "MERCADO_PAGO" ? (
               "Te lo mandamos cuando se acredite el pago"
             ) : (
-              "Te lo mandamos por mail cuando aprobemos el comprobante"
+              "Te lo mandamos por mail cuando se confirme el pago"
             )}
           </p>
         </div>
@@ -74,6 +78,12 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
           <div>
             <p className="text-xs text-brand-ink/55">{confirmed ? "Despachamos el" : "Si se confirma hoy, sale el"}</p>
             <p className="font-bold text-brand-ink">{formatDispatchDate(dispatchKey)}</p>
+          </div>
+        ) : null}
+        {ownArrival ? (
+          <div className="md:col-span-2">
+            <p className="text-xs text-brand-ink/55">{confirmed ? "Llega" : "Si se confirma hoy, llega"}</p>
+            <p className="font-bold text-emerald-700">{ownArrival.charAt(0).toUpperCase() + ownArrival.slice(1)}</p>
           </div>
         ) : null}
       </div>

@@ -5,7 +5,8 @@ import { env } from "@/lib/env";
 import { sendEmail } from "@/features/email/provider";
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { computeDispatchDate, dateKeyToDbDate, dbDateToKey, formatDispatchDate } from "@/features/logistics/business-days";
-import { CARRIER_LABELS } from "@/features/logistics/options";
+import { CARRIER_LABELS, findOwnZone } from "@/features/logistics/options";
+import { arrivalRange, withWindow } from "@/features/logistics/transit";
 import { splitStreetNumber } from "@/features/logistics/checkout";
 import { computePackage, type PackageLine } from "@/features/logistics/package";
 import { getDefaultWarehouse, getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
@@ -337,6 +338,19 @@ export function shipmentDestinationLabel(order: {
   return [[order.addressLine, order.addressNumber].filter(Boolean).join(" "), order.locality, order.province].filter(Boolean).join(", ");
 }
 
+// Reparto propio: "hoy, jueves 26/11, entre las 14 y las 17 h" (días de la zona desde el despacho + franja).
+export async function ownArrivalLabel(
+  carrier: string,
+  order: { postalCode: string; locality: string },
+  dispatchDate: Date | null,
+) {
+  if (carrier !== "OWN" || !dispatchDate) return null;
+  const [zone, settings, calendar] = await Promise.all([findOwnZone(order.postalCode, order.locality), getShippingSettings(), getHolidayCalendar()]);
+  const min = zone?.deliveryDaysMin ?? 0;
+  const max = zone?.deliveryDaysMax ?? min;
+  return withWindow(arrivalRange(dbDateToKey(dispatchDate), min, max, calendar).label, settings.ownDeliveryWindow);
+}
+
 export async function notifyCustomer(shipmentId: string) {
   const shipment = await prisma.shipment.findUniqueOrThrow({ where: { id: shipmentId }, include: { order: true } });
   if (shipment.status !== "CREATED" || shipment.customerNotifiedAt || !env.canSendEmail) return false;
@@ -352,7 +366,7 @@ export async function notifyCustomer(shipmentId: string) {
     trackingNumber: shipment.trackingNumber,
     trackingUrl: trackingUrlFor(shipment.carrier, shipment.trackingNumber),
     dispatchDateLabel: shipment.dispatchDate ? formatDispatchDate(dbDateToKey(shipment.dispatchDate)) : null,
-    deliveryWindowLabel: null,
+    deliveryWindowLabel: await ownArrivalLabel(shipment.carrier, order, shipment.dispatchDate),
     destination: shipmentDestinationLabel(order),
     orderUrl,
   });

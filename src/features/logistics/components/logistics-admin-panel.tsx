@@ -373,6 +373,11 @@ export function LogisticsAdminPanel({ data }: Props) {
               </li>
               <li>El cliente ve &quot;Llega entre el [despacho + mínimo] y el [despacho + máximo]&quot;. Si mínimo y máximo son iguales, ve un solo día.</li>
             </ol>
+            <label className="block space-y-1 text-sm font-bold text-brand-ink">
+              <span>Franja horaria del reparto propio</span>
+              <Input className="max-w-sm" placeholder="entre las 14 y las 17 h" value={settings.ownDeliveryWindow} onChange={(e) => set("ownDeliveryWindow", e.target.value)} />
+              <span className="block text-xs font-normal text-brand-ink/55">Se agrega a la fecha: &quot;Llega hoy, jueves 26/11, entre las 14 y las 17 h&quot;. Vacío = sin franja.</span>
+            </label>
             <div className="grid gap-3 md:grid-cols-3">
               {(
                 [

@@ -6,7 +6,7 @@ export { importPostalCodes, parsePostalCodesCsv } from "@/features/logistics/pos
 import { addDays, nationalHolidays, toArgentinaDateKey, dbDateToKey } from "@/features/logistics/business-days";
 import { computeDispatchDate, formatDispatchDate } from "@/features/logistics/business-days";
 import { credentialStatus, getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
-import { arrivalRange, carrierTransitDays, TRANSIT_REGION_LABELS } from "@/features/logistics/transit";
+import { arrivalRange, carrierTransitDays, TRANSIT_REGION_LABELS, withWindow } from "@/features/logistics/transit";
 import { ALERT_AFTER_ATTEMPTS } from "@/features/logistics/shipments";
 
 // ---------- Lectura para el admin ----------
@@ -37,7 +37,7 @@ export async function getLogisticsAdminData() {
         name: zone.name,
         min: zone.deliveryDaysMin,
         max: zone.deliveryDaysMax,
-        arrival: arrivalRange(dispatchDate, zone.deliveryDaysMin ?? 0, zone.deliveryDaysMax ?? zone.deliveryDaysMin ?? 0, calendar).label,
+        arrival: withWindow(arrivalRange(dispatchDate, zone.deliveryDaysMin ?? 0, zone.deliveryDaysMax ?? zone.deliveryDaysMin ?? 0, calendar).label, settings.ownDeliveryWindow),
       })),
   };
   const year = Number(today.slice(0, 4));
@@ -97,6 +97,7 @@ const settingsSchema = z.object({
   transitDaysBsasMax: z.coerce.number().int().min(0).max(30),
   transitDaysRestMin: z.coerce.number().int().min(0).max(30),
   transitDaysRestMax: z.coerce.number().int().min(0).max(30),
+  ownDeliveryWindow: z.string().trim().max(60).default(""),
 });
 
 export async function saveShippingSettings(payload: unknown) {
