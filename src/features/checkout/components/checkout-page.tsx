@@ -661,8 +661,21 @@ export function CheckoutPage({
               aria-invalid={errors.postalCode ? "true" : "false"}
               {...form.register("postalCode")}
             />
+            {postalInfo.status === "found" && postalInfo.province ? (
+              <p className="mt-1.5 text-xs font-semibold text-brand-ink/60">
+                {postalInfo.localities.length === 1 ? `${toTitleCase(postalInfo.localities[0])}, ` : ""}
+                {postalInfo.province}
+              </p>
+            ) : postalInfo.status === "unknown" ? (
+              <p className="mt-1.5 text-xs font-semibold text-brand-ink/60">No encontramos ese CP: elegí la provincia.</p>
+            ) : null}
           </FieldShell>
-          <FieldShell label="Provincia" error={errors.province?.message}>
+          {/* La provincia sale del CP: solo se pide si el CP no está en la tabla. */}
+          <FieldShell
+            label="Provincia"
+            error={errors.province?.message}
+            className={postalInfo.status === "unknown" || (postalInfo.status === "found" && !postalInfo.province) ? undefined : "hidden"}
+          >
             <Select
               autoComplete="address-level1"
               aria-invalid={errors.province ? "true" : "false"}
