@@ -105,158 +105,16 @@ export function HomeHeroCarousel({
       }}
     >
       <div className="grid">
-        {slides.map((slide, index) => {
-          const isActive = index === activeIndex;
-
-          if (slide.fitImage) {
-            const mobileImage = slide.mobileImageUrl || slide.imageUrl;
-            return (
-              <div
-                key={slide.id}
-                className={cn(
-                  "relative col-start-1 row-start-1 flex items-center overflow-hidden bg-brand-ink transition-opacity duration-700 ease-out motion-reduce:transition-none",
-                  isActive ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0",
-                )}
-                aria-hidden={isActive ? undefined : true}
-                inert={isActive ? undefined : true}
-                role={hasMultipleSlides ? "group" : undefined}
-                aria-roledescription={hasMultipleSlides ? "slide" : undefined}
-                aria-label={hasMultipleSlides ? `${index + 1} de ${slides.length}` : undefined}
-              >
-                {/* Si el banner es más bajo que el carrusel, el resto se rellena con la misma imagen desenfocada. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
-                <BannerFrame
-                  className="sm:hidden"
-                  imageUrl={mobileImage}
-                  alt={slide.imageAlt ?? ""}
-                  button={slide.overlayButton ?? null}
-                  href={slide.ctaUrl}
-                  mobile
-                  eager={index === 0}
-                />
-                <BannerFrame
-                  className="mx-auto hidden max-w-[1920px] sm:block"
-                  imageUrl={slide.imageUrl}
-                  alt={slide.imageAlt ?? ""}
-                  button={slide.overlayButton ?? null}
-                  href={slide.ctaUrl}
-                  mobile={false}
-                  eager={index === 0}
-                />
-              </div>
-            );
-          }
-
-          const TitleTag = index === 0 ? "h1" : "h2";
-          const hasButton = Boolean(slide.ctaLabel && slide.ctaUrl);
-          const hasText = Boolean(slide.title || slide.eyebrow || slide.subtitle || slide.badges.length > 0 || hasButton);
-          const showOverlay = hasText && slide.imageOverlay !== false;
-          // A link without button text makes the whole slide clickable (typical for promo banners).
-          const slideHref = !slide.ctaLabel && slide.ctaUrl ? slide.ctaUrl : null;
-
-          return (
-            <div
-              key={slide.id}
-              className={cn(
-                "relative col-start-1 row-start-1 flex flex-col transition-opacity duration-700 ease-out motion-reduce:transition-none",
-                isActive ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0",
-              )}
-              aria-hidden={isActive ? undefined : true}
-              inert={isActive ? undefined : true}
-              role={hasMultipleSlides ? "group" : undefined}
-              aria-roledescription={hasMultipleSlides ? "slide" : undefined}
-              aria-label={hasMultipleSlides ? `${index + 1} de ${slides.length}` : undefined}
-            >
-              <div className="absolute inset-0">
-                <picture>
-                  {slide.mobileImageUrl ? <source media="(max-width: 639px)" srcSet={slide.mobileImageUrl} /> : null}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={slide.imageUrl}
-                    alt={slide.imageAlt ?? ""}
-                    loading={index === 0 ? "eager" : "lazy"}
-                    fetchPriority={index === 0 ? "high" : undefined}
-                    className={hasText ? (slide.imageClassName ?? defaultImageClassName) : imageOnlyClassName}
-                  />
-                </picture>
-                {showOverlay ? (
-                  <>
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,249,250,0.28)_0%,rgba(255,249,250,0.22)_48%,rgba(255,249,250,0.16)_78%,rgba(255,249,250,0.1)_100%)] md:bg-[linear-gradient(90deg,rgba(255,248,250,0.94)_0%,rgba(255,248,250,0.86)_28%,rgba(255,248,250,0.62)_45%,rgba(255,248,250,0.18)_65%,rgba(255,248,250,0)_78%)]" />
-                    <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(123,216,247,0.12),rgba(255,255,255,0))]" />
-                    <div className="absolute inset-y-0 right-0 w-24 bg-[linear-gradient(270deg,rgba(255,211,92,0.12),rgba(255,255,255,0))] sm:w-40" />
-                    <div className="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_at_83%_5%,rgba(44,34,65,0.24)_0%,rgba(44,34,65,0.13)_18%,rgba(44,34,65,0.04)_34%,transparent_48%)] lg:block" />
-                  </>
-                ) : null}
-              </div>
-              {slideHref ? (
-                <Link
-                  href={slideHref}
-                  aria-label={slide.imageAlt || slide.title || "Ver más"}
-                  className="absolute inset-0 z-[1]"
-                />
-              ) : null}
-
-              <div className="relative mx-auto flex w-full max-w-[1600px] flex-1 px-0 pb-0 pt-0 sm:px-6 sm:pb-14 sm:pt-6 lg:px-10 lg:pb-24 lg:pt-14 xl:px-12">
-                <div className="flex min-h-[560px] w-full max-w-[860px] flex-col justify-stretch sm:min-h-[620px] sm:justify-center lg:min-h-[610px] xl:min-h-[640px] xl:max-w-[980px]">
-                  <div className="relative flex min-h-[560px] w-full flex-1 flex-col justify-center px-8 sm:flex-initial py-10 sm:mx-0 sm:min-h-0 sm:max-w-none sm:p-0">
-                    {hasText ? (
-                      <>
-                        {showOverlay ? (
-                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.72)_100%)] shadow-[0_14px_34px_rgba(255,255,255,0.18)] backdrop-blur-[2px] sm:hidden" />
-                        ) : null}
-                        {slide.eyebrow ? (
-                          <p className="relative mb-4 text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
-                            {slide.eyebrow}
-                          </p>
-                        ) : null}
-                        {slide.title ? (
-                          <TitleTag className="relative max-w-[860px] whitespace-pre-line font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.25rem] xl:text-[4.45rem]">
-                            {slide.mobileTitle ? (
-                              <>
-                                <span className="sm:hidden">{slide.mobileTitle}</span>
-                                <span className="hidden sm:inline">{slide.title}</span>
-                              </>
-                            ) : (
-                              slide.title
-                            )}
-                          </TitleTag>
-                        ) : null}
-                        {slide.subtitle ? (
-                          <p className="relative mt-5 max-w-[760px] whitespace-pre-line text-[1.05rem] leading-8 text-brand-ink/80 sm:text-xl sm:leading-8">
-                            {slide.subtitle}
-                          </p>
-                        ) : null}
-                        {slide.badges.length > 0 ? (
-                          <div className="relative mt-8 flex flex-wrap gap-3 text-sm font-bold text-brand-ink">
-                            {slide.badges.map((badge) => (
-                              <span key={badge} className="rounded-full bg-white px-4 py-2 shadow-card">
-                                ✓ {badge}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                        {hasButton || footnote ? (
-                          <div className="relative mt-10 flex flex-col items-start gap-4">
-                            {hasButton && slide.ctaUrl ? (
-                              <Link
-                                href={slide.ctaUrl}
-                                className="inline-flex w-full max-w-[420px] items-center justify-center rounded-full bg-brand-pink px-8 py-5 text-center text-lg font-extrabold text-white shadow-soft transition hover:bg-[#ea737d] sm:w-auto sm:max-w-none sm:px-10"
-                              >
-                                {slide.ctaLabel}
-                              </Link>
-                            ) : null}
-                            {footnote ? <p className="text-sm font-bold text-brand-ink/70">{footnote}</p> : null}
-                          </div>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {slides.map((slide, index) => (
+          <HomeHeroSlideView
+            key={slide.id}
+            slide={slide}
+            index={index}
+            total={slides.length}
+            isActive={index === activeIndex}
+            footnote={footnote}
+          />
+        ))}
       </div>
 
       {hasMultipleSlides ? (
@@ -279,5 +137,166 @@ export function HomeHeroCarousel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+type HomeHeroSlideViewProps = {
+  slide: HomeHeroSlide;
+  // Posición en el carrusel: el primero lleva el h1 y carga la imagen sin esperar.
+  index: number;
+  total: number;
+  isActive: boolean;
+  footnote?: string | null;
+};
+
+// Un slide del carrusel de la home. Se exporta para que la portada de /mayoristas use exactamente los mismos slides.
+export function HomeHeroSlideView({ slide, index, total, isActive, footnote }: HomeHeroSlideViewProps) {
+  const hasMultipleSlides = total > 1;
+
+  if (slide.fitImage) {
+    const mobileImage = slide.mobileImageUrl || slide.imageUrl;
+    return (
+      <div
+        className={cn(
+          "relative col-start-1 row-start-1 flex items-center overflow-hidden bg-brand-ink transition-opacity duration-700 ease-out motion-reduce:transition-none",
+          isActive ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0",
+        )}
+        aria-hidden={isActive ? undefined : true}
+        inert={isActive ? undefined : true}
+        role={hasMultipleSlides ? "group" : undefined}
+        aria-roledescription={hasMultipleSlides ? "slide" : undefined}
+        aria-label={hasMultipleSlides ? `${index + 1} de ${total}` : undefined}
+      >
+        {/* Si el banner es más bajo que el carrusel, el resto se rellena con la misma imagen desenfocada. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={slide.imageUrl} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
+        <BannerFrame
+          className="sm:hidden"
+          imageUrl={mobileImage}
+          alt={slide.imageAlt ?? ""}
+          button={slide.overlayButton ?? null}
+          href={slide.ctaUrl}
+          mobile
+          eager={index === 0}
+        />
+        <BannerFrame
+          className="mx-auto hidden max-w-[1920px] sm:block"
+          imageUrl={slide.imageUrl}
+          alt={slide.imageAlt ?? ""}
+          button={slide.overlayButton ?? null}
+          href={slide.ctaUrl}
+          mobile={false}
+          eager={index === 0}
+        />
+      </div>
+    );
+  }
+
+  const TitleTag = index === 0 ? "h1" : "h2";
+  const hasButton = Boolean(slide.ctaLabel && slide.ctaUrl);
+  const hasText = Boolean(slide.title || slide.eyebrow || slide.subtitle || slide.badges.length > 0 || hasButton);
+  const showOverlay = hasText && slide.imageOverlay !== false;
+  // A link without button text makes the whole slide clickable (typical for promo banners).
+  const slideHref = !slide.ctaLabel && slide.ctaUrl ? slide.ctaUrl : null;
+
+  return (
+    <div
+      className={cn(
+        "relative col-start-1 row-start-1 flex flex-col transition-opacity duration-700 ease-out motion-reduce:transition-none",
+        isActive ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0",
+      )}
+      aria-hidden={isActive ? undefined : true}
+      inert={isActive ? undefined : true}
+      role={hasMultipleSlides ? "group" : undefined}
+      aria-roledescription={hasMultipleSlides ? "slide" : undefined}
+      aria-label={hasMultipleSlides ? `${index + 1} de ${total}` : undefined}
+    >
+      <div className="absolute inset-0">
+        <picture>
+          {slide.mobileImageUrl ? <source media="(max-width: 639px)" srcSet={slide.mobileImageUrl} /> : null}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={slide.imageUrl}
+            alt={slide.imageAlt ?? ""}
+            loading={index === 0 ? "eager" : "lazy"}
+            fetchPriority={index === 0 ? "high" : undefined}
+            className={hasText ? (slide.imageClassName ?? defaultImageClassName) : imageOnlyClassName}
+          />
+        </picture>
+        {showOverlay ? (
+          <>
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,249,250,0.28)_0%,rgba(255,249,250,0.22)_48%,rgba(255,249,250,0.16)_78%,rgba(255,249,250,0.1)_100%)] md:bg-[linear-gradient(90deg,rgba(255,248,250,0.94)_0%,rgba(255,248,250,0.86)_28%,rgba(255,248,250,0.62)_45%,rgba(255,248,250,0.18)_65%,rgba(255,248,250,0)_78%)]" />
+            <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(123,216,247,0.12),rgba(255,255,255,0))]" />
+            <div className="absolute inset-y-0 right-0 w-24 bg-[linear-gradient(270deg,rgba(255,211,92,0.12),rgba(255,255,255,0))] sm:w-40" />
+            <div className="pointer-events-none absolute inset-0 hidden bg-[radial-gradient(ellipse_at_83%_5%,rgba(44,34,65,0.24)_0%,rgba(44,34,65,0.13)_18%,rgba(44,34,65,0.04)_34%,transparent_48%)] lg:block" />
+          </>
+        ) : null}
+      </div>
+      {slideHref ? (
+        <Link
+          href={slideHref}
+          aria-label={slide.imageAlt || slide.title || "Ver más"}
+          className="absolute inset-0 z-[1]"
+        />
+      ) : null}
+
+      <div className="relative mx-auto flex w-full max-w-[1600px] flex-1 px-0 pb-0 pt-0 sm:px-6 sm:pb-14 sm:pt-6 lg:px-10 lg:pb-24 lg:pt-14 xl:px-12">
+        <div className="flex min-h-[560px] w-full max-w-[860px] flex-col justify-stretch sm:min-h-[620px] sm:justify-center lg:min-h-[610px] xl:min-h-[640px] xl:max-w-[980px]">
+          <div className="relative flex min-h-[560px] w-full flex-1 flex-col justify-center px-8 sm:flex-initial py-10 sm:mx-0 sm:min-h-0 sm:max-w-none sm:p-0">
+            {hasText ? (
+              <>
+                {showOverlay ? (
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.72)_100%)] shadow-[0_14px_34px_rgba(255,255,255,0.18)] backdrop-blur-[2px] sm:hidden" />
+                ) : null}
+                {slide.eyebrow ? (
+                  <p className="relative mb-4 text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">
+                    {slide.eyebrow}
+                  </p>
+                ) : null}
+                {slide.title ? (
+                  <TitleTag className="relative max-w-[860px] whitespace-pre-line font-display text-[2.45rem] leading-[0.97] text-brand-ink sm:text-[4.15rem] lg:max-w-[820px] lg:text-[4.25rem] xl:text-[4.45rem]">
+                    {slide.mobileTitle ? (
+                      <>
+                        <span className="sm:hidden">{slide.mobileTitle}</span>
+                        <span className="hidden sm:inline">{slide.title}</span>
+                      </>
+                    ) : (
+                      slide.title
+                    )}
+                  </TitleTag>
+                ) : null}
+                {slide.subtitle ? (
+                  <p className="relative mt-5 max-w-[760px] whitespace-pre-line text-[1.05rem] leading-8 text-brand-ink/80 sm:text-xl sm:leading-8">
+                    {slide.subtitle}
+                  </p>
+                ) : null}
+                {slide.badges.length > 0 ? (
+                  <div className="relative mt-8 flex flex-wrap gap-3 text-sm font-bold text-brand-ink">
+                    {slide.badges.map((badge) => (
+                      <span key={badge} className="rounded-full bg-white px-4 py-2 shadow-card">
+                        ✓ {badge}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {hasButton || footnote ? (
+                  <div className="relative mt-10 flex flex-col items-start gap-4">
+                    {hasButton && slide.ctaUrl ? (
+                      <Link
+                        href={slide.ctaUrl}
+                        className="inline-flex w-full max-w-[420px] items-center justify-center rounded-full bg-brand-pink px-8 py-5 text-center text-lg font-extrabold text-white shadow-soft transition hover:bg-[#ea737d] sm:w-auto sm:max-w-none sm:px-10"
+                      >
+                        {slide.ctaLabel}
+                      </Link>
+                    ) : null}
+                    {footnote ? <p className="text-sm font-bold text-brand-ink/70">{footnote}</p> : null}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

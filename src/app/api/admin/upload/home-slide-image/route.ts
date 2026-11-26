@@ -1,3 +1,4 @@
+import { slideAdminSection, slideChannelFromRequest } from "@/features/home-slides/lib/channel";
 import { assertAdminSection } from "@/lib/auth/admin";
 import { AppError } from "@/lib/errors/app-error";
 import { routeError, routeOk } from "@/lib/http/route";
@@ -8,7 +9,7 @@ const maxImageSize = 8 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
-    await assertAdminSection("home-carousel");
+    await assertAdminSection(slideAdminSection(slideChannelFromRequest(request)));
     const formData = await request.formData();
     const file = formData.get("file");
 

@@ -3,8 +3,11 @@
 import { Monitor, Smartphone, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import type { SalesChannel } from "@prisma/client";
+
 import { Input } from "@/components/ui/input";
 import type { HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
+import { slideApiQuery } from "@/features/home-slides/lib/channel";
 import { HOME_CAROUSEL_PREVIEW_PATH, type HomeCarouselPreviewMessage } from "@/features/home-slides/lib/hero-slides";
 import { cn } from "@/lib/utils/cn";
 
@@ -33,6 +36,8 @@ type HomeSlidesPreviewDialogProps = {
   previewAt: string;
   onPreviewAtChange: (value: string) => void;
   notice: string | null;
+  // WHOLESALE muestra la portada mayorista primero y después los slides, como en /mayoristas.
+  channel?: SalesChannel;
   onClose: () => void;
 };
 
@@ -42,8 +47,10 @@ export function HomeSlidesPreviewDialog({
   previewAt,
   onPreviewAtChange,
   notice,
+  channel = "RETAIL",
   onClose,
 }: HomeSlidesPreviewDialogProps) {
+  const pageName = channel === "WHOLESALE" ? "la página mayorista" : "la home";
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [frameHeight, setFrameHeight] = useState(720);
   const [stageWidth, setStageWidth] = useState(0);
@@ -114,7 +121,7 @@ export function HomeSlidesPreviewDialog({
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Vista previa</p>
             <p className="mt-1 text-sm text-brand-ink/70">
-              Así se ve el carrusel de la home con este slide. Todavía no se guardó nada.
+              Así se ve el carrusel de {pageName} con este slide. Todavía no se guardó nada.
             </p>
           </div>
           <button
@@ -149,7 +156,7 @@ export function HomeSlidesPreviewDialog({
             })}
           </div>
           <label className="block">
-            <span className="mb-1 block text-xs font-bold text-brand-ink/60">Ver la home como el (hora de Argentina)</span>
+            <span className="mb-1 block text-xs font-bold text-brand-ink/60">Ver {pageName} como el (hora de Argentina)</span>
             <Input
               type="datetime-local"
               value={previewAt}
@@ -168,8 +175,8 @@ export function HomeSlidesPreviewDialog({
           >
             <iframe
               ref={iframeRef}
-              src={HOME_CAROUSEL_PREVIEW_PATH}
-              title="Vista previa del carrusel de la home"
+              src={`${HOME_CAROUSEL_PREVIEW_PATH}${slideApiQuery(channel)}`}
+              title={`Vista previa del carrusel de ${pageName}`}
               className="origin-top-left border-0 bg-white"
               style={{ width: frameWidth, height: frameHeight, transform: `scale(${scale})` }}
             />
@@ -178,7 +185,7 @@ export function HomeSlidesPreviewDialog({
 
         <p className="text-xs text-brand-ink/55">
           {viewport === "desktop"
-            ? `Se muestra con el ancho de tu ventana (${desktopWidth} px), igual que la home en esta pantalla. En pantallas más anchas el texto queda más centrado.`
+            ? `Se muestra con el ancho de tu ventana (${desktopWidth} px), igual que ${pageName} en esta pantalla. En pantallas más anchas el texto queda más centrado.`
             : `Se muestra con el ancho de un celular típico (${MOBILE_WIDTH} px).`}
         </p>
 

@@ -436,10 +436,13 @@ model HomeSlide {
   startsAt       DateTime? @map("starts_at")
   endsAt         DateTime? @map("ends_at")
   sortOrder      Int       @default(0) @map("sort_order")
+  // Home de la tienda (RETAIL) o carrusel de la portada de /mayoristas (WHOLESALE). Mismo admin para los dos.
+  channel        SalesChannel @default(RETAIL)
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@index([active, sortOrder], map: "home_slides_active_sort_idx")
+  @@index([channel, active, sortOrder], map: "home_slides_channel_active_sort_idx")
   @@map("home_slides")
 }
 
