@@ -14,8 +14,10 @@ import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 
 export async function listProofsToReview() {
   const orders = await prisma.order.findMany({
-    where: { orderStatus: OrderStatus.PROOF_UPLOADED },
-    orderBy: { updatedAt: "asc" },
+    // Los más nuevos primero y solo de los últimos 30 días: antes del pase nadie marcaba como pagados los
+    // pedidos con comprobante, así que hay cientos viejos en ese estado que ya se entregaron.
+    where: { orderStatus: OrderStatus.PROOF_UPLOADED, createdAt: { gte: new Date(Date.now() - 30 * 24 * 3_600_000) } },
+    orderBy: { createdAt: "desc" },
     take: 100,
     include: {
       paymentProofs: { orderBy: { uploadedAt: "desc" } },
