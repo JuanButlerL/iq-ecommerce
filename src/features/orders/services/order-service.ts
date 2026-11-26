@@ -24,6 +24,7 @@ import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { resolveCheckoutShipping } from "@/features/logistics/checkout";
 import { dateKeyToDbDate } from "@/features/logistics/business-days";
 import { cancelShipmentForOrder, createShipmentForOrder, releaseShipment } from "@/features/logistics/shipments";
+import { getShippingSettings } from "@/features/logistics/settings";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
@@ -595,6 +596,17 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
 
     return null;
   });
+
+  // Sin aprobación de comprobantes (opción en Admin > Logística), la etiqueta sale apenas suben el comprobante.
+  // Los mayoristas siguen saliendo cuando se aprueban para preparar.
+  if (!isWholesale) {
+    const shippingSettings = await getShippingSettings().catch(() => null);
+    if (shippingSettings && !shippingSettings.requireProofApproval) {
+      await releaseShipment(order.id, "customer").catch((error) => {
+        console.error("[logistica] no se pudo liberar el envío al subir el comprobante", { orderId: order.id, error });
+      });
+    }
+  }
 
   // Recuperación de carrito, GA y las compras de Meta miden la tienda. Los pedidos mayoristas mandan su propio evento.
   if (isWholesale) {

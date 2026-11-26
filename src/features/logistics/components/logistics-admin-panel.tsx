@@ -264,6 +264,20 @@ export function LogisticsAdminPanel({ data }: Props) {
             <input type="checkbox" className="h-4 w-4 accent-brand-pink" checked={settings.enabled} onChange={(e) => set("enabled", e.target.checked)} />
             Integración logística activa (precios por transportista, etiquetas y seguimiento)
           </label>
+          <label className="flex items-start gap-3 text-sm text-brand-ink">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-brand-pink"
+              checked={settings.requireProofApproval}
+              onChange={(e) => set("requireProofApproval", e.target.checked)}
+            />
+            <span>
+              <b>Aprobar comprobantes antes de generar la etiqueta</b>
+              <span className="block text-xs text-brand-ink/55">
+                Apagado: con transferencia, la etiqueta sale apenas el cliente sube el comprobante. Prendido: sale cuando lo aprobás en Comprobantes.
+              </span>
+            </span>
+          </label>
           <div className="grid gap-2 md:grid-cols-4">
             {(
               [

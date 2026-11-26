@@ -38,7 +38,7 @@ type Item = {
 
 const carrierLabels: Record<string, string> = { OWN: "Reparto propio", ANDREANI: "Andreani", CORREO_AR: "Correo Argentino" };
 
-export function ProofReviewPanel({ items }: { items: Item[]; emailEnabled?: boolean }) {
+export function ProofReviewPanel({ items, requireApproval = true }: { items: Item[]; emailEnabled?: boolean; requireApproval?: boolean }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -84,8 +84,10 @@ export function ProofReviewPanel({ items }: { items: Item[]; emailEnabled?: bool
         <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-brand-pink">Ventas</p>
         <h1 className="font-display text-4xl text-brand-ink">Comprobantes para revisar</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-brand-ink/70">
-          Pedidos con transferencia o eCheq que subieron comprobante. Al aprobar, el pedido queda pago, se genera la etiqueta, se le manda el seguimiento al
-          cliente y viaja a la app. Al rechazar, vuelve a pendiente de pago y le pedimos que lo suba de nuevo.
+          Pedidos con transferencia o eCheq que subieron comprobante. {requireApproval
+            ? "Al aprobar, el pedido queda pago y se genera la etiqueta."
+            : "La etiqueta ya salió cuando el cliente subió el comprobante: acá solo controlás que la plata haya entrado y lo marcás como pago."}{" "}
+          Al rechazar, vuelve a pendiente de pago: avisale al cliente por WhatsApp.
         </p>
       </div>
       

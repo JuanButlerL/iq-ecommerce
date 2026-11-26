@@ -1489,6 +1489,8 @@ model ShippingSettings {
   andreaniSurchargeArs    Int      @default(2500) @map("andreani_surcharge_ars")
   // Descuento del contrato que la API de Andreani no aplica (ej. 25% sobre el tarifario). 0 = ninguno.
   andreaniDiscountPct     Int      @default(0) @map("andreani_discount_pct")
+  // Transferencias: apagado = la etiqueta sale cuando suben el comprobante; prendido = cuando se aprueba en Comprobantes.
+  requireProofApproval    Boolean  @default(false) @map("require_proof_approval")
   correoSurchargeArs      Int      @default(2500) @map("correo_surcharge_ars")
   updatedAt               DateTime @updatedAt @map("updated_at")
 

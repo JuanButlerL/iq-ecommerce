@@ -56,6 +56,7 @@ const settingsSchema = z.object({
   correoEnabled: z.boolean(),
   ownEnabled: z.boolean(),
   branchPickupEnabled: z.boolean(),
+  requireProofApproval: z.boolean().default(false),
   cutoffHour: z.coerce.number().int().min(0).max(23),
   cutoffMinute: z.coerce.number().int().min(0).max(59),
   preparationBusinessDays: z.coerce.number().int().min(0).max(10),
