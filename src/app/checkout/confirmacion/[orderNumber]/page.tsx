@@ -50,7 +50,9 @@ export default async function ConfirmationPage({
       ? "Ya validamos tu pago y estamos preparando el pedido."
       : "Tu comprobante ya fue enviado. Si el equipo necesita algo mas, te contacta con estos datos.";
   const successCopy = isMercadoPago
-    ? "Recibimos tu pedido y seguimos la confirmacion del pago online."
+    ? order.paymentStatus === "PAID"
+      ? "Tu pago está aprobado y ya estamos preparando tu pedido."
+      : "Recibimos tu pedido y seguimos la confirmación del pago online."
     : isTransferApproved
       ? "Tu pago esta aprobado y el pedido ya esta en preparacion."
       : settings?.purchaseSuccessMessage ??
@@ -134,7 +136,15 @@ export default async function ConfirmationPage({
           <div className="rounded-[1.5rem] bg-background p-4">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estado actual</p>
             <p className="mt-2 font-bold text-brand-ink">
-              {isMercadoPago ? order.paymentProviderStatus ?? order.paymentStatus : isTransferApproved ? "Pago aprobado" : "Pago en revision"}
+              {isMercadoPago
+                ? order.paymentStatus === "PAID"
+                  ? "Pago aprobado"
+                  : order.paymentStatus === "CANCELLED" || order.paymentStatus === "EXPIRED"
+                    ? "Pago rechazado"
+                    : "Esperando el pago"
+                : isTransferApproved
+                  ? "Pago aprobado"
+                  : "Pago en revisión"}
             </p>
           </div>
           <div className="rounded-[1.5rem] bg-background p-4">
