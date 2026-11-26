@@ -299,7 +299,10 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
     !hasRecoveryFreeShipping &&
     Boolean(freeShippingLink) &&
     (email.trim() || checkoutEmail).toLowerCase() === freeShippingLink?.email;
-  const displayedShippingArs = hasRecoveryFreeShipping || hasLinkFreeShipping ? 0 : shippingQuote.shippingArs;
+  // Hasta que carga el CP no hay precio de envío real: no se suma uno inventado.
+  const shippingKnown = Boolean(cheapestOption) || (postalInfo.status === "found" && shippingState.status === "disabled");
+  const displayedShippingArs =
+    hasRecoveryFreeShipping || hasLinkFreeShipping || (!shippingKnown && !shippingQuote.freeShippingReached) ? 0 : shippingQuote.shippingArs;
   const total = subtotal + displayedShippingArs;
   const checkoutParams = new URLSearchParams({ province });
   if (postalInfo.status === "found") checkoutParams.set("cp", postalCode.replace(/\D/g, "").slice(0, 4));
@@ -676,7 +679,7 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
               </p>
             </div>
             <div className="flex items-center justify-between">
-              <span>{cheapestOption && shippingState.status === "ready" && shippingState.options.length > 1 ? "Envío estimado (desde)" : "Envío estimado"}</span>
+              <span>{cheapestOption && shippingState.status === "ready" && shippingState.options.length > 1 ? "Envío desde" : "Envío"}</span>
               {hasRecoveryFreeShipping ? (
                 <span className="font-bold text-emerald-700">Bonificado</span>
               ) : hasLinkFreeShipping ? (
@@ -688,12 +691,14 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
                   <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
                   <span className="text-emerald-700">{formatArs(shippingQuote.shippingArs)}</span>
                 </span>
-              ) : (
+              ) : shippingKnown ? (
                 <span className="font-bold text-brand-ink">{formatArs(shippingQuote.shippingArs)}</span>
+              ) : (
+                <span className="text-sm font-bold text-brand-ink/45">Poné tu CP</span>
               )}
             </div>
             <div className="flex items-center justify-between border-t border-brand-ink/10 pt-3">
-              <span>Total estimado</span>
+              <span>{!shippingKnown && !shippingQuote.freeShippingReached && !hasRecoveryFreeShipping && !hasLinkFreeShipping ? "Total sin envío" : "Total"}</span>
               <span className="text-2xl font-extrabold text-brand-pink md:text-3xl">{formatArs(total)}</span>
             </div>
           </div>

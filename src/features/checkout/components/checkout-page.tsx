@@ -637,8 +637,8 @@ export function CheckoutPage({
 
         <section className="border-t border-brand-ink/10 pt-5">
           <div className="mb-4">
-            <p className="text-sm font-extrabold text-brand-ink">Datos de entrega</p>
-            <p className="mt-1 text-sm text-brand-ink/60">Completalos tal como deben figurar en el envio.</p>
+            <p className="text-sm font-extrabold text-brand-ink">Envío</p>
+            <p className="mt-1 text-sm text-brand-ink/60">Poné tu código postal y elegí cómo te llega.</p>
           </div>
           <ErrorSummary
             className="mb-4"
@@ -675,16 +675,30 @@ export function CheckoutPage({
               ))}
             </Select>
           </FieldShell>
-          {!isBranchPickup ? (
-            <>
-          <FieldShell label="Localidad" error={errors.locality?.message}>
-            <Input
-              placeholder="Ej: Vicente López"
-              autoComplete="address-level2"
-              aria-invalid={errors.locality ? "true" : "false"}
-              {...form.register("locality")}
+          </div>
+
+          <div className="mt-4">
+            <ShippingPicker
+              state={shippingState}
+              value={shippingSelection}
+              onChange={(next) => {
+                setShippingSelection(next);
+                setShippingError(null);
+                if (next?.deliveryType !== "BRANCH") setSelectedBranch(null);
+              }}
+              onBranchChange={setSelectedBranch}
+              postalCode={watchedPostalCode}
+              province={province}
+              freeShipping={recoveryFreeShippingActive || shippingQuote.freeShippingReached}
+              error={shippingError}
             />
-          </FieldShell>
+          </div>
+
+          {!isBranchPickup ? (
+            <div className="mt-5">
+              <p className="text-sm font-extrabold text-brand-ink">Datos de entrega</p>
+              <p className="mb-3 mt-1 text-sm text-brand-ink/60">Completalos tal como deben figurar en el envío.</p>
+              <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
           <FieldShell
             label="Calle"
             error={errors.addressLine?.message}
@@ -733,7 +747,15 @@ export function CheckoutPage({
             </span>
             <span className="text-sm font-semibold text-brand-ink/70">La calle no tiene altura</span>
           </label>
-          <FieldShell label="Piso / Depto" error={errors.addressExtra?.message} className="md:col-span-3">
+          <FieldShell label="Localidad" error={errors.locality?.message}>
+            <Input
+              placeholder="Ej: Vicente López"
+              autoComplete="address-level2"
+              aria-invalid={errors.locality ? "true" : "false"}
+              {...form.register("locality")}
+            />
+          </FieldShell>
+          <FieldShell label="Piso / Depto" error={errors.addressExtra?.message} className="md:col-span-2">
             <Input
               placeholder="Ej: Piso 4 Depto B"
               autoComplete="address-line2"
@@ -748,26 +770,9 @@ export function CheckoutPage({
             </div>
           ) : null}
 
-            </>
+              </div>
+            </div>
           ) : null}
-          </div>
-
-          <div className="mt-4">
-            <ShippingPicker
-              state={shippingState}
-              value={shippingSelection}
-              onChange={(next) => {
-                setShippingSelection(next);
-                setShippingError(null);
-                if (next?.deliveryType !== "BRANCH") setSelectedBranch(null);
-              }}
-              onBranchChange={setSelectedBranch}
-              postalCode={watchedPostalCode}
-              province={province}
-              freeShipping={recoveryFreeShippingActive || shippingQuote.freeShippingReached}
-              error={shippingError}
-            />
-          </div>
 
           <div className="mt-3 grid gap-x-4 gap-y-3">
           <div>

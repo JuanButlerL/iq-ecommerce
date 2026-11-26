@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
 import { applyProductDiscount, summarizeProductLines } from "@/features/catalog/lib/product-discount";
-import { formatDispatchDate } from "@/features/logistics/business-days";
+import { addBusinessDays, formatDispatchDate } from "@/features/logistics/business-days";
+import { getHolidayCalendar } from "@/features/logistics/settings";
 import { getBranches, getShippingOptions } from "@/features/logistics/options";
 import type { PackageLine } from "@/features/logistics/package";
 import { getStoreSettings } from "@/features/settings/queries";
@@ -97,6 +98,13 @@ async function wholesaleContext(request: ShippingOptionsRequest) {
   return { lines, declaredValueArs, fallbackPriceArs: fallback.baseShippingArs, preferredCarrier, customerShippingPriceArs };
 }
 
+// Andreani y Correo no devuelven el plazo al cotizar: plazos habituales de sus servicios estándar (días hábiles).
+function carrierDefaultDays(province: string): [number, number] {
+  if (province === "CABA" || province === "GBA") return [2, 3];
+  if (province === "Buenos Aires") return [2, 4];
+  return [3, 6];
+}
+
 export async function getCheckoutShippingOptions(request: ShippingOptionsRequest) {
   const context = request.channel === "WHOLESALE" ? await wholesaleContext(request) : await retailContext(request);
   const result = await getShippingOptions({
@@ -107,6 +115,14 @@ export async function getCheckoutShippingOptions(request: ShippingOptionsRequest
     ...context,
   });
   if (!result.enabled || result.options.length === 0) return { enabled: false as const };
+  const calendar = await getHolidayCalendar();
+  // "Llega el viernes 27/11" / "Llega entre el viernes 27/11 y el lunes 30/11", contando días hábiles desde el despacho.
+  const arrival = (min: number | null, max: number | null) => {
+    if (min == null && max == null) return null;
+    const from = addBusinessDays(result.dispatchDate, Math.max(0, min ?? max ?? 0), calendar);
+    const to = addBusinessDays(result.dispatchDate, Math.max(0, max ?? min ?? 0), calendar);
+    return from === to ? `el ${formatDispatchDate(from)}` : `entre el ${formatDispatchDate(from)} y el ${formatDispatchDate(to)}`;
+  };
   return {
     enabled: true as const,
     dispatchDate: result.dispatchDate,
@@ -120,6 +136,12 @@ export async function getCheckoutShippingOptions(request: ShippingOptionsRequest
       deliveryDaysMin: option.deliveryDaysMin,
       deliveryDaysMax: option.deliveryDaysMax,
       zoneName: option.zoneName,
+      arrivalLabel:
+        option.deliveryDaysMin != null || option.deliveryDaysMax != null
+          ? arrival(option.deliveryDaysMin, option.deliveryDaysMax)
+          : option.carrier === "OWN"
+            ? null
+            : arrival(...carrierDefaultDays(request.province)),
       // El navegador no necesita saber si fue en vivo o de respaldo; solo si el precio es estimado.
       estimated: option.priceSource === "FALLBACK",
     })),

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import {
   addHoliday,
-  assignPostalCodesZone,
+  assignPostalCodesZone, createPostalCode,
   createZone,
   deleteHoliday,
   deleteZone,
@@ -60,6 +60,8 @@ export async function POST(request: Request) {
         return routeOk(await searchPostalCodes(data));
       case "postal-assign":
         return routeOk(await assignPostalCodesZone(data));
+      case "postal-create":
+        return routeOk(await createPostalCode(data));
       default:
         throw new AppError("Acción desconocida.", 400, true);
     }

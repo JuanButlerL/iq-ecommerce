@@ -66,6 +66,9 @@ export function LogisticsAdminPanel({ data }: Props) {
   const [postalRows, setPostalRows] = useState<PostalRow[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [assignZone, setAssignZone] = useState<string>("");
+  // "" = todos, "own" = solo reparto propio, o el id de una zona.
+  const [postalFilter, setPostalFilter] = useState<string>("own");
+  const [newPostal, setNewPostal] = useState({ postalCode: "", locality: "", province: "Buenos Aires", zoneId: "" });
 
   function run(task: () => Promise<unknown>, success: string | ((result: unknown) => string), refresh = true) {
     setError(null);
@@ -145,17 +148,54 @@ export function LogisticsAdminPanel({ data }: Props) {
     );
   }
 
-  function searchPostal(event?: FormEvent) {
+  function postalSearchPayload(filter = postalFilter, query = postalQuery) {
+    return { query, onlyOwn: filter === "own", ...(filter && filter !== "own" ? { zoneId: filter } : {}) };
+  }
+
+  function searchPostal(event?: FormEvent, filter = postalFilter, query = postalQuery) {
     event?.preventDefault();
     run(
       async () => {
-        const rows = (await callAdmin("postal-search", { query: postalQuery })) as PostalRow[];
+        const rows = (await callAdmin("postal-search", postalSearchPayload(filter, query))) as PostalRow[];
         setPostalRows(rows);
         setSelected(new Set());
         return rows.length;
       },
-      (count) => `${count} códigos postales${Number(count) === 200 ? " (se muestran los primeros 200)" : ""}.`,
+      (count) => `${count} códigos postales${Number(count) === 1000 ? " (se muestran los primeros 1000: buscá para achicar)" : ""}.`,
       false,
+    );
+  }
+
+  function showZone(zoneId: string) {
+    setPostalFilter(zoneId);
+    setPostalQuery("");
+    searchPostal(undefined, zoneId, "");
+    document.getElementById("codigos-postales")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function changeRowZone(row: PostalRow, zoneId: string) {
+    run(
+      async () => {
+        await callAdmin("postal-assign", { ids: [row.id], zoneId: zoneId || null });
+        const zone = zones.find((z) => z.id === zoneId);
+        setPostalRows((rows) => rows.map((r) => (r.id === row.id ? { ...r, ownZone: zone ? { id: zone.id, name: zone.name } : null } : r)));
+      },
+      `CP ${row.postalCode} ${row.locality}: ${zones.find((z) => z.id === zoneId)?.name ?? "Andreani / Correo"}.`,
+    );
+  }
+
+  function addPostal(event: FormEvent) {
+    event.preventDefault();
+    run(
+      async () => {
+        await callAdmin("postal-create", { ...newPostal, zoneId: newPostal.zoneId || null });
+        setNewPostal({ ...newPostal, postalCode: "", locality: "" });
+        const rows = (await callAdmin("postal-search", postalSearchPayload("", newPostal.postalCode))) as PostalRow[];
+        setPostalFilter("");
+        setPostalQuery(newPostal.postalCode);
+        setPostalRows(rows);
+      },
+      `CP ${newPostal.postalCode} guardado.`,
     );
   }
 
@@ -164,7 +204,7 @@ export function LogisticsAdminPanel({ data }: Props) {
     run(
       async () => {
         const result = await callAdmin("postal-assign", { ids: [...selected], zoneId: assignZone || null });
-        const rows = (await callAdmin("postal-search", { query: postalQuery })) as PostalRow[];
+        const rows = (await callAdmin("postal-search", postalSearchPayload())) as PostalRow[];
         setPostalRows(rows);
         setSelected(new Set());
         return result;
@@ -377,7 +417,11 @@ export function LogisticsAdminPanel({ data }: Props) {
                       <Input type="number" min={0} value={zone.deliveryDaysMax} onChange={(e) => updateZoneField(zone.id, { deliveryDaysMax: num(e.target.value) })} />
                     </div>
                   </td>
-                  <td className="pr-2 text-brand-ink/70">{zone.postalCodes}</td>
+                  <td className="pr-2">
+                    <button type="button" className="whitespace-nowrap text-sm font-bold text-brand-pink hover:underline" onClick={() => showZone(zone.id)}>
+                      Ver {zone.postalCodes}
+                    </button>
+                  </td>
                   <td className="pr-2"><input type="checkbox" className="h-4 w-4 accent-brand-pink" checked={zone.active} onChange={(e) => updateZoneField(zone.id, { active: e.target.checked })} /></td>
                   <td className="whitespace-nowrap">
                     <Button type="button" size="sm" disabled={isPending} onClick={() => saveZone(zone)}>Guardar</Button>{" "}
@@ -397,18 +441,35 @@ export function LogisticsAdminPanel({ data }: Props) {
         </form>
       </Card>
 
+      <div id="codigos-postales" className="scroll-mt-24" />
       <Card className="space-y-4 p-5 md:p-6">
         <h2 className="font-display text-2xl text-brand-ink">Códigos postales</h2>
         <p className="text-sm text-brand-ink/70">
-          {data.postalCodes.total} CP cargados, {data.postalCodes.own} de reparto propio. Para importar, descargá la hoja <b>codigos_postales_db</b> como CSV
-          (Archivo &gt; Descargar &gt; CSV) y subila acá. Volver a importar no pisa las zonas que ya asignaste.
+          Esta es la tabla de CP de la web ({data.postalCodes.total} cargados, {data.postalCodes.own} de reparto propio). Reemplaza a la hoja codigos_postales_db:
+          los cambios se hacen acá. Un CP con zona se entrega con reparto propio al precio de esa zona; sin zona, va por Andreani o Correo.
         </p>
-        <label className="inline-flex cursor-pointer items-center rounded-full bg-white px-4 py-2 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 hover:bg-brand-pinkSoft/30">
-          Importar CSV
-          <input type="file" accept=".csv,text/csv" className="hidden" onChange={importCsv} disabled={isPending} />
-        </label>
-        <form onSubmit={searchPostal} className="flex flex-wrap gap-2">
-          <Input className="max-w-sm" placeholder="CP, localidad o provincia" value={postalQuery} onChange={(e) => setPostalQuery(e.target.value)} />
+        <ol className="list-decimal space-y-0.5 pl-5 text-sm text-brand-ink/70">
+          <li>Para ver los CP de una zona tocá <b>Ver</b> en la tabla de zonas de arriba, o elegí la zona en el filtro.</li>
+          <li>Para pasar un CP a otra zona (o sacarlo del reparto propio) cambiá la zona en su fila. Se guarda solo.</li>
+          <li>Para cambiar muchos juntos, tildalos, elegí la zona y tocá <b>Asignar</b>.</li>
+          <li>Si un CP no está, agregalo abajo.</li>
+        </ol>
+        <form onSubmit={(event) => searchPostal(event)} className="flex flex-wrap gap-2">
+          <select
+            className="h-11 rounded-full border border-brand-ink/15 bg-white px-4 text-sm font-bold"
+            value={postalFilter}
+            onChange={(e) => {
+              setPostalFilter(e.target.value);
+              searchPostal(undefined, e.target.value);
+            }}
+          >
+            <option value="own">Solo reparto propio</option>
+            {zones.map((zone) => (
+              <option key={zone.id} value={zone.id}>Zona {zone.name}</option>
+            ))}
+            <option value="">Todos los CP</option>
+          </select>
+          <Input className="max-w-xs" placeholder="CP, localidad o provincia" value={postalQuery} onChange={(e) => setPostalQuery(e.target.value)} />
           <Button type="submit" disabled={isPending}>Buscar</Button>
         </form>
         {postalRows.length > 0 ? (
@@ -445,7 +506,20 @@ export function LogisticsAdminPanel({ data }: Props) {
                       <td className="font-bold">{row.postalCode}</td>
                       <td>{row.locality}</td>
                       <td className="text-brand-ink/60">{row.province}</td>
-                      <td className="pr-2 text-right">{row.ownZone ? <span className="rounded-full bg-brand-mint px-2 py-0.5 text-xs font-bold text-green-800">{row.ownZone.name}</span> : <span className="text-xs text-brand-ink/40">Andreani / Correo</span>}</td>
+                      <td className="py-1 pr-2 text-right">
+                        <select
+                          aria-label={`Zona del CP ${row.postalCode} ${row.locality}`}
+                          className={`h-9 rounded-xl border px-2 text-xs font-bold ${row.ownZone ? "border-green-200 bg-brand-mint text-green-800" : "border-brand-ink/10 bg-white text-brand-ink/50"}`}
+                          value={row.ownZone?.id ?? ""}
+                          disabled={isPending}
+                          onChange={(e) => changeRowZone(row, e.target.value)}
+                        >
+                          <option value="">Andreani / Correo</option>
+                          {zones.map((zone) => (
+                            <option key={zone.id} value={zone.id}>Reparto · {zone.name}</option>
+                          ))}
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -453,6 +527,32 @@ export function LogisticsAdminPanel({ data }: Props) {
             </div>
           </>
         ) : null}
+
+        <form onSubmit={addPostal} className="grid gap-2 rounded-2xl bg-brand-ink/5 p-3 md:grid-cols-[110px_1fr_1fr_1fr_auto] md:items-end">
+          <p className="text-sm font-extrabold text-brand-ink md:col-span-5">Agregar un código postal</p>
+          <label className="space-y-1 text-xs font-bold text-brand-ink/70"><span>CP</span><Input required inputMode="numeric" maxLength={4} value={newPostal.postalCode} onChange={(e) => setNewPostal({ ...newPostal, postalCode: e.target.value.replace(/\D/g, "") })} /></label>
+          <label className="space-y-1 text-xs font-bold text-brand-ink/70"><span>Localidad</span><Input required value={newPostal.locality} onChange={(e) => setNewPostal({ ...newPostal, locality: e.target.value })} /></label>
+          <label className="space-y-1 text-xs font-bold text-brand-ink/70"><span>Provincia</span><Input required value={newPostal.province} onChange={(e) => setNewPostal({ ...newPostal, province: e.target.value })} /></label>
+          <label className="space-y-1 text-xs font-bold text-brand-ink/70">
+            <span>Entrega</span>
+            <select className="h-11 w-full rounded-full border border-brand-ink/15 bg-white px-3 text-sm" value={newPostal.zoneId} onChange={(e) => setNewPostal({ ...newPostal, zoneId: e.target.value })}>
+              <option value="">Andreani / Correo</option>
+              {zones.map((zone) => (
+                <option key={zone.id} value={zone.id}>Reparto · {zone.name}</option>
+              ))}
+            </select>
+          </label>
+          <Button type="submit" disabled={isPending}>Agregar</Button>
+        </form>
+
+        <details className="text-sm text-brand-ink/60">
+          <summary className="cursor-pointer font-bold">Importar un CSV (solo para cargas masivas)</summary>
+          <p className="mt-2">Columnas: provincia, localidad, cp y Propia (nombre de la zona). Volver a importar no pisa las zonas que ya asignaste acá.</p>
+          <label className="mt-2 inline-flex cursor-pointer items-center rounded-full bg-white px-4 py-2 text-sm font-extrabold text-brand-ink ring-1 ring-brand-ink/10 hover:bg-brand-pinkSoft/30">
+            Importar CSV
+            <input type="file" accept=".csv,text/csv" className="hidden" onChange={importCsv} disabled={isPending} />
+          </label>
+        </details>
       </Card>
 
       <Card className="space-y-4 p-5 md:p-6">

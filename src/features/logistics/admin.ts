@@ -184,12 +184,30 @@ export async function searchPostalCodes(payload: unknown) {
         : {}),
     },
     orderBy: [{ postalCode: "asc" }, { locality: "asc" }],
-    take: 200,
+    take: 1000,
     include: { ownZone: { select: { id: true, name: true } } },
   });
 }
 
 const assignSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(500), zoneId: z.string().uuid().nullable() });
+
+const createPostalSchema = z.object({
+  postalCode: z.string().trim().regex(/^\d{4}$/, "El CP son 4 números."),
+  locality: z.string().trim().min(2, "Falta la localidad.").max(120),
+  province: z.string().trim().min(2, "Falta la provincia.").max(60),
+  zoneId: z.string().uuid().nullable(),
+});
+
+// Alta (o actualización) de un CP desde el admin: la tabla vive en la plataforma, no en la planilla.
+export async function createPostalCode(payload: unknown) {
+  const data = createPostalSchema.parse(payload);
+  const locality = data.locality.toUpperCase();
+  return prisma.postalCode.upsert({
+    where: { postalCode_locality: { postalCode: data.postalCode, locality } },
+    create: { postalCode: data.postalCode, locality, province: data.province, ownZoneId: data.zoneId },
+    update: { province: data.province, ownZoneId: data.zoneId },
+  });
+}
 
 export async function assignPostalCodesZone(payload: unknown) {
   const { ids, zoneId } = assignSchema.parse(payload);

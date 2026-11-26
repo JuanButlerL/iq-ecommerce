@@ -14,6 +14,7 @@ export type CheckoutShippingOption = {
   deliveryDaysMin: number | null;
   deliveryDaysMax: number | null;
   zoneName: string | null;
+  arrivalLabel?: string | null;
   estimated: boolean;
 };
 
@@ -166,6 +167,13 @@ export function ShippingPicker({ state, value, onChange, postalCode, province, f
           const active = selected?.id === option.id;
           const Icon = option.deliveryType === "BRANCH" ? Store : Truck;
           const days = daysLabel(option);
+          const isBranch = option.deliveryType === "BRANCH";
+          const title = option.carrier === "OWN" ? "Envío a domicilio" : isBranch ? "Retiro en sucursal" : "Envío a domicilio";
+          const arrival = option.arrivalLabel
+            ? `${isBranch ? "Lo retirás" : "Llega"} ${option.arrivalLabel}`
+            : days
+              ? `${days} desde el despacho`
+              : null;
           return (
             <button
               key={option.id}
@@ -177,13 +185,29 @@ export function ShippingPicker({ state, value, onChange, postalCode, province, f
                 active ? "border-brand-pink bg-brand-pinkSoft/30" : "border-brand-ink/10 bg-white hover:border-brand-pink/50"
               }`}
             >
-              <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${active ? "text-brand-pink" : "text-brand-ink/50"}`} />
+              <span
+                aria-hidden="true"
+                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${active ? "border-brand-pink" : "border-brand-ink/25"}`}
+              >
+                {active ? <span className="h-2.5 w-2.5 rounded-full bg-brand-pink" /> : null}
+              </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-extrabold text-brand-ink">
-                  {option.label}
-                  {option.zoneName ? <span className="font-semibold text-brand-ink/55"> · {option.zoneName}</span> : null}
+                <span className="flex items-center gap-2 text-sm font-extrabold text-brand-ink">
+                  <Icon className="h-4 w-4 shrink-0 text-brand-ink/50" />
+                  {title}
+                  {option.zoneName && option.carrier === "OWN" ? <span className="font-semibold text-brand-ink/55">· {option.zoneName}</span> : null}
                 </span>
-                {days ? <span className="block text-xs text-brand-ink/60">{days} desde el despacho</span> : null}
+                {arrival ? <span className="mt-0.5 block text-sm font-bold text-emerald-700">{freeShipping ? `${arrival.replace(/^Llega/, "Llega gratis")}` : arrival}</span> : null}
+                <span className="mt-1 flex items-center gap-1.5 text-xs text-brand-ink/55">
+                  {option.carrier === "ANDREANI" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src="/brand/andreani-logo.png" alt="Andreani" width={88} height={16} className="h-4 w-auto" />
+                  ) : option.carrier === "OWN" ? (
+                    <span className="font-bold text-brand-pink">Reparto IQ Kids</span>
+                  ) : (
+                    <span className="font-bold">Correo Argentino</span>
+                  )}
+                </span>
               </span>
               <span className="shrink-0 text-sm font-extrabold text-brand-ink">
                 {freeShipping ? <span className="text-emerald-700">Gratis</span> : formatArs(option.carrierPriceArs)}
@@ -231,8 +255,8 @@ export function ShippingPicker({ state, value, onChange, postalCode, province, f
         </div>
       ) : null}
 
-      <p className="rounded-2xl bg-brand-mint/60 p-3 text-sm font-bold text-green-800">
-        Si confirmás el pago hoy, lo despachamos el {state.status === "ready" ? state.dispatchDateLabel : ""}.
+      <p className="px-1 text-xs text-brand-ink/55">
+        Las fechas cuentan desde que se acredita el pago. Si se confirma hoy, sale de nuestro depósito el {state.status === "ready" ? state.dispatchDateLabel : ""}.
       </p>
       {error ? <p className="text-sm font-bold text-red-600">{error}</p> : null}
     </div>
