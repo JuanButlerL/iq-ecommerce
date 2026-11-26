@@ -69,6 +69,28 @@ async function main() {
     console.log(`Producto "${product.name}": ${displays} display(s), ${displays * DISPLAY_WEIGHT_GRAMS} g.`);
   }
 
+  // Depósito de origen / remitente de las etiquetas: el mismo que imprimen hoy las etiquetas de Andreani
+  // (IKIFOODS SRL, Perón 1966, CABA 1040). Teléfono y email de Nico (WhatsApp Business). Solo si no hay ninguno.
+  if ((await prisma.warehouse.count()) === 0) {
+    await prisma.warehouse.create({
+      data: {
+        name: "Depósito IKIFOODS",
+        contactName: "IKIFOODS SRL",
+        phone: "5491173933235",
+        email: "nicolas@ikifoods.com.ar",
+        taxId: "30718938305",
+        street: "Tte. Gral. Juan Domingo Perón",
+        number: "1966",
+        locality: "CABA",
+        province: "CABA",
+        postalCode: "1040",
+        isDefault: true,
+        active: true,
+      },
+    });
+    console.log("Depósito de origen: IKIFOODS SRL, Perón 1966, CABA 1040.");
+  }
+
   // Configuración del pase (Juan, 2026-11-25): Andreani con tarifa real -25% + $2.500, Correo apagado hasta Paq.ar,
   // reparto propio y retiro en sucursal prendidos. Solo la primera vez (si ya se tocó desde el admin, no se pisa).
   // La integración queda APAGADA: se prende desde el admin después de la prueba de punta a punta.
