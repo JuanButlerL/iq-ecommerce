@@ -280,11 +280,21 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
     locality: postalInfo.localities.length === 1 ? postalInfo.localities[0] : "",
     items: shippingItems,
   });
-  // Con la logística prendida, el envío estimado es la opción más barata para ese CP.
-  const cheapestOption =
+  // Con la logística prendida, el envío es la opción más barata para ese CP.
+  const freshCheapest =
     shippingState.status === "ready" && shippingState.options.length
       ? shippingState.options.reduce((min, option) => (option.carrierPriceArs < min.carrierPriceArs ? option : min))
       : null;
+  // Mientras recalcula (cambió la cantidad) se sigue mostrando el último precio, para que no titile.
+  const cpDigits = postalCode.replace(/\D/g, "").slice(0, 4);
+  const [lastCheapest, setLastCheapest] = useState<{ cp: string; option: NonNullable<typeof freshCheapest>; multiple: boolean } | null>(null);
+  useEffect(() => {
+    if (freshCheapest) setLastCheapest({ cp: cpDigits, option: freshCheapest, multiple: shippingState.status === "ready" && shippingState.options.length > 1 });
+    else if (shippingState.status !== "loading") setLastCheapest(null);
+  }, [freshCheapest, cpDigits, shippingState]);
+  const cheapestOption = freshCheapest ?? (shippingState.status === "loading" && lastCheapest?.cp === cpDigits ? lastCheapest.option : null);
+  const hasSeveralOptions =
+    shippingState.status === "ready" ? shippingState.options.length > 1 : Boolean(cheapestOption && lastCheapest?.multiple);
   const shippingQuote = calculateShippingQuote(
     subtotal,
     province,
@@ -669,23 +679,24 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
               <p className="mt-1.5 text-xs text-brand-ink/60">
                 {postalInfo.status === "found"
                   ? `${postalInfo.localities.length === 1 ? `${postalInfo.localities[0]}, ` : ""}${postalInfo.province ?? ""}${
-                      cheapestOption ? ` · ${cheapestOption.carrier === "OWN" ? "Reparto IQ Kids" : "Andreani"}${shippingState.status === "ready" && shippingState.options.length > 1 ? " (a domicilio o sucursal)" : ""}` : ""
+                      cheapestOption ? ` · ${cheapestOption.carrier === "OWN" ? "Reparto IQ Kids" : "Andreani"}${hasSeveralOptions ? " (a domicilio o sucursal)" : ""}` : ""
                     }`
                   : postalInfo.status === "unknown"
                     ? "No encontramos ese código postal. Revisalo o seguí: en el checkout lo confirmamos."
-                    : postalInfo.status === "loading" || shippingState.status === "loading"
+                    : postalInfo.status === "loading" || (shippingState.status === "loading" && !cheapestOption)
                       ? "Calculando el envío..."
                       : "Cargalo para ver el costo del envío a tu casa."}
               </p>
             </div>
             <div className="flex items-center justify-between">
-              <span>{cheapestOption && shippingState.status === "ready" && shippingState.options.length > 1 ? "Envío desde" : "Envío"}</span>
-              {hasRecoveryFreeShipping ? (
-                <span className="font-bold text-emerald-700">Bonificado</span>
-              ) : hasLinkFreeShipping ? (
-                <span className="font-bold text-emerald-700">Gratis</span>
-              ) : shippingQuote.freeShippingReached ? (
-                <span className="font-bold text-emerald-700">Gratis</span>
+              <span>{cheapestOption && hasSeveralOptions && !(hasRecoveryFreeShipping || hasLinkFreeShipping || shippingQuote.freeShippingReached) ? "Envío desde" : "Envío"}</span>
+              {hasRecoveryFreeShipping || hasLinkFreeShipping || shippingQuote.freeShippingReached ? (
+                <span className="flex items-center gap-2 font-bold">
+                  {shippingKnown && shippingQuote.baseShippingArs > 0 ? (
+                    <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
+                  ) : null}
+                  <span className="text-emerald-700">{hasRecoveryFreeShipping ? "Bonificado" : "Gratis"}</span>
+                </span>
               ) : !shippingKnown ? (
                 <span className="text-sm font-bold text-brand-ink/45">Poné tu CP</span>
               ) : shippingQuote.shippingDiscountReached ? (

@@ -210,7 +210,14 @@ export function ShippingPicker({ state, value, onChange, postalCode, province, f
                 </span>
               </span>
               <span className="shrink-0 text-sm font-extrabold text-brand-ink">
-                {freeShipping ? <span className="text-emerald-700">Gratis</span> : formatArs(option.carrierPriceArs)}
+                {freeShipping ? (
+                  <span className="flex flex-col items-end leading-tight">
+                    <span className="text-xs font-bold text-brand-ink/35 line-through">{formatArs(option.carrierPriceArs)}</span>
+                    <span className="text-emerald-700">Gratis</span>
+                  </span>
+                ) : (
+                  formatArs(option.carrierPriceArs)
+                )}
               </span>
             </button>
           );

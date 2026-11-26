@@ -976,10 +976,13 @@ export function CheckoutPage({
           ) : null}
           <div className="flex items-center justify-between">
             <span>Envío</span>
-            {recoveryFreeShippingActive ? (
-              <span className="font-bold text-emerald-700">Bonificado</span>
-            ) : shippingQuote.freeShippingReached ? (
-              <span className="font-bold text-emerald-700">Gratis</span>
+            {recoveryFreeShippingActive || shippingQuote.freeShippingReached ? (
+              <span className="flex items-center gap-2 font-bold">
+                {selectedShippingOption && shippingQuote.baseShippingArs > 0 ? (
+                  <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
+                ) : null}
+                <span className="text-emerald-700">{recoveryFreeShippingActive ? "Bonificado" : "Gratis"}</span>
+              </span>
             ) : shippingQuote.shippingDiscountReached ? (
               <span className="flex items-center gap-2 font-bold">
                 <span className="text-brand-ink/35 line-through">{formatArs(shippingQuote.baseShippingArs)}</span>
