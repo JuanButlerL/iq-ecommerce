@@ -1,12 +1,11 @@
+import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { MetaPixelPurchase } from "@/components/analytics/meta-pixel-purchase";
 import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { Container } from "@/components/layout/container";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { getOrderByNumber } from "@/features/orders/services/order-service";
 import { OrderShippingStatus } from "@/features/logistics/components/order-shipping-status";
 import { getStoreSettings } from "@/features/settings/queries";
@@ -42,25 +41,20 @@ export default async function ConfirmationPage({
   }));
   // Transferencia aprobada en Admin > Comprobantes: el pedido queda PAID.
   const isTransferApproved = !isMercadoPago && order.paymentStatus === "PAID";
-  const paymentCopy = isMercadoPago
-    ? order.paymentStatus === "PAID"
-      ? "Mercado Pago confirmo el pago y el pedido ya quedo registrado."
-      : "Tu pedido esta guardado. Estamos esperando la confirmacion final de Mercado Pago."
-    : isTransferApproved
-      ? "Ya validamos tu pago y estamos preparando el pedido."
-      : "Tu comprobante ya fue enviado. Si el equipo necesita algo mas, te contacta con estos datos.";
-  const successCopy = isMercadoPago
-    ? order.paymentStatus === "PAID"
-      ? "Tu pago está aprobado y ya estamos preparando tu pedido."
-      : "Recibimos tu pedido y seguimos la confirmación del pago online."
-    : isTransferApproved
-      ? "Tu pago esta aprobado y el pedido ya esta en preparacion."
-      : settings?.purchaseSuccessMessage ??
-        "Recibimos tu comprobante. Vamos a validar el pago y seguir con la preparacion del pedido.";
+  const isPaid = order.paymentStatus === "PAID";
+  const isRejected = order.paymentStatus === "CANCELLED" || order.paymentStatus === "EXPIRED";
+  // Una sola línea de estado, corta.
+  const statusCopy = isPaid
+    ? "Tu pago está aprobado. Ya estamos preparando tu pedido."
+    : isRejected
+      ? "El pago no se completó. Si necesitás ayuda, escribinos por WhatsApp."
+      : isMercadoPago
+        ? "Estamos esperando la confirmación de Mercado Pago."
+        : "Recibimos tu comprobante. Te avisamos por mail cuando lo confirmemos.";
 
   return (
     <Container className="py-16">
-      <Card className="mx-auto max-w-3xl space-y-6 p-8 text-center">
+      <Card className="mx-auto max-w-xl space-y-6 p-6 text-center md:p-8">
         {shouldTrackAnalyticsPurchase ? (
             <TrackEventOnView
               eventName="purchase"
@@ -90,82 +84,52 @@ export default async function ConfirmationPage({
               items={purchaseItems}
             />
         ) : null}
-<p className="text-sm font-extrabold uppercase tracking-[0.18em] text-emerald-600">Compra confirmada</p>        <h1 className="font-display text-5xl leading-none text-brand-ink">Gracias por tu compra</h1>
-        <p className="text-brand-ink/70">{successCopy}</p>
-        <div className="rounded-[2rem] bg-brand-peach p-6">
-          <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
-          <p className="mt-2 text-2xl font-extrabold text-brand-ink">{order.publicOrderNumber}</p>
-          <p className="mt-4 text-4xl font-extrabold text-brand-pink">{formatArs(order.totalArs)}</p>
-          <div className="mt-4 space-y-2 text-left text-sm text-brand-ink/70">
-            <div className="flex items-center justify-between">
-              <span>Subtotal</span>
-              <span className="font-bold text-brand-ink">{formatArs(order.subtotalArs)}</span>
-            </div>
-            {order.discountArs > 0 ? (
-              <div className="flex items-center justify-between">
-                <span>
-                  Cupon {order.couponCode}{" "}
-                  {order.coupon
-                    ? `(${getCouponDiscountLabel({
-                        discountType: order.coupon.discountType,
-                        discountPercentage: order.discountPercentage == null ? null : Number(order.discountPercentage),
-                        fixedDiscountArs: order.coupon.fixedDiscountArs,
-                        buyQuantity: order.coupon.buyQuantity,
-                        payQuantity: order.coupon.payQuantity,
-                      })})`
-                    : ""}
-                </span>
-                <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
-              </div>
-            ) : null}
-            {order.paymentMethodDiscountArs > 0 ? (
-              <div className="flex items-center justify-between">
-                <span>Descuento transferencia ({Number(order.paymentMethodDiscountPercentage ?? 0)}%)</span>
-                <span className="font-bold text-green-700">- {formatArs(order.paymentMethodDiscountArs)}</span>
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between">
-              <span>Envio</span>
-              <span className="font-bold text-brand-ink">{formatArs(order.shippingArs)}</span>
-            </div>
-          </div>
-          <p className="mt-4 text-sm text-brand-ink/70">{paymentCopy}</p>
+<div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+          <CheckCircle2 className="h-8 w-8" />
         </div>
+        <div className="space-y-2">
+          <h1 className="font-display text-4xl leading-none text-brand-ink md:text-5xl">¡Gracias, {order.customerFirstName}!</h1>
+          <p className="text-brand-ink/70">{statusCopy}</p>
+        </div>
+
+        <div className="rounded-[2rem] bg-brand-pinkSoft/30 px-6 py-5">
+          <p className="text-sm font-bold text-brand-ink/60">{isPaid ? "Pagaste" : "Total"}</p>
+          <p className="font-display text-5xl leading-tight text-brand-ink">{formatArs(order.totalArs)}</p>
+          <p className="mt-1 text-sm text-brand-ink/60">
+            Pedido <span className="font-extrabold text-brand-ink">N° {order.publicOrderNumber}</span>
+          </p>
+          <details className="mt-3 text-left text-sm text-brand-ink/70">
+            <summary className="cursor-pointer text-center text-xs font-bold text-brand-ink/50 hover:text-brand-ink">Ver detalle</summary>
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span>Productos</span>
+                <span className="font-bold text-brand-ink">{formatArs(order.subtotalArs)}</span>
+              </div>
+              {order.discountArs > 0 ? (
+                <div className="flex items-center justify-between">
+                  <span>Cupón {order.couponCode}</span>
+                  <span className="font-bold text-green-700">- {formatArs(order.discountArs)}</span>
+                </div>
+              ) : null}
+              {order.paymentMethodDiscountArs > 0 ? (
+                <div className="flex items-center justify-between">
+                  <span>Descuento transferencia</span>
+                  <span className="font-bold text-green-700">- {formatArs(order.paymentMethodDiscountArs)}</span>
+                </div>
+              ) : null}
+              <div className="flex items-center justify-between">
+                <span>Envío</span>
+                <span className="font-bold text-brand-ink">{order.shippingArs > 0 ? formatArs(order.shippingArs) : "Gratis"}</span>
+              </div>
+            </div>
+          </details>
+        </div>
+
         <OrderShippingStatus orderNumber={order.publicOrderNumber} />
-        <div className="grid gap-3 text-left md:grid-cols-3">
-          <div className="rounded-[1.5rem] bg-background p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Estado actual</p>
-            <p className="mt-2 font-bold text-brand-ink">
-              {isMercadoPago
-                ? order.paymentStatus === "PAID"
-                  ? "Pago aprobado"
-                  : order.paymentStatus === "CANCELLED" || order.paymentStatus === "EXPIRED"
-                    ? "Pago rechazado"
-                    : "Esperando el pago"
-                : isTransferApproved
-                  ? "Pago aprobado"
-                  : "Pago en revisión"}
-            </p>
-          </div>
-          <div className="rounded-[1.5rem] bg-background p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Pedido</p>
-            <p className="mt-2 font-bold text-brand-ink">{order.publicOrderNumber}</p>
-          </div>
-          <div className="rounded-[1.5rem] bg-background p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">
-              {isMercadoPago ? "Medio de pago" : "Contacto"}
-            </p>
-            <p className="mt-2 font-bold text-brand-ink">{isMercadoPago ? "Mercado Pago" : order.customerEmail}</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap justify-center gap-4">
-          <Link href="/productos">
-            <Button>Seguir comprando</Button>
-          </Link>
-          <Link href="/contacto">
-            <Button variant="secondary">Necesito ayuda</Button>
-          </Link>
-        </div>
+
+        <Link href="/productos" className="inline-block text-sm font-extrabold text-brand-ink/60 underline-offset-4 hover:text-brand-pink hover:underline">
+          Volver a la tienda
+        </Link>
       </Card>
     </Container>
   );

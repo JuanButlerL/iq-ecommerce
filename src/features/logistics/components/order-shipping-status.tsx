@@ -48,62 +48,50 @@ export async function OrderShippingStatus({ orderNumber }: { orderNumber: string
   const waitingForCarrier = !created && (shipment.status === "PENDING" || shipment.status === "PROCESSING" || (order.paymentMethod === "MERCADO_PAGO" && order.paymentStatus !== "PAID"));
 
   return (
-    <div className="rounded-[1.5rem] bg-background p-5 text-left">
+    <div className="rounded-[2rem] border border-brand-ink/10 p-5 text-left">
       {waitingForCarrier ? <AutoRefresh seconds={6} times={8} /> : null}
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">Envío</p>
-      <p className="mt-2 font-bold text-brand-ink">
-        {carrierLabels[order.shippingCarrier]} · {order.shippingDeliveryType === "BRANCH" ? "retiro en sucursal" : "a domicilio"}
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-ink/50">
+        Envío · {carrierLabels[order.shippingCarrier]} {isBranch ? "a sucursal" : "a domicilio"}
       </p>
-      {order.shippingDeliveryType === "BRANCH" && order.shippingBranchName ? (
-        <p className="text-sm text-brand-ink/70">{[order.shippingBranchName, order.shippingBranchAddress].filter(Boolean).join(" · ")}</p>
+      {arrival ? (
+        <p className="mt-2 text-lg font-extrabold leading-snug text-emerald-700">
+          {confirmed ? (isBranch ? "Lo retirás " : "Llega ") : isBranch ? "Si se confirma hoy, lo retirás " : "Si se confirma hoy, llega "}
+          {arrival}
+        </p>
+      ) : dispatchKey ? (
+        <p className="mt-2 text-lg font-extrabold text-brand-ink">Sale el {formatDispatchDate(dispatchKey)}</p>
       ) : null}
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        <div>
-          <p className="text-xs text-brand-ink/55">{isOwn ? "Número de pedido" : "Número de seguimiento"}</p>
-          <p className="font-bold text-brand-ink">
-            {created && shipment.trackingNumber ? (
-              trackingUrl ? (
-                <a href={trackingUrl} target="_blank" rel="noreferrer" className="text-brand-pink hover:underline">{shipment.trackingNumber}</a>
-              ) : (
-                shipment.trackingNumber
-              )
-            ) : confirmed ? (
-              "Lo estamos generando, te llega por mail"
-            ) : order.paymentMethod === "MERCADO_PAGO" ? (
-              "Te lo mandamos cuando se acredite el pago"
-            ) : (
-              "Te lo mandamos por mail cuando se confirme el pago"
-            )}
-          </p>
-        </div>
-        {dispatchKey ? (
+      {isBranch && order.shippingBranchName ? (
+        <p className="mt-1 text-sm text-brand-ink/70">{[order.shippingBranchName, order.shippingBranchAddress].filter(Boolean).join(" · ")}</p>
+      ) : null}
+      {created && shipment.trackingNumber ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-background p-3">
           <div>
-            <p className="text-xs text-brand-ink/55">{confirmed ? "Despachamos el" : "Si se confirma hoy, sale el"}</p>
-            <p className="font-bold text-brand-ink">{formatDispatchDate(dispatchKey)}</p>
+            <p className="text-xs text-brand-ink/55">{isOwn ? "Número de pedido" : "Número de seguimiento"}</p>
+            <p className="font-extrabold tracking-wide text-brand-ink">{shipment.trackingNumber}</p>
           </div>
-        ) : null}
-        {arrival ? (
-          <div className="md:col-span-2">
-            <p className="text-xs text-brand-ink/55">
-              {confirmed ? (isBranch ? "Lo retirás" : "Llega") : isBranch ? "Si se confirma hoy, lo retirás" : "Si se confirma hoy, llega"}
-            </p>
-            <p className="font-bold text-emerald-700">{arrival.charAt(0).toUpperCase() + arrival.slice(1)}</p>
-          </div>
-        ) : null}
-        {created && trackingUrl ? (
-          <div className="md:col-span-2">
+          {trackingUrl ? (
             <a
               href={trackingUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex min-h-11 items-center gap-2 rounded-full bg-brand-pink px-5 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90"
             >
-              Seguir mi envío en {carrierLabels[order.shippingCarrier]}
-              <span aria-hidden="true">→</span>
+              Seguir mi envío <span aria-hidden="true">→</span>
             </a>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-brand-ink/60">
+          {confirmed
+            ? isOwn
+              ? "Te escribimos por WhatsApp cuando salga."
+              : "Te mandamos el número de seguimiento por mail."
+            : order.paymentMethod === "MERCADO_PAGO"
+              ? "Te mandamos el seguimiento por mail cuando se acredite el pago."
+              : "Te mandamos el seguimiento por mail cuando se confirme el pago."}
+        </p>
+      )}
     </div>
   );
 }
