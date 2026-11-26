@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 type CheckoutRoutePageProps = {
   searchParams?: Promise<{
     province?: string | string[];
+    cp?: string | string[];
     email?: string | string[];
     recoveryBenefit?: string | string[];
   }>;
@@ -17,6 +18,7 @@ export default async function CheckoutRoutePage({ searchParams }: CheckoutRouteP
   const params = await searchParams;
   const requestedProvince = Array.isArray(params?.province) ? params.province[0] : params?.province;
   const requestedEmail = Array.isArray(params?.email) ? params.email[0] : params?.email;
+  const requestedPostalCode = Array.isArray(params?.cp) ? params.cp[0] : params?.cp;
   const requestedRecoveryBenefit = Array.isArray(params?.recoveryBenefit) ? params.recoveryBenefit[0] : params?.recoveryBenefit;
   const [products, settings] = await Promise.all([getVisibleProducts(), getStoreSettingsForClient()]);
 
@@ -31,6 +33,7 @@ export default async function CheckoutRoutePage({ searchParams }: CheckoutRouteP
         settings={settings}
         mercadoPagoEnabled={env.mercadoPagoEnabled && env.hasMercadoPagoAccessToken}
         initialProvince={requestedProvince}
+        initialPostalCode={requestedPostalCode && /^\d{4}$/.test(requestedPostalCode) ? requestedPostalCode : ""}
         initialEmail={requestedEmail}
         initialCartRecoveryFreeShippingToken={requestedRecoveryBenefit}
       />

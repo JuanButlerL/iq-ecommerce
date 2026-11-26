@@ -31,6 +31,7 @@ import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/comp
 import { FieldShell } from "@/features/checkout/components/field-shell";
 import { PaymentMethodSelector } from "@/features/checkout/components/payment-method-selector";
 import { ShippingPicker, useShippingOptions, type ShippingSelectionValue } from "@/features/logistics/components/shipping-picker";
+import { usePostalCodeInfo } from "@/features/logistics/components/use-postal-code";
 import { getCouponDiscountLabel } from "@/features/coupons/lib/coupon-pricing";
 import { productFallbackImageMap } from "@/features/catalog/product-theme";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
@@ -52,6 +53,7 @@ type CheckoutPageProps = {
   settings: SettingsWithRule;
   mercadoPagoEnabled: boolean;
   initialProvince?: string;
+  initialPostalCode?: string;
   initialEmail?: string;
   initialCartRecoveryFreeShippingToken?: string;
 };
@@ -120,11 +122,17 @@ function ErrorSummary({ messages, className }: ErrorSummaryProps) {
   );
 }
 
+// "SAN ISIDRO" -> "San Isidro" (la tabla de CP viene en mayúsculas).
+function toTitleCase(value: string) {
+  return value.toLowerCase().replace(/(^|[\s(-])(\p{L})/gu, (_, sep: string, letter: string) => sep + letter.toUpperCase());
+}
+
 export function CheckoutPage({
   products,
   settings,
   mercadoPagoEnabled,
   initialProvince: requestedProvince,
+  initialPostalCode = "",
   initialEmail = "",
   initialCartRecoveryFreeShippingToken,
 }: CheckoutPageProps) {
@@ -181,7 +189,7 @@ export function CheckoutPage({
       phone: "",
       province: initialProvince,
       locality: "",
-      postalCode: "",
+      postalCode: initialPostalCode,
       addressLine: "",
       addressNumber: "",
       addressWithoutNumber: false,
@@ -221,6 +229,19 @@ export function CheckoutPage({
     productTotals.freeShippingSubtotalArs - (appliedCoupon?.freeShippingDeductionArs ?? 0),
     0,
   );
+  // La provincia (y la localidad si el CP tiene una sola) se completan solas desde el CP: el cliente no tiene
+  // que adivinar ni le aparece un error por elegir otra provincia.
+  const postalInfo = usePostalCodeInfo(watchedPostalCode);
+  useEffect(() => {
+    if (postalInfo.status !== "found" || !postalInfo.province) return;
+    if (form.getValues("province") !== postalInfo.province) {
+      form.setValue("province", postalInfo.province, { shouldDirty: true, shouldValidate: true });
+    }
+    if (postalInfo.localities.length === 1 && !form.getValues("locality")) {
+      form.setValue("locality", toTitleCase(postalInfo.localities[0]), { shouldDirty: true, shouldValidate: true });
+    }
+  }, [postalInfo.status, postalInfo.province, postalInfo.localities, form]);
+
   // Integración logística: opciones por CP (reparto propio, Andreani, Correo). Apagada, todo sigue como antes.
   const [shippingSelection, setShippingSelection] = useState<ShippingSelectionValue | null>(null);
   const [shippingError, setShippingError] = useState<string | null>(null);

@@ -10,7 +10,6 @@ import { TrackEventOnView } from "@/components/analytics/track-event-on-view";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select } from "@/components/ui/select";
 import { announceCartItemAdded } from "@/features/cart/cart-feedback-event";
 import { PRESET_CART_PARAM } from "@/features/cart/lib/preset-cart";
 import { useCartStore } from "@/features/cart/store";
@@ -20,7 +19,8 @@ import { trackEvent } from "@/lib/integrations/google-analytics/client";
 import { trackAddToCart } from "@/lib/integrations/commerce-tracking";
 import { formatArs } from "@/lib/utils/currency";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
-import { ARGENTINA_PROVINCES } from "@/lib/constants/provinces";
+import { usePostalCodeInfo } from "@/features/logistics/components/use-postal-code";
+import { useShippingOptions } from "@/features/logistics/components/shipping-picker";
 import { FREE_SHIPPING_LINK_PARAM, FREE_SHIPPING_LINK_STORAGE_KEY } from "@/features/free-shipping-links/constants";
 import { formatArgentinaDateTime } from "@/lib/utils/datetime";
 import { getBrowserMarketingContext } from "@/lib/marketing/client";
@@ -68,6 +68,9 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
   const removeItem = useCartStore((state) => state.removeItem);
   const replaceItems = useCartStore((state) => state.replaceItems);
   const [province, setProvince] = useState("Buenos Aires");
+  // El cliente carga su CP; la provincia sale de la tabla de CP (no tiene que elegirla ni adivinar).
+  const [postalCode, setPostalCode] = useState("");
+  const postalInfo = usePostalCodeInfo(postalCode);
   const [email, setEmail] = useState("");
   const [capturedEmail, setCapturedEmail] = useState("");
   const [captureError, setCaptureError] = useState("");
@@ -262,7 +265,33 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
   );
   const subtotal = productTotals.subtotalArs;
   const freeShippingSubtotal = productTotals.freeShippingSubtotalArs;
-  const shippingQuote = calculateShippingQuote(subtotal, province, settings, freeShippingSubtotal);
+  useEffect(() => {
+    if (postalInfo.status === "found" && postalInfo.province) setProvince(postalInfo.province);
+  }, [postalInfo.status, postalInfo.province]);
+  const shippingItems = useMemo(
+    () => detailedItems.map(({ cart }) => ({ productId: cart.productId, quantity: cart.quantity })),
+    [detailedItems],
+  );
+  const shippingState = useShippingOptions({
+    enabled: postalInfo.status === "found" && Boolean(postalInfo.province),
+    channel: "RETAIL",
+    postalCode,
+    province: postalInfo.province ?? province,
+    locality: postalInfo.localities.length === 1 ? postalInfo.localities[0] : "",
+    items: shippingItems,
+  });
+  // Con la logística prendida, el envío estimado es la opción más barata para ese CP.
+  const cheapestOption =
+    shippingState.status === "ready" && shippingState.options.length
+      ? shippingState.options.reduce((min, option) => (option.carrierPriceArs < min.carrierPriceArs ? option : min))
+      : null;
+  const shippingQuote = calculateShippingQuote(
+    subtotal,
+    province,
+    settings,
+    freeShippingSubtotal,
+    cheapestOption ? cheapestOption.carrierPriceArs : null,
+  );
   const hasRecoveryFreeShipping = Boolean(freeShippingToken) && recoveryCartSignature === cartSignature(items);
   const checkoutEmail = capturedEmail || email.trim();
   // The link only applies to the email it was generated for.
@@ -273,6 +302,7 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
   const displayedShippingArs = hasRecoveryFreeShipping || hasLinkFreeShipping ? 0 : shippingQuote.shippingArs;
   const total = subtotal + displayedShippingArs;
   const checkoutParams = new URLSearchParams({ province });
+  if (postalInfo.status === "found") checkoutParams.set("cp", postalCode.replace(/\D/g, "").slice(0, 4));
 
   if (checkoutEmail) {
     checkoutParams.set("email", checkoutEmail);
@@ -619,17 +649,34 @@ export function CartPage({ products, settings, recoveryToken, freeShippingLinkTo
               <span className="font-bold text-brand-ink">{formatArs(subtotal)}</span>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-bold text-brand-ink">Seleccionar provincia para el envío</label>
-              <Select value={province} onChange={(event) => setProvince(event.target.value)}>
-                {ARGENTINA_PROVINCES.map((item) => (
-                  <option key={item.code} value={item.name}>
-                    {item.name}
-                  </option>
-                ))}
-              </Select>
+              <label htmlFor="cart-postal-code" className="mb-2 block text-sm font-bold text-brand-ink">Tu código postal</label>
+              <input
+                id="cart-postal-code"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                maxLength={8}
+                placeholder="Ej: 1425"
+                value={postalCode}
+                onChange={(event) => {
+                  const next = event.target.value.replace(/[^\d]/g, "");
+                  setPostalCode(next);
+                }}
+                className="min-h-11 w-full rounded-full border border-brand-ink/12 bg-white px-4 text-sm font-bold text-brand-ink outline-none transition placeholder:text-brand-ink/30 focus:border-brand-pink/50 focus:ring-4 focus:ring-brand-pink/10"
+              />
+              <p className="mt-1.5 text-xs text-brand-ink/60">
+                {postalInfo.status === "found"
+                  ? `${postalInfo.localities.length === 1 ? `${postalInfo.localities[0]}, ` : ""}${postalInfo.province ?? ""}${
+                      cheapestOption ? ` · ${cheapestOption.carrier === "OWN" ? "Reparto IQ Kids" : "Andreani"}${shippingState.status === "ready" && shippingState.options.length > 1 ? " (a domicilio o sucursal)" : ""}` : ""
+                    }`
+                  : postalInfo.status === "unknown"
+                    ? "No encontramos ese código postal. Revisalo o seguí: en el checkout lo confirmamos."
+                    : postalInfo.status === "loading" || shippingState.status === "loading"
+                      ? "Calculando el envío..."
+                      : "Cargalo para ver el costo del envío a tu casa."}
+              </p>
             </div>
             <div className="flex items-center justify-between">
-              <span>Envío estimado</span>
+              <span>{cheapestOption && shippingState.status === "ready" && shippingState.options.length > 1 ? "Envío estimado (desde)" : "Envío estimado"}</span>
               {hasRecoveryFreeShipping ? (
                 <span className="font-bold text-emerald-700">Bonificado</span>
               ) : hasLinkFreeShipping ? (
