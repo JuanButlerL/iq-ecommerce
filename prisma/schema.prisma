@@ -1504,6 +1504,8 @@ model ShippingSettings {
   transitDaysRestMax      Int      @default(6) @map("transit_days_rest_max")
   // Franja horaria del reparto propio ("entre las 14 y las 17 h"). Vacío = sin franja.
   ownDeliveryWindow       String   @default("entre las 14 y las 17 h") @map("own_delivery_window")
+  // Copia oculta del mail de seguimiento: mails separados por coma.
+  shippingEmailBcc        String   @default("") @map("shipping_email_bcc")
   correoSurchargeArs      Int      @default(2500) @map("correo_surcharge_ars")
   updatedAt               DateTime @updatedAt @map("updated_at")
 

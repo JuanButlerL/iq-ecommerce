@@ -98,6 +98,15 @@ const settingsSchema = z.object({
   transitDaysRestMin: z.coerce.number().int().min(0).max(30),
   transitDaysRestMax: z.coerce.number().int().min(0).max(30),
   ownDeliveryWindow: z.string().trim().max(60).default(""),
+  shippingEmailBcc: z
+    .string()
+    .trim()
+    .max(500)
+    .default("")
+    .transform((value) => value.split(/[,;\s]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))
+    .refine((list) => list.every((item) => /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(item)), { message: "Revisá los mails de copia: uno no es válido." })
+    .refine((list) => list.length <= 10, { message: "Hasta 10 mails de copia." })
+    .transform((list) => [...new Set(list)].join(", ")),
 });
 
 export async function saveShippingSettings(payload: unknown) {

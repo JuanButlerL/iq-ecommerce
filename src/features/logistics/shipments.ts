@@ -386,15 +386,13 @@ export async function notifyCustomer(shipmentId: string) {
     destination: shipmentDestinationLabel(order),
     orderUrl,
   });
-  // Misma copia oculta que el mail "Pedido recibido" (la que se configura en Admin > Emails), para que el equipo lo vea.
-  const copy = await prisma.emailAutomation
-    .findFirst({ where: { trigger: "POST_PURCHASE", active: true, delayHours: 0, bccEmail: { not: null } }, select: { bccEmail: true } })
-    .catch(() => null);
+  // Copia oculta: la lista de Admin > Logística (y una copia temporal opcional del servidor).
+  const copySettings = await getShippingSettings().catch(() => null);
   await sendEmail({
     fromEmail: env.EMAIL_FROM_DEFAULT,
     senderName: "IQ Kids",
     to: order.customerEmail,
-    bccEmail: [copy?.bccEmail?.trim(), temporaryShippingCopy()].filter(Boolean).join(", ") || null,
+    bccEmail: [copySettings?.shippingEmailBcc?.trim(), temporaryShippingCopy()].filter(Boolean).join(", ") || null,
     subject: email.subject,
     html: email.html,
     text: email.text,
