@@ -67,6 +67,11 @@ export async function approvePaymentProof(orderId: string, actor: string) {
   if (order.orderStatus !== OrderStatus.PROOF_UPLOADED) {
     throw new AppError("Este pedido ya no está esperando revisión del comprobante.", 409);
   }
+  // Los pedidos de antes del pase a producción se manejan como siempre (etiqueta manual): aprobarlos acá
+  // los reenviaría a la planilla y a la app.
+  if (order.createdAt < PROOF_REVIEW_SINCE) {
+    throw new AppError("Este pedido es de antes del 25/11 a la noche: se maneja como antes, con etiqueta manual.", 409);
+  }
   const proof = order.paymentProofs[0];
   if (proof) {
     await prisma.paymentProof.update({
@@ -84,6 +89,9 @@ export async function rejectPaymentProof(orderId: string, actor: string, reason:
   if (!order) throw new AppError("Pedido no encontrado.", 404);
   if (order.orderStatus !== OrderStatus.PROOF_UPLOADED) {
     throw new AppError("Este pedido ya no está esperando revisión del comprobante.", 409);
+  }
+  if (order.createdAt < PROOF_REVIEW_SINCE) {
+    throw new AppError("Este pedido es de antes del 25/11 a la noche: se maneja como antes, con etiqueta manual.", 409);
   }
 
   await prisma.$transaction(async (tx) => {
