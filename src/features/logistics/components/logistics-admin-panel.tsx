@@ -360,6 +360,52 @@ export function LogisticsAdminPanel({ data }: Props) {
               ))}
             </div>
           </div>
+          <div className="space-y-3 rounded-2xl bg-brand-ink/5 p-4">
+            <p className="text-sm font-extrabold text-brand-ink">Fecha de llegada que ve el cliente</p>
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-brand-ink/75">
+              <li>
+                <b>Día de despacho:</b> si el pago se confirma un día hábil antes de las {String(settings.cutoffHour).padStart(2, "0")}:{String(settings.cutoffMinute).padStart(2, "0")} h, sale ese día; si no, el próximo día hábil.
+                Después se suman los días de preparación ({settings.preparationBusinessDays}). Sábados, domingos, feriados nacionales y los feriados de abajo no cuentan.
+              </li>
+              <li>
+                <b>Días de viaje:</b> se suman días hábiles desde el despacho. Reparto propio: los días de cada zona (tabla de zonas). Andreani y Correo: estos días por región,
+                porque su sistema no informa el plazo. La región sale del código postal.
+              </li>
+              <li>El cliente ve &quot;Llega entre el [despacho + mínimo] y el [despacho + máximo]&quot;. Si mínimo y máximo son iguales, ve un solo día.</li>
+            </ol>
+            <div className="grid gap-3 md:grid-cols-3">
+              {(
+                [
+                  ["CABA y GBA", "transitDaysAmbaMin", "transitDaysAmbaMax"],
+                  ["Resto de Buenos Aires", "transitDaysBsasMin", "transitDaysBsasMax"],
+                  ["Resto del país", "transitDaysRestMin", "transitDaysRestMax"],
+                ] as const
+              ).map(([label, minKey, maxKey]) => (
+                <label key={minKey} className="space-y-1 text-sm font-bold text-brand-ink">
+                  <span>Andreani / Correo · {label} (mín. y máx.)</span>
+                  <div className="flex gap-2">
+                    <Input type="number" min={0} max={30} value={settings[minKey]} onChange={(e) => set(minKey, num(e.target.value))} />
+                    <Input type="number" min={0} max={30} value={settings[maxKey]} onChange={(e) => set(maxKey, num(e.target.value))} />
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="text-sm text-brand-ink/75">
+              <p className="font-bold text-brand-ink">Ejemplo con lo guardado (después de guardar, recargá para verlo actualizado). Si el pago se confirma ahora, sale el {data.arrivalExample.dispatchLabel}.</p>
+              <ul className="mt-1 space-y-0.5">
+                {data.arrivalExample.zones.map((zone) => (
+                  <li key={zone.name}>
+                    Reparto propio {zone.name} ({zone.min} a {zone.max} días hábiles): llega {zone.arrival}.
+                  </li>
+                ))}
+                {data.arrivalExample.regions.map((region) => (
+                  <li key={region.region}>
+                    Andreani / Correo {region.label} ({region.min} a {region.max} días hábiles): llega {region.arrival}.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
           <Button type="submit" disabled={isPending}>
             {isPending ? "Guardando..." : "Guardar configuración"}
           </Button>

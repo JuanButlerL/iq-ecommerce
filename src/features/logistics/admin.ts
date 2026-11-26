@@ -4,7 +4,9 @@ import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 export { importPostalCodes, parsePostalCodesCsv } from "@/features/logistics/postal-codes";
 import { addDays, nationalHolidays, toArgentinaDateKey, dbDateToKey } from "@/features/logistics/business-days";
-import { credentialStatus, getShippingSettings } from "@/features/logistics/settings";
+import { computeDispatchDate, formatDispatchDate } from "@/features/logistics/business-days";
+import { credentialStatus, getHolidayCalendar, getShippingSettings } from "@/features/logistics/settings";
+import { arrivalRange, carrierTransitDays, TRANSIT_REGION_LABELS } from "@/features/logistics/transit";
 import { ALERT_AFTER_ATTEMPTS } from "@/features/logistics/shipments";
 
 // ---------- Lectura para el admin ----------
@@ -19,6 +21,25 @@ export async function getLogisticsAdminData() {
     prisma.postalCode.count(),
     prisma.postalCode.count({ where: { ownZoneId: { not: null } } }),
   ]);
+  // Ejemplo con fechas reales de cómo se arma la fecha de llegada (con lo guardado).
+  const calendar = await getHolidayCalendar();
+  const dispatchDate = computeDispatchDate(new Date(), settings, calendar);
+  const sample: Record<keyof typeof TRANSIT_REGION_LABELS, string> = { AMBA: "CABA", BSAS: "Buenos Aires", REST: "Santa Fe" };
+  const arrivalExample = {
+    dispatchLabel: formatDispatchDate(dispatchDate),
+    regions: (Object.keys(sample) as (keyof typeof sample)[]).map((region) => {
+      const [min, max] = carrierTransitDays(sample[region], settings);
+      return { region, label: TRANSIT_REGION_LABELS[region], min, max, arrival: arrivalRange(dispatchDate, min, max, calendar).label };
+    }),
+    zones: zones
+      .filter((zone) => zone.active)
+      .map((zone) => ({
+        name: zone.name,
+        min: zone.deliveryDaysMin,
+        max: zone.deliveryDaysMax,
+        arrival: arrivalRange(dispatchDate, zone.deliveryDaysMin ?? 0, zone.deliveryDaysMax ?? zone.deliveryDaysMin ?? 0, calendar).label,
+      })),
+  };
   const year = Number(today.slice(0, 4));
   const national = [...nationalHolidays(year), ...nationalHolidays(year + 1)]
     .filter(([date]) => date >= today)
@@ -43,6 +64,7 @@ export async function getLogisticsAdminData() {
     nationalHolidays: national,
     warehouses,
     postalCodes: { total: postalCount, own: ownCount },
+    arrivalExample,
   };
 }
 
@@ -69,6 +91,12 @@ const settingsSchema = z.object({
   andreaniSurchargeArs: z.coerce.number().int().min(0).max(1_000_000),
   andreaniDiscountPct: z.coerce.number().int().min(0).max(90),
   correoSurchargeArs: z.coerce.number().int().min(0).max(1_000_000),
+  transitDaysAmbaMin: z.coerce.number().int().min(0).max(30),
+  transitDaysAmbaMax: z.coerce.number().int().min(0).max(30),
+  transitDaysBsasMin: z.coerce.number().int().min(0).max(30),
+  transitDaysBsasMax: z.coerce.number().int().min(0).max(30),
+  transitDaysRestMin: z.coerce.number().int().min(0).max(30),
+  transitDaysRestMax: z.coerce.number().int().min(0).max(30),
 });
 
 export async function saveShippingSettings(payload: unknown) {

@@ -1491,6 +1491,13 @@ model ShippingSettings {
   andreaniDiscountPct     Int      @default(0) @map("andreani_discount_pct")
   // Transferencias: apagado = la etiqueta sale cuando suben el comprobante; prendido = cuando se aprueba en Comprobantes.
   requireProofApproval    Boolean  @default(false) @map("require_proof_approval")
+  // Días hábiles de viaje de Andreani/Correo (la API no los da): AMBA, resto de Buenos Aires, resto del país.
+  transitDaysAmbaMin      Int      @default(2) @map("transit_days_amba_min")
+  transitDaysAmbaMax      Int      @default(3) @map("transit_days_amba_max")
+  transitDaysBsasMin      Int      @default(2) @map("transit_days_bsas_min")
+  transitDaysBsasMax      Int      @default(4) @map("transit_days_bsas_max")
+  transitDaysRestMin      Int      @default(3) @map("transit_days_rest_min")
+  transitDaysRestMax      Int      @default(6) @map("transit_days_rest_max")
   correoSurchargeArs      Int      @default(2500) @map("correo_surcharge_ars")
   updatedAt               DateTime @updatedAt @map("updated_at")
 
