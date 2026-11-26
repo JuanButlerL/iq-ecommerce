@@ -2,9 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
+import { HomeHeroSlideView, type HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
 import { cn } from "@/lib/utils/cn";
 
-export type WholesaleHeroCarouselSlide = {
+// La portada mayorista es propia (título, chips y botones de la landing); los slides que siguen se cargan
+// en Mayorista > Carrusel y se dibujan igual que en la home de la tienda.
+export type WholesaleHeroCarouselSlide = WholesalePortadaSlide | { kind: "home"; id: string; slide: HomeHeroSlide };
+
+export type WholesalePortadaSlide = {
+  kind: "portada";
   id: string;
   // Foto de fondo opcional; sin foto se usa el fondo rosado de la portada.
   background: { imageUrl: string; mobileImageUrl: string; alt: string; overlay: boolean } | null;
@@ -18,8 +24,18 @@ const SWIPE_THRESHOLD_PX = 50;
 
 // Mismo comportamiento que el carrusel de la home minorista: fundido, pausa al pasar el mouse,
 // swipe en el celular y sin movimiento si el sistema pide reducir animaciones.
-export function WholesaleHeroCarousel({ slides, intervalSeconds = 7 }: { slides: WholesaleHeroCarouselSlide[]; intervalSeconds?: number }) {
-  const [activeIndex, setActiveIndex] = useState(0);
+export function WholesaleHeroCarousel({
+  slides,
+  intervalSeconds = 7,
+  initialIndex = 0,
+  autoPlay = true,
+}: {
+  slides: WholesaleHeroCarouselSlide[];
+  intervalSeconds?: number;
+  initialIndex?: number;
+  autoPlay?: boolean;
+}) {
+  const [activeIndex, setActiveIndex] = useState(() => Math.min(Math.max(initialIndex, 0), slides.length - 1));
   const [isPaused, setIsPaused] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -36,10 +52,10 @@ export function WholesaleHeroCarousel({ slides, intervalSeconds = 7 }: { slides:
   }, []);
 
   useEffect(() => {
-    if (!hasMultipleSlides || isPaused || prefersReducedMotion) return;
+    if (!autoPlay || !hasMultipleSlides || isPaused || prefersReducedMotion) return;
     const timer = window.setTimeout(() => goTo(activeIndex + 1), intervalSeconds * 1000);
     return () => window.clearTimeout(timer);
-  }, [activeIndex, goTo, hasMultipleSlides, intervalSeconds, isPaused, prefersReducedMotion]);
+  }, [activeIndex, autoPlay, goTo, hasMultipleSlides, intervalSeconds, isPaused, prefersReducedMotion]);
 
   return (
     <section
@@ -64,6 +80,10 @@ export function WholesaleHeroCarousel({ slides, intervalSeconds = 7 }: { slides:
       <div className="grid">
         {slides.map((slide, index) => {
           const isActive = index === activeIndex;
+
+          if (slide.kind === "home") {
+            return <HomeHeroSlideView key={slide.id} slide={slide.slide} index={index} total={slides.length} isActive={isActive} />;
+          }
 
           return (
             <div

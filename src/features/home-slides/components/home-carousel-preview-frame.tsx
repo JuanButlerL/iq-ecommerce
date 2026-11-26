@@ -4,14 +4,17 @@ import { useEffect, useRef, useState } from "react";
 
 import { HomeHeroCarousel, type HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
 import type { HomeCarouselPreviewMessage } from "@/features/home-slides/lib/hero-slides";
+import { WholesaleHeroCarousel, type WholesalePortadaSlide } from "@/features/wholesale/components/wholesale-hero-carousel";
 
 type HomeCarouselPreviewFrameProps = {
   footnote: string | null;
   intervalSeconds: number;
+  // Carrusel de /mayoristas: la portada va primero y los slides después.
+  wholesalePortada?: WholesalePortadaSlide | null;
 };
 
 // Runs inside the admin preview iframe: the parent sends the draft slides, this renders the real carousel.
-export function HomeCarouselPreviewFrame({ footnote, intervalSeconds }: HomeCarouselPreviewFrameProps) {
+export function HomeCarouselPreviewFrame({ footnote, intervalSeconds, wholesalePortada }: HomeCarouselPreviewFrameProps) {
   const [preview, setPreview] = useState<{ slides: HomeHeroSlide[]; initialIndex: number; version: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +47,15 @@ export function HomeCarouselPreviewFrame({ footnote, intervalSeconds }: HomeCaro
 
   return (
     <div ref={containerRef} className="bg-white text-brand-ink">
-      {preview ? (
+      {preview && wholesalePortada ? (
+        <WholesaleHeroCarousel
+          key={preview.version}
+          slides={[wholesalePortada, ...preview.slides.map((slide) => ({ kind: "home" as const, id: slide.id, slide }))]}
+          intervalSeconds={intervalSeconds}
+          initialIndex={preview.initialIndex + 1}
+          autoPlay={false}
+        />
+      ) : preview ? (
         <HomeHeroCarousel
           // Remount on every update so the carousel starts on the slide being edited.
           key={preview.version}

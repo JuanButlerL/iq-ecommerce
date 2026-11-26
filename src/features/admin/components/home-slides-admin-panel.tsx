@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp, Eye, GripVertical, ImagePlus, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import type { SalesChannel } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { HomeSlidesPreviewDialog } from "@/features/admin/components/home-slides
 import { HomeSlideButtonDesigner } from "@/features/admin/components/home-slide-button-designer";
 import { parseSlideButton, type SlideButton } from "@/features/home-slides/components/banner-slide";
 import type { HomeHeroSlide } from "@/features/home-slides/components/home-hero-carousel";
+import { slideApiQuery } from "@/features/home-slides/lib/channel";
 import { withHeroImageFraming } from "@/features/home-slides/lib/hero-slides";
 import {
   argentinaLocalInputToIso,
@@ -45,7 +47,29 @@ type HomeSlideListItem = {
 type HomeSlidesAdminPanelProps = {
   slides: HomeSlideListItem[];
   intervalSeconds: number;
+  // RETAIL = home de la tienda; WHOLESALE = slides que pasan después de la portada de /mayoristas.
+  channel?: SalesChannel;
 };
+
+// Textos que cambian entre el carrusel de la tienda y el de mayoristas; el resto del admin es idéntico.
+const PANEL_COPY = {
+  RETAIL: {
+    eyebrow: "Home carrusel",
+    title: "Slides del inicio",
+    description:
+      "Cada slide es una imagen de portada con su título, subtítulo, checks y botón. Todos se pueden editar, ordenar, pausar, programar para una fecha y hora o borrar. Si no queda ningún slide activo, la home muestra la portada original.",
+    page: "la home",
+    empty: "Todavía no hay slides. La home muestra la portada original.",
+  },
+  WHOLESALE: {
+    eyebrow: "Mayorista · carrusel",
+    title: "Carrusel de /mayoristas",
+    description:
+      "La portada mayorista (Landing > General) siempre va primera; estos slides pasan después, igual que en la home de la tienda. Se pueden editar, ordenar, pausar, programar para una fecha y hora o borrar. Sin slides activos, se ve solo la portada.",
+    page: "la página mayorista",
+    empty: "Todavía no hay slides. /mayoristas muestra solo la portada.",
+  },
+} as const;
 
 type HomeSlideFormState = {
   eyebrow: string;
@@ -144,7 +168,9 @@ function parseBadges(value: string) {
     .filter(Boolean);
 }
 
-export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdminPanelProps) {
+export function HomeSlidesAdminPanel({ slides, intervalSeconds, channel = "RETAIL" }: HomeSlidesAdminPanelProps) {
+  const copy = PANEL_COPY[channel];
+  const apiQuery = slideApiQuery(channel);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -202,15 +228,15 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
     const notice = isVisibleAt(draft, at)
       ? null
       : !draft.active
-        ? "Este slide está pausado, así que en la home real no se vería. Lo mostramos igual para que veas cómo queda."
-        : "En esa fecha este slide todavía no empezó o ya terminó, así que en la home real no se vería. Lo mostramos igual para que veas cómo queda.";
+        ? `Este slide está pausado, así que en ${copy.page} real no se vería. Lo mostramos igual para que veas cómo queda.`
+        : `En esa fecha este slide todavía no empezó o ya terminó, así que en ${copy.page} real no se vería. Lo mostramos igual para que veas cómo queda.`;
 
     return {
       slides: shown.map(toHeroSlide),
       initialIndex: shown.findIndex((slide) => slide.id === draftId),
       notice,
     };
-  }, [isPreviewOpen, previewAt, editingId, form, orderedSlides]);
+  }, [isPreviewOpen, previewAt, editingId, form, orderedSlides, copy.page]);
 
   function openPreview() {
     setPreviewAt(form.startsAt || isoToArgentinaLocalInput(new Date()));
@@ -247,7 +273,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
   }
 
   async function submitForm() {
-    const url = editingId ? `/api/admin/home-slides/${editingId}` : "/api/admin/home-slides";
+    const url = editingId ? `/api/admin/home-slides/${editingId}${apiQuery}` : `/api/admin/home-slides${apiQuery}`;
     const method = editingId ? "PATCH" : "POST";
 
     const response = await fetch(url, {
@@ -275,7 +301,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
       return;
     }
 
-    const response = await fetch(`/api/admin/home-slides/${slideId}`, {
+    const response = await fetch(`/api/admin/home-slides/${slideId}${apiQuery}`, {
       method: "DELETE",
     });
     const payload = await response.json();
@@ -297,7 +323,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
     setIsSavingOrder(true);
 
     try {
-      const response = await fetch("/api/admin/home-slides/reorder", {
+      const response = await fetch(`/api/admin/home-slides/reorder${apiQuery}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slideIds: nextSlides.map((slide) => slide.id) }),
@@ -367,12 +393,9 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">Home carrusel</p>
-        <h1 className="font-display text-3xl text-brand-ink md:text-5xl">Slides del inicio</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/70 md:text-base">
-          Cada slide es una imagen de portada con su título, subtítulo, checks y botón. Todos se pueden editar, ordenar,
-          pausar, programar para una fecha y hora o borrar. Si no queda ningún slide activo, la home muestra la portada original.
-        </p>
+        <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-brand-pink">{copy.eyebrow}</p>
+        <h1 className="font-display text-3xl text-brand-ink md:text-5xl">{copy.title}</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-brand-ink/70 md:text-base">{copy.description}</p>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -417,12 +440,14 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
               label="Imagen (escritorio)"
               hint={form.fitImage ? "El banner tal como lo pasó la agencia, sin el botón (por ejemplo 1440×810). Se muestra completo, sin recortes." : "Horizontal, idealmente 1920×1080 o más. Dejá el lado izquierdo libre: ahí va el texto."}
               url={form.imageUrl}
+              apiQuery={apiQuery}
               onChange={(imageUrl) => setForm((current) => ({ ...current, imageUrl }))}
             />
             <SlideImageField
               label="Imagen (celular, opcional)"
               hint={form.fitImage ? "Versión para celular (vertical o cuadrada). Si no la cargás, en celular se ve la de escritorio completa." : "Vertical. Si no la cargás, se usa la de escritorio recortada."}
               url={form.mobileImageUrl}
+              apiQuery={apiQuery}
               onChange={(mobileImageUrl) => setForm((current) => ({ ...current, mobileImageUrl }))}
             />
             <Field label="Texto alternativo de la imagen">
@@ -532,7 +557,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
               <div>
                 <p className="text-sm font-bold text-brand-ink">Programación (opcional)</p>
                 <p className="mt-1 text-xs text-brand-ink/55">
-                  Hora de Argentina. El slide aparece en la home desde el inicio y deja de mostrarse al llegar al fin. Dejá
+                  Hora de Argentina. El slide aparece en {copy.page} desde el inicio y deja de mostrarse al llegar al fin. Dejá
                   vacío para que no tenga límite.
                 </p>
               </div>
@@ -602,13 +627,14 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
               previewAt={previewAt}
               onPreviewAtChange={setPreviewAt}
               notice={preview.notice}
+              channel={channel}
               onClose={() => setIsPreviewOpen(false)}
             />
           ) : null}
         </Card>
 
         <Card className="space-y-4 p-5 md:p-6">
-          <IntervalSettings key={intervalSeconds} intervalSeconds={intervalSeconds} />
+          <IntervalSettings key={intervalSeconds} intervalSeconds={intervalSeconds} apiQuery={apiQuery} />
 
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-brand-ink/50">Listado actual</p>
@@ -622,7 +648,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
           <div className="space-y-3">
             {slides.length === 0 ? (
               <div className="rounded-[1.5rem] border border-dashed border-brand-ink/15 p-6 text-sm text-brand-ink/55">
-                Todavía no hay slides. La home muestra la portada original.
+                {copy.empty}
               </div>
             ) : (
               orderedSlides.map((slide, index) => {
@@ -752,7 +778,7 @@ export function HomeSlidesAdminPanel({ slides, intervalSeconds }: HomeSlidesAdmi
   );
 }
 
-function IntervalSettings({ intervalSeconds }: { intervalSeconds: number }) {
+function IntervalSettings({ intervalSeconds, apiQuery }: { intervalSeconds: number; apiQuery: string }) {
   const router = useRouter();
   const [value, setValue] = useState(String(intervalSeconds));
   const [error, setError] = useState<string | null>(null);
@@ -764,7 +790,7 @@ function IntervalSettings({ intervalSeconds }: { intervalSeconds: number }) {
     setError(null);
     setSaved(false);
 
-    const response = await fetch("/api/admin/home-slides/settings", {
+    const response = await fetch(`/api/admin/home-slides/settings${apiQuery}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ intervalSeconds: value.trim() === "" ? null : Number(value) }),
@@ -826,11 +852,13 @@ function SlideImageField({
   label,
   hint,
   url,
+  apiQuery,
   onChange,
 }: {
   label: string;
   hint: string;
   url: string;
+  apiQuery: string;
   onChange: (url: string) => void;
 }) {
   const inputId = useId();
@@ -877,7 +905,7 @@ function SlideImageField({
     try {
       const body = new FormData();
       body.append("file", file);
-      const response = await fetch("/api/admin/upload/home-slide-image", { method: "POST", body });
+      const response = await fetch(`/api/admin/upload/home-slide-image${apiQuery}`, { method: "POST", body });
       const payload = (await response.json()) as { data?: { publicUrl: string }; error?: string };
       if (!response.ok || !payload.data) throw new Error(payload.error ?? "No se pudo subir la imagen.");
       onChange(payload.data.publicUrl);

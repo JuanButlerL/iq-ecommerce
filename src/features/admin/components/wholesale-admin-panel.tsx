@@ -502,87 +502,11 @@ export function WholesaleAdminPanel({ content: initialContent, storeWhatsapp, se
       {is("general") ? (
         <AdminSection
           title="Carrusel de la portada"
-          description="Slides que pasan después de la portada, como en la home de la tienda. Cada uno lleva una foto de fondo y, si querés, texto y un botón. Sin slides, se ve solo la portada."
+          description="Los slides que pasan después de la portada se cargan en Mayorista > Carrusel, con el mismo editor que la home de la tienda (banners diseñados, botón ubicable, programación por fecha y vista previa)."
         >
-          <ListEditor
-            items={hero.slides}
-            onChange={(slides) => patch("hero", { ...hero, slides })}
-            createItem={() => ({
-              imageUrl: "",
-              mobileImageUrl: "",
-              imageAlt: "",
-              eyebrow: "",
-              title: "",
-              description: "",
-              ctaLabel: "",
-              ctaUrl: "",
-              overlay: true,
-            })}
-            addLabel="Agregar slide"
-            itemTitle={(slide, index) => slide.title || slide.imageAlt || `Slide ${index + 1}`}
-            max={8}
-            renderItem={(slide, update) => (
-              <div className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <ImageSlot label="Foto (computadora) *">
-                    <ImageField
-                      value={slide.imageUrl}
-                      onChange={(imageUrl) => update({ ...slide, imageUrl })}
-                      hint="JPG, PNG o WEBP · hasta 8 MB · ideal horizontal, 1920 × 900 px."
-                    />
-                  </ImageSlot>
-                  <ImageSlot label="Foto (celular, opcional)">
-                    <ImageField
-                      value={slide.mobileImageUrl}
-                      onChange={(mobileImageUrl) => update({ ...slide, mobileImageUrl })}
-                      hint="Vertical, 1080 × 1350 px. Vacía = usa la de computadora."
-                      removable
-                    />
-                  </ImageSlot>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <TextField label="Encabezado (texto chico rosa)" value={slide.eyebrow} onChange={(eyebrow) => update({ ...slide, eyebrow })} />
-                  <TextField label="Título" value={slide.title} onChange={(title) => update({ ...slide, title })} />
-                  <div className="md:col-span-2">
-                    <TextField label="Descripción" value={slide.description} onChange={(description) => update({ ...slide, description })} multiline />
-                  </div>
-                  <TextField label="Texto del botón" value={slide.ctaLabel} onChange={(ctaLabel) => update({ ...slide, ctaLabel })} placeholder="Ej: Ver precios →" />
-                  <TextField
-                    label="Link del botón"
-                    value={slide.ctaUrl}
-                    onChange={(ctaUrl) => update({ ...slide, ctaUrl })}
-                    placeholder="Ej: #productos o /mayoristas/registro"
-                    hint="Sin texto de botón, el link hace clickeable todo el slide."
-                  />
-                  <TextField
-                    label="Texto alternativo de la foto"
-                    value={slide.imageAlt}
-                    onChange={(imageAlt) => update({ ...slide, imageAlt })}
-                    hint="Describe la foto para buscadores y lectores de pantalla."
-                  />
-                  <Checkbox
-                    label="Velo claro sobre la foto (para que se lea el texto)"
-                    checked={slide.overlay}
-                    onChange={(event) => update({ ...slide, overlay: event.target.checked })}
-                    className="self-end pb-3"
-                  />
-                </div>
-              </div>
-            )}
-          />
-          {hero.slides.length > 0 ? (
-            <div className="max-w-xs">
-              <Field label="Segundos entre slides" hint="Entre 3 y 30.">
-                <Input
-                  type="number"
-                  min={3}
-                  max={30}
-                  value={hero.intervalSeconds}
-                  onChange={(event) => patch("hero", { ...hero, intervalSeconds: Number.parseInt(event.target.value, 10) || 7 })}
-                />
-              </Field>
-            </div>
-          ) : null}
+          <Link href="/admin/mayoristas/carrusel" className="inline-flex items-center gap-2 text-sm font-extrabold text-brand-pink hover:underline">
+            Ir a Mayorista &gt; Carrusel →
+          </Link>
         </AdminSection>
       ) : null}
 

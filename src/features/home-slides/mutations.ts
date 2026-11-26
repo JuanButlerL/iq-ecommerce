@@ -1,9 +1,10 @@
 "use server";
 
-import { Prisma } from "@prisma/client";
+import { Prisma, type SalesChannel } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { argentinaLocalInputToIso } from "@/features/newsletter/components/newsletter-admin-labels";
+import { getWholesaleContent } from "@/features/wholesale/queries";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
 import {
@@ -13,7 +14,7 @@ import {
   homeSlideReorderSchema,
 } from "@/lib/validations/home-slide";
 
-export async function saveHomeSlide(payload: unknown, slideId?: string) {
+export async function saveHomeSlide(payload: unknown, slideId?: string, channel: SalesChannel = "RETAIL") {
   const parsed = homeSlideFormSchema.safeParse(payload);
 
   if (!parsed.success) {
@@ -42,7 +43,7 @@ export async function saveHomeSlide(payload: unknown, slideId?: string) {
 
   if (slideId) {
     const { count } = await prisma.homeSlide.updateMany({
-      where: { id: assertHomeSlideId(slideId) },
+      where: { id: assertHomeSlideId(slideId), channel },
       data,
     });
 
@@ -51,29 +52,29 @@ export async function saveHomeSlide(payload: unknown, slideId?: string) {
     }
   } else {
     // New slides go to the end; the order is changed by dragging in the admin.
-    const last = await prisma.homeSlide.aggregate({ _max: { sortOrder: true } });
+    const last = await prisma.homeSlide.aggregate({ where: { channel }, _max: { sortOrder: true } });
 
     await prisma.homeSlide.create({
-      data: { ...data, sortOrder: (last._max.sortOrder ?? 0) + 1 },
+      data: { ...data, channel, sortOrder: (last._max.sortOrder ?? 0) + 1 },
     });
   }
 
-  revalidateHomeSlideViews();
+  revalidateHomeSlideViews(channel);
 }
 
-export async function deleteHomeSlide(slideId: string) {
+export async function deleteHomeSlide(slideId: string, channel: SalesChannel = "RETAIL") {
   const { count } = await prisma.homeSlide.deleteMany({
-    where: { id: assertHomeSlideId(slideId) },
+    where: { id: assertHomeSlideId(slideId), channel },
   });
 
   if (count === 0) {
     throw new AppError("El slide no existe o ya fue eliminado.", 404, true);
   }
 
-  revalidateHomeSlideViews();
+  revalidateHomeSlideViews(channel);
 }
 
-export async function reorderHomeSlides(payload: unknown) {
+export async function reorderHomeSlides(payload: unknown, channel: SalesChannel = "RETAIL") {
   const parsed = homeSlideReorderSchema.safeParse(payload);
 
   if (!parsed.success) {
@@ -86,8 +87,8 @@ export async function reorderHomeSlides(payload: unknown) {
     throw new AppError("Orden inválido.", 400, true);
   }
 
-  const existingCount = await prisma.homeSlide.count({ where: { id: { in: slideIds } } });
-  const totalCount = await prisma.homeSlide.count();
+  const existingCount = await prisma.homeSlide.count({ where: { id: { in: slideIds }, channel } });
+  const totalCount = await prisma.homeSlide.count({ where: { channel } });
 
   if (existingCount !== slideIds.length || totalCount !== slideIds.length) {
     throw new AppError("La lista de slides cambió. Recargá la página y volvé a ordenar.", 409, true);
@@ -102,14 +103,29 @@ export async function reorderHomeSlides(payload: unknown) {
     ),
   );
 
-  revalidateHomeSlideViews();
+  revalidateHomeSlideViews(channel);
 }
 
-export async function saveHomeCarouselSettings(payload: unknown) {
+export async function saveHomeCarouselSettings(payload: unknown, channel: SalesChannel = "RETAIL") {
   const parsed = homeCarouselSettingsSchema.safeParse(payload);
 
   if (!parsed.success) {
     throw new AppError(parsed.error.issues[0]?.message ?? "Duración inválida.", 400, true);
+  }
+
+  if (channel === "WHOLESALE") {
+    // La duración del carrusel mayorista vive en el contenido de la landing (hero.intervalSeconds), como antes.
+    const current = await getWholesaleContent();
+    const content = { ...current, hero: { ...current.hero, intervalSeconds: parsed.data.intervalSeconds } };
+
+    await prisma.wholesalePage.upsert({
+      where: { id: "default" },
+      create: { id: "default", content },
+      update: { content },
+    });
+
+    revalidateHomeSlideViews(channel);
+    return;
   }
 
   const { count } = await prisma.storeSettings.updateMany({
@@ -121,7 +137,7 @@ export async function saveHomeCarouselSettings(payload: unknown) {
     throw new AppError("Primero guardá la configuración general de la tienda.", 409, true);
   }
 
-  revalidateHomeSlideViews();
+  revalidateHomeSlideViews(channel);
 }
 
 function parseArgentinaDateTime(value: string | undefined) {
@@ -137,7 +153,13 @@ function assertHomeSlideId(slideId: string) {
   return slideId;
 }
 
-function revalidateHomeSlideViews() {
+function revalidateHomeSlideViews(channel: SalesChannel) {
+  if (channel === "WHOLESALE") {
+    revalidatePath("/mayoristas");
+    revalidatePath("/admin/mayoristas", "layout");
+    return;
+  }
+
   revalidatePath("/");
   revalidatePath("/admin/home-carrusel");
 }

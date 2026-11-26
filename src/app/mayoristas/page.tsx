@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { AnnouncementMarquee } from "@/components/layout/announcement-marquee";
 import { hasWholesaleAccess } from "@/features/wholesale/access";
 import { WholesaleContact } from "@/features/wholesale/components/wholesale-contact";
+import { withHeroImageFraming } from "@/features/home-slides/lib/hero-slides";
+import { getActiveHomeSlides } from "@/features/home-slides/queries";
 import { WholesaleHeroCarousel, type WholesaleHeroCarouselSlide } from "@/features/wholesale/components/wholesale-hero-carousel";
+import { buildWholesalePortadaSlide } from "@/features/wholesale/components/wholesale-portada";
 import { WholesaleOrderBar, WholesaleProductGrid } from "@/features/wholesale/components/wholesale-product-grid";
 import { buildWholesaleProductTheme } from "@/features/wholesale/product-theme";
 import { WholesalePasswordGate } from "@/features/wholesale/components/wholesale-password-gate";
@@ -29,11 +31,6 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: content.enabled && !content.accessPasswordHash ? undefined : { index: false, follow: false },
   };
 }
-
-const primaryCta =
-  "inline-flex items-center justify-center rounded-full bg-brand-pink px-7 py-4 text-base font-extrabold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-[#ea737d]";
-const secondaryCta =
-  "inline-flex items-center justify-center rounded-full bg-white px-7 py-4 text-base font-extrabold text-brand-ink ring-2 ring-brand-ink/10 transition hover:ring-brand-ink/30";
 
 // Fondos como la home minorista: cada sección se distingue de la anterior. Se calculan sobre las secciones
 // que realmente se muestran, así apagar una desde el admin no deja dos fondos iguales pegados.
@@ -79,11 +76,12 @@ function Section({ id, tone, wide = false, children }: { id?: string; tone: Sect
 }
 
 export default async function WholesalePage({ searchParams }: { searchParams: Promise<{ bienvenida?: string }> }) {
-  const [content, settings, wholesaleProducts, wholesaleSettings] = await Promise.all([
+  const [content, settings, wholesaleProducts, wholesaleSettings, homeSlides] = await Promise.all([
     getWholesaleContent(),
     getStoreSettings(),
     getPublicWholesaleProducts(),
     getWholesaleSettings(),
+    getActiveHomeSlides("WHOLESALE"),
   ]);
 
   if (!content.enabled) {
@@ -137,88 +135,11 @@ export default async function WholesalePage({ searchParams }: { searchParams: Pr
     theme: buildWholesaleProductTheme(product.product),
   }));
 
-  const heroSlidePadding = cn("px-4 pb-14 pt-14 text-center md:px-6 md:pb-20 md:pt-20", hero.slides.length > 0 && "pb-20 md:pb-24");
-  // La portada de siempre es el primer slide (con foto de fondo opcional); después van los del carrusel.
+  // La portada de siempre es el primer slide; después van los del carrusel (Mayorista > Carrusel), iguales a los de la home.
+  const carouselSlides = homeSlides.map(withHeroImageFraming);
   const heroSlides: WholesaleHeroCarouselSlide[] = [
-    {
-      id: "portada",
-      background: hero.backgroundImageUrl
-        ? { imageUrl: hero.backgroundImageUrl, mobileImageUrl: hero.backgroundMobileImageUrl, alt: "", overlay: true }
-        : null,
-      content: (
-        <div className={heroSlidePadding}>
-          <div className="relative mx-auto max-w-[820px]">
-            {hero.eyebrow ? <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">{hero.eyebrow}</p> : null}
-            <h1 className="mt-5 whitespace-pre-line text-balance font-display text-[2.6rem] leading-[1.02] text-brand-ink md:text-[4.2rem]">
-              {hero.title}
-              {hero.titleAccent ? <span className="mt-3 block text-[0.55em] leading-[1.15] text-brand-pink">{hero.titleAccent}</span> : null}
-            </h1>
-            {hero.description ? (
-              <p className="mx-auto mt-6 max-w-[620px] whitespace-pre-line text-base leading-7 text-brand-ink/70 md:text-lg md:leading-8">{hero.description}</p>
-            ) : null}
-            {hero.chips.length > 0 ? (
-              <div className="mt-7 flex flex-wrap justify-center gap-2">
-                {hero.chips.map((chip, index) => (
-                  <span
-                    key={`${chip.label}-${index}`}
-                    className={cn(
-                      "rounded-full px-4 py-1.5 text-sm font-bold",
-                      chip.accent ? "bg-brand-pink text-white" : "bg-white text-brand-ink ring-1 ring-brand-ink/10",
-                    )}
-                  >
-                    {chip.label}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link href="/mayoristas/registro" className={primaryCta}>
-                {hero.primaryCta}
-              </Link>
-              {showProducts ? (
-                <a href="#productos" className={secondaryCta}>
-                  {hero.secondaryCta}
-                </a>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    ...hero.slides.map((slide, index) => {
-      const hasText = Boolean(slide.eyebrow || slide.title || slide.description || slide.ctaLabel);
-      const hasButton = Boolean(slide.ctaLabel && slide.ctaUrl);
-
-      return {
-        id: `slide-${index}`,
-        background: { imageUrl: slide.imageUrl, mobileImageUrl: slide.mobileImageUrl, alt: slide.imageAlt, overlay: hasText && slide.overlay },
-        // Sin texto de botón, el link (si hay) hace clickeable todo el slide.
-        href: !slide.ctaLabel && slide.ctaUrl ? slide.ctaUrl : null,
-        label: slide.imageAlt || slide.title,
-        content: hasText ? (
-          <div className={heroSlidePadding}>
-            <div className="relative mx-auto max-w-[820px]">
-              {slide.eyebrow ? <p className="text-sm font-extrabold uppercase tracking-[0.28em] text-brand-pink">{slide.eyebrow}</p> : null}
-              {slide.title ? (
-                <h2 className="mt-5 whitespace-pre-line text-balance font-display text-[2.6rem] leading-[1.02] text-brand-ink md:text-[4.2rem]">{slide.title}</h2>
-              ) : null}
-              {slide.description ? (
-                <p className="mx-auto mt-6 max-w-[620px] whitespace-pre-line text-base leading-7 text-brand-ink/70 md:text-lg md:leading-8">{slide.description}</p>
-              ) : null}
-              {hasButton ? (
-                <div className="mt-8 flex flex-wrap justify-center gap-3">
-                  <a href={slide.ctaUrl} className={primaryCta}>
-                    {slide.ctaLabel}
-                  </a>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ) : (
-          <div aria-hidden="true" className="min-h-[420px] md:min-h-[520px]" />
-        ),
-      };
-    }),
+    buildWholesalePortadaSlide({ hero, showProducts, hasMoreSlides: carouselSlides.length > 0 }),
+    ...carouselSlides.map((slide) => ({ kind: "home" as const, id: slide.id, slide })),
   ];
 
   return (

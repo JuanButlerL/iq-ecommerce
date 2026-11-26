@@ -1,13 +1,16 @@
+import type { SalesChannel } from "@prisma/client";
 import { cache } from "react";
 
 import { prisma } from "@/lib/db/prisma";
 
 // The home renders per request, so scheduled slides appear/disappear on their own.
-export const getActiveHomeSlides = cache(async () => {
+// RETAIL = home de la tienda; WHOLESALE = slides que pasan después de la portada de /mayoristas.
+export const getActiveHomeSlides = cache(async (channel: SalesChannel = "RETAIL") => {
   const now = new Date();
 
   return prisma.homeSlide.findMany({
     where: {
+      channel,
       active: true,
       AND: [
         { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
@@ -18,8 +21,9 @@ export const getActiveHomeSlides = cache(async () => {
   });
 });
 
-export async function getAdminHomeSlides() {
+export async function getAdminHomeSlides(channel: SalesChannel = "RETAIL") {
   return prisma.homeSlide.findMany({
+    where: { channel },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 }

@@ -26,6 +26,7 @@ const navigation = [
   { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/envios", label: "Envios", icon: <Truck className="h-4 w-4" /> },
   { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/condiciones", label: "Condiciones", icon: <Receipt className="h-4 w-4" /> },
   { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/landing", label: "Landing", icon: <Store className="h-4 w-4" />, matchPrefix: true },
+  { group: "Mayorista", section: "wholesale", href: "/admin/mayoristas/carrusel", label: "Carrusel", icon: <GalleryHorizontalEnd className="h-4 w-4" /> },
   { group: "Marketing", section: "marketing", href: "/admin/marketing", label: "Marketing", icon: <BarChart3 className="h-4 w-4" />, prefetch: false },
   { group: "Marketing", section: "emails", href: "/admin/emails", label: "Emails", icon: <Mail className="h-4 w-4" />, prefetch: false },
   { group: "Marketing", section: "newsletter", href: "/admin/newsletter", label: "Newsletter", icon: <Newspaper className="h-4 w-4" />, prefetch: false },
