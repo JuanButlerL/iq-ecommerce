@@ -1,4 +1,4 @@
-import { addBusinessDays, formatDispatchDate, type DateKey, type HolidayCalendar } from "@/features/logistics/business-days";
+import { addBusinessDays, addDays, formatDispatchDate, toArgentinaDateKey, type DateKey, type HolidayCalendar } from "@/features/logistics/business-days";
 
 export type TransitDays = {
   transitDaysAmbaMin: number;
@@ -36,12 +36,16 @@ export function carrierTransitDays(province: string, days: TransitDays): [number
 }
 
 // "el viernes 27/11" o "entre el lunes 30/11 y el miércoles 02/12": días hábiles desde el despacho.
-export function arrivalRange(dispatchDate: DateKey, min: number, max: number, calendar: HolidayCalendar) {
+export function arrivalRange(dispatchDate: DateKey, min: number, max: number, calendar: HolidayCalendar, now: Date = new Date()) {
   const from = addBusinessDays(dispatchDate, Math.max(0, min), calendar);
   const to = addBusinessDays(dispatchDate, Math.max(0, max), calendar);
+  // "hoy, jueves 26/11" / "mañana, viernes 27/11" cuando corresponde (reparto en el día).
+  const today = toArgentinaDateKey(now);
+  const day = (key: DateKey) =>
+    key === today ? `hoy, ${formatDispatchDate(key)}` : key === addDays(today, 1) ? `mañana, ${formatDispatchDate(key)}` : `el ${formatDispatchDate(key)}`;
   return {
     from,
     to,
-    label: from === to ? `el ${formatDispatchDate(from)}` : `entre el ${formatDispatchDate(from)} y el ${formatDispatchDate(to)}`,
+    label: from === to ? day(from) : `entre ${day(from)} y ${day(to)}`,
   };
 }
