@@ -376,7 +376,19 @@ export async function notifyCustomer(shipmentId: string) {
     destination: shipmentDestinationLabel(order),
     orderUrl,
   });
-  await sendEmail({ fromEmail: env.EMAIL_FROM_DEFAULT, senderName: "IQ Kids", to: order.customerEmail, subject: email.subject, html: email.html, text: email.text });
+  // Misma copia oculta que el mail "Pedido recibido" (la que se configura en Admin > Emails), para que el equipo lo vea.
+  const copy = await prisma.emailAutomation
+    .findFirst({ where: { trigger: "POST_PURCHASE", active: true, delayHours: 0, bccEmail: { not: null } }, select: { bccEmail: true } })
+    .catch(() => null);
+  await sendEmail({
+    fromEmail: env.EMAIL_FROM_DEFAULT,
+    senderName: "IQ Kids",
+    to: order.customerEmail,
+    bccEmail: copy?.bccEmail?.trim() || null,
+    subject: email.subject,
+    html: email.html,
+    text: email.text,
+  });
   await prisma.shipment.update({ where: { id: shipment.id }, data: { customerNotifiedAt: new Date() } });
   await logEvent(prisma, shipment.id, "customer_notified", `Mail de envío mandado a ${order.customerEmail}.`, "sistema");
   return true;
