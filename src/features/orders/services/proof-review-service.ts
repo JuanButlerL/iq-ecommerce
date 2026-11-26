@@ -12,11 +12,13 @@ import { createPaymentProofSignedUrl } from "@/lib/storage/payment-proofs";
 // Revisión de comprobantes: el equipo aprueba o rechaza desde el admin. Recién al aprobar el pedido
 // queda pago, se genera la etiqueta y viaja a la app de operaciones.
 
+const PROOF_REVIEW_SINCE = new Date("2026-11-26T01:30:00Z");
+
 export async function listProofsToReview() {
   const orders = await prisma.order.findMany({
-    // Los más nuevos primero y solo de los últimos 30 días: antes del pase nadie marcaba como pagados los
+    // Solo pedidos desde el pase a producción (25/11/2026 22:30 hora AR): antes nadie marcaba como pagados los
     // pedidos con comprobante, así que hay cientos viejos en ese estado que ya se entregaron.
-    where: { orderStatus: OrderStatus.PROOF_UPLOADED, createdAt: { gte: new Date(Date.now() - 30 * 24 * 3_600_000) } },
+    where: { orderStatus: OrderStatus.PROOF_UPLOADED, createdAt: { gte: PROOF_REVIEW_SINCE } },
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
