@@ -357,6 +357,16 @@ export async function arrivalLabelFor(
   return arrivalRange(dbDateToKey(dispatchDate), min, max, calendar).label;
 }
 
+// Copia extra temporal (por ejemplo, alguien que quiere ver los mails unos días): variables
+// SHIPPING_EMAIL_EXTRA_BCC y SHIPPING_EMAIL_EXTRA_BCC_UNTIL (AAAA-MM-DD, inclusive) en el servidor.
+function temporaryShippingCopy() {
+  const address = process.env.SHIPPING_EMAIL_EXTRA_BCC?.trim();
+  const until = process.env.SHIPPING_EMAIL_EXTRA_BCC_UNTIL?.trim();
+  if (!address || !/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(address)) return null;
+  if (until && /^\d{4}-\d{2}-\d{2}$/.test(until) && new Date().toISOString().slice(0, 10) > until) return null;
+  return address;
+}
+
 export async function notifyCustomer(shipmentId: string) {
   const shipment = await prisma.shipment.findUniqueOrThrow({ where: { id: shipmentId }, include: { order: true } });
   if (shipment.status !== "CREATED" || shipment.customerNotifiedAt || !env.canSendEmail) return false;
@@ -384,7 +394,7 @@ export async function notifyCustomer(shipmentId: string) {
     fromEmail: env.EMAIL_FROM_DEFAULT,
     senderName: "IQ Kids",
     to: order.customerEmail,
-    bccEmail: copy?.bccEmail?.trim() || null,
+    bccEmail: [copy?.bccEmail?.trim(), temporaryShippingCopy()].filter(Boolean).join(", ") || null,
     subject: email.subject,
     html: email.html,
     text: email.text,

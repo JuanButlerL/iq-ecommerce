@@ -73,7 +73,16 @@ export function buildGraphMessage(input: GraphEmailInput, senderEmail: string) {
       body: { contentType: "HTML", content: input.html },
       from: { emailAddress: { address: senderEmail, name: input.senderName } },
       toRecipients: [{ emailAddress: { address: input.to } }],
-      ...(bcc ? { bccRecipients: [{ emailAddress: { address: bcc } }] } : {}),
+      // Varias copias separadas por coma.
+      ...(bcc
+        ? {
+            bccRecipients: bcc
+              .split(",")
+              .map((address) => address.trim())
+              .filter(Boolean)
+              .map((address) => ({ emailAddress: { address } })),
+          }
+        : {}),
       ...(replyTo ? { replyTo: [{ emailAddress: { address: replyTo } }] } : {}),
       ...(internetMessageHeaders.length > 0 ? { internetMessageHeaders } : {}),
     },

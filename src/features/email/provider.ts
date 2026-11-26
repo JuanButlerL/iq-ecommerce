@@ -74,7 +74,7 @@ async function sendResendEmail(input: SendEmailInput) {
       html: input.html,
       text: input.text,
       reply_to: input.replyToEmail || env.EMAIL_REPLY_TO_DEFAULT || undefined,
-      bcc: input.bccEmail ? [input.bccEmail] : undefined,
+      bcc: input.bccEmail ? input.bccEmail.split(",").map((address) => address.trim()).filter(Boolean) : undefined,
       headers: input.headers,
     }),
   });
