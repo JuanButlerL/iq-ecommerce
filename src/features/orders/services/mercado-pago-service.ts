@@ -17,6 +17,7 @@ import {
 import { getMercadoPagoStatusLabel, mapMercadoPagoStatusToInternal } from "@/lib/integrations/mercadopago/status";
 import { sendMetaConversionsApiEvent } from "@/lib/integrations/meta-conversions-api";
 import { sendWholesaleMetaPurchase } from "@/features/wholesale/meta-purchase";
+import { sendWholesaleCustomerConfirmation } from "@/features/wholesale/confirmation-email";
 import { sendGoogleAnalyticsPurchaseForOrder } from "@/lib/integrations/google-analytics/server";
 import { buildMetaPurchaseEventId } from "@/lib/meta-event-id";
 import { buildMetaPurchaseData } from "@/lib/meta-commerce";
@@ -415,6 +416,7 @@ async function upsertMercadoPagoPayment(
 
   // Los pedidos mayoristas mandan su propio evento de compra a Meta.
   if (transitionApplied && nextPaymentStatus === "PAID" && order.paymentStatus !== "PAID" && order.channel === "WHOLESALE") {
+    await sendWholesaleCustomerConfirmation(order.id);
     await sendWholesaleMetaPurchase(order);
   }
 

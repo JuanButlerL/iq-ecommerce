@@ -96,10 +96,11 @@ function button(href: string, label: string) {
   return `<a href="${escapeHtml(href)}" style="display:inline-block;background:#F48991;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:999px">${escapeHtml(label)}</a>`;
 }
 
+// El mail sale cuando el pago está confirmado o el comprobante subido (o al crear el pedido con pago diferido).
 const PAYMENT_NEXT_STEP: Record<WholesalePaymentMethod, string> = {
-  MERCADO_PAGO: "Si todavía no terminaste el pago en Mercado Pago, lo podés retomar desde el link de abajo.",
-  BANK_TRANSFER: "Hacé la transferencia por el total y subí el comprobante desde el link de abajo. Despachamos cuando se acredita.",
-  ECHEQ: "Emití el eCheq por el total y subí el comprobante desde el link de abajo. Despachamos cuando lo recibimos.",
+  MERCADO_PAGO: "Tu pago con Mercado Pago está aprobado. Ya estamos preparando tu pedido.",
+  BANK_TRANSFER: "Recibimos tu comprobante de transferencia. Despachamos cuando se acredita.",
+  ECHEQ: "Recibimos tu comprobante de eCheq. Despachamos cuando lo recibimos.",
   DEFERRED: "Lo pagás después de recibirlo, según las condiciones acordadas. Te escribimos para coordinar la entrega.",
 };
 

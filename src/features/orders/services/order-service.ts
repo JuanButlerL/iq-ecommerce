@@ -25,6 +25,7 @@ import { resolveCheckoutShipping } from "@/features/logistics/checkout";
 import { dateKeyToDbDate } from "@/features/logistics/business-days";
 import { cancelShipmentForOrder, createShipmentForOrder, releaseShipment } from "@/features/logistics/shipments";
 import { getShippingSettings } from "@/features/logistics/settings";
+import { sendWholesaleCustomerConfirmation } from "@/features/wholesale/confirmation-email";
 import { calculateCheckoutPricing } from "@/features/checkout/lib/pricing";
 import { prisma } from "@/lib/db/prisma";
 import { AppError } from "@/lib/errors/app-error";
@@ -610,6 +611,7 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
 
   // Recuperación de carrito, GA y las compras de Meta miden la tienda. Los pedidos mayoristas mandan su propio evento.
   if (isWholesale) {
+    await sendWholesaleCustomerConfirmation(order.id);
     await sendWholesaleMetaPurchase(order, requestContext);
     return {
       orderNumber: order.publicOrderNumber,

@@ -10,8 +10,9 @@ import { ensureMercadoPagoPreference } from "@/features/orders/services/mercado-
 import { syncOrder } from "@/features/orders/services/sync-service";
 import { getTrustedWholesaleCustomerIds, trustWholesaleCustomer } from "@/features/wholesale/device";
 import { sendWholesaleMetaPurchase } from "@/features/wholesale/meta-purchase";
+import { sendWholesaleCustomerConfirmation } from "@/features/wholesale/confirmation-email";
 import { buildOrderItemName, countComponentDisplays, resolveCustomSelection, type WholesaleComponent } from "@/features/wholesale/bundles";
-import { buildWholesaleOrderAdminEmail, buildWholesaleOrderCustomerEmail, type WholesaleOrderEmailData } from "@/features/wholesale/order-email";
+import { buildWholesaleOrderAdminEmail, type WholesaleOrderEmailData } from "@/features/wholesale/order-email";
 import {
   WHOLESALE_PAYMENT_METHOD_LABELS,
   buildWholesaleShippingSettings,
@@ -387,6 +388,7 @@ export async function createWholesaleOrder(payload: unknown) {
 
   // El pago diferido no pasa por comprobante ni por Mercado Pago: la compra queda hecha al crear el pedido.
   if (input.paymentMethod === "DEFERRED") {
+    await sendWholesaleCustomerConfirmation(created.id);
     const order = await prisma.order.findUnique({ where: { id: created.id }, include: { items: true } });
     if (order) await sendWholesaleMetaPurchase(order);
   }
@@ -455,6 +457,8 @@ async function buildResponse(order: CreatedWholesaleOrder) {
 }
 
 // Los avisos nunca hacen fallar el pedido: si un email no sale, queda en el log.
+// Al crear el pedido sale el aviso interno. El mail al cliente sale recién con el pago confirmado o el
+// comprobante subido (sendWholesaleCustomerConfirmation); con pago diferido, en el momento.
 async function notifyWholesaleOrder({
   orderNumber,
   orderId,
@@ -466,16 +470,16 @@ async function notifyWholesaleOrder({
   settings: WholesaleSettingsData;
   data: WholesaleOrderEmailData;
 }) {
+  await prisma.order
+    .update({ where: { id: orderId }, data: { wholesaleEmailPayload: { ...data, createdAt: data.createdAt.toISOString() } } })
+    .catch((error) => console.error("No se pudo guardar el mail mayorista", { orderNumber, error }));
+
   if (!env.canSendEmail) {
     return;
   }
 
-  const customerEmail = buildWholesaleOrderCustomerEmail(data, { orderUrl: `${env.NEXT_PUBLIC_SITE_URL}/mayoristas/pedido/${orderNumber}` });
   const adminEmail = buildWholesaleOrderAdminEmail(data, { adminUrl: `${env.NEXT_PUBLIC_SITE_URL}/admin/pedidos/${orderId}` });
-  const sends = [
-    { to: data.email, replyTo: settings.orderNotificationEmails[0] ?? null, ...customerEmail },
-    ...settings.orderNotificationEmails.map((to) => ({ to, replyTo: data.email, ...adminEmail })),
-  ];
+  const sends = settings.orderNotificationEmails.map((to) => ({ to, replyTo: data.email, ...adminEmail }));
 
   for (const message of sends) {
     try {

@@ -1009,6 +1009,9 @@ model Order {
   extraDiscountPercentage         Decimal?               @map("extra_discount_percentage") @db.Decimal(5, 2)
   extraDiscountArs                Int                    @default(0) @map("extra_discount_ars")
   deliveryAddressChanged          Boolean                @default(false) @map("delivery_address_changed")
+  // Mayoristas: datos del mail de confirmación, que sale recién con el pago o el comprobante.
+  wholesaleEmailPayload       Json?     @map("wholesale_email_payload")
+  customerConfirmationSentAt  DateTime? @map("customer_confirmation_sent_at")
   wholesaleCustomer               WholesaleCustomer?     @relation(fields: [wholesaleCustomerId], references: [id], onDelete: SetNull)
   referralCredit                  ReferralCredit?
   referralCreditUses              ReferralCreditUse[]
