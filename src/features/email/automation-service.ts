@@ -686,7 +686,11 @@ async function getCandidatesForAutomation(
   if (!cutoff) return [];
   const orders = await prisma.order.findMany({
     take: limit,
-    where: postPurchaseWhere(automation.id, cutoff, readyAt),
+    where:
+      automation.delayHours <= 0
+        ? // Con la logística de la web, el mail de envío (seguimiento, fecha y resumen) es la confirmación: un solo mail.
+          { AND: [postPurchaseWhere(automation.id, cutoff, readyAt), { shipment: null }] }
+        : postPurchaseWhere(automation.id, cutoff, readyAt),
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   return orders.map((order) => buildOrderCandidate(order));

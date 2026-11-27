@@ -12,7 +12,23 @@ export type ShippingEmailData = {
   deliveryWindowLabel: string | null;
   destination: string;
   orderUrl: string;
+  // Resumen del pedido: así este mail es la confirmación completa.
+  summary?: { items: { name: string; quantity: number; totalArs: number }[]; shippingArs: number; totalArs: number } | null;
 };
+
+function ars(value: number) {
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(value);
+}
+
+function summaryTable(summary: NonNullable<ShippingEmailData["summary"]>) {
+  const lines = summary.items
+    .map((item) => `<tr><td style="padding:4px 0;font-size:14px;color:#2c2241">${escapeHtml(item.name)} × ${item.quantity}</td><td style="padding:4px 0;font-size:14px;text-align:right;white-space:nowrap">${ars(item.totalArs)}</td></tr>`)
+    .join("");
+  return `<table style="width:100%;border-collapse:collapse;margin:0 0 16px">${lines}
+    <tr><td style="padding:4px 0;font-size:14px;color:#6b6478">Envío</td><td style="padding:4px 0;font-size:14px;text-align:right">${summary.shippingArs > 0 ? ars(summary.shippingArs) : "Gratis"}</td></tr>
+    <tr><td style="padding:8px 0 0;font-size:16px;font-weight:700;border-top:1px solid #eee">Total</td><td style="padding:8px 0 0;font-size:16px;font-weight:700;text-align:right;border-top:1px solid #eee">${ars(summary.totalArs)}</td></tr>
+  </table>`;
+}
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -67,6 +83,7 @@ export function buildShipmentConfirmedEmail(data: ShippingEmailData) {
     "Pedido confirmado",
     `¡Gracias, ${data.firstName}! Ya preparamos tu pedido`,
     `<p style="margin:0 0 16px;font-size:15px;line-height:1.5">${escapeHtml(intro)}</p>
+     ${data.summary ? summaryTable(data.summary) : ""}
      <table style="width:100%;border-collapse:collapse">${rows}</table>
      <p style="margin:24px 0 0">${
        data.trackingUrl
@@ -80,6 +97,9 @@ export function buildShipmentConfirmedEmail(data: ShippingEmailData) {
   const text = [
     `¡Gracias, ${data.firstName}! Tu pedido ${data.orderNumber} está confirmado.`,
     intro,
+    ...(data.summary
+      ? [...data.summary.items.map((item) => `${item.name} × ${item.quantity}: ${ars(item.totalArs)}`), `Total: ${ars(data.summary.totalArs)}`]
+      : []),
     `Envío: ${data.carrierLabel}`,
     data.trackingNumber ? `${data.isOwnDelivery ? "Número de pedido" : "Número de seguimiento"}: ${data.trackingNumber}` : null,
     data.trackingUrl ? `Seguimiento: ${data.trackingUrl}` : null,

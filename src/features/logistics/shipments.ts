@@ -368,7 +368,7 @@ function temporaryShippingCopy() {
 }
 
 export async function notifyCustomer(shipmentId: string) {
-  const shipment = await prisma.shipment.findUniqueOrThrow({ where: { id: shipmentId }, include: { order: true } });
+  const shipment = await prisma.shipment.findUniqueOrThrow({ where: { id: shipmentId }, include: { order: { include: { items: true } } } });
   if (shipment.status !== "CREATED" || shipment.customerNotifiedAt || !env.canSendEmail) return false;
   const order = shipment.order;
   const siteUrl = env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
@@ -385,6 +385,11 @@ export async function notifyCustomer(shipmentId: string) {
     deliveryWindowLabel: await arrivalLabelFor(shipment.carrier, order, shipment.dispatchDate),
     destination: shipmentDestinationLabel(order),
     orderUrl,
+    summary: {
+      items: order.items.map((item) => ({ name: item.productNameSnapshot, quantity: item.quantity, totalArs: item.lineTotalArs })),
+      shippingArs: order.shippingArs,
+      totalArs: order.totalArs,
+    },
   });
   // Copia oculta: la lista de Admin > Logística (y una copia temporal opcional del servidor).
   const copySettings = await getShippingSettings().catch(() => null);

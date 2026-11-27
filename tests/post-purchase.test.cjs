@@ -54,7 +54,7 @@ function matches(row, where) {
   });
 }
 function order(id, extra = {}) {
-  return { id, channel: 'RETAIL', createdAt: after, paidAt: after, paymentProofs: [], paymentStatus: 'PAID', orderStatus: 'PAID', customerEmail: `${id}@example.invalid`, customerFirstName: 'Test', publicOrderNumber: id, totalArs: 100, ...extra };
+  return { id, channel: 'RETAIL', createdAt: after, paidAt: after, paymentProofs: [], paymentStatus: 'PAID', orderStatus: 'PAID', customerEmail: `${id}@example.invalid`, customerFirstName: 'Test', publicOrderNumber: id, totalArs: 100, shipment: null, ...extra };
 }
 function harness(orders, options = {}) {
   const logs = [...(options.logs || [])];
@@ -146,6 +146,11 @@ test('historical, cancelled, unpaid, wholesale and not-yet-due orders never send
   ]);
   assert.equal((await h.run())[0].sent, 1);
   assert.equal(h.calls[0].to, 'new-proof@example.invalid');
+});
+test('orders whose shipping email confirms them skip the immediate mail (one email only)', async () => {
+  const h = harness([order('with-shipment', { shipment: { id: 's1' } }), order('no-shipment')]);
+  assert.equal((await h.run())[0].sent, 1);
+  assert.equal(h.calls[0].to, 'no-shipment@example.invalid');
 });
 test('later activation and configured delay remain enforced', async () => {
   const h = harness([order('before-reactivation')], { automation: { activatedAt: new Date('2026-09-22T14:00:00Z') } });
