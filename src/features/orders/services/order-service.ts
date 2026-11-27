@@ -598,9 +598,9 @@ export async function attachPaymentProof(orderNumber: string, file: File, detail
     return null;
   });
 
-  // Sin aprobación de comprobantes (opción en Admin > Logística), la etiqueta sale apenas suben el comprobante.
-  // Los mayoristas siguen saliendo cuando se aprueban para preparar.
-  if (!isWholesale) {
+  // Sin aprobación de comprobantes (opción en Admin > Logística), la etiqueta sale apenas suben el comprobante,
+  // en la tienda y en mayoristas.
+  {
     const shippingSettings = await getShippingSettings().catch(() => null);
     if (shippingSettings && !shippingSettings.requireProofApproval) {
       await releaseShipment(order.id, "customer").catch((error) => {
@@ -729,7 +729,11 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, no
   });
 
   // Pago confirmado (o pedido mayorista aprobado para preparar): se genera la etiqueta.
-  if (status === OrderStatus.PAID || status === OrderStatus.PREPARING) {
+  // Pagado o en preparación: sale la etiqueta. Comprobante subido (también si lo marcan a mano): sale la etiqueta
+  // salvo que en Admin > Logística pidan aprobar los comprobantes antes.
+  const releaseOnProof =
+    status === OrderStatus.PROOF_UPLOADED && !((await getShippingSettings().catch(() => null))?.requireProofApproval ?? true);
+  if (status === OrderStatus.PAID || status === OrderStatus.PREPARING || releaseOnProof) {
     await releaseShipment(orderId, changedBy).catch((error) => {
       console.error("[logistica] no se pudo liberar el envío", { orderId, error });
     });
