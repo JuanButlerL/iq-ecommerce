@@ -129,16 +129,10 @@ export async function createWholesaleOrder(payload: unknown) {
   }
 
   const { customer, isNewCustomer, createData } = await resolveCustomer(input);
-  const deliveryAddressChanged = !isNewCustomer && !isSameDeliveryAddress(customer, input.delivery);
+  const isBranchSelection = input.shipping?.deliveryType === "BRANCH";
+  // Retirar en una sucursal no es "otra dirección" del cliente.
+  const deliveryAddressChanged = !isNewCustomer && !isBranchSelection && !isSameDeliveryAddress(customer, input.delivery);
 
-  if (input.paymentMethod === "DEFERRED") {
-    if (!customer.allowDeferredPayment) {
-      throw new AppError("El pago posterior a la entrega no está habilitado para tu cuenta. Elegí otro medio de pago.", 400, true);
-    }
-    if (deliveryAddressChanged) {
-      throw new AppError("El pago posterior a la entrega solo está disponible para tu dirección habitual. Elegí otro medio de pago o usá esa dirección.", 400, true);
-    }
-  }
 
   const subtotalArs = lines.reduce((sum, line) => sum + line.priceArs * line.quantity, 0);
   const wholesaleShippingSettings = buildWholesaleShippingSettings(shippingRule, settings.freeShippingThresholdArs);
@@ -166,9 +160,35 @@ export async function createWholesaleOrder(payload: unknown) {
     customerShippingPriceArs: "shippingPriceArs" in customer ? (customer.shippingPriceArs ?? null) : null,
     selection: input.shipping,
   });
+  if (input.paymentMethod === "DEFERRED") {
+    if (!customer.allowDeferredPayment) {
+      throw new AppError("El pago posterior a la entrega no está habilitado para tu cuenta. Elegí otro medio de pago.", 400, true);
+    }
+    if (deliveryAddressChanged) {
+      throw new AppError("El pago posterior a la entrega solo está disponible para tu dirección habitual. Elegí otro medio de pago o usá esa dirección.", 400, true);
+    }
+  }
   const shippingQuote = logistics.enabled
     ? calculateShippingQuote(subtotalArs, input.delivery.province, wholesaleShippingSettings, subtotalArs, logistics.option.carrierPriceArs)
     : provinceShippingQuote;
+  // Retiro en sucursal: el pedido (planilla, app, mail) lleva la dirección de la sucursal.
+  const branch = logistics.enabled ? logistics.branch : null;
+  const orderAddress = branch
+    ? {
+        locality: branch.locality || input.delivery.city,
+        postalCode: /^\d{4,8}$/.test(branch.postalCode ?? "") ? branch.postalCode : input.delivery.postalCode,
+        addressLine: branch.address || input.delivery.street,
+        addressExtra: [`Retira en sucursal ${logistics.enabled && logistics.option.carrier === "CORREO_AR" ? "Correo Argentino" : "Andreani"}: ${branch.name}`, input.delivery.reference]
+          .filter(Boolean)
+          .join(" · ")
+          .slice(0, 200),
+      }
+    : {
+        locality: input.delivery.city,
+        postalCode: input.delivery.postalCode,
+        addressLine: input.delivery.street,
+        addressExtra: [input.delivery.floor, input.delivery.reference].filter(Boolean).join(" · ") || null,
+      };
   const pricing = calculateWholesalePricing({
     lines,
     extraDiscountPercentage: Number(customer.extraDiscountPercentage),
@@ -208,10 +228,10 @@ export async function createWholesaleOrder(payload: unknown) {
             customerBusinessName: customer.legalName || customer.businessName,
             customerTaxCondition: input.taxCondition,
             province: input.delivery.province,
-            locality: input.delivery.city,
-            postalCode: input.delivery.postalCode,
-            addressLine: input.delivery.street,
-            addressExtra: [input.delivery.floor, input.delivery.reference].filter(Boolean).join(" · ") || null,
+            locality: orderAddress.locality,
+            postalCode: orderAddress.postalCode,
+            addressLine: orderAddress.addressLine,
+            addressExtra: orderAddress.addressExtra,
             notes: input.notes,
             extraDiscountPercentage: pricing.extraDiscountArs > 0 ? pricing.extraDiscountPercentage : null,
             extraDiscountArs: pricing.extraDiscountArs,

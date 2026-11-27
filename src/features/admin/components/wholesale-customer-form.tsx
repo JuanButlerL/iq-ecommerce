@@ -212,10 +212,10 @@ export function WholesaleCustomerForm({ customerId, leadId, initialValues, busin
             onChange={(event) => set("active", event.target.checked)}
           />
         </div>
-        <Field label="Logística" hint="Vacío = la decide la tabla de códigos postales (reparto propio o Andreani/Correo).">
+        <Field label="Logística" hint="Según el código postal = reparto propio en las zonas de la tabla, Andreani/Correo en el resto. Reparto propio habilitado = en el checkout puede elegir reparto propio además de Andreani/Correo.">
           <Select value={values.preferredCarrier} onChange={(event) => set("preferredCarrier", event.target.value as WholesaleCustomerFormValues["preferredCarrier"])}>
             <option value="">Según el código postal</option>
-            <option value="OWN">Reparto propio</option>
+            <option value="OWN">Reparto propio habilitado (también puede elegir Andreani)</option>
             <option value="ANDREANI">Andreani</option>
             <option value="CORREO_AR">Correo Argentino</option>
           </Select>

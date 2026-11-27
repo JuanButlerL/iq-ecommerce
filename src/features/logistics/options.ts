@@ -169,18 +169,18 @@ async function computeShippingOptions(input: ShippingOptionsInput): Promise<Ship
 
   const zonePrice = zone ? (input.channel === "WHOLESALE" ? zone.wholesalePriceArs ?? zone.priceArs : zone.priceArs) : null;
 
-  // 1. Cliente mayorista con logística fija.
+  // 1. Cliente mayorista con reparto propio habilitado: va primero y también puede elegir Andreani/Correo.
   if (input.preferredCarrier === "OWN") {
     options.push(
       zone
         ? ownOption(zonePrice ?? 0, "OWN_ZONE", zone.name, { min: zone.deliveryDaysMin, max: zone.deliveryDaysMax })
         : ownOption(input.fallbackPriceArs, "FALLBACK", null),
     );
-    return { enabled: true, options, dispatchDate, postalCodeKnown: true };
   }
 
   // 2. CP de reparto propio.
-  if (zone && !input.preferredCarrier) {
+  if (zone && (!input.preferredCarrier || input.preferredCarrier === "OWN")) {
+    if (input.preferredCarrier === "OWN") return { enabled: true, options, dispatchDate, postalCodeKnown: true };
     options.push(ownOption(zonePrice ?? 0, "OWN_ZONE", zone.name, { min: zone.deliveryDaysMin, max: zone.deliveryDaysMax }));
     return { enabled: true, options, dispatchDate, postalCodeKnown: true };
   }
@@ -188,7 +188,7 @@ async function computeShippingOptions(input: ShippingOptionsInput): Promise<Ship
   // 3. Andreani y Correo.
   const availability = carrierAvailability(settings);
   const carriers: CarrierCode[] = (["ANDREANI", "CORREO_AR"] as CarrierCode[]).filter(
-    (code) => availability[code] && (!input.preferredCarrier || input.preferredCarrier === code),
+    (code) => availability[code] && (!input.preferredCarrier || input.preferredCarrier === "OWN" || input.preferredCarrier === code),
   );
   const warehouse = await getDefaultWarehouse();
   const pkg = computePackage(input.lines, settings);

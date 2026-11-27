@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { calculateShippingQuote } from "@/features/cart/lib/shipping";
-import { ShippingPicker, useShippingOptions, type ShippingSelectionValue } from "@/features/logistics/components/shipping-picker";
+import { ShippingPicker, useShippingOptions, type Branch, type ShippingSelectionValue } from "@/features/logistics/components/shipping-picker";
+import { usePostalCodeInfo } from "@/features/logistics/components/use-postal-code";
 import { AddressMapPreview, buildAddressPreview } from "@/features/checkout/components/address-map-preview";
 import { FieldShell } from "@/features/checkout/components/field-shell";
 import { PaymentOptionCard } from "@/features/checkout/components/payment-option-card";
@@ -100,6 +101,11 @@ function deliveryFrom(customer: WholesaleCustomerProfile): Delivery {
     postalCode: customer.postalCode,
     reference: customer.reference ?? "",
   };
+}
+
+// "SAN ISIDRO" -> "San Isidro" (la tabla de CP viene en mayúsculas).
+function titleCase(value: string) {
+  return value.toLowerCase().replace(/(^|[\s(-])(\p{L})/gu, (_, sep: string, letter: string) => sep + letter.toUpperCase());
 }
 
 function customerLabel(customer: WholesaleCustomerProfile) {
@@ -341,6 +347,17 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
   // Integración logística: la logística del cliente (si tiene una cargada) o la tabla de CP.
   const [shippingSelection, setShippingSelection] = useState<ShippingSelectionValue | null>(null);
   const [shippingError, setShippingError] = useState<string | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  // Igual que en la tienda: la provincia (y la localidad si el CP tiene una sola) salen del CP.
+  const postalInfo = usePostalCodeInfo(delivery.postalCode);
+  useEffect(() => {
+    if (postalInfo.status !== "found" || !postalInfo.province) return;
+    setDelivery((current) => ({
+      ...current,
+      province: postalInfo.province ?? current.province,
+      city: !current.city.trim() && postalInfo.localities.length === 1 ? titleCase(postalInfo.localities[0]) : current.city,
+    }));
+  }, [postalInfo.status, postalInfo.province, postalInfo.localities]);
   const shippingItems = useMemo(
     () =>
       availableLines.map((line) => ({
@@ -363,6 +380,8 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     shippingState.status === "ready"
       ? shippingState.options.find((option) => option.carrier === shippingSelection?.carrier && option.deliveryType === shippingSelection?.deliveryType) ?? null
       : null;
+  // Retiro en sucursal: no se piden calle ni altura (el pedido lleva la dirección de la sucursal).
+  const isBranchPickup = selectedShippingOption?.deliveryType === "BRANCH";
   const shippingQuote = delivery.province
     ? calculateShippingQuote(
         subtotalArs,
@@ -492,10 +511,12 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
     if (!delivery.phone.trim()) checkoutErrors.phone = "Completá el teléfono.";
     else if (delivery.phone.replace(/\D/g, "").length < 8) checkoutErrors.phone = "Revisá el teléfono: tiene que tener al menos 8 números.";
     if (!delivery.province) checkoutErrors.province = "Elegí la provincia.";
-    if (!delivery.city.trim()) checkoutErrors.city = "Completá la localidad.";
     if (!delivery.postalCode.trim()) checkoutErrors.postalCode = "Completá el código postal.";
-    if (!delivery.street.trim()) checkoutErrors.street = "Completá la calle.";
-    if (!delivery.withoutNumber && !delivery.number.trim()) checkoutErrors.number = "Completá la altura.";
+    if (!isBranchPickup) {
+      if (!delivery.city.trim()) checkoutErrors.city = "Completá la localidad.";
+      if (!delivery.street.trim()) checkoutErrors.street = "Completá la calle.";
+      if (!delivery.withoutNumber && !delivery.number.trim()) checkoutErrors.number = "Completá la altura.";
+    }
     if (!paymentMethod) checkoutErrors.payment = "Elegí cómo vas a pagar.";
   }
   const errorKeys = Object.keys(checkoutErrors) as CheckoutErrorKey[];
@@ -602,9 +623,10 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
       delivery: {
         contactName: delivery.contactName,
         phone: delivery.phone,
-        street: fullStreet,
-        floor: delivery.floor,
-        city: delivery.city,
+        // Con sucursal, el servidor guarda la dirección oficial de la sucursal elegida.
+        street: isBranchPickup ? fullStreet.trim() || selectedBranch?.address || "Retiro en sucursal" : fullStreet,
+        floor: isBranchPickup ? "" : delivery.floor,
+        city: isBranchPickup ? delivery.city.trim() || selectedBranch?.locality || delivery.province : delivery.city,
         province: delivery.province,
         postalCode: delivery.postalCode,
         reference: delivery.reference,
@@ -1008,19 +1030,28 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
           </Step>
 
           <Step id="w-step-3" number={3} title={STEP_TITLES[2]} status={stepStatus(3)} summary={stepSummaries[3]} onEdit={() => openStep(3)}>
-            <p className="-mt-3 mb-4 text-sm text-brand-ink/60">Completalos tal como deben figurar en el envío.</p>
+            <p className="-mt-3 mb-4 text-sm text-brand-ink/60">Poné el código postal y elegí cómo te llega.</p>
             <ErrorSummary
               className="mb-4"
               show={Boolean(errors.contactName || errors.phone || errors.province || errors.city || errors.postalCode || errors.street || errors.number)}
             />
             <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
-              <FieldShell label="Quién recibe" className="md:col-span-2" error={errors.contactName}>
-                <Input id="w-contact" aria-invalid={errors.contactName ? "true" : "false"} autoComplete="name" placeholder="Nombre y apellido" value={delivery.contactName} onChange={(event) => updateDelivery("contactName", event.target.value)} required />
+              <FieldShell label="Código postal" error={errors.postalCode}>
+                <Input id="w-postal" aria-invalid={errors.postalCode ? "true" : "false"} placeholder="Ej: 1425" autoComplete="postal-code" inputMode="numeric" value={delivery.postalCode} onChange={(event) => updateDelivery("postalCode", event.target.value)} required />
+                {postalInfo.status === "found" && postalInfo.province ? (
+                  <p className="mt-1.5 text-xs font-semibold text-brand-ink/60">
+                    {postalInfo.localities.length === 1 ? `${titleCase(postalInfo.localities[0])}, ` : ""}
+                    {postalInfo.province}
+                  </p>
+                ) : postalInfo.status === "unknown" ? (
+                  <p className="mt-1.5 text-xs font-semibold text-brand-ink/60">No encontramos ese CP: elegí la provincia.</p>
+                ) : null}
               </FieldShell>
-              <FieldShell label="Teléfono / WhatsApp" error={errors.phone}>
-                <Input id="w-phone" aria-invalid={errors.phone ? "true" : "false"} type="tel" autoComplete="tel" placeholder="Ej: 11 2345 6789" value={delivery.phone} onChange={(event) => updateDelivery("phone", event.target.value)} required />
-              </FieldShell>
-              <FieldShell label="Provincia" error={errors.province}>
+              <FieldShell
+                label="Provincia"
+                error={errors.province}
+                className={postalInfo.status === "unknown" || !delivery.province || (postalInfo.status === "found" && !postalInfo.province) ? undefined : "hidden"}
+              >
                 <Select id="w-province" aria-invalid={errors.province ? "true" : "false"} autoComplete="address-level1" value={delivery.province} onChange={(event) => updateDelivery("province", event.target.value)} required>
                   <option value="">Elegí una provincia</option>
                   {ARGENTINA_PROVINCES.map((province) => (
@@ -1033,11 +1064,35 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                   ) : null}
                 </Select>
               </FieldShell>
+            </div>
+            <div className="mt-4">
+              <ShippingPicker
+                state={shippingState}
+                value={shippingSelection}
+                onChange={(next) => {
+                  setShippingSelection(next);
+                  setShippingError(null);
+                  if (next?.deliveryType !== "BRANCH") setSelectedBranch(null);
+                }}
+                onBranchChange={setSelectedBranch}
+                postalCode={delivery.postalCode}
+                province={delivery.province}
+                freeShipping={Boolean(shippingQuote?.freeShippingReached)}
+                error={shippingError}
+              />
+            </div>
+            <p className="mb-3 mt-5 text-sm font-extrabold text-brand-ink">{isBranchPickup ? "Quién retira" : "Datos de entrega"}</p>
+            <div className="grid gap-x-4 gap-y-3 md:grid-cols-3">
+              <FieldShell label="Quién recibe" className="md:col-span-2" error={errors.contactName}>
+                <Input id="w-contact" aria-invalid={errors.contactName ? "true" : "false"} autoComplete="name" placeholder="Nombre y apellido" value={delivery.contactName} onChange={(event) => updateDelivery("contactName", event.target.value)} required />
+              </FieldShell>
+              <FieldShell label="Teléfono / WhatsApp" error={errors.phone}>
+                <Input id="w-phone" aria-invalid={errors.phone ? "true" : "false"} type="tel" autoComplete="tel" placeholder="Ej: 11 2345 6789" value={delivery.phone} onChange={(event) => updateDelivery("phone", event.target.value)} required />
+              </FieldShell>
+              {!isBranchPickup ? (
+                <>
               <FieldShell label="Localidad" error={errors.city}>
                 <Input id="w-city" aria-invalid={errors.city ? "true" : "false"} placeholder="Ej: Vicente López" autoComplete="address-level2" value={delivery.city} onChange={(event) => updateDelivery("city", event.target.value)} required />
-              </FieldShell>
-              <FieldShell label="Código postal" error={errors.postalCode}>
-                <Input id="w-postal" aria-invalid={errors.postalCode ? "true" : "false"} placeholder="Ej: 1425" autoComplete="postal-code" inputMode="numeric" value={delivery.postalCode} onChange={(event) => updateDelivery("postalCode", event.target.value)} required />
               </FieldShell>
               <FieldShell label="Calle" className={delivery.withoutNumber ? "md:col-span-3" : "md:col-span-2"} error={errors.street}>
                 <Input id="w-street" aria-invalid={errors.street ? "true" : "false"} placeholder="Ej: Calle 11 o Amenábar" autoComplete="address-line1" value={delivery.street} onChange={(event) => updateDelivery("street", event.target.value)} required />
@@ -1074,6 +1129,8 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                 </div>
               ) : null}
 
+                </>
+              ) : null}
               <div className="md:col-span-3">
                 <FieldShell label="Observaciones">
                   <Textarea
@@ -1084,20 +1141,6 @@ export function WholesaleCheckout({ products, settings, shippingRule, businessTy
                   />
                 </FieldShell>
               </div>
-            </div>
-            <div className="mt-4">
-              <ShippingPicker
-                state={shippingState}
-                value={shippingSelection}
-                onChange={(next) => {
-                  setShippingSelection(next);
-                  setShippingError(null);
-                }}
-                postalCode={delivery.postalCode}
-                province={delivery.province}
-                freeShipping={Boolean(shippingQuote?.freeShippingReached)}
-                error={shippingError}
-              />
             </div>
             {customer && addressChanged ? (
               <p className="mt-4 rounded-2xl bg-brand-yellow/40 px-4 py-3 text-sm text-brand-ink">
