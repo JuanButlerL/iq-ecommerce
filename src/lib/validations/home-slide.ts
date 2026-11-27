@@ -8,13 +8,13 @@ const optionalText = (field: string, max: number) =>
     .optional()
     .or(z.literal(""));
 
-// Internal paths ("/productos/x", "/#productos") or absolute http(s) URLs.
+// Internal paths ("/productos/x", "/#productos"), anchors on the same page ("#productos") or absolute http(s) URLs.
 const linkUrl = z
   .string()
   .trim()
   .max(300, "Link del botón: máximo 300 caracteres.")
-  .refine((value) => value === "" || value.startsWith("/") || /^https?:\/\//i.test(value), {
-    message: "El link del botón debe empezar con / o con http(s)://",
+  .refine((value) => value === "" || value.startsWith("/") || value.startsWith("#") || /^https?:\/\//i.test(value), {
+    message: "El link del botón debe empezar con /, # o http(s)://",
   });
 
 // <input type="datetime-local"> value ("2026-11-01T09:00"), read as Argentina time.
