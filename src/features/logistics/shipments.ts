@@ -387,6 +387,11 @@ export async function notifyCustomer(shipmentId: string) {
     orderUrl,
     summary: {
       items: order.items.map((item) => ({ name: item.productNameSnapshot, quantity: item.quantity, totalArs: item.lineTotalArs })),
+      discounts: [
+        { label: order.couponCode ? `Cupón ${order.couponCode}` : "Descuento", amountArs: order.discountArs ?? 0 },
+        { label: "Descuento especial", amountArs: order.extraDiscountArs ?? 0 },
+        { label: "Descuento por transferencia", amountArs: order.paymentMethodDiscountArs ?? 0 },
+      ],
       shippingArs: order.shippingArs,
       totalArs: order.totalArs,
     },
